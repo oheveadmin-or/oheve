@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invitation Editor - Claude Vision</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <h1>Invitation Editor</h1>
+        <p>
+          Charge une invitation, demande a Claude Vision de detecter les zones texte,
+          puis edite le resultat en overlay.
+        </p>
+      </header>
+
+      <section class="controls-grid">
+        <article class="card">
+          <h2>1) Configuration API</h2>
+          <label for="apiKey">Anthropic API Key</label>
+          <input
+            id="apiKey"
+            type="password"
+            autocomplete="off"
+            placeholder="sk-ant-..."
+          />
+
+          <label for="modelName">Modele Claude</label>
+          <input
+            id="modelName"
+            type="text"
+            value="claude-3-5-sonnet-latest"
+            autocomplete="off"
+          />
+
+          <label for="customPrompt">Prompt Vision (optionnel)</label>
+          <textarea
+            id="customPrompt"
+            rows="6"
+            placeholder="Instructions supplementaires pour extraire le texte..."
+          ></textarea>
+        </article>
+
+        <article class="card">
+          <h2>2) Image source</h2>
+          <label for="imageInput">Selectionne l'image d'invitation</label>
+          <input id="imageInput" type="file" accept="image/*" />
+
+          <div class="button-row">
+            <button id="analyzeBtn" type="button">Analyser avec Claude Vision</button>
+            <button id="resetBtn" type="button" class="secondary">Reinitialiser</button>
+          </div>
+
+          <p id="status" class="status">Pret.</p>
+          <details class="api-details">
+            <summary>Details API (reference)</summary>
+            <ul>
+              <li>URL: <code>https://api.anthropic.com/v1/messages</code></li>
+              <li>Headers: <code>x-api-key</code>, <code>anthropic-version</code>, <code>content-type</code></li>
+              <li>Body: <code>messages[0].content = [image, text]</code></li>
+            </ul>
+          </details>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <article class="card preview-card">
+          <h2>3) Preview + overlays</h2>
+          <div id="canvasContainer" class="canvas-container">
+            <img id="previewImage" alt="Apercu invitation" />
+            <div id="overlayLayer" class="overlay-layer"></div>
+          </div>
+        </article>
+
+        <article class="card panel-card">
+          <h2>4) Overlays detectes</h2>
+          <p class="hint">
+            Les positions sont stockees en pourcentage, puis converties en pixels pour l'affichage.
+          </p>
+          <div id="overlayList" class="overlay-list"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

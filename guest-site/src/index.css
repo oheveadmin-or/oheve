@@ -1,0 +1,116 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, sans-serif;
+  background: #faf8ff;
+  color: #1e1b4b;
+  line-height: 1.5;
+}
+a {
+  color: #5b4fd6;
+}
+
+@keyframes weddingFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wedding-fade-in {
+  animation: weddingFade 0.55s ease-out forwards;
+}
+
+.wedding-builder-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 480px);
+  gap: 1.75rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 3rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .wedding-builder-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wedding-builder-preview {
+    position: static !important;
+    order: -1;
+  }
+}
+
+.wedding-builder-preview {
+  position: sticky;
+  top: 12px;
+  min-height: 200px;
+}
+
+.wedding-preview-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.wedding-preview-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #5b4fd6;
+}
+
+.wedding-preview-frame {
+  max-height: min(78vh, 920px);
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid #e0daf5;
+  box-shadow: 0 20px 50px rgba(60, 44, 133, 0.12);
+  background: #fff;
+}
+
+@media (max-width: 720px) {
+  .wedding-modern-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .wedding-countdown-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .wedding-nav-links {
+    display: none !important;
+  }
+
+  .wedding-mobile-nav-btn {
+    display: inline-block !important;
+  }
+}
+
+@keyframes rsvpSuccessPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.02) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.rsvp-success-pop {
+  animation: rsvpSuccessPop 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+

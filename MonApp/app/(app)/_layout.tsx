@@ -1,0 +1,77 @@
+import * as Notifications from 'expo-notifications';
+import { router, Stack } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
+
+import { useAuth } from '@/contexts/auth-context';
+import { messagingApi } from '@/services/auth/api';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+async function registerForPushNotifications(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  let finalStatus = existing;
+  if (existing !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  if (finalStatus !== 'granted') return null;
+  try {
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    return tokenData.data;
+  } catch {
+    return null;
+  }
+}
+
+export default function AppLayout() {
+  const { user } = useAuth();
+  const responseListenerRef = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
+
+  useEffect(() => {
+    if (!user?.accessToken) return;
+
+    registerForPushNotifications().then((token) => {
+      if (!token) return;
+      messagingApi.registerPushToken(user.accessToken, token, Platform.OS).catch(() => {});
+    });
+
+    responseListenerRef.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const convId = response.notification.request.content.data?.conversationId;
+      if (convId) router.push(`/(app)/messages/${convId}` as never);
+    });
+
+    return () => {
+      responseListenerRef.current?.remove();
+    };
+  }, [user?.accessToken]);
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="providers" />
+      <Stack.Screen name="wedding-card/index" />
+      <Stack.Screen name="wedding-card/editor" />
+      <Stack.Screen name="wedding-card/templates" />
+      <Stack.Screen name="planning-day" />
+      <Stack.Screen name="acte-mariage" />
+      <Stack.Screen name="public-site/create" />
+      <Stack.Screen name="seating-plan" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="messages/[id]" />
+      <Stack.Screen name="admin/index" />
+      <Stack.Screen name="prestataire/setup" />
+      <Stack.Screen name="prestataire/profile-edit" />
+    </Stack>
+  );
+}

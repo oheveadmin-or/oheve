@@ -1,0 +1,47 @@
+import path from 'path';
+import { Router } from 'express';
+import multer from 'multer';
+
+import { requireAuth } from '../middleware/requireAuth';
+import { ConnexionInscriptionController } from './controller';
+
+export const connexionInscriptionRoutes = Router();
+const ctrl = new ConnexionInscriptionController();
+
+const avatarStorage = multer.diskStorage({
+  destination: path.join(process.cwd(), 'uploads', 'avatars'),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `avatar_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
+  },
+});
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Seules les images sont acceptées'));
+  },
+});
+
+// Public
+connexionInscriptionRoutes.post('/send-otp', ctrl.sendOtp.bind(ctrl));
+connexionInscriptionRoutes.post('/inscription', ctrl.inscription.bind(ctrl));
+connexionInscriptionRoutes.post('/connexion', ctrl.connexion.bind(ctrl));
+connexionInscriptionRoutes.post('/forgot-password', ctrl.forgotPassword.bind(ctrl));
+connexionInscriptionRoutes.post('/reset-password', ctrl.resetPassword.bind(ctrl));
+connexionInscriptionRoutes.post('/social', ctrl.socialAuth.bind(ctrl));
+connexionInscriptionRoutes.post('/refresh', ctrl.refresh.bind(ctrl));
+connexionInscriptionRoutes.post('/create-admin', ctrl.createAdmin.bind(ctrl));
+
+// Onboarding (public — pas encore de token stable en onboarding)
+connexionInscriptionRoutes.patch('/date-mariage', ctrl.mettreAJourDateMariage.bind(ctrl));
+connexionInscriptionRoutes.patch('/budget', ctrl.mettreAJourBudget.bind(ctrl));
+connexionInscriptionRoutes.patch('/wedding-location', ctrl.mettreAJourWeddingLocation.bind(ctrl));
+
+// Protected
+connexionInscriptionRoutes.post('/logout', requireAuth, ctrl.logout.bind(ctrl));
+connexionInscriptionRoutes.get('/me', requireAuth, ctrl.me.bind(ctrl));
+connexionInscriptionRoutes.patch('/profile', requireAuth, ctrl.updateProfile.bind(ctrl));
+connexionInscriptionRoutes.post('/avatar', requireAuth, uploadAvatar.single('avatar'), ctrl.uploadAvatar.bind(ctrl));
+connexionInscriptionRoutes.patch('/change-password', requireAuth, ctrl.changePassword.bind(ctrl));

@@ -1,0 +1,116 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+
+import { ThemedText } from '@/components/themed-text';
+
+type QuickActionsSheetProps = {
+  visible: boolean;
+  onClose: () => void;
+};
+
+const ACTIONS = [
+  { label: 'Prestataires', icon: 'people-outline', route: '/(app)/(tabs)/providers' },
+  { label: 'To-do', icon: 'checkbox-outline', route: '/(app)/(tabs)/todo' },
+  { label: 'Invités', icon: 'person-add-outline', route: '/(app)/(tabs)/guests' },
+  { label: 'Budget', icon: 'wallet-outline', route: '/(app)/(tabs)/budget' },
+  { label: 'Carte de mariage', icon: 'card-outline', route: '/(app)/wedding-card' },
+  { label: 'Planning jour J', icon: 'calendar-outline', route: '/(app)/planning-day' },
+  { label: 'Placement de table', icon: 'grid-outline', route: '/(app)/seating-plan' },
+] as const;
+
+export function QuickActionsSheet({ visible, onClose }: QuickActionsSheetProps) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+          <View style={styles.handle} />
+          <View style={styles.content}>
+          <ThemedText style={styles.title}>Ajouter rapidement</ThemedText>
+          {ACTIONS.map((action) => (
+            <Pressable
+              key={action.label}
+              style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+              onPress={() => {
+                onClose();
+                router.push(action.route as never);
+              }}
+            >
+              <View style={styles.itemLeft}>
+                <View style={styles.iconDot}>
+                  <Ionicons name={action.icon} size={16} color="#A7AD9A" />
+                </View>
+                <ThemedText style={styles.itemLabel}>{action.label}</ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#A09890" />
+            </Pressable>
+          ))}
+          <Pressable style={styles.cancelBtn} onPress={onClose}>
+            <ThemedText style={styles.cancelText}>Fermer</ThemedText>
+          </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(24, 18, 44, 0.28)',
+  },
+  sheet: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    shadowColor: '#3D3530',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 10,
+  },
+  handle: {
+    width: 56,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#d6d3f5',
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  content: { paddingHorizontal: 18, paddingBottom: 18, gap: 10 },
+  title: { fontSize: 30, fontWeight: '700', marginBottom: 6 },
+  item: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  itemPressed: { opacity: 0.85 },
+  itemLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#f3f1ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemLabel: { fontSize: 16, fontWeight: '500' },
+  cancelBtn: {
+    borderRadius: 14,
+    backgroundColor: '#f3f1ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    marginTop: 4,
+  },
+  cancelText: { color: '#A7AD9A', fontSize: 16, fontWeight: '700' },
+});

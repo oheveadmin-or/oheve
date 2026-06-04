@@ -1,0 +1,103 @@
+import { pool } from '../config/database';
+
+export interface PrestaProfileRow {
+  id: number;
+  user_id: number;
+  business_name: string;
+  category: string;
+  description?: string;
+  location_city?: string;
+  location_country?: string;
+  price_min?: number;
+  price_max?: number;
+  website_url?: string;
+  instagram_url?: string;
+  is_verified: boolean;
+  rating: number;
+  reviews_count: number;
+  created_at: string;
+  // joined fields
+  email?: string;
+  nom?: string;
+  prenom?: string;
+  avatar_url?: string;
+}
+
+export class PrestatairesRepository {
+  async upsert(userId: number, data: {
+    business_name: string;
+    category: string;
+    description?: string;
+    location_city?: string;
+    location_country?: string;
+    price_min?: number;
+    price_max?: number;
+    website_url?: string;
+    instagram_url?: string;
+  }) {
+    const r = await pool.query(
+      `INSERT INTO prestataire_profiles
+         (user_id,business_name,category,description,location_city,location_country,
+          price_min,price_max,website_url,instagram_url,updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         business_name=EXCLUDED.business_name,
+         category=EXCLUDED.category,
+         description=EXCLUDED.description,
+         location_city=EXCLUDED.location_city,
+         location_country=EXCLUDED.location_country,
+         price_min=EXCLUDED.price_min,
+         price_max=EXCLUDED.price_max,
+         website_url=EXCLUDED.website_url,
+         instagram_url=EXCLUDED.instagram_url,
+         updated_at=NOW()
+       RETURNING *`,
+      [userId, data.business_name, data.category, data.description ?? null,
+       data.location_city ?? null, data.location_country ?? 'France',
+       data.price_min ?? null, data.price_max ?? null,
+       data.website_url ?? null, data.instagram_url ?? null]
+    );
+    return r.rows[0] as PrestaProfileRow;
+  }
+
+  async findByUserId(userId: number): Promise<PrestaProfileRow | null> {
+    const r = await pool.query(
+      `SELECT p.*,u.email,u.nom,u.prenom,u.avatar_url
+       FROM prestataire_profiles p
+       JOIN users u ON u.id=p.user_id
+       WHERE p.user_id=$1`,
+      [userId]
+    );
+    return r.rows[0] ?? null;
+  }
+
+  async list(category?: string, city?: string, limit = 50, offset = 0) {
+    const conditions: string[] = [];
+    const vals: unknown[] = [];
+    let i = 1;
+    if (category) { conditions.push(`p.category=$${i++}`); vals.push(category); }
+    if (city) { conditions.push(`p.location_city ILIKE $${i++}`); vals.push(`%${city}%`); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    vals.push(limit, offset);
+    const r = await pool.query(
+      `SELECT p.*,u.email,u.nom,u.prenom,u.avatar_url,
+              u.role AS user_role,u.subscription_plan,u.subscription_status
+       FROM prestataire_profiles p
+       JOIN users u ON u.id=p.user_id
+       ${where}
+       ORDER BY
+         CASE WHEN u.subscription_plan='plus' AND u.subscription_status='active' THEN 0
+              WHEN u.subscription_plan='basic' AND u.subscription_status='active' THEN 1
+              ELSE 2 END,
+         p.rating DESC,
+         p.created_at DESC
+       LIMIT $${i++} OFFSET $${i}`,
+      vals
+    );
+    return r.rows as (PrestaProfileRow & { user_role?: string; subscription_plan?: string; subscription_status?: string })[];
+  }
+
+  async setVerified(userId: number, verified: boolean) {
+    await pool.query(`UPDATE prestataire_profiles SET is_verified=$1 WHERE user_id=$2`, [verified, userId]);
+  }
+}
