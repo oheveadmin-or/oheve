@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
@@ -9,7 +10,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-});
+} as any);
 
 const FROM = process.env.SMTP_FROM ?? `"The Event Wedding" <${process.env.SMTP_USER}>`;
 
