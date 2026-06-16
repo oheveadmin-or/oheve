@@ -52,6 +52,13 @@ const USERS_ADD_COLS = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'inactive'`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_started_at TIMESTAMP WITH TIME ZONE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMP WITH TIME ZONE`,
+  // ── Noms du couple (futurs mariés) ─────────────────────────────────────────
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS bride_name VARCHAR(100)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS groom_name VARCHAR(100)`,
+  // ── Oheve Premium (paiement unique 50€) ────────────────────────────────────
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_purchased_at TIMESTAMP WITH TIME ZONE`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_stripe_payment_intent_id TEXT`,
 ];
 
 // ── refresh_tokens ────────────────────────────────────────────────────────────
@@ -258,7 +265,196 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
-    console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp)');
+    // ── Payments & Stripe Connect ─────────────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id                        SERIAL PRIMARY KEY,
+        conversation_id           INT REFERENCES conversations(id) ON DELETE SET NULL,
+        client_id                 INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        prestataire_id            INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        stripe_payment_intent_id  TEXT UNIQUE,
+        stripe_transfer_id        TEXT,
+        amount_total              INT NOT NULL,
+        commission_amount         INT NOT NULL,
+        net_amount                INT NOT NULL,
+        currency                  VARCHAR(3) NOT NULL DEFAULT 'eur',
+        status                    VARCHAR(30) NOT NULL DEFAULT 'pending',
+        description               TEXT,
+        created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stripe_connect_accounts (
+        id                  SERIAL PRIMARY KEY,
+        user_id             INT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        stripe_account_id   TEXT UNIQUE,
+        onboarding_complete BOOLEAN NOT NULL DEFAULT FALSE,
+        payouts_enabled     BOOLEAN NOT NULL DEFAULT FALSE,
+        charges_enabled     BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS devis (
+        id                SERIAL PRIMARY KEY,
+        conversation_id   INT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        sender_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        titre             TEXT NOT NULL,
+        services          JSONB NOT NULL DEFAULT '[]',
+        montant_ht        NUMERIC(10,2) NOT NULL,
+        tva_percent       NUMERIC(5,2) NOT NULL DEFAULT 20,
+        montant_ttc       NUMERIC(10,2) NOT NULL,
+        validite_jours    INT NOT NULL DEFAULT 30,
+        notes             TEXT,
+        status            VARCHAR(20) NOT NULL DEFAULT 'envoye',
+        created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_type VARCHAR(20) NOT NULL DEFAULT 'text'`);
+    await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS devis_id INT REFERENCES devis(id) ON DELETE SET NULL`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_client ON payments(client_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_presta ON payments(prestataire_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_devis_conv ON devis(conversation_id)`);
+
+    // ── Admin : suspension prestataires, masquage annonces ───────────────────
+    await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE public_sites ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT false`);
+
+    // ── Réservations ─────────────────────────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reservations (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        prestataire_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        event_date DATE,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        amount_cents INTEGER DEFAULT 0,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_reservations_client ON reservations(client_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_reservations_presta ON reservations(prestataire_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_reservations_status ON reservations(status)`);
+
+    // ── Calendrier couple & disponibilités prestataires ─────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS calendar_events (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(20) NOT NULL,
+        title VARCHAR(200) NOT NULL,
+        description TEXT,
+        event_date DATE,
+        event_time TIME,
+        prestataire_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        appointment_request_id INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_calendar_events_user ON calendar_events(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON calendar_events(event_date)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS provider_availability_settings (
+        prestataire_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        working_days JSONB NOT NULL DEFAULT '[1,2,3,4,5]',
+        work_start TIME NOT NULL DEFAULT '09:00',
+        work_end TIME NOT NULL DEFAULT '18:00',
+        slot_duration_minutes INTEGER NOT NULL DEFAULT 60,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS provider_blocked_periods (
+        id SERIAL PRIMARY KEY,
+        prestataire_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        reason TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_blocked_periods_presta ON provider_blocked_periods(prestataire_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS appointment_requests (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        prestataire_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(200) NOT NULL,
+        requested_date DATE NOT NULL,
+        requested_time TIME NOT NULL,
+        proposed_date DATE,
+        proposed_time TIME,
+        notes TEXT,
+        status VARCHAR(30) NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_appt_client ON appointment_requests(client_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_appt_presta ON appointment_requests(prestataire_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_appt_status ON appointment_requests(status)`);
+
+    // ── Likes & commentaires photos ───────────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS photo_likes (
+        id SERIAL PRIMARY KEY,
+        photo_id INTEGER NOT NULL REFERENCES prestataire_photos(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(photo_id, user_id)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_photo_likes_photo ON photo_likes(photo_id)`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS photo_comments (
+        id SERIAL PRIMARY KEY,
+        photo_id INTEGER NOT NULL REFERENCES prestataire_photos(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        text TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_photo_comments_photo ON photo_comments(photo_id)`);
+
+    // ── Wedding Sites (web builder) ───────────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wedding_sites (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        slug        VARCHAR(200) NOT NULL UNIQUE,
+        couple_name VARCHAR(300) NOT NULL DEFAULT '',
+        groom_name  VARCHAR(150) NOT NULL DEFAULT '',
+        bride_name  VARCHAR(150) NOT NULL DEFAULT '',
+        date        VARCHAR(50)  NOT NULL DEFAULT '',
+        time        VARCHAR(10)  NOT NULL DEFAULT '',
+        city        VARCHAR(200) NOT NULL DEFAULT '',
+        venue       VARCHAR(300) NOT NULL DEFAULT '',
+        welcome_text TEXT        NOT NULL DEFAULT '',
+        main_text   TEXT         NOT NULL DEFAULT '',
+        language    VARCHAR(5)   NOT NULL DEFAULT 'fr',
+        theme       JSONB        NOT NULL DEFAULT '{}',
+        sections    JSONB        NOT NULL DEFAULT '{}',
+        content     JSONB        NOT NULL DEFAULT '{}',
+        rsvp_form   JSONB,
+        invite_links JSONB       NOT NULL DEFAULT '[]',
+        created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_wedding_sites_slug ON wedding_sites(slug)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_wedding_sites_user ON wedding_sites(user_id)`);
+
+    console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp, payments, stripe_connect, devis, reservations, calendar, admin, photo_likes, photo_comments)');
   } catch (err) {
     console.error('❌ Migration DB:', (err as Error).message);
   }

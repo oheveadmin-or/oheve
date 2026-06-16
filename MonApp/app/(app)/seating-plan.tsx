@@ -1,8 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Print from 'expo-print';
 import { router } from 'expo-router';
-import * as Sharing from 'expo-sharing';
-import { useCallback, useState } from 'react';
+import { PaywallModal } from '@/components/paywall-modal';
+import { PremiumGate } from '@/components/premium-gate';
+import { SeatingPlanExportModal } from '@/components/seating-plan/ExportModal';
+import { useAuth } from '@/contexts/auth-context';
+import { usePremiumAccess } from '@/hooks/use-premium-access';
+import type { SeatingPlanData, WeddingMeta } from '@/lib/seating-plan/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -34,6 +39,8 @@ type SeatingTable = {
   y: number;
   color: string;
   guestIds: string[];
+  tableWidthCm: number;
+  tableHeightCm: number;
 };
 
 type Guest = {
@@ -42,7 +49,7 @@ type Guest = {
   guestCount: number;
 };
 
-const COLORS = ['#A7AD9A', '#f472b6', '#34d399', '#fb923c', '#60a5fa', '#a78bfa', '#f59e0b', '#10b981'];
+const COLORS = ['#8F947F', '#C7B7A5', '#7B7063', '#A09480', '#B5A692', '#6B7060', '#C4B5A0', '#9A8C7E'];
 
 const DIMS: Record<TableShape, { w: number; h: number }> = {
   round: { w: 82, h: 82 },
@@ -214,15 +221,51 @@ function ShapeIcon({ shape, active }: { shape: TableShape; active: boolean }) {
 let nextTableId = 20;
 let nextGuestId = 100;
 
-const INITIAL_TABLES: SeatingTable[] = [];
+const STORAGE_KEY = 'seating_plan_v1';
 
-const INITIAL_GUESTS: Guest[] = [];
-
-export default function SeatingPlanScreen() {
+function SeatingPlanContent() {
   const insets = useSafeAreaInsets();
-  const [tables, setTables] = useState<SeatingTable[]>(INITIAL_TABLES);
-  const [guests, setGuests] = useState<Guest[]>(INITIAL_GUESTS);
+  const { hasPremiumAccess } = usePremiumAccess();
+  const { user } = useAuth();
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [tables, setTables] = useState<SeatingTable[]>([]);
+  const [guests, setGuests] = useState<Guest[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load on mount
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          if (data.tables) setTables(data.tables);
+          if (data.guests) setGuests(data.guests);
+          if (data.roomWidth) setRoomWidth(data.roomWidth);
+          if (data.roomHeight) setRoomHeight(data.roomHeight);
+          if (data.nextTableId) nextTableId = data.nextTableId;
+          if (data.nextGuestId) nextGuestId = data.nextGuestId;
+        } catch {}
+      }
+      setLoaded(true);
+    });
+  }, []);
+
+  // Auto-save (debounced 800ms) after load
+  useEffect(() => {
+    if (!loaded) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ tables, guests, roomWidth, roomHeight, nextTableId, nextGuestId })
+      );
+    }, 800);
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [tables, guests, roomWidth, roomHeight, loaded]);
 
   // Modals
   const [addTableModal, setAddTableModal] = useState(false);
@@ -232,6 +275,8 @@ export default function SeatingPlanScreen() {
   const [newTableName, setNewTableName] = useState('');
   const [newShape, setNewShape] = useState<TableShape>('round');
   const [newSeats, setNewSeats] = useState(8);
+  const [newTableW, setNewTableW] = useState('150');
+  const [newTableH, setNewTableH] = useState('150');
 
   // Add guest form (inside assign modal)
   const [showAddGuest, setShowAddGuest] = useState(false);
@@ -247,6 +292,9 @@ export default function SeatingPlanScreen() {
   const [roomHeight, setRoomHeight] = useState('');
   const [showRoomModal, setShowRoomModal] = useState(false);
 
+  // Paywall PDF
+  const [pdfPaywall, setPdfPaywall] = useState(false);
+
   const selected = tables.find((t) => t.id === selectedId) ?? null;
 
   const handleDragEnd = useCallback((id: string, x: number, y: number) => {
@@ -261,6 +309,13 @@ export default function SeatingPlanScreen() {
     const color = COLORS[tables.length % COLORS.length];
     const name = newTableName.trim() || `Table ${tables.length + 1}`;
     const { w } = DIMS[newShape];
+    const defaultDims: Record<TableShape, { w: number; h: number }> = {
+      round: { w: 150, h: 150 },
+      oval: { w: 180, h: 120 },
+      rect: { w: 200, h: 90 },
+    };
+    const wCm = parseFloat(newTableW) || defaultDims[newShape].w;
+    const hCm = parseFloat(newTableH) || defaultDims[newShape].h;
     nextTableId += 1;
     setTables((prev) => [
       ...prev,
@@ -273,11 +328,15 @@ export default function SeatingPlanScreen() {
         y: 80,
         color,
         guestIds: [],
+        tableWidthCm: wCm,
+        tableHeightCm: hCm,
       },
     ]);
     setNewTableName('');
     setNewShape('round');
     setNewSeats(8);
+    setNewTableW('150');
+    setNewTableH('150');
     setAddTableModal(false);
   };
 
@@ -336,186 +395,43 @@ export default function SeatingPlanScreen() {
     .reduce((s, g) => s + g.guestCount, 0);
   const totalPeople = guests.reduce((s, g) => s + g.guestCount, 0);
 
-  const handleExportPDF = async () => {
-    const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const weddingMeta: WeddingMeta = {
+    coupleName: user ? `${user.prenom} ${user.nom}`.trim() || 'Les mariés' : 'Les mariés',
+    weddingTitle: user ? `Mariage de ${user.prenom} ${user.nom}`.trim() : 'Notre mariage',
+    date: user?.date_mariage
+      ? new Date(user.date_mariage).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '',
+    location: user?.wedding_city || user?.wedding_address || user?.wedding_country || '',
+  };
 
-    const tableCards = tables.map((t) => {
-      const assignedGuests = t.guestIds
-        .map((gid) => guests.find((g) => g.id === gid))
-        .filter(Boolean) as Guest[];
-      const occupiedSeats = assignedGuests.reduce((s, g) => s + g.guestCount, 0);
-      const pct = t.seats > 0 ? Math.round((occupiedSeats / t.seats) * 100) : 0;
+  const exportData: SeatingPlanData = {
+    tables,
+    guests,
+    roomWidth: roomWidth || undefined,
+    roomHeight: roomHeight || undefined,
+    wedding: weddingMeta,
+  };
 
-      const shapeCSS =
-        t.shape === 'round'
-          ? 'border-radius:50%;'
-          : t.shape === 'oval'
-          ? 'border-radius:50%;width:90px;height:56px;'
-          : 'border-radius:8px;';
-
-      const guestRows = assignedGuests.length
-        ? assignedGuests
-            .map(
-              (g) =>
-                `<div class="guest-row"><span class="guest-dot" style="background:${t.color}"></span><span class="guest-name">${g.name}</span><span class="guest-count">${g.guestCount} pers.</span></div>`
-            )
-            .join('')
-        : `<div class="no-guest">Aucun invité assigné</div>`;
-
-      return `
-        <div class="table-card">
-          <div class="card-top" style="border-top:4px solid ${t.color}">
-            <div class="table-shape-wrap">
-              <div class="table-shape" style="${shapeCSS}background:${t.color}22;border:2.5px solid ${t.color};">
-                <span class="shape-label" style="color:${t.color}">${t.name.split(' ').slice(-1)[0]}</span>
-              </div>
-            </div>
-            <div class="card-info">
-              <div class="card-name">${t.name}</div>
-              <div class="card-meta">${shapeLabel(t.shape)} · ${t.seats} places</div>
-              <div class="progress-wrap">
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width:${pct}%;background:${t.color}"></div>
-                </div>
-                <span class="progress-txt" style="color:${t.color}">${occupiedSeats}/${t.seats}</span>
-              </div>
-            </div>
-          </div>
-          <div class="guests-list">${guestRows}</div>
-        </div>`;
-    }).join('');
-
-    const unassigned = guests.filter((g) => !tables.some((t) => t.guestIds.includes(g.id)));
-    const unassignedRows = unassigned.length
-      ? unassigned.map((g) => `<div class="guest-row"><span class="guest-dot" style="background:#9ca3af"></span><span class="guest-name">${g.name}</span><span class="guest-count">${g.guestCount} pers.</span></div>`).join('')
-      : '<div class="no-guest">Tous les invités sont placés ✓</div>';
-
-    const roomInfo = (roomWidth && roomHeight)
-      ? `<div class="room-info">📐 Dimensions de la salle : ${roomWidth} m × ${roomHeight} m · Surface : ${(parseFloat(roomWidth) * parseFloat(roomHeight)).toFixed(0)} m²</div>`
-      : '';
-
-    const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#F6F2EA;color:#3D3530;padding:40px 32px;}
-
-  /* ── Header ── */
-  .page-header{text-align:center;margin-bottom:40px;padding-bottom:32px;}
-  .logo-ring{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#A7AD9A,#7A8A72);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 4px 16px rgba(167,173,154,0.35);}
-  .logo-ring span{font-size:32px;}
-  .brand{font-size:11px;font-weight:700;letter-spacing:3px;color:#A7AD9A;text-transform:uppercase;margin-bottom:8px;}
-  h1{font-family:'Playfair Display',serif;font-size:32px;font-weight:800;color:#3D3530;letter-spacing:-0.5px;margin-bottom:6px;}
-  .subtitle{font-size:14px;color:#8B7F6E;margin-top:4px;}
-  .date{font-size:11px;color:#A09890;margin-top:8px;letter-spacing:0.5px;}
-  .divider{width:60px;height:2px;background:#CBBEAA;margin:16px auto 0;}
-
-  /* ── Room info ── */
-  .room-info{background:#fff;border:1px solid #E2D9CC;border-radius:12px;padding:12px 16px;font-size:13px;color:#6B6058;margin-bottom:24px;text-align:center;}
-
-  /* ── Stats ── */
-  .stats-row{display:flex;gap:12px;margin-bottom:32px;}
-  .stat{flex:1;text-align:center;padding:16px 8px;background:#fff;border:1px solid #E2D9CC;border-radius:16px;}
-  .stat-val{font-size:26px;font-weight:800;color:#A7AD9A;font-family:'Playfair Display',serif;}
-  .stat-lbl{font-size:11px;color:#A09890;margin-top:4px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;}
-
-  /* ── Section title ── */
-  .section-title{font-size:13px;font-weight:700;color:#8B7F6E;margin-bottom:16px;letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:10px;}
-  .section-title::after{content:'';flex:1;height:1px;background:#E2D9CC;}
-
-  /* ── Grid ── */
-  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:32px;}
-
-  /* ── Table card ── */
-  .table-card{border:1px solid #E2D9CC;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(139,127,110,0.06);}
-  .card-top{display:flex;gap:12px;padding:14px;background:#FAF8F4;border-bottom:1px solid #F0EAE0;}
-  .table-shape-wrap{display:flex;align-items:center;justify-content:center;width:64px;flex-shrink:0;}
-  .table-shape{width:56px;height:56px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
-  .shape-label{font-size:10px;font-weight:800;letter-spacing:0.5px;}
-  .card-info{flex:1;min-width:0;}
-  .card-name{font-size:15px;font-weight:700;color:#3D3530;margin-bottom:2px;}
-  .card-meta{font-size:11px;color:#A09890;margin-bottom:8px;letter-spacing:0.3px;}
-  .progress-wrap{display:flex;align-items:center;gap:8px;}
-  .progress-bar{flex:1;height:4px;background:#F0EAE0;border-radius:99px;overflow:hidden;}
-  .progress-fill{height:100%;border-radius:99px;}
-  .progress-txt{font-size:11px;font-weight:700;white-space:nowrap;}
-
-  /* ── Guest list ── */
-  .guests-list{padding:10px 14px;display:flex;flex-direction:column;gap:7px;}
-  .guest-row{display:flex;align-items:center;gap:8px;}
-  .guest-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-  .guest-name{font-size:13px;color:#3D3530;font-weight:500;flex:1;}
-  .guest-count{font-size:11px;color:#A09890;white-space:nowrap;}
-  .no-guest{font-size:12px;color:#CBBEAA;font-style:italic;padding:6px 0;}
-
-  /* ── Unassigned ── */
-  .unassigned-box{border:1px solid #F5E8E8;border-radius:14px;padding:16px;background:#FFF8F8;margin-bottom:32px;}
-  .unassigned-title{font-size:13px;font-weight:700;color:#C17E7E;margin-bottom:10px;letter-spacing:0.5px;text-transform:uppercase;}
-
-  /* ── Footer ── */
-  .footer{text-align:center;font-size:11px;color:#CBBEAA;margin-top:32px;padding-top:20px;border-top:1px solid #E2D9CC;letter-spacing:0.5px;}
-</style>
-</head>
-<body>
-
-<div class="page-header">
-  <div class="brand">Oheve</div>
-  <div class="logo-ring"><span>💒</span></div>
-  <h1>Plan de placement</h1>
-  <div class="subtitle">Organisation des tables et répartition des invités</div>
-  <div class="date">Généré le ${today}</div>
-  <div class="divider"></div>
-</div>
-
-${roomInfo}
-
-<div class="stats-row">
-  <div class="stat"><div class="stat-val">${tables.length}</div><div class="stat-lbl">Tables</div></div>
-  <div class="stat"><div class="stat-val">${totalSeats}</div><div class="stat-lbl">Places</div></div>
-  <div class="stat"><div class="stat-val">${totalPeople}</div><div class="stat-lbl">Invités</div></div>
-  <div class="stat"><div class="stat-val">${assignedPeople}</div><div class="stat-lbl">Placés</div></div>
-</div>
-
-<div class="section-title">Tables &amp; invités assignés</div>
-<div class="grid">${tableCards}</div>
-
-${unassigned.length > 0 ? `
-<div class="section-title">Invités sans table (${unassigned.length})</div>
-<div class="unassigned-box">
-  <div class="unassigned-title">À placer</div>
-  ${unassignedRows}
-</div>` : `
-<div class="section-title">Invités sans table</div>
-<div class="guests-list" style="border:1px solid #E8EDE4;border-radius:14px;padding:16px;background:#F6F2EA;">${unassignedRows}</div>`}
-
-<div class="footer">Plan de placement · Oheve · ${today}</div>
-
-</body>
-</html>`;
-
-    try {
-      const { uri } = await Print.printToFileAsync({ html, base64: false });
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Exporter le plan de placement',
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        Alert.alert('PDF généré', `Fichier disponible à : ${uri}`);
-      }
-    } catch {
-      Alert.alert('Erreur', 'Impossible de générer le PDF.');
+  const openExport = () => {
+    if (tables.length === 0) {
+      Alert.alert('Aucune table', 'Ajoutez au moins une table avant d\'exporter.');
+      return;
     }
+    setExportModalOpen(true);
   };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <PaywallModal
+        visible={pdfPaywall}
+        onClose={() => setPdfPaywall(false)}
+      />
+
+      <SeatingPlanExportModal
+        visible={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        data={exportData}
+      />
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -527,8 +443,39 @@ ${unassigned.length > 0 ? `
           <Pressable style={styles.pdfBtn} onPress={() => setShowRoomModal(true)} hitSlop={8}>
             <Ionicons name="resize-outline" size={17} color="#A7AD9A" />
           </Pressable>
-          <Pressable style={styles.pdfBtn} onPress={handleExportPDF} hitSlop={8}>
+          <Pressable
+            style={styles.pdfBtn}
+            onPress={() => (hasPremiumAccess ? openExport() : setPdfPaywall(true))}
+            hitSlop={8}
+          >
             <Ionicons name="document-text-outline" size={17} color="#A7AD9A" />
+          </Pressable>
+          <Pressable
+            style={styles.pdfBtn}
+            hitSlop={8}
+            onPress={() =>
+              Alert.alert(
+                'Réinitialiser',
+                'Supprimer toutes les tables et invités ?',
+                [
+                  { text: 'Annuler', style: 'cancel' },
+                  {
+                    text: 'Réinitialiser',
+                    style: 'destructive',
+                    onPress: () => {
+                      setTables([]);
+                      setGuests([]);
+                      setSelectedId(null);
+                      nextTableId = 20;
+                      nextGuestId = 100;
+                      AsyncStorage.removeItem(STORAGE_KEY);
+                    },
+                  },
+                ]
+              )
+            }
+          >
+            <Ionicons name="trash-outline" size={17} color="#A7AD9A" />
           </Pressable>
           <Pressable style={styles.addBtn} onPress={() => setAddTableModal(true)} hitSlop={8}>
             <Ionicons name="add" size={22} color="#fff" />
@@ -654,13 +601,48 @@ ${unassigned.length > 0 ? `
               <ThemedText style={styles.sheetLabel}>Forme</ThemedText>
               <View style={styles.shapeRow}>
                 {(['round', 'oval', 'rect'] as TableShape[]).map((s) => (
-                  <Pressable key={s} style={[styles.shapeChip, newShape === s && styles.shapeChipOn]} onPress={() => setNewShape(s)}>
+                  <Pressable key={s} style={[styles.shapeChip, newShape === s && styles.shapeChipOn]} onPress={() => {
+                    setNewShape(s);
+                    if (s === 'round') { setNewTableW('150'); setNewTableH('150'); }
+                    else if (s === 'oval') { setNewTableW('180'); setNewTableH('120'); }
+                    else { setNewTableW('200'); setNewTableH('90'); }
+                  }}>
                     <ShapeIcon shape={s} active={newShape === s} />
                     <ThemedText style={[styles.shapeChipLbl, newShape === s && styles.shapeChipLblOn]}>
                       {shapeLabel(s)}
                     </ThemedText>
                   </Pressable>
                 ))}
+              </View>
+
+              <ThemedText style={styles.sheetLabel}>Dimensions de la table (cm)</ThemedText>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <ThemedText style={[styles.sheetLabel, { fontSize: 11, marginTop: 0, color: '#9ca3af' }]}>
+                    {newShape === 'round' ? 'Diamètre' : 'Largeur'}
+                  </ThemedText>
+                  <TextInput
+                    style={styles.input}
+                    value={newTableW}
+                    onChangeText={setNewTableW}
+                    placeholder="150"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                {newShape !== 'round' && (
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={[styles.sheetLabel, { fontSize: 11, marginTop: 0, color: '#9ca3af' }]}>Profondeur</ThemedText>
+                    <TextInput
+                      style={styles.input}
+                      value={newTableH}
+                      onChangeText={setNewTableH}
+                      placeholder="120"
+                      placeholderTextColor="#9ca3af"
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                )}
               </View>
 
               <ThemedText style={styles.sheetLabel}>Nombre de places</ThemedText>
@@ -836,13 +818,31 @@ ${unassigned.length > 0 ? `
                 placeholderTextColor="#9ca3af"
                 keyboardType="decimal-pad"
               />
-              {roomWidth && roomHeight && (
-                <View style={{ marginTop: 10, padding: 12, backgroundColor: '#E8EDE4', borderRadius: 10 }}>
-                  <ThemedText style={{ color: '#7A8A72', fontWeight: '600', fontSize: 13 }}>
-                    Surface : {(parseFloat(roomWidth) * parseFloat(roomHeight)).toFixed(0)} m²
-                  </ThemedText>
-                </View>
-              )}
+              {roomWidth && roomHeight && (() => {
+                const rw = parseFloat(roomWidth);
+                const rh = parseFloat(roomHeight);
+                const surface = (rw * rh).toFixed(0);
+                // estimate how many tables fit: avg table footprint ~2m x 2m with clearance
+                const avgTableArea = 4;
+                const maxTables = Math.floor((rw * rh * 0.55) / avgTableArea);
+                return (
+                  <View style={{ marginTop: 10, padding: 14, backgroundColor: '#E8EDE4', borderRadius: 12, gap: 6 }}>
+                    <ThemedText style={{ color: '#7A8A72', fontWeight: '700', fontSize: 13 }}>
+                      Surface : {surface} m²
+                    </ThemedText>
+                    <ThemedText style={{ color: '#A7AD9A', fontSize: 12 }}>
+                      Capacité estimée : ~{maxTables} tables (avec 55% d'espace utilisable)
+                    </ThemedText>
+                    {tables.length > 0 && (
+                      <ThemedText style={{ color: tables.length <= maxTables ? '#7A8A72' : '#C17E7E', fontSize: 12, fontWeight: '600' }}>
+                        {tables.length <= maxTables
+                          ? `✓ ${tables.length} table${tables.length > 1 ? 's' : ''} — salle adaptée`
+                          : `⚠ ${tables.length} tables — salle peut-être trop petite`}
+                      </ThemedText>
+                    )}
+                  </View>
+                );
+              })()}
               <View style={[styles.sheetActions, { marginTop: 14 }]}>
                 <Pressable style={styles.btnSecondary} onPress={() => setShowRoomModal(false)}>
                   <ThemedText style={styles.btnSecondaryTxt}>Fermer</ThemedText>
@@ -1095,3 +1095,7 @@ const styles = StyleSheet.create({
   guestDeleteBtn: { padding: 6, marginLeft: 4 },
   noGuestsHint: { color: '#9ca3af', fontSize: 13, textAlign: 'center', paddingVertical: 20 },
 });
+
+export default function SeatingPlanScreen() {
+  return <PremiumGate feature="Plan de table" icon="grid-outline"><SeatingPlanContent /></PremiumGate>;
+}

@@ -42,9 +42,8 @@ export default function PrestataireSetup() {
       const res = await prestatairesApi.upsertProfile(user.accessToken, {
         business_name: businessName.trim(),
         category,
-        city: city.trim(),
+        location_city: city.trim(),
         description: description.trim() || undefined,
-        phone: phone.trim() || undefined,
       });
       if (res.success) {
         router.replace('/(app)/(tabs)');

@@ -39,5 +39,31 @@ export function cardStyleSurface({ theme, padded = true }: CardOpts): CSSPropert
       boxShadow: `0 16px 48px ${theme.primaryColor}18`,
     };
   }
+  if (theme.cardStyle === 'premium') {
+    return {
+      ...base,
+      background: `linear-gradient(135deg, ${theme.secondaryColor}18 0%, ${theme.backgroundColor} 60%, ${theme.secondaryColor}10 100%)`,
+      border: `1px solid ${theme.primaryColor}55`,
+      boxShadow: `0 4px 24px ${theme.primaryColor}22, inset 0 1px 0 ${theme.primaryColor}22`,
+    };
+  }
+  if (theme.cardStyle === 'double-border') {
+    return {
+      ...base,
+      background: `${theme.secondaryColor}18`,
+      border: `1px solid ${theme.primaryColor}55`,
+      outline: `3px solid transparent`,
+      outlineOffset: `-6px`,
+      boxShadow: `inset 0 0 0 4px ${theme.primaryColor}18`,
+    };
+  }
+  if (theme.cardStyle === 'luxe') {
+    return {
+      ...base,
+      background: `${theme.secondaryColor}12`,
+      border: `1px solid ${theme.primaryColor}66`,
+      boxShadow: `0 20px 60px ${theme.primaryColor}25, 0 1px 0 ${theme.primaryColor}44 inset`,
+    };
+  }
   return { ...base, background: `${theme.secondaryColor}2a`, border: `1px solid ${theme.primaryColor}29` };
 }

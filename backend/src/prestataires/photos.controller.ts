@@ -12,6 +12,59 @@ function buildPhotoUrl(req: Request, filename: string): string {
 }
 
 export class PhotosController {
+  async getFeedPhotos(req: Request, res: Response) {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string || '50', 10), 100);
+      const offset = parseInt(req.query.offset as string || '0', 10);
+      const rows = await repo.findFeedPhotos(limit, offset, req.auth!.sub);
+      const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
+      const host = req.headers['x-forwarded-host'] ?? req.get('host');
+      const withUrl = rows.map((p) => ({
+        ...p,
+        url: `${protocol}://${host}/uploads/photos/${p.filename}`,
+      }));
+      return res.status(200).json({ success: true, data: withUrl });
+    } catch (err) {
+      console.error('getFeedPhotos:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
+  async toggleLike(req: Request, res: Response) {
+    try {
+      const photoId = parseInt(req.params.photoId, 10);
+      const result = await repo.toggleLike(photoId, req.auth!.sub);
+      return res.status(200).json({ success: true, data: result });
+    } catch (err) {
+      console.error('toggleLike:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
+  async addComment(req: Request, res: Response) {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ success: false, message: 'Texte requis' });
+    try {
+      const photoId = parseInt(req.params.photoId, 10);
+      const comment = await repo.addComment(photoId, req.auth!.sub, text);
+      return res.status(201).json({ success: true, data: comment });
+    } catch (err) {
+      console.error('addComment:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
+  async getComments(req: Request, res: Response) {
+    try {
+      const photoId = parseInt(req.params.photoId, 10);
+      const comments = await repo.getComments(photoId);
+      return res.status(200).json({ success: true, data: comments });
+    } catch (err) {
+      console.error('getComments:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
   async getPhotos(req: Request, res: Response) {
     try {
       const userId = parseInt(req.params.userId, 10);
@@ -51,7 +104,7 @@ export class PhotosController {
       const prestataireId = await repo.findPrestataireIdByUserId(req.auth!.sub);
       if (prestataireId === null) {
         fs.unlinkSync(req.file.path);
-        return res.status(404).json({ success: false, message: 'Profil prestataire introuvable' });
+        return res.status(404).json({ success: false, message: 'Veuillez d\'abord sauvegarder votre profil avant d\'ajouter des photos.' });
       }
 
       // Vérification des limites selon l'abonnement

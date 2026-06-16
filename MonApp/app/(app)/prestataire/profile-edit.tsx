@@ -18,7 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
-import { prestatairesApi } from '@/services/auth/api';
+import { prestatairesApi, uploadFile } from '@/services/auth/api';
+import { API_ENDPOINTS } from '@/constants/config';
 
 const CATEGORIES = [
   { key: 'traiteur', label: 'Traiteur', icon: '🍽️' },
@@ -73,11 +74,11 @@ export default function PrestataireProfileEdit() {
           setForm({
             business_name: d.business_name ?? '',
             category: d.category ?? '',
-            city: d.city ?? '',
+            city: d.location_city ?? d.city ?? '',
             phone: d.phone ?? '',
             description: d.description ?? '',
-            instagram: d.instagram ?? '',
-            website: d.website ?? '',
+            instagram: d.instagram_url ?? d.instagram ?? '',
+            website: d.website_url ?? d.website ?? '',
             price_range: d.price_range ?? '',
             cover_url: d.cover_url,
           });
@@ -108,20 +109,18 @@ export default function PrestataireProfileEdit() {
     setUploadingCover(true);
     try {
       const asset = result.assets[0];
-      const formData = new FormData();
-      formData.append('photo', {
-        uri: asset.uri,
-        name: asset.fileName ?? `cover_${Date.now()}.jpg`,
-        type: asset.mimeType ?? 'image/jpeg',
-      } as never);
-      formData.append('is_cover', 'true');
-
-      const res = await prestatairesApi.uploadPhoto(user!.accessToken, formData);
+      const res = await uploadFile(
+        `${API_ENDPOINTS.prestataires}/me/photos`,
+        user!.accessToken,
+        asset.uri,
+      );
       if (res?.success && res.data?.url) {
-        setForm((prev) => ({ ...prev, cover_url: res.data.url }));
+        setForm((prev) => ({ ...prev, cover_url: res.data!.url as string }));
+      } else {
+        Alert.alert('Erreur', res?.message ?? 'Impossible d\'uploader la photo de couverture.');
       }
-    } catch {
-      Alert.alert('Erreur', 'Impossible d\'uploader la photo de couverture.');
+    } catch (e: unknown) {
+      Alert.alert('Erreur', e instanceof Error ? e.message : 'Impossible d\'uploader la photo de couverture.');
     } finally {
       setUploadingCover(false);
     }
@@ -139,12 +138,10 @@ export default function PrestataireProfileEdit() {
       const res = await prestatairesApi.upsertProfile(user.accessToken, {
         business_name: form.business_name.trim(),
         category: form.category,
-        city: form.city.trim(),
-        phone: form.phone.trim() || undefined,
+        location_city: form.city.trim(),
         description: form.description.trim() || undefined,
-        instagram: form.instagram.trim() || undefined,
-        website: form.website.trim() || undefined,
-        price_range: form.price_range.trim() || undefined,
+        instagram_url: form.instagram.trim() || undefined,
+        website_url: form.website.trim() || undefined,
       });
       if (res.success) {
         Alert.alert('Profil mis à jour', 'Vos informations ont été sauvegardées.', [

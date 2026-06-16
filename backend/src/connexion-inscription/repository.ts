@@ -27,16 +27,25 @@ export interface UserRow {
   subscription_status?: string;
   subscription_started_at?: string;
   subscription_expires_at?: string;
+  bride_name?: string;
+  groom_name?: string;
   created_at: string;
 }
 
 export class ConnexionInscriptionRepository {
-  async createUser(email: string, nom: string, prenom: string, hash: string, role: UserRole) {
+  async createUser(
+    email: string,
+    nom: string,
+    prenom: string,
+    hash: string,
+    role: UserRole,
+    couple?: { bride_name?: string; groom_name?: string },
+  ) {
     const r = await pool.query(
-      `INSERT INTO users (email, nom, prenom, mot_de_passe, role)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id,email,nom,prenom,role,is_active,created_at`,
-      [email, nom, prenom, hash, role]
+      `INSERT INTO users (email, nom, prenom, mot_de_passe, role, bride_name, groom_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id,email,nom,prenom,role,is_active,bride_name,groom_name,created_at`,
+      [email, nom, prenom, hash, role, couple?.bride_name ?? null, couple?.groom_name ?? null]
     );
     return r.rows[0] as UserRow;
   }
@@ -48,7 +57,7 @@ export class ConnexionInscriptionRepository {
               wedding_location_type,wedding_city,wedding_country,
               wedding_lat,wedding_lng,wedding_address,
               subscription_plan,subscription_status,subscription_started_at,subscription_expires_at,
-              created_at
+              bride_name,groom_name,premium,premium_purchased_at,created_at
        FROM users WHERE email=$1`,
       [email]
     );
@@ -62,7 +71,7 @@ export class ConnexionInscriptionRepository {
               wedding_location_type,wedding_city,wedding_country,
               wedding_lat,wedding_lng,wedding_address,
               subscription_plan,subscription_status,subscription_started_at,subscription_expires_at,
-              created_at
+              bride_name,groom_name,premium,premium_purchased_at,created_at
        FROM users WHERE id=$1`,
       [id]
     );
@@ -148,7 +157,7 @@ export class ConnexionInscriptionRepository {
     provider: string;
     providerId: string;
     avatarUrl?: string;
-  }): Promise<UserRow> {
+  }): Promise<UserRow & { isNew: boolean }> {
     const existing = await this.findByEmail(data.email);
     if (existing) {
       if (!existing.social_provider) {
@@ -157,7 +166,7 @@ export class ConnexionInscriptionRepository {
           [data.provider, data.providerId, existing.id]
         );
       }
-      return existing;
+      return { ...existing, isNew: false };
     }
     const r = await pool.query(
       `INSERT INTO users (email, nom, prenom, role, social_provider, social_provider_id, avatar_url)
@@ -165,7 +174,7 @@ export class ConnexionInscriptionRepository {
        RETURNING id, email, nom, prenom, role, is_active, avatar_url, created_at`,
       [data.email, data.nom || data.email.split('@')[0], data.prenom || '', data.provider, data.providerId, data.avatarUrl ?? null]
     );
-    return r.rows[0] as UserRow;
+    return { ...r.rows[0] as UserRow, isNew: true };
   }
 
   // ── OTP ─────────────────────────────────────────────────────────────────────
@@ -200,7 +209,22 @@ export class ConnexionInscriptionRepository {
     return r.rows[0] ?? null;
   }
 
-  async updateProfile(userId: number, data: { nom?: string; prenom?: string; phone?: string; avatar_url?: string }) {
+  async updateRole(userId: number, role: string) {
+    const r = await pool.query(
+      `UPDATE users SET role=$1 WHERE id=$2 RETURNING id,email,nom,prenom,role,is_active,avatar_url,phone,created_at`,
+      [role, userId]
+    );
+    return r.rows[0] ?? null;
+  }
+
+  async updateProfile(userId: number, data: {
+    nom?: string;
+    prenom?: string;
+    phone?: string;
+    avatar_url?: string;
+    bride_name?: string;
+    groom_name?: string;
+  }) {
     const sets: string[] = [];
     const vals: unknown[] = [];
     let i = 1;
@@ -208,11 +232,13 @@ export class ConnexionInscriptionRepository {
     if (data.prenom !== undefined) { sets.push(`prenom=$${i++}`); vals.push(data.prenom); }
     if (data.phone !== undefined) { sets.push(`phone=$${i++}`); vals.push(data.phone); }
     if (data.avatar_url !== undefined) { sets.push(`avatar_url=$${i++}`); vals.push(data.avatar_url); }
+    if (data.bride_name !== undefined) { sets.push(`bride_name=$${i++}`); vals.push(data.bride_name); }
+    if (data.groom_name !== undefined) { sets.push(`groom_name=$${i++}`); vals.push(data.groom_name); }
     if (sets.length === 0) return null;
     vals.push(userId);
     const r = await pool.query(
       `UPDATE users SET ${sets.join(',')} WHERE id=$${i}
-       RETURNING id,email,nom,prenom,role,is_active,avatar_url,phone,created_at`,
+       RETURNING id,email,nom,prenom,role,is_active,avatar_url,phone,bride_name,groom_name,created_at`,
       vals
     );
     return r.rows[0] ?? null;

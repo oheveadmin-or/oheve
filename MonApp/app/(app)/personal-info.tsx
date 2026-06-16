@@ -16,8 +16,11 @@ import { API_ENDPOINTS } from '@/constants/config';
 export default function PersonalInfoScreen() {
   const { user, updateUser } = useAuth();
 
+  const isClient = user?.role === 'client';
   const [prenom, setPrenom] = useState(user?.prenom ?? '');
   const [nom, setNom] = useState(user?.nom ?? '');
+  const [brideName, setBrideName] = useState(user?.bride_name ?? user?.prenom ?? '');
+  const [groomName, setGroomName] = useState(user?.groom_name ?? user?.nom ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -66,7 +69,12 @@ export default function PersonalInfoScreen() {
   };
 
   const handleSave = async () => {
-    if (!prenom.trim() || !nom.trim()) {
+    if (isClient) {
+      if (!brideName.trim() || !groomName.trim()) {
+        Alert.alert('Champs requis', 'Les prénoms des deux mariés sont obligatoires');
+        return;
+      }
+    } else if (!prenom.trim() || !nom.trim()) {
       Alert.alert('Champs requis', 'Prénom et nom sont obligatoires');
       return;
     }
@@ -78,18 +86,34 @@ export default function PersonalInfoScreen() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${user?.accessToken}`,
         },
-        body: JSON.stringify({
-          nom: nom.trim(),
-          prenom: prenom.trim(),
-          phone: phone.trim() || null,
-        }),
+        body: JSON.stringify(
+          isClient
+            ? {
+                bride_name: brideName.trim(),
+                groom_name: groomName.trim(),
+                prenom: brideName.trim(),
+                nom: groomName.trim(),
+                phone: phone.trim() || null,
+              }
+            : {
+                nom: nom.trim(),
+                prenom: prenom.trim(),
+                phone: phone.trim() || null,
+              },
+        ),
       });
       const json = await res.json();
       if (!json.success) {
         Alert.alert('Erreur', json.message ?? 'Erreur mise à jour');
         return;
       }
-      await updateUser({ nom: json.data.nom, prenom: json.data.prenom, phone: json.data.phone });
+      await updateUser({
+        nom: json.data.nom,
+        prenom: json.data.prenom,
+        phone: json.data.phone,
+        bride_name: json.data.bride_name,
+        groom_name: json.data.groom_name,
+      });
       Alert.alert('Enregistré', 'Vos informations ont été mises à jour');
     } catch {
       Alert.alert('Erreur', 'Impossible de joindre le serveur');
@@ -99,7 +123,9 @@ export default function PersonalInfoScreen() {
   };
 
   const avatarUrl = user?.avatar_url;
-  const initials = `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}`.toUpperCase() || '?';
+  const initials = isClient
+    ? `${brideName[0] ?? ''}${groomName[0] ?? ''}`.toUpperCase() || '?'
+    : `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}`.toUpperCase() || '?';
 
   return (
     <ScreenLayout>
@@ -143,29 +169,54 @@ export default function PersonalInfoScreen() {
           </View>
           <ThemedText style={styles.hint}>L'email ne peut pas être modifié ici</ThemedText>
 
-          {/* Prénom */}
-          <ThemedText style={styles.label}>Prénom</ThemedText>
-          <TextInput
-            style={styles.input}
-            value={prenom}
-            onChangeText={setPrenom}
-            placeholder="Ex: Sophie"
-            placeholderTextColor="#A09890"
-            autoCapitalize="words"
-            returnKeyType="next"
-          />
-
-          {/* Nom */}
-          <ThemedText style={styles.label}>Nom</ThemedText>
-          <TextInput
-            style={styles.input}
-            value={nom}
-            onChangeText={setNom}
-            placeholder="Ex: Martin"
-            placeholderTextColor="#A09890"
-            autoCapitalize="words"
-            returnKeyType="next"
-          />
+          {isClient ? (
+            <>
+              <ThemedText style={styles.sectionTitle}>Les futurs mariés</ThemedText>
+              <ThemedText style={styles.label}>Prénom mariée</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={brideName}
+                onChangeText={setBrideName}
+                placeholder="Ex: Odaya"
+                placeholderTextColor="#A09890"
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+              <ThemedText style={styles.label}>Prénom marié</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={groomName}
+                onChangeText={setGroomName}
+                placeholder="Ex: Aaron"
+                placeholderTextColor="#A09890"
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+            </>
+          ) : (
+            <>
+              <ThemedText style={styles.label}>Prénom</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={prenom}
+                onChangeText={setPrenom}
+                placeholder="Ex: Sophie"
+                placeholderTextColor="#A09890"
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+              <ThemedText style={styles.label}>Nom</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={nom}
+                onChangeText={setNom}
+                placeholder="Ex: Martin"
+                placeholderTextColor="#A09890"
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+            </>
+          )}
 
           {/* Téléphone */}
           <ThemedText style={styles.label}>Téléphone</ThemedText>
@@ -216,6 +267,7 @@ const styles = StyleSheet.create({
   },
   avatarHint: { fontSize: 12, color: '#A09890' },
 
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#3D3530', marginTop: 8, marginBottom: 4 },
   label: { fontSize: 13, fontWeight: '600', color: '#4b5563', marginBottom: 8, marginTop: 14 },
 
   inputReadOnly: {

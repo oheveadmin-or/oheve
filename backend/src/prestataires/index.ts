@@ -31,11 +31,19 @@ prestatairesRoutes.get('/', requireAuth, ctrl.list.bind(ctrl));
 prestatairesRoutes.get('/me', requireAuth, ctrl.getMyProfile.bind(ctrl));
 prestatairesRoutes.put('/me', requireAuth, ctrl.upsertProfile.bind(ctrl));
 
+// ── Feed photos (toutes les photos publiques) ─────────────────────────────────
+prestatairesRoutes.get('/feed/photos', requireAuth, photos.getFeedPhotos.bind(photos));
+
 // ── Photos (me) ───────────────────────────────────────────────────────────────
 prestatairesRoutes.get('/me/photos', requireAuth, photos.getMyPhotos.bind(photos));
 prestatairesRoutes.post('/me/photos', requireAuth, upload.single('photo'), photos.uploadPhoto.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/cover', requireAuth, photos.setCover.bind(photos));
 prestatairesRoutes.delete('/me/photos/:photoId', requireAuth, photos.deletePhoto.bind(photos));
+
+// ── Likes & commentaires ─────────────────────────────────────────────────────
+prestatairesRoutes.post('/photos/:photoId/like', requireAuth, photos.toggleLike.bind(photos));
+prestatairesRoutes.get('/photos/:photoId/comments', requireAuth, photos.getComments.bind(photos));
+prestatairesRoutes.post('/photos/:photoId/comments', requireAuth, photos.addComment.bind(photos));
 
 // ── Profil & photos par userId ────────────────────────────────────────────────
 prestatairesRoutes.get('/:userId/photos', requireAuth, photos.getPhotos.bind(photos));

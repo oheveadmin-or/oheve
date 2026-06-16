@@ -17,6 +17,8 @@ export default function VerifyOtpScreen() {
     email: string;
     nom: string;
     prenom: string;
+    bride_name?: string;
+    groom_name?: string;
     mot_de_passe: string;
     role: string;
   }>();
@@ -57,6 +59,8 @@ export default function VerifyOtpScreen() {
           email: params.email,
           nom: params.nom,
           prenom: params.prenom,
+          bride_name: params.bride_name || undefined,
+          groom_name: params.groom_name || undefined,
           mot_de_passe: params.mot_de_passe,
           role: params.role ?? 'client',
           otp_code: otp,
@@ -71,7 +75,7 @@ export default function VerifyOtpScreen() {
       if (params.role === 'prestataire') {
         router.replace('/(app)/prestataire/setup' as never);
       } else {
-        router.replace('/(onboarding)/date-mariage');
+        router.replace('/(onboarding)/setup');
       }
     } catch {
       Alert.alert('Connexion', 'Impossible de joindre le serveur');

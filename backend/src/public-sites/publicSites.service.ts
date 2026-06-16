@@ -59,6 +59,10 @@ export class PublicSitesService {
     return this.repo.findPublishedBySlug(slug);
   }
 
+  getByUserId(userId: number) {
+    return this.repo.findByUserId(userId);
+  }
+
   async updateSiteConfig(userId: number, slug: string, siteConfig: unknown, inviteLinks: unknown): Promise<void> {
     await this.repo.updateSiteConfig(userId, slug, siteConfig, inviteLinks);
   }

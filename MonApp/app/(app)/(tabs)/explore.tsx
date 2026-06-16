@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import {
   Dimensions,
   FlatList,
@@ -21,6 +23,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
+import { useBoutique } from '@/contexts/boutique-context';
+import { API_ENDPOINTS } from '@/constants/config';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -53,6 +57,8 @@ type ProviderProfile = {
 
 type Post = {
   id: string;
+  photoId?: number;
+  userId?: number;
   mediaUri?: string;
   mediaType?: 'image' | 'video';
   bgColor: string;
@@ -165,12 +171,14 @@ function ProviderModal({
   visible,
   onClose,
   onLike,
+  onMessage,
 }: {
   provider: ProviderProfile | null;
   posts: Post[];
   visible: boolean;
   onClose: () => void;
   onLike: (id: string) => void;
+  onMessage?: (providerId: string) => void;
 }) {
   const insets = useSafeAreaInsets();
   if (!provider) return null;
@@ -237,7 +245,10 @@ function ProviderModal({
                   <ThemedText style={provStyles.actionBtnTxt}>Instagram</ThemedText>
                 </Pressable>
               )}
-              <Pressable style={provStyles.actionBtnOutline}>
+              <Pressable
+                style={provStyles.actionBtnOutline}
+                onPress={() => { onClose(); onMessage?.(provider.id); }}
+              >
                 <Ionicons name="chatbubble-outline" size={16} color={catColor} />
                 <ThemedText style={[provStyles.actionBtnOutlineTxt, { color: catColor }]}>Message</ThemedText>
               </Pressable>
@@ -477,7 +488,10 @@ function ReelCard({
       {/* Bottom info — author + caption, tappable to open provider */}
       <Pressable
         style={[reelStyles.bottomInfo, { bottom: insets.bottom + 90 }]}
-        onPress={() => post.providerId && onOpenProvider(post.providerId)}
+        onPress={() => {
+          if (post.userId) router.push(`/(app)/providers/${post.userId}` as never);
+          else if (post.providerId) onOpenProvider(post.providerId);
+        }}
         hitSlop={8}
       >
         <View style={reelStyles.authorRow}>
@@ -628,19 +642,27 @@ function PostDetailModal({
             {/* Author row — tappable to open provider profile */}
             <Pressable
               style={detailStyles.authorRow}
-              onPress={() => { if (post.providerId) { onClose(); onOpenProvider(post.providerId); } }}
-              disabled={!post.providerId}
+              onPress={() => {
+                if (post.userId) {
+                  onClose();
+                  router.push(`/(app)/providers/${post.userId}` as never);
+                } else if (post.providerId) {
+                  onClose();
+                  onOpenProvider(post.providerId);
+                }
+              }}
+              disabled={!post.userId && !post.providerId}
             >
               <View style={[detailStyles.avatar, { backgroundColor: catColor }]}>
                 <ThemedText style={detailStyles.avatarTxt}>{post.author[0]}</ThemedText>
               </View>
               <View style={{ flex: 1 }}>
                 <ThemedText style={detailStyles.authorName}>{post.author}</ThemedText>
-                {post.providerId && (
+                {(post.userId || post.providerId) && (
                   <ThemedText style={detailStyles.providerHint}>Voir le profil prestataire →</ThemedText>
                 )}
               </View>
-              {post.providerId && (
+              {(post.userId || post.providerId) && (
                 <Ionicons name="chevron-forward" size={16} color="#A09890" />
               )}
             </Pressable>
@@ -879,7 +901,7 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const isPrestataire = user?.role === 'prestataire' || user?.role === 'admin';
-
+  const { reels: boutiqueReels, toggleReelLike, recordReelView } = useBoutique();
   const [posts, setPosts] = useState<Post[]>(DEMO);
   const [category, setCategory] = useState<MainCategory>('tout');
   const [subCategory, setSubCategory] = useState<SubCategory | null>(null);
@@ -893,7 +915,89 @@ export default function ExploreScreen() {
 
   const viewRef = useRef<FlatList>(null);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 });
-  const onViewableItemsChanged = useRef((_info: { viewableItems: ViewToken[] }) => {});
+  const onViewableItemsChanged = useRef((info: { viewableItems: ViewToken[] }) => {
+    info.viewableItems.forEach(({ item }) => {
+      const post = item as Post;
+      if (post?.id?.startsWith('boutique-')) {
+        recordReelView(post.id.replace('boutique-', ''));
+      }
+    });
+  });
+
+  // ── Catégorie backend → MainCategory ─────────────────────────────────────
+  const CAT_MAP: Record<string, Exclude<MainCategory, 'tout'>> = {
+    photographe: 'photos', traiteur: 'traiteur', fleuriste: 'fleurs',
+    'musique': 'musique', 'musique / dj': 'musique', décoration: 'décoration',
+    decoration: 'décoration', 'salle / lieu': 'salle', salle: 'salle',
+    tenues: 'tenues', autres: 'photos',
+  };
+
+  // ── Fetch portfolio photos de tous les prestataires (rechargé à chaque focus) ─
+  const loadFeed = useCallback(() => {
+    if (!user?.accessToken) return;
+    fetch(`${API_ENDPOINTS.prestataireFeed}`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json?.success || !Array.isArray(json.data)) return;
+        const feedPosts: Post[] = json.data.map((p: {
+          id: number; url: string; is_cover: boolean; created_at: string;
+          user_id: number; business_name: string; category: string; prenom: string; nom: string;
+          like_count: number; comment_count: number; liked_by_me: boolean;
+        }) => ({
+          id: `feed-${p.id}`,
+          photoId: p.id,
+          userId: p.user_id,
+          mediaUri: p.url,
+          mediaType: 'image' as const,
+          caption: p.business_name || `${p.prenom} ${p.nom}`.trim(),
+          category: CAT_MAP[p.category?.toLowerCase()] ?? 'photos',
+          author: `${p.prenom} ${p.nom ? p.nom[0] + '.' : ''}`.trim(),
+          likes: p.like_count ?? 0,
+          isLiked: p.liked_by_me ?? false,
+          cardH: 200,
+          comments: [],
+          bgColor: '#F5EFE8',
+          bgEmoji: '📸',
+        }));
+        setPosts((prev) => {
+          const existingComments = new Map(
+            prev.filter((p) => p.id.startsWith('feed-')).map((p) => [p.id, p.comments])
+          );
+          const withoutFeed = prev.filter((post) => !post.id.startsWith('feed-'));
+          const merged = feedPosts.map((p) => ({
+            ...p,
+            comments: existingComments.get(p.id) ?? [],
+          }));
+          return [...merged, ...withoutFeed];
+        });
+      })
+      .catch(() => {});
+  }, [user?.accessToken]);
+
+  useFocusEffect(useCallback(() => { loadFeed(); }, [loadFeed]));
+
+  // ── Sync boutique reels into explore feed ────────────────────────────────
+  useEffect(() => {
+    setPosts((prev) => {
+      // remove stale boutique posts then re-add current ones
+      const withoutBoutique = prev.filter((p) => !p.id.startsWith('boutique-'));
+      const boutiquePosts: Post[] = boutiqueReels.map((r) => ({
+        id: `boutique-${r.id}`,
+        bgColor: '#F5EFE8',
+        bgEmoji: '🎬',
+        caption: r.title,
+        category: 'tenues' as Exclude<MainCategory, 'tout'>,
+        author: 'Boutique',
+        likes: r.likes,
+        isLiked: r.likedByMe,
+        cardH: 200,
+        comments: [],
+      }));
+      return [...boutiquePosts, ...withoutBoutique];
+    });
+  }, [boutiqueReels]);
 
   // ── Filtering ─────────────────────────────────────────────────────────────
   const selectedCatDef = CATEGORIES.find((c) => c.key === category);
@@ -913,41 +1017,88 @@ export default function ExploreScreen() {
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleLike = useCallback((id: string) => {
     setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, isLiked: !p.isLiked } : p)));
-  }, []);
+    if (id.startsWith('boutique-')) {
+      toggleReelLike(id.replace('boutique-', ''));
+    } else if (id.startsWith('feed-') && user?.accessToken) {
+      const post = posts.find((p) => p.id === id);
+      if (post?.photoId) {
+        fetch(API_ENDPOINTS.photoLike(post.photoId), {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${user.accessToken}` },
+        })
+          .then((r) => r.json())
+          .then((json) => {
+            if (json?.success) {
+              setPosts((prev) => prev.map((p) =>
+                p.id === id ? { ...p, isLiked: json.data.liked, likes: json.data.like_count } : p
+              ));
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [toggleReelLike, user?.accessToken, posts]);
 
   const handleOpenPost = useCallback((id: string) => setOpenedPostId(id), []);
 
   const handleOpenComment = useCallback((post: Post) => {
     setCommentPost(post);
     setCommentVisible(true);
-  }, []);
+    // Charger les commentaires depuis le backend pour les posts du feed
+    if (post.id.startsWith('feed-') && post.photoId && user?.accessToken) {
+      fetch(API_ENDPOINTS.photoComments(post.photoId), {
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      })
+        .then((r) => r.json())
+        .then((json) => {
+          if (!json?.success || !Array.isArray(json.data)) return;
+          const backendComments: Comment[] = json.data.map((c: {
+            id: number; text: string; created_at: string; prenom: string; nom: string;
+          }) => ({
+            id: `bc${c.id}`,
+            author: `${c.prenom} ${c.nom ? c.nom[0] + '.' : ''}`.trim(),
+            text: c.text,
+            time: new Date(c.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+          }));
+          // Fusionner en gardant les commentaires optimistes (locaux non encore confirmés)
+          const backendTexts = new Set(backendComments.map((c) => c.text));
+          const merge = (existing: Comment[]) => [
+            ...backendComments,
+            ...existing.filter((c) => c.id.startsWith('c') && !backendTexts.has(c.text)),
+          ];
+          setPosts((prev) => prev.map((p) =>
+            p.id === post.id ? { ...p, comments: merge(p.comments) } : p
+          ));
+          setCommentPost((prev) =>
+            prev?.id === post.id ? { ...prev, comments: merge(prev.comments) } : prev
+          );
+        })
+        .catch(() => {});
+    }
+  }, [user?.accessToken]);
 
   const handleAddComment = useCallback((postId: string, text: string) => {
+    const newComment = { id: `c${Date.now()}`, author: user?.prenom || 'Moi', text, time: "maintenant" };
     setPosts((prev) =>
       prev.map((p) =>
-        p.id === postId
-          ? {
-              ...p,
-              comments: [
-                ...p.comments,
-                { id: `c${Date.now()}`, author: user?.prenom || 'Moi', text, time: "maintenant" },
-              ],
-            }
-          : p
+        p.id === postId ? { ...p, comments: [...p.comments, newComment] } : p
       )
     );
     setCommentPost((prev) =>
-      prev?.id === postId
-        ? {
-            ...prev,
-            comments: [
-              ...prev.comments,
-              { id: `c${Date.now()}`, author: user?.prenom || 'Moi', text, time: "maintenant" },
-            ],
-          }
-        : prev
+      prev?.id === postId ? { ...prev, comments: [...prev.comments, newComment] } : prev
     );
-  }, [user]);
+    // Persist to backend for feed posts
+    if (postId.startsWith('feed-') && user?.accessToken) {
+      const post = posts.find((p) => p.id === postId);
+      if (post?.photoId) {
+        fetch(API_ENDPOINTS.photoComments(post.photoId), {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${user.accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        }).catch(() => {});
+      }
+    }
+  }, [user, posts]);
 
   const handleShare = useCallback(async (post: Post) => {
     try {
@@ -984,6 +1135,7 @@ export default function ExploreScreen() {
       isLiked: false,
       cardH: 160 + (nextPostId % 4) * 20,
       comments: [],
+      providerId: user ? String(user.id) : undefined,
     };
     setPosts((prev) => [newPost, ...prev]);
     setCreateModal(false);
@@ -1195,6 +1347,7 @@ export default function ExploreScreen() {
         visible={!!providerModal}
         onClose={() => setProviderModal(null)}
         onLike={handleLike}
+        onMessage={(id) => router.push(`/(app)/messages/${id}` as never)}
       />
 
       {isPrestataire && (

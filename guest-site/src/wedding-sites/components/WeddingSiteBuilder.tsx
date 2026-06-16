@@ -2,15 +2,19 @@ import type { CSSProperties, FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { MonogramGenerator } from './MonogramGenerator';
 import { RSVPBuilder } from '@guest/rsvp/RSVPBuilder';
 import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
-import { createDefaultRSVPForm, type RSVPForm } from '@guest/rsvp/types';
+import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
 import { FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
 import { createWeddingSite } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
+  CoupleStoryItem,
   FAQItem,
+  GiftRegistry,
   InviteLink,
+  JewishWeddingEvent,
   SiteLanguage,
   StyleQuizAnswers,
   ThemeAmbiance,
@@ -29,6 +33,36 @@ import { buildThemeFromQuizAnswers } from '../utils/theme-generator';
 import { WeddingSitePreview } from './WeddingSitePreview';
 import { WeddingStyleQuiz } from './WeddingStyleQuiz';
 
+/** ID stable dans rsvpForm.events pour chaque type d'événement juif */
+function jewishRsvpId(type: JewishWeddingEvent['type']) {
+  return `jewish-${type}`;
+}
+
+const JEWISH_META: Record<JewishWeddingEvent['type'], { emoji: string; label: string }> = {
+  'henne':          { emoji: '🌸', label: 'Henné' },
+  'mairie':         { emoji: '🏛️', label: 'Mairie' },
+  'chabbat-hatan':  { emoji: '🕌', label: 'Chabbat Hatan' },
+  'houppa':         { emoji: '💍', label: 'Houppa & Cérémonie' },
+  'brunch':         { emoji: '☕', label: 'Brunch' },
+  'sheva-berakhot': { emoji: '🥂', label: 'Sheva Berakhot' },
+  'depart':         { emoji: '👋', label: 'Au revoir des invités' },
+  'custom':         { emoji: '✨', label: 'Événement' },
+};
+
+const DEFAULT_JEWISH_EVENTS: { type: JewishWeddingEvent['type']; label: string; emoji: string; optional?: boolean }[] = [
+  { type: 'henne', label: 'Henné', emoji: '🌸' },
+  { type: 'mairie', label: 'Mairie (cérémonie civile)', emoji: '🏛️' },
+  { type: 'chabbat-hatan', label: 'Chabbat Hatan', emoji: '🕌' },
+  { type: 'houppa', label: 'Houppa & Cérémonie', emoji: '💍' },
+  { type: 'brunch', label: 'Brunch', emoji: '☕', optional: true },
+  { type: 'sheva-berakhot', label: 'Sheva Berakhot', emoji: '🥂', optional: true },
+  { type: 'depart', label: 'Au revoir des invités', emoji: '👋', optional: true },
+];
+
+function defaultGiftRegistry(): GiftRegistry {
+  return { introText: '', externalUrl: '', cagnotteUrl: '', cagnotteLabel: '', bankTransferInfo: '' };
+}
+
 const initialDate = (): { date: string; time: string } => {
   const iso = new Date();
   iso.setMonth(iso.getMonth() + 3);
@@ -40,6 +74,7 @@ export function WeddingSiteBuilder() {
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
   const [slugCustom, setSlugCustom] = useState('');
   const [quiz, setQuiz] = useState<StyleQuizAnswers | undefined>(undefined);
+  const [quizApplied, setQuizApplied] = useState(false);
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
 
   const [{ date, time }, setDt] = useState(initialDate);
@@ -49,8 +84,8 @@ export function WeddingSiteBuilder() {
   const [coupleName, setCoupleName] = useState('');
   const [city, setCity] = useState('');
   const [venue, setVenue] = useState('');
-  const [welcomeText, setWelcomeText] = useState('Nous avons hâte de célébrer ce jour avec vous.');
-  const [mainText, setMainText] = useState('Merci de réserver cette date.');
+  const [welcomeText, setWelcomeText] = useState('');
+  const [mainText, setMainText] = useState('');
   const [language, setLanguage] = useState<SiteLanguage>('fr');
   const [theme, setTheme] = useState<WeddingTheme>(() => defaultWeddingTheme());
   const [sections, setSections] = useState<WeddingSections>(() => defaultWeddingSections());
@@ -133,11 +168,67 @@ export function WeddingSiteBuilder() {
     setRsvpForm((f) => (f.weddingId === draft.id ? f : { ...f, weddingId: draft.id }));
   }, [draft.id]);
 
+  // Migration : s'assure que les événements juifs activés ont un RSVPEvent avec ID stable
+  useEffect(() => {
+    const enabledJewish = (content.jewishEvents ?? []).filter((e) => e.enabled);
+    if (!enabledJewish.length) return;
+    setRsvpForm((prev) => {
+      let events = [...prev.events];
+      let changed = false;
+      const ORDER: JewishWeddingEvent['type'][] = ['henne', 'mairie', 'chabbat-hatan', 'houppa', 'brunch', 'sheva-berakhot', 'depart', 'custom'];
+      for (const jev of enabledJewish) {
+        const stableId = jewishRsvpId(jev.type);
+        const meta = JEWISH_META[jev.type];
+        if (!events.find((e) => e.id === stableId)) {
+          const rank = ORDER.indexOf(jev.type);
+          const insertBefore = events.findIndex((e) => {
+            const eType = DEFAULT_JEWISH_EVENTS.find((d) => jewishRsvpId(d.type) === e.id)?.type;
+            return eType !== undefined && ORDER.indexOf(eType) > rank;
+          });
+          const ev: RSVPEvent = newEvent(stableId, jev.label || meta.label, {
+            enabled: true,
+            emojiIcon: meta.emoji,
+            time: jev.time ?? '',
+            place: jev.place ?? '',
+            askAttendance: true,
+            askGuestCount: true,
+          });
+          if (insertBefore >= 0) events.splice(insertBefore, 0, ev);
+          else events.push(ev);
+          changed = true;
+        } else {
+          // Sync les champs depuis jewish vers rsvp
+          const idx = events.findIndex((e) => e.id === stableId);
+          const cur = events[idx];
+          const next = {
+            ...cur,
+            label: jev.label || meta.label,
+            time: jev.time || cur.time,
+            place: jev.place || cur.place,
+            emojiIcon: meta.emoji,
+          };
+          if (JSON.stringify(cur) !== JSON.stringify(next)) {
+            events[idx] = next;
+            changed = true;
+          }
+        }
+      }
+      return changed ? { ...prev, events } : prev;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function applyQuiz(answers: StyleQuizAnswers) {
     const { theme: nt, sections: ns, languageHint } = buildThemeFromQuizAnswers(answers);
     setTheme(nt);
     setSections(ns);
     setLanguage(languageHint);
+    setQuizApplied(true);
+    setTimeout(() => setQuizApplied(false), 3000);
+    // scroll to preview on mobile
+    if (window.innerWidth < 960) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -259,6 +350,119 @@ export function WeddingSiteBuilder() {
     setContent((prev) => ({ ...prev, faq: (prev.faq ?? []).filter((q) => q.id !== id) }));
   }
 
+  function addStoryItem() {
+    setContent((prev) => ({
+      ...prev,
+      coupleStory: [
+        ...(prev.coupleStory ?? []),
+        { id: crypto.randomUUID(), year: '', title: '', description: '', emoji: '❤️' },
+      ],
+    }));
+  }
+
+  function upsertStoryItem(idx: number, partial: Partial<CoupleStoryItem>) {
+    setContent((prev) => {
+      const list = [...(prev.coupleStory ?? [])];
+      const cur = list[idx] ?? { id: crypto.randomUUID(), year: '', title: '', description: '', emoji: '' };
+      list[idx] = { ...cur, ...partial };
+      return { ...prev, coupleStory: list };
+    });
+  }
+
+  function removeStoryItem(id: string) {
+    setContent((prev) => ({ ...prev, coupleStory: (prev.coupleStory ?? []).filter((s) => s.id !== id) }));
+  }
+
+  function syncJewishEventToRsvp(type: JewishWeddingEvent['type'], partial: { label?: string; time?: string; place?: string; date?: string; enabled?: boolean }) {
+    const rsvpId = jewishRsvpId(type);
+    const meta = JEWISH_META[type];
+
+    // Extraire le numéro du jour depuis la date texte ("15 juin 2026" → "15")
+    const dayLabel = partial.date ? (partial.date.trim().split(' ')[0] ?? '') : undefined;
+
+    setRsvpForm((prev) => {
+      const events = [...prev.events];
+
+      // 1. Chercher par ID stable
+      let idx = events.findIndex((e) => e.id === rsvpId);
+
+      // 2. Fallback : chercher par emoji ou label similaire (migration données existantes)
+      if (idx < 0) {
+        idx = events.findIndex(
+          (e) => e.emojiIcon === meta.emoji || e.label.toLowerCase().includes(meta.label.toLowerCase().slice(0, 4))
+        );
+        if (idx >= 0) {
+          // Migrer l'ID vers le stable ID
+          events[idx] = { ...events[idx], id: rsvpId };
+        }
+      }
+
+      if (idx >= 0) {
+        events[idx] = {
+          ...events[idx],
+          emojiIcon: meta.emoji,
+          ...(partial.label !== undefined && { label: partial.label }),
+          ...(partial.time !== undefined && { time: partial.time }),
+          ...(partial.place !== undefined && { place: partial.place }),
+          ...(dayLabel !== undefined && { dayLabel }),
+          ...(partial.enabled !== undefined && { enabled: partial.enabled }),
+        };
+      } else if (partial.enabled) {
+        const ORDER: JewishWeddingEvent['type'][] = ['henne', 'mairie', 'chabbat-hatan', 'houppa', 'brunch', 'sheva-berakhot', 'depart', 'custom'];
+        const rank = ORDER.indexOf(type);
+        const insertBefore = events.findIndex((e) => {
+          const eType = DEFAULT_JEWISH_EVENTS.find((d) => jewishRsvpId(d.type) === e.id)?.type;
+          return eType !== undefined && ORDER.indexOf(eType) > rank;
+        });
+        const newRsvpEvent: RSVPEvent = newEvent(rsvpId, partial.label ?? meta.label, {
+          enabled: true,
+          emojiIcon: meta.emoji,
+          time: partial.time ?? '',
+          place: partial.place ?? '',
+          dayLabel: dayLabel ?? '',
+          askAttendance: true,
+          askGuestCount: true,
+        });
+        if (insertBefore >= 0) events.splice(insertBefore, 0, newRsvpEvent);
+        else events.push(newRsvpEvent);
+      }
+      return { ...prev, events };
+    });
+  }
+
+  function toggleJewishEvent(def: (typeof DEFAULT_JEWISH_EVENTS)[number], enabled: boolean) {
+    setContent((prev) => {
+      const list = [...(prev.jewishEvents ?? [])];
+      const idx = list.findIndex((e) => e.type === def.type);
+      if (enabled && idx < 0) {
+        list.push({ id: crypto.randomUUID(), type: def.type, label: def.label, date: '', time: '', place: '', description: '', enabled: true });
+      } else if (!enabled && idx >= 0) {
+        list[idx] = { ...list[idx], enabled: false };
+      } else if (enabled && idx >= 0) {
+        list[idx] = { ...list[idx], enabled: true };
+      }
+      return { ...prev, jewishEvents: list };
+    });
+    syncJewishEventToRsvp(def.type, { label: def.label, enabled });
+    setSections((s) => ({ ...s, jewishSection: true }));
+  }
+
+  function upsertJewishEvent(type: JewishWeddingEvent['type'], partial: Partial<JewishWeddingEvent>) {
+    setContent((prev) => {
+      const list = [...(prev.jewishEvents ?? [])];
+      const idx = list.findIndex((e) => e.type === type);
+      if (idx >= 0) list[idx] = { ...list[idx], ...partial };
+      return { ...prev, jewishEvents: list };
+    });
+    // Sync les champs pertinents vers le programme/RSVP
+    syncJewishEventToRsvp(type, {
+      ...(partial.label !== undefined && { label: partial.label }),
+      ...(partial.time !== undefined && { time: partial.time }),
+      ...(partial.place !== undefined && { place: partial.place }),
+      ...(partial.date !== undefined && { date: partial.date }),
+    });
+  }
+
   return (
     <div className="wedding-builder-layout">
       <div style={formColumn}>
@@ -279,7 +483,7 @@ export function WeddingSiteBuilder() {
 
           <p style={sub}>
             Remplissez les infos, utilisez le quiz pour le style, vérifiez l'aperçu puis publiez. URL publique :{' '}
-            <strong>/wedding/votre-slug</strong> (après déploiement ce sera votre domaine + ce chemin).
+            <strong>www.ohevewedding.com/wedding/votre-slug</strong> — votre domaine est actif.
           </p>
           <Link to="/" style={{ fontSize: '0.92rem' }}>
             ← Retour
@@ -287,6 +491,31 @@ export function WeddingSiteBuilder() {
         </header>
 
         <form onSubmit={handleSubmit}>
+
+          {/* ── ASSISTANT DE STYLE (en premier) ───────────────────────────── */}
+          <section style={{ ...block, border: '2px solid #5b4fd6', background: 'linear-gradient(135deg, #faf8ff 0%, #f0ecff 100%)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.5rem' }}>
+              <span style={{ fontSize: '1.4rem' }}>✨</span>
+              <h2 style={{ ...h2, margin: 0, color: '#5b4fd6' }}>Commencez par l'assistant de style</h2>
+            </div>
+            <p style={{ fontSize: '0.88rem', color: '#4c1d95', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Répondez aux questions ci-dessous pour générer automatiquement le thème parfait pour votre mariage. Vous pourrez ajuster les détails ensuite.
+            </p>
+
+            {quizApplied && (
+              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '0.6rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>✅</span>
+                <span style={{ fontWeight: 700, color: '#166534', fontSize: '0.9rem' }}>Thème appliqué ! Regardez l'aperçu à droite (ou faites défiler vers le haut sur mobile).</span>
+              </div>
+            )}
+
+            <WeddingStyleQuiz
+              value={quiz ?? {}}
+              onChange={setQuiz}
+              onApply={applyQuiz}
+            />
+          </section>
+
           <section style={block}>
             <h2 style={h2}>Informations</h2>
             <div style={grid2}>
@@ -354,6 +583,134 @@ export function WeddingSiteBuilder() {
                 <option value="en">English</option>
               </select>
             </label>
+          </section>
+
+          {/* ── Parents du couple ──────────────────────────────────────────── */}
+          <section style={block}>
+            <h2 style={h2}>👨‍👩‍👧 Familles (affiché sur le site)</h2>
+            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Ces noms apparaissent dans la section d'honneur sur le site.
+            </p>
+            <div style={grid2}>
+              <label style={lab}>
+                Nom de famille de la mariée
+                <input style={inp} placeholder="ex. Benitah"
+                  value={content.brideFamilyName ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, brideFamilyName: e.target.value }))} />
+              </label>
+              <label style={lab}>
+                Nom de famille du marié
+                <input style={inp} placeholder="ex. Cohen"
+                  value={content.groomFamilyName ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, groomFamilyName: e.target.value }))} />
+              </label>
+              <label style={lab}>
+                Père de la mariée
+                <input style={inp} placeholder="ex. Michel Benitah"
+                  value={content.parentsBride?.father ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), father: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Mère de la mariée
+                <input style={inp} placeholder="ex. Véronique Benitah"
+                  value={content.parentsBride?.mother ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), mother: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Père du marié
+                <input style={inp} placeholder="ex. Patrick Cohen"
+                  value={content.parentsGroom?.father ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), father: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Mère du marié
+                <input style={inp} placeholder="ex. Isabelle Cohen"
+                  value={content.parentsGroom?.mother ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), mother: e.target.value } }))} />
+              </label>
+            </div>
+
+            {/* Grands-parents */}
+            <p style={{ fontSize: '0.83rem', color: '#64748b', margin: '1.25rem 0 0.5rem', fontWeight: 600 }}>
+              👴👵 Grands-parents (optionnel)
+            </p>
+            <div style={grid2}>
+              <label style={lab}>
+                Grand-père paternel de la mariée
+                <input style={inp} placeholder="ex. Albert Benitah"
+                  value={content.grandparentsBride?.paternalGrandfather ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), paternalGrandfather: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Grand-mère paternelle de la mariée
+                <input style={inp} placeholder="ex. Simone Benitah"
+                  value={content.grandparentsBride?.paternalGrandmother ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), paternalGrandmother: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Grand-père maternel de la mariée
+                <input style={inp} placeholder="ex. Maurice Lévy"
+                  value={content.grandparentsBride?.maternalGrandfather ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), maternalGrandfather: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Grand-mère maternelle de la mariée
+                <input style={inp} placeholder="ex. Yvette Lévy"
+                  value={content.grandparentsBride?.maternalGrandmother ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), maternalGrandmother: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Grand-père paternel du marié
+                <input style={inp} placeholder="ex. Roger Cohen"
+                  value={content.grandparentsGroom?.paternalGrandfather ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), paternalGrandfather: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Grand-mère paternelle du marié
+                <input style={inp} placeholder="ex. Rachel Cohen"
+                  value={content.grandparentsGroom?.paternalGrandmother ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), paternalGrandmother: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Grand-père maternel du marié
+                <input style={inp} placeholder="ex. André Marciano"
+                  value={content.grandparentsGroom?.maternalGrandfather ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), maternalGrandfather: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Grand-mère maternelle du marié
+                <input style={inp} placeholder="ex. Liliane Marciano"
+                  value={content.grandparentsGroom?.maternalGrandmother ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), maternalGrandmother: e.target.value } }))} />
+              </label>
+            </div>
+          </section>
+
+          {/* ── Logo monogramme ─────────────────────────────────────────────── */}
+          <section style={block}>
+            <h2 style={h2}>💍 Logo monogramme (IA)</h2>
+            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Générez automatiquement un logo monogramme pour le site et les faire-part. Téléchargez en SVG.
+            </p>
+            <MonogramGenerator
+              groomName={groomName || 'B'}
+              brideName={brideName || 'A'}
+              primaryColor={theme.primaryColor}
+              backgroundColor={theme.backgroundColor}
+              onSelect={(svg, style) => setContent((c) => ({ ...c, monogramSvg: svg, monogramStyle: style }))}
+            />
+            {content.monogramSvg ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '0.5rem 0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px solid #86efac', fontSize: '0.83rem', color: '#166534' }}>
+                ✅ Monogramme enregistré — il sera affiché dans le Hero du site
+                <button
+                  type="button"
+                  onClick={() => setContent((c) => ({ ...c, monogramSvg: undefined, monogramStyle: undefined }))}
+                  style={{ marginLeft: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: '0.8rem' }}
+                >
+                  Supprimer
+                </button>
+              </div>
+            ) : null}
           </section>
 
           <section style={block}>
@@ -499,11 +856,6 @@ export function WeddingSiteBuilder() {
               />
             </label>
 
-            <WeddingStyleQuiz
-              value={quiz ?? {}}
-              onChange={setQuiz}
-              onApply={applyQuiz}
-            />
           </section>
 
           <section style={block}>
@@ -512,15 +864,19 @@ export function WeddingSiteBuilder() {
               {(
                 [
                   ['hero', 'Accueil'],
+                  ['coupleStory', '💑 Notre histoire'],
                   ['program', 'Programme'],
+                  ['jewishSection', '✡️ Événements mariage juif'],
                   ['location', 'Lieux'],
                   ['accommodations', 'Hébergements'],
                   ['rsvp', 'RSVP'],
                   ['faq', 'FAQ'],
-                  ['gallery', 'Galerie'],
+                  ['gallery', '🖼️ Galerie'],
+                  ['giftRegistry', '🎁 Liste de mariage'],
                   ['practicalInfo', 'Infos pratiques'],
                   ['guestMessage', 'Message aux invités'],
                   ['dressCode', 'Dress code'],
+                  ['qrCode', 'QR Code'],
                 ] as const
               ).map(([key, label]) => (
                 <label key={key} style={chk}>
@@ -579,11 +935,20 @@ export function WeddingSiteBuilder() {
               {(content.accommodations ?? []).map((hotel, idx) => (
                 <div key={hotel.id} style={{ border: '1px solid #ece8ff', borderRadius: 12, padding: '0.75rem' }}>
                   <div style={{ display: 'grid', gap: 8 }}>
-                    <input style={inp} placeholder="Nom" value={hotel.name} onChange={(e) => upsertAccommodation(idx, { name: e.target.value })} />
+                    <input style={inp} placeholder="Nom de l'hôtel" value={hotel.name} onChange={(e) => upsertAccommodation(idx, { name: e.target.value })} />
                     <input style={inp} placeholder="Adresse" value={hotel.address} onChange={(e) => upsertAccommodation(idx, { address: e.target.value })} />
-                    <input style={inp} placeholder="Distance / durée" value={hotel.distanceOrDuration} onChange={(e) => upsertAccommodation(idx, { distanceOrDuration: e.target.value })} />
+                    <input style={inp} placeholder="Description courte (optionnel)" value={hotel.description ?? ''} onChange={(e) => upsertAccommodation(idx, { description: e.target.value })} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <input style={inp} placeholder="Distance / durée" value={hotel.distanceOrDuration} onChange={(e) => upsertAccommodation(idx, { distanceOrDuration: e.target.value })} />
+                      <input style={inp} placeholder="Téléphone" value={hotel.phone ?? ''} onChange={(e) => upsertAccommodation(idx, { phone: e.target.value })} />
+                    </div>
                     <input style={inp} placeholder="Google Maps URL" value={hotel.googleMapsUrl} onChange={(e) => upsertAccommodation(idx, { googleMapsUrl: e.target.value })} />
-                    <input style={inp} placeholder="Booking URL" value={hotel.bookingUrl} onChange={(e) => upsertAccommodation(idx, { bookingUrl: e.target.value })} />
+                    <input style={inp} placeholder="Waze URL" value={hotel.wazeUrl ?? ''} onChange={(e) => upsertAccommodation(idx, { wazeUrl: e.target.value })} />
+                    <input style={inp} placeholder="URL de réservation" value={hotel.bookingUrl} onChange={(e) => upsertAccommodation(idx, { bookingUrl: e.target.value })} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={hotel.isShabbatHatan ?? false} onChange={(e) => upsertAccommodation(idx, { isShabbatHatan: e.target.checked })} />
+                      Hébergement Chabbat Hatan (section séparée)
+                    </label>
                     <button type="button" style={dangerInlineBtn} onClick={() => removeAccommodation(hotel.id)}>
                       Supprimer
                     </button>
@@ -646,6 +1011,122 @@ export function WeddingSiteBuilder() {
             </label>
           </section>
 
+          {/* ── Histoire du couple ──────────────────────────────────────────── */}
+          <section style={block}>
+            <h2 style={h2}>💑 Notre histoire (timeline)</h2>
+            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Activez la section "Notre histoire" dans les sections, puis ajoutez les moments clés de votre histoire (rencontre, fiançailles, etc.).
+            </p>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {(content.coupleStory ?? []).map((item, idx) => (
+                <div key={item.id} style={{ border: '1px solid #ece8ff', borderRadius: 12, padding: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <input style={inp} placeholder="Année (ex. 2019)" value={item.year} onChange={(e) => upsertStoryItem(idx, { year: e.target.value })} />
+                    <input style={inp} placeholder="Emoji (ex. ❤️)" value={item.emoji ?? ''} onChange={(e) => upsertStoryItem(idx, { emoji: e.target.value })} />
+                  </div>
+                  <input style={{ ...inp, marginBottom: 8 }} placeholder="Titre (ex. Notre rencontre)" value={item.title} onChange={(e) => upsertStoryItem(idx, { title: e.target.value })} />
+                  <textarea style={{ ...inp, minHeight: 64, resize: 'vertical' }} placeholder="Description..." value={item.description} onChange={(e) => upsertStoryItem(idx, { description: e.target.value })} />
+                  <button type="button" style={{ ...dangerInlineBtn, marginTop: 6 }} onClick={() => removeStoryItem(item.id)}>Supprimer</button>
+                </div>
+              ))}
+            </div>
+            <button type="button" style={ghostInlineBtn} onClick={addStoryItem}>+ Ajouter un moment</button>
+          </section>
+
+          {/* ── Section mariage juif ────────────────────────────────────────── */}
+          <section style={block}>
+            <h2 style={h2}>✡️ Événements du mariage juif</h2>
+            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Activez la section "Événements" dans les sections, puis configurez les événements de votre mariage.
+            </p>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {DEFAULT_JEWISH_EVENTS.map((def) => {
+                const existing = (content.jewishEvents ?? []).find((e) => e.type === def.type);
+                const enabled = existing?.enabled ?? false;
+                return (
+                  <div key={def.type} style={{ border: `1px solid ${enabled ? '#a78bfa' : '#ece8ff'}`, borderRadius: 12, padding: '0.75rem', background: enabled ? '#faf5ff' : '#fff' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, marginBottom: enabled ? 10 : 0, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={(e) => toggleJewishEvent(def, e.target.checked)}
+                      />
+                      {def.emoji} {def.label}
+                    </label>
+                    {enabled && existing ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <input style={inp} placeholder="Date (ex. 14 juin 2026)" value={existing.date} onChange={(e) => upsertJewishEvent(def.type, { date: e.target.value })} />
+                          <input style={inp} placeholder="Heure (ex. 19h00)" value={existing.time} onChange={(e) => upsertJewishEvent(def.type, { time: e.target.value })} />
+                        </div>
+                        <input style={inp} placeholder="Lieu" value={existing.place} onChange={(e) => upsertJewishEvent(def.type, { place: e.target.value })} />
+                        <textarea style={{ ...inp, minHeight: 56, resize: 'vertical' }} placeholder="Description (optionnel)" value={existing.description} onChange={(e) => upsertJewishEvent(def.type, { description: e.target.value })} />
+                        <input style={inp} placeholder="Google Maps URL (optionnel)" value={existing.googleMapsUrl ?? ''} onChange={(e) => upsertJewishEvent(def.type, { googleMapsUrl: e.target.value })} />
+                        <input style={inp} placeholder="Waze URL (optionnel)" value={existing.wazeUrl ?? ''} onChange={(e) => upsertJewishEvent(def.type, { wazeUrl: e.target.value })} />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ── Galerie ─────────────────────────────────────────────────────── */}
+          <section style={block}>
+            <h2 style={h2}>🖼️ Galerie photos</h2>
+            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
+              URLs de vos photos (une par ligne). Hébergez vos photos sur Cloudinary, Google Photos, Imgur ou tout service public.
+            </p>
+            <textarea
+              style={{ ...inp, minHeight: 120, resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem' }}
+              placeholder={'https://example.com/photo1.jpg\nhttps://example.com/photo2.jpg'}
+              value={(content.galleryPhotos ?? []).join('\n')}
+              onChange={(e) =>
+                setContent((c) => ({
+                  ...c,
+                  galleryPhotos: e.target.value.split('\n').map((u) => u.trim()).filter(Boolean),
+                }))
+              }
+            />
+          </section>
+
+          {/* ── Liste de mariage ────────────────────────────────────────────── */}
+          <section style={block}>
+            <h2 style={h2}>🎁 Liste de mariage</h2>
+            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Activez la section "Liste de mariage" dans les sections.
+            </p>
+            <label style={lab}>
+              Texte d'introduction
+              <textarea
+                style={{ ...inp, minHeight: 72, resize: 'vertical' }}
+                value={content.giftRegistry?.introText ?? ''}
+                onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), introText: e.target.value } }))}
+              />
+            </label>
+            <label style={lab}>
+              Lien liste de cadeaux (Mariage.net, Amazon, etc.)
+              <input style={inp} placeholder="https://..." value={content.giftRegistry?.externalUrl ?? ''} onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), externalUrl: e.target.value } }))} />
+            </label>
+            <label style={lab}>
+              Lien cagnotte (Leetchi, Pot Commun, etc.)
+              <input style={inp} placeholder="https://..." value={content.giftRegistry?.cagnotteUrl ?? ''} onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), cagnotteUrl: e.target.value } }))} />
+            </label>
+            <label style={lab}>
+              Libellé bouton cagnotte
+              <input style={inp} placeholder="Participer à la cagnotte" value={content.giftRegistry?.cagnotteLabel ?? ''} onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), cagnotteLabel: e.target.value } }))} />
+            </label>
+            <label style={lab}>
+              Informations virement bancaire (optionnel)
+              <textarea
+                style={{ ...inp, minHeight: 80, resize: 'vertical', fontFamily: 'monospace', fontSize: '0.85rem' }}
+                placeholder={'IBAN : FR76...\nBIC : ...\nNom : ...'}
+                value={content.giftRegistry?.bankTransferInfo ?? ''}
+                onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), bankTransferInfo: e.target.value } }))}
+              />
+            </label>
+          </section>
+
           <section style={block}>
             <h2 style={h2}>Dress code</h2>
             <label style={lab}>
@@ -678,61 +1159,127 @@ export function WeddingSiteBuilder() {
 
           {/* ── Liens d'invitation ─────────────────────────────────────────── */}
           <section style={block}>
-            <h2 style={h2}>🔗 Liens d'invitation par événement</h2>
-            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Créez des liens personnalisés pour chaque groupe d'invités (ex. Mariage seul, Mariage + Chabbat Hatan, Henné seul…). Chaque lien filtre automatiquement les événements du formulaire RSVP.
+            <h2 style={h2}>🔗 Liens d'invitation par groupe d'invités</h2>
+            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+              Créez un lien différent par groupe. Chaque lien affiche uniquement les événements sélectionnés dans le formulaire RSVP — les invités "Mariage seul" ne voient pas le Chabbat Hatan ni le Henné.
             </p>
 
-            {inviteLinks.map((link, idx) => (
-              <div key={link.id} style={{ border: '1px solid #ece8ff', borderRadius: 12, padding: '0.75rem', marginBottom: 8 }}>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  <input
-                    style={inp}
-                    placeholder="Label (ex. Invités mariage uniquement)"
-                    value={link.label}
-                    onChange={(e) => {
-                      const next = [...inviteLinks];
-                      next[idx] = { ...next[idx], label: e.target.value };
-                      setInviteLinks(next);
-                    }}
-                  />
-                  <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 600, marginBottom: 4 }}>
-                    Événements inclus dans ce lien :
-                  </div>
-                  <div style={{ display: 'grid', gap: 4 }}>
-                    {rsvpForm.events.filter((e) => e.enabled).map((ev) => (
-                      <label key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
-                        <input
-                          type="checkbox"
-                          checked={link.eventIds.includes(ev.id)}
-                          onChange={(e) => {
-                            const next = [...inviteLinks];
-                            const ids = next[idx].eventIds;
-                            next[idx] = {
-                              ...next[idx],
-                              eventIds: e.target.checked
-                                ? [...ids, ev.id]
-                                : ids.filter((id) => id !== ev.id),
-                            };
-                            setInviteLinks(next);
-                          }}
-                        />
-                        {ev.emojiIcon} {ev.label}
-                        {ev.dayLabel ? ` — ${ev.dayLabel}` : ''}
-                        {ev.time ? ` ${ev.time}` : ''}
-                      </label>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    style={dangerInlineBtn}
-                    onClick={() => setInviteLinks((l) => l.filter((_, i) => i !== idx))}
-                  >
-                    Supprimer ce lien
-                  </button>
-                </div>
+            {/* Modèles rapides */}
+            {inviteLinks.length === 0 && rsvpForm.events.filter((e) => e.enabled).length > 0 ? (
+              <div style={{ display: 'grid', gap: 8, marginBottom: '1rem' }}>
+                <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#5b4fd6', margin: 0 }}>⚡ Modèles rapides</p>
+                {[
+                  { label: '💍 Mariage uniquement', filter: (ev: RSVPEvent) => ['jewish-mairie', 'jewish-houppa'].includes(ev.id) },
+                  { label: '💍 + 🕌 Mariage & Chabbat Hatan', filter: (ev: RSVPEvent) => ['jewish-mairie', 'jewish-houppa', 'jewish-chabbat-hatan'].includes(ev.id) },
+                  { label: '🌸 + 💍 Henné & Mariage', filter: (ev: RSVPEvent) => ['jewish-henne', 'jewish-mairie', 'jewish-houppa'].includes(ev.id) },
+                  { label: '🌟 Tous les événements', filter: () => true },
+                ].map((tpl) => {
+                  const enabled = rsvpForm.events.filter((e) => e.enabled);
+                  const ids = enabled.filter(tpl.filter).map((e) => e.id);
+                  if (!ids.length) return null;
+                  return (
+                    <button
+                      key={tpl.label}
+                      type="button"
+                      style={{ ...ghostInlineBtn, textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.83rem' }}
+                      onClick={() =>
+                        setInviteLinks((l) => [
+                          ...l,
+                          { id: crypto.randomUUID(), label: tpl.label, eventIds: ids, token: crypto.randomUUID().slice(0, 10) },
+                        ])
+                      }
+                    >
+                      + {tpl.label}
+                    </button>
+                  );
+                })}
+                <div style={{ borderTop: '1px solid #ece8ff', marginTop: 4, paddingTop: 4 }} />
               </div>
-            ))}
+            ) : null}
+
+            {inviteLinks.map((link, idx) => {
+              const previewSlug = draft.slug || 'votre-site';
+              const token = link.token || '(sauvegarder pour générer)';
+              const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/wedding/${previewSlug}/invite/${link.token}`;
+              return (
+                <div key={link.id} style={{ border: `1px solid ${link.token ? '#a3e635' : '#ece8ff'}`, borderRadius: 12, padding: '0.85rem', marginBottom: 10 }}>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <input
+                      style={inp}
+                      placeholder="Nom du groupe (ex. Invités Mariage uniquement)"
+                      value={link.label}
+                      onChange={(e) => {
+                        const next = [...inviteLinks];
+                        next[idx] = { ...next[idx], label: e.target.value };
+                        setInviteLinks(next);
+                      }}
+                    />
+                    <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>
+                      Événements visibles pour ce groupe :
+                    </div>
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      {rsvpForm.events.filter((e) => e.enabled).map((ev) => (
+                        <label key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={link.eventIds.includes(ev.id)}
+                            onChange={(e) => {
+                              const next = [...inviteLinks];
+                              const ids = next[idx].eventIds;
+                              next[idx] = {
+                                ...next[idx],
+                                eventIds: e.target.checked
+                                  ? [...ids, ev.id]
+                                  : ids.filter((id) => id !== ev.id),
+                              };
+                              setInviteLinks(next);
+                            }}
+                          />
+                          {ev.emojiIcon} {ev.label}
+                          {ev.time ? ` · ${ev.time}` : ''}
+                        </label>
+                      ))}
+                    </div>
+
+                    {/* Générer token immédiatement */}
+                    {!link.token ? (
+                      <button
+                        type="button"
+                        style={{ ...ghostInlineBtn, fontSize: '0.82rem' }}
+                        onClick={() => {
+                          const next = [...inviteLinks];
+                          next[idx] = { ...next[idx], token: crypto.randomUUID().slice(0, 10) };
+                          setInviteLinks(next);
+                        }}
+                      >
+                        🔑 Générer le lien maintenant
+                      </button>
+                    ) : (
+                      <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.78rem', wordBreak: 'break-all', color: '#166534', border: '1px solid #86efac' }}>
+                        🔗 <strong>{link.label || 'Lien'} :</strong>
+                        <br />
+                        <span style={{ fontFamily: 'monospace' }}>{url}</span>
+                        <button
+                          type="button"
+                          style={{ marginLeft: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#5b4fd6', fontWeight: 700, fontSize: '0.8rem' }}
+                          onClick={() => navigator.clipboard.writeText(url)}
+                        >
+                          📋 Copier
+                        </button>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      style={dangerInlineBtn}
+                      onClick={() => setInviteLinks((l) => l.filter((_, i) => i !== idx))}
+                    >
+                      Supprimer ce lien
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
 
             <button
               type="button"
@@ -744,7 +1291,7 @@ export function WeddingSiteBuilder() {
                 ])
               }
             >
-              + Ajouter un lien d'invitation
+              + Ajouter un lien personnalisé
             </button>
           </section>
 

@@ -1,213 +1,199 @@
-import { router, type Href } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
-import { useAuth } from '@/contexts/auth-context';
-import { PublicSiteForm } from '@/src/features/publicSite/components/PublicSiteForm';
-import { PublicSiteSuccessCard } from '@/src/features/publicSite/components/PublicSiteSuccessCard';
-import { createPublicSite } from '@/src/features/publicSite/services/publicSiteApi';
-import type { CreatePublicSiteResponseData, PublicSiteFormValues } from '@/src/features/publicSite/types/publicSite.types';
-import { validatePublicSiteForm } from '@/src/features/publicSite/utils/validatePublicSiteForm';
-import { guessGuestSiteBuilderUrl } from '@/constants/config';
+import { C, RADIUS } from '@/constants/OheveTheme';
 
-const SESSION_ERR =
-  /session invalide|expirée|authentification requise|non authentifié/i;
+const FEATURES = [
+  { icon: 'sparkles-outline',   title: 'Généré par IA',         desc: 'Slogan, histoire, programme et FAQ créés automatiquement' },
+  { icon: 'color-palette-outline', title: '30+ thèmes premium', desc: 'Luxe, bohème, classique, mariage juif, oriental…' },
+  { icon: 'people-outline',     title: 'RSVP intégré',          desc: 'Réponses enregistrées directement dans Oheve' },
+  { icon: 'link-outline',       title: 'Liens personnalisés',   desc: 'Un lien par groupe d\'invités, par événement' },
+  { icon: 'globe-outline',      title: 'Votre domaine',         desc: 'prenom-prenom.oheve.app ou votre propre domaine' },
+  { icon: 'star-outline',       title: 'Qualité agence',        desc: 'Un site si beau que vos invités ne croiront pas qu\'il a été généré en 3 min' },
+];
 
-export default function WeddingCardScreen() {
-  const { user, updateUser } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<string[]>([]);
-  const [result, setResult] = useState<CreatePublicSiteResponseData | null>(null);
-  const [showReLogin, setShowReLogin] = useState(false);
+const THEMES = [
+  { label: 'Luxe',          bg: '#0c0c0f', accent: '#d4af37' },
+  { label: 'Classique',     bg: '#faf7f2', accent: '#5b4636' },
+  { label: 'Romantique',    bg: '#fff5f8', accent: '#b84b6f' },
+  { label: 'Mariage Juif',  bg: '#2a1218', accent: '#d4af37' },
+  { label: 'Bohème',        bg: '#f9f3ec', accent: '#a0522d' },
+  { label: 'Minimaliste',   bg: '#ffffff', accent: '#111111' },
+];
 
-  const accessToken = user?.accessToken?.trim() ?? '';
-  const initialFromProfile = useMemo<Partial<PublicSiteFormValues>>(
-    () => ({
-      brideName: user?.prenom ? `${user.prenom} ${user.nom ?? ''}`.trim() : '',
-      groomName: '',
-      weddingDate: user?.date_mariage?.slice(0, 10) ?? '',
-      location: [user?.wedding_city, user?.wedding_country].filter(Boolean).join(', ') || user?.wedding_address || '',
-    }),
-    [user]
-  );
-
-  const handleSubmit = async (values: PublicSiteFormValues) => {
-    setError(null);
-    setFieldErrors([]);
-
-    const v = validatePublicSiteForm(values);
-    if (!v.ok || !v.values) {
-      setFieldErrors(v.errors);
-      return;
-    }
-
-    if (!accessToken) {
-      setError('Tu dois être connecté avec un compte à jour. Déconnecte-toi puis reconnecte-toi pour obtenir une session sécurisée.');
-      setShowReLogin(true);
-      return;
-    }
-
-    setLoading(true);
-    setShowReLogin(false);
-    try {
-      const data = await createPublicSite(v.values, accessToken);
-      setResult(data);
-    } catch (e) {
-      const err = e as Error & { errors?: string[]; status?: number };
-      const isAuth =
-        err.status === 401 || (typeof err.message === 'string' && SESSION_ERR.test(err.message));
-      if (isAuth && user) {
-        await updateUser({ accessToken: undefined });
-        setError(
-          'Ta session ne correspond plus au serveur. Reconnecte-toi pour obtenir un nouveau jeton.'
-        );
-        setShowReLogin(true);
-      } else {
-        setError(err.message);
-        if (err.errors?.length) setFieldErrors(err.errors);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function SiteMariageScreen() {
+  const insets = useSafeAreaInsets();
 
   return (
-    <ScreenLayout edges={['top', 'left', 'right']}>
-      <Pressable style={styles.back} onPress={() => router.back()}>
-        <ThemedText style={styles.backText}>← Retour</ThemedText>
-      </Pressable>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="arrow-back" size={22} color={C.saugeDark} />
+        </Pressable>
+        <ThemedText style={styles.headerTitle}>Site Mariage</ThemedText>
+        <View style={{ width: 22 }} />
+      </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <ThemedText style={styles.overline}>Carte de mariage</ThemedText>
-        <ThemedText style={styles.title}>Mini-site invités</ThemedText>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Bannière expérience desktop */}
-        <Pressable
-          style={styles.desktopBanner}
-          onPress={() => Linking.openURL(guessGuestSiteBuilderUrl()).catch(() => {})}
-        >
-          <ThemedText style={styles.desktopBannerIcon}>💻</ThemedText>
-          <View style={{ flex: 1 }}>
-            <ThemedText style={styles.desktopBannerTitle}>Meilleure expérience sur ordinateur</ThemedText>
-            <ThemedText style={styles.desktopBannerSub}>
-              Pour personnaliser les couleurs, les sections et voir un aperçu complet, ouvre le studio web depuis ton ordinateur.
-            </ThemedText>
+        {/* Hero */}
+        <View style={styles.hero}>
+          <View style={styles.heroBadge}>
+            <ThemedText style={styles.heroBadgeTxt}>Gratuit · Publication payante</ThemedText>
           </View>
-          <ThemedText style={styles.desktopBannerArrow}>›</ThemedText>
+          <ThemedText style={styles.heroTitle}>Votre site de mariage{'\n'}en 3 minutes</ThemedText>
+          <ThemedText style={styles.heroSub}>
+            L'IA génère un site digne d'une agence web spécialisée. Configurez gratuitement, payez uniquement quand vous publiez.
+          </ThemedText>
+        </View>
+
+        {/* Theme preview strip */}
+        <View style={styles.themesRow}>
+          {THEMES.map((t) => (
+            <View key={t.label} style={[styles.themeChip, { backgroundColor: t.bg }]}>
+              <View style={[styles.themeAccentDot, { backgroundColor: t.accent }]} />
+              <ThemedText style={[styles.themeChipLabel, { color: t.accent }]} numberOfLines={1}>{t.label}</ThemedText>
+            </View>
+          ))}
+        </View>
+
+        {/* CTA principal */}
+        <Pressable style={styles.ctaMain} onPress={() => router.push('/(app)/wedding-site-builder' as never)}>
+          <Ionicons name="sparkles" size={20} color="#fff" />
+          <ThemedText style={styles.ctaMainTxt}>Créer mon site mariage</ThemedText>
+          <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.7)" />
         </Pressable>
 
-        {!accessToken ? (
-          <View style={styles.warnBox}>
-            <ThemedText style={styles.warnText}>
-              Session sans jeton d'accès. Déconnecte-toi puis reconnecte-toi pour utiliser cette fonctionnalité.
-            </ThemedText>
-            <Pressable style={styles.reloginBtn} onPress={() => router.push('/(auth)/login' as Href)}>
-              <ThemedText style={styles.reloginBtnText}>Aller à la connexion</ThemedText>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {error ? (
-          <View style={styles.errorBox}>
-            <ThemedText style={styles.errorTitle}>Erreur</ThemedText>
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
-            {showReLogin ? (
-              <Pressable style={styles.reloginBtn} onPress={() => router.push('/(auth)/login' as Href)}>
-                <ThemedText style={styles.reloginBtnText}>Aller à la connexion</ThemedText>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
-
-        {fieldErrors.length > 0 ? (
-          <View style={styles.errorBox}>
-            {fieldErrors.map((line) => (
-              <ThemedText key={line} style={styles.errorText}>
-                • {line}
-              </ThemedText>
-            ))}
-          </View>
-        ) : null}
-
-        {result ? (
-          <>
-            <PublicSiteSuccessCard publicUrl={result.publicUrl} slug={result.slug} />
-            <Pressable style={styles.resetBtn} onPress={() => setResult(null)}>
-              <ThemedText style={styles.resetBtnText}>Créer un nouveau site</ThemedText>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <PublicSiteForm initialValues={initialFromProfile} disabled={loading} onSubmit={handleSubmit} />
-            {loading ? (
-              <View style={styles.loadingRow}>
-                <ActivityIndicator color="#6D5CE8" />
-                <ThemedText style={styles.loadingText}>Création en cours…</ThemedText>
+        {/* Features */}
+        <View style={styles.featuresBlock}>
+          <ThemedText style={styles.sectionTitle}>Ce que vous obtenez</ThemedText>
+          {FEATURES.map((f) => (
+            <View key={f.title} style={styles.featureRow}>
+              <View style={styles.featureIcon}>
+                <Ionicons name={f.icon as never} size={18} color={C.sauge} />
               </View>
-            ) : null}
-          </>
-        )}
+              <View style={{ flex: 1 }}>
+                <ThemedText style={styles.featureTitle}>{f.title}</ThemedText>
+                <ThemedText style={styles.featureDesc}>{f.desc}</ThemedText>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Inspiration sites */}
+        <View style={styles.inspoBlock}>
+          <Ionicons name="trophy-outline" size={16} color={C.taupe} />
+          <ThemedText style={styles.inspoText}>
+            Inspiré de Joy, Zola, The Knot et Squarespace Wedding — la même qualité, pour votre mariage.
+          </ThemedText>
+        </View>
+
+        {/* Pricing info */}
+        <View style={styles.pricingCard}>
+          <View style={styles.pricingRow}>
+            <Ionicons name="construct-outline" size={20} color={C.sauge} />
+            <View style={{ flex: 1 }}>
+              <ThemedText style={styles.pricingLabel}>Configuration</ThemedText>
+              <ThemedText style={styles.pricingDesc}>Style, infos, événements, liens — entièrement gratuit</ThemedText>
+            </View>
+            <ThemedText style={styles.pricingFree}>Gratuit</ThemedText>
+          </View>
+          <View style={styles.pricingDivider} />
+          <View style={styles.pricingRow}>
+            <Ionicons name="globe-outline" size={20} color={C.sauge} />
+            <View style={{ flex: 1 }}>
+              <ThemedText style={styles.pricingLabel}>Publication en ligne</ThemedText>
+              <ThemedText style={styles.pricingDesc}>Votre site live avec domaine personnalisé</ThemedText>
+            </View>
+            <ThemedText style={styles.pricingPrice}>À la publication</ThemedText>
+          </View>
+        </View>
+
+        {/* Voir le site de demo */}
+        <Pressable
+          style={styles.demoRow}
+          onPress={() => Linking.openURL('https://7c613084.oheve.pages.dev')}
+        >
+          <Ionicons name="eye-outline" size={18} color={C.sauge} />
+          <ThemedText style={styles.demoText}>Voir un exemple de site</ThemedText>
+          <Ionicons name="open-outline" size={14} color={C.textLight} />
+        </Pressable>
+
       </ScrollView>
-    </ScreenLayout>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  back: { alignSelf: 'flex-start', marginBottom: 8, paddingVertical: 6 },
-  backText: { color: '#6366f1', fontSize: 15, fontWeight: '600' },
-  scroll: { paddingBottom: 48, gap: 12 },
-  overline: { fontSize: 13, opacity: 0.7 },
-  title: { fontSize: 28, fontWeight: '700' },
-  desktopBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#f5f3ff',
-    borderWidth: 1,
-    borderColor: '#c4b5fd',
-    borderRadius: 14,
-    padding: 14,
-    marginTop: 4,
+  root: { flex: 1, backgroundColor: C.background },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: C.saugePale,
   },
-  desktopBannerIcon: { fontSize: 22 },
-  desktopBannerTitle: { fontSize: 14, fontWeight: '700', color: '#4c1d95', marginBottom: 2 },
-  desktopBannerSub: { fontSize: 12, color: '#5b21b6', opacity: 0.85, lineHeight: 17 },
-  desktopBannerArrow: { fontSize: 22, color: '#a78bfa', fontWeight: '600' },
-  warnBox: {
-    backgroundColor: '#fffbeb',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#fde68a',
+  headerTitle: { fontSize: 17, fontWeight: '700', color: C.textDark },
+  scroll: { padding: 20, gap: 20, paddingBottom: 40 },
+
+  hero: { alignItems: 'center', gap: 12, paddingVertical: 8 },
+  heroBadge: {
+    backgroundColor: C.saugePale, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,
   },
-  warnText: { fontSize: 14, color: '#92400e' },
-  errorBox: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    gap: 4,
+  heroBadgeTxt: { fontSize: 12, color: C.saugeDark, fontWeight: '600' },
+  heroTitle: { fontSize: 28, fontWeight: '800', color: C.textDark, textAlign: 'center', lineHeight: 34 },
+  heroSub: { fontSize: 14, color: C.textMid, textAlign: 'center', lineHeight: 22 },
+
+  themesRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  themeChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
   },
-  errorTitle: { fontWeight: '700', color: '#b91c1c' },
-  errorText: { fontSize: 14, color: '#991b1b' },
-  reloginBtn: {
-    marginTop: 12,
-    backgroundColor: '#6D5CE8',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
+  themeAccentDot: { width: 8, height: 8, borderRadius: 4 },
+  themeChipLabel: { fontSize: 12, fontWeight: '600' },
+
+  ctaMain: {
+    backgroundColor: C.sauge, borderRadius: RADIUS.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 16, gap: 10,
   },
-  reloginBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
-  loadingText: { fontSize: 14, opacity: 0.8 },
-  resetBtn: {
-    marginTop: 8,
-    alignItems: 'center',
-    paddingVertical: 10,
+  ctaMainTxt: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1, textAlign: 'center' },
+
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: C.textDark, marginBottom: 4 },
+  featuresBlock: { gap: 14 },
+  featureRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  featureIcon: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: C.saugePale, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  resetBtnText: { color: '#6D5CE8', fontWeight: '700', fontSize: 15 },
+  featureTitle: { fontSize: 14, fontWeight: '700', color: C.textDark },
+  featureDesc: { fontSize: 12, color: C.textLight, lineHeight: 18, marginTop: 1 },
+
+  inspoBlock: {
+    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    backgroundColor: C.ivoire, borderRadius: RADIUS.md, padding: 14,
+  },
+  inspoText: { fontSize: 12, color: C.textMid, flex: 1, lineHeight: 18, fontStyle: 'italic' },
+
+  pricingCard: {
+    backgroundColor: '#fff', borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: C.saugePale, overflow: 'hidden',
+  },
+  pricingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
+  pricingLabel: { fontSize: 14, fontWeight: '700', color: C.textDark },
+  pricingDesc: { fontSize: 12, color: C.textLight, marginTop: 2 },
+  pricingFree: { fontSize: 13, fontWeight: '700', color: '#16a34a' },
+  pricingPrice: { fontSize: 12, fontWeight: '600', color: C.saugeDark, textAlign: 'right' },
+  pricingDivider: { height: 1, backgroundColor: C.saugePale, marginHorizontal: 16 },
+
+  demoRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#fff', borderRadius: RADIUS.md, padding: 14,
+    borderWidth: 1, borderColor: C.saugePale,
+  },
+  demoText: { flex: 1, fontSize: 14, fontWeight: '600', color: C.sauge },
 });

@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import { Link } from 'react-router-dom';
 
 import type { WeddingSite } from '../types';
@@ -8,6 +9,34 @@ import { formatWeddingDate } from '../utils/date';
 import { sectionLabels } from '../i18n';
 
 import { cardStyleSurface } from './templateCardStyles';
+
+type GrandparentsData = {
+  paternalGrandfather?: string;
+  paternalGrandmother?: string;
+  maternalGrandfather?: string;
+  maternalGrandmother?: string;
+};
+
+function GrandparentsBlock({ gp, color }: { gp?: GrandparentsData; color: string }) {
+  if (!gp) return null;
+  const names = [
+    gp.paternalGrandfather,
+    gp.paternalGrandmother,
+    gp.maternalGrandfather,
+    gp.maternalGrandmother,
+  ].filter(Boolean);
+  if (names.length === 0) return null;
+  return (
+    <div style={{ marginTop: '0.6rem', paddingTop: '0.5rem', borderTop: `1px solid ${color}30` }}>
+      <p style={{ margin: '0 0 0.25rem', fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', opacity: 0.5 }}>
+        Grands-parents
+      </p>
+      {names.map((n, i) => (
+        <p key={i} style={{ margin: '0.1rem 0', fontSize: '0.82rem', opacity: 0.75 }}>{n}</p>
+      ))}
+    </div>
+  );
+}
 
 export function SectionBlock({
   site,
@@ -32,12 +61,31 @@ export function SectionBlock({
   );
 }
 
+export function HeroMonogram({ site }: { site: WeddingSite }) {
+  const svg = site.content?.monogramSvg;
+  if (!svg) return null;
+  return (
+    <div
+      style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+
 export function HeroMeta({ site }: { site: WeddingSite }) {
   const line = [formatWeddingDate(site.date, site.language), site.city, site.venue].filter(Boolean).join(' · ');
   const countdown = useCountdown(site.date);
 
+  const hasBrideFamily = !!(site.content?.parentsBride?.father || site.content?.parentsBride?.mother);
+  const hasGroomFamily = !!(site.content?.parentsGroom?.father || site.content?.parentsGroom?.mother);
+  const hasMemorial = !!site.content?.texts?.memorialText?.trim();
+  const hasFamilyText = !!site.content?.texts?.familyText?.trim();
+
   return (
     <>
+      {/* Monogram hero */}
+      <HeroMonogram site={site} />
+
       <p style={{ margin: '0.5rem 0 0', fontSize: '1.05rem', fontWeight: 600, color: site.theme.primaryColor }}>
         {line}
       </p>
@@ -47,15 +95,55 @@ export function HeroMeta({ site }: { site: WeddingSite }) {
           {site.welcomeText}
         </p>
       ) : null}
-      {site.content?.texts?.memorialText ? (
-        <p style={{ marginTop: '0.75rem', fontSize: '0.9rem', opacity: 0.82, fontStyle: 'italic' }}>
-          {site.content.texts.memorialText}
+      {site.mainText ? (
+        <p style={{ marginTop: '1rem', fontSize: '1.05rem', maxWidth: 560, marginInline: 'auto', lineHeight: 1.75, fontStyle: 'italic', opacity: 0.9 }}>
+          {site.mainText}
         </p>
       ) : null}
-      {site.content?.texts?.familyText ? (
-        <p style={{ marginTop: '0.75rem', fontSize: '0.95rem', opacity: 0.92, lineHeight: 1.6 }}>
-          {site.content.texts.familyText}
+      {hasMemorial ? (
+        <p style={{ marginTop: '0.75rem', fontSize: '0.9rem', opacity: 0.82, fontStyle: 'italic' }}>
+          {site.content!.texts!.memorialText}
         </p>
+      ) : null}
+      {hasFamilyText ? (
+        <p style={{ marginTop: '0.75rem', fontSize: '0.95rem', opacity: 0.92, lineHeight: 1.6 }}>
+          {site.content!.texts!.familyText}
+        </p>
+      ) : null}
+      {(hasBrideFamily || hasGroomFamily) ? (
+        <div style={{ marginTop: '1.5rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2rem' }}>
+          {hasBrideFamily ? (
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase', opacity: 0.6 }}>
+                Famille {site.content?.brideFamilyName?.trim() || site.brideName.split(' ').pop()}
+              </p>
+              {site.content!.parentsBride!.father ? (
+                <p style={{ margin: '0.3rem 0 0', fontSize: '0.95rem', fontWeight: 600 }}>{site.content!.parentsBride!.father}</p>
+              ) : null}
+              {site.content!.parentsBride!.mother ? (
+                <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', fontWeight: 600 }}>{site.content!.parentsBride!.mother}</p>
+              ) : null}
+              <GrandparentsBlock gp={site.content?.grandparentsBride} color={site.theme.primaryColor} />
+            </div>
+          ) : null}
+          {hasBrideFamily && hasGroomFamily ? (
+            <div style={{ width: 1, background: `${site.theme.primaryColor}40`, flexShrink: 0 }} />
+          ) : null}
+          {hasGroomFamily ? (
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase', opacity: 0.6 }}>
+                Famille {site.content?.groomFamilyName?.trim() || site.groomName.split(' ').pop()}
+              </p>
+              {site.content!.parentsGroom!.father ? (
+                <p style={{ margin: '0.3rem 0 0', fontSize: '0.95rem', fontWeight: 600 }}>{site.content!.parentsGroom!.father}</p>
+              ) : null}
+              {site.content!.parentsGroom!.mother ? (
+                <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', fontWeight: 600 }}>{site.content!.parentsGroom!.mother}</p>
+              ) : null}
+              <GrandparentsBlock gp={site.content?.grandparentsGroom} color={site.theme.primaryColor} />
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </>
   );
@@ -72,11 +160,14 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   const L = sectionLabels(site.language);
 
   const anchors = [
+    site.sections.coupleStory ? { id: 'couple-story', label: L.coupleStory } : null,
     site.sections.program ? { id: 'program', label: L.program } : null,
+    site.sections.jewishSection ? { id: 'jewish-section', label: L.jewishSection } : null,
     site.sections.location ? { id: 'location', label: L.location } : null,
     site.sections.accommodations ? { id: 'accommodations', label: L.accommodations } : null,
     site.sections.rsvp ? { id: 'rsvp', label: L.rsvp } : null,
     site.sections.faq ? { id: 'faq', label: L.faq } : null,
+    site.sections.giftRegistry ? { id: 'gift-registry', label: L.giftRegistry } : null,
   ].filter(Boolean) as { id: string; label: string }[];
 
   useEffect(() => {
@@ -219,6 +310,15 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   const t = site.theme;
   const blocks: ReactNode[] = [];
 
+  if (site.sections.coupleStory && site.content?.coupleStory?.length) {
+    blocks.push(
+      <section id="couple-story" key="couple-story" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
+        <SectionHeading label={L.coupleStory} color={t.primaryColor} />
+        <CoupleStoryTimeline site={site} />
+      </section>
+    );
+  }
+
   if (site.sections.program) {
     blocks.push(
       <section id="program" key="program" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
@@ -257,24 +357,34 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     );
   }
   if (site.sections.accommodations) {
-    const hotels = site.content?.accommodations ?? [];
-    if (hotels.length) {
+    const allHotels = site.content?.accommodations ?? [];
+    const mainHotels = allHotels.filter((h) => !h.isShabbatHatan);
+    const shabbatHotels = allHotels.filter((h) => h.isShabbatHatan);
+
+    if (mainHotels.length) {
       blocks.push(
         <section id="accommodations" key="accommodations" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
-          <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.accommodations}</h2>
+          <SectionHeading label={L.accommodations} color={t.primaryColor} />
           <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
             {site.content?.accommodationsIntro ? <p style={{ marginTop: 0, lineHeight: 1.6 }}>{site.content.accommodationsIntro}</p> : null}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-              {hotels.map((h) => (
-                <article key={h.id} style={{ border: `1px solid ${t.primaryColor}25`, borderRadius: 12, padding: '0.75rem' }}>
-                  <p style={{ margin: '0 0 0.2rem', fontWeight: 700 }}>{h.name || 'Hébergement'}</p>
-                  {h.address ? <p style={{ margin: '0 0 0.2rem', fontSize: '0.9rem' }}>{h.address}</p> : null}
-                  {h.distanceOrDuration ? <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', opacity: 0.82 }}>{h.distanceOrDuration}</p> : null}
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {h.googleMapsUrl ? <a href={h.googleMapsUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>Maps</a> : null}
-                    {h.bookingUrl ? <a href={h.bookingUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>Reserver</a> : null}
-                  </div>
-                </article>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
+              {mainHotels.map((h) => (
+                <HotelCard key={h.id} hotel={h} site={site} />
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (shabbatHotels.length) {
+      blocks.push(
+        <section id="shabbat-accommodations" key="shabbat-accommodations" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
+          <SectionHeading label="Hébergement Chabbat Hatan" color={t.primaryColor} />
+          <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
+              {shabbatHotels.map((h) => (
+                <HotelCard key={h.id} hotel={h} site={site} />
               ))}
             </div>
           </div>
@@ -282,27 +392,42 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
       );
     }
   }
+  if (site.sections.jewishSection) {
+    const jevents = (site.content?.jewishEvents ?? []).filter((e) => e.enabled);
+    if (jevents.length) {
+      blocks.push(
+        <section id="jewish-section" key="jewish-section" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
+          <SectionHeading label={L.jewishSection} color={t.primaryColor} />
+          <JewishEventsSection site={site} events={jevents} useCard={useCard} />
+        </section>
+      );
+    }
+  }
+
   if (site.sections.rsvp) {
     blocks.push(
-      <section id="rsvp" key="rsvp" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
-        <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.rsvp}</h2>
-        <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem', textAlign: site.language === 'he' ? 'right' : 'center' }}>
+      <section id="rsvp" key="rsvp" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
+        <SectionHeading label={L.rsvp} color={t.primaryColor} />
+        <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem', textAlign: 'center' }}>
           {site.rsvpForm?.introText ? <p style={{ marginTop: 0, lineHeight: 1.65 }}>{site.rsvpForm.introText}</p> : null}
           <Link
             to={`/wedding/${site.slug}/rsvp`}
             style={{
-              border: `1px solid ${t.primaryColor}`,
-              background: `${t.secondaryColor}44`,
-              color: t.primaryColor,
-              padding: '0.65rem 1.4rem',
-              borderRadius: Math.max(8, t.borderRadius - 4),
-              fontWeight: 600,
-              cursor: 'pointer',
               display: 'inline-block',
+              marginTop: '0.5rem',
+              padding: '0.85rem 2.5rem',
+              borderRadius: Math.max(8, t.borderRadius),
+              background: t.primaryColor,
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '1rem',
+              letterSpacing: '0.06em',
               textDecoration: 'none',
+              boxShadow: `0 8px 24px ${t.primaryColor}44`,
+              transition: 'transform 160ms',
             }}
           >
-            {site.language === 'fr' ? 'Répondre' : site.language === 'he' ? 'אשרו' : 'Respond'}
+            {L.rsvpCta}
           </Link>
         </div>
       </section>
@@ -322,45 +447,55 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     }
   }
   if (site.sections.gallery) {
+    const photos = (site.content?.galleryPhotos ?? []).filter(Boolean);
+    if (photos.length) {
+      blocks.push(
+        <section key="gal" className="wedding-fade-in" style={{ marginTop: '2.5rem' }}>
+          <SectionHeading label={L.gallery} color={t.primaryColor} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, marginTop: '0.75rem' }}>
+            {photos.map((url, i) => (
+              <div key={i} style={{ aspectRatio: '1', borderRadius: t.borderRadius, overflow: 'hidden', background: `${t.primaryColor}10` }}>
+                <img src={url} alt={`Photo ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+  }
+
+  if (site.sections.giftRegistry && site.content?.giftRegistry) {
     blocks.push(
-      <section key="gal" className="wedding-fade-in" style={{ marginTop: '2.25rem' }}>
-        <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.gallery}</h2>
-        <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem', minHeight: 100, opacity: 0.85 }}>
-          <p style={{ margin: 0 }}>{site.language === 'fr' ? 'Photos à venir' : site.language === 'he' ? 'תמונות בקרוב' : 'Photos coming soon'}</p>
-        </div>
+      <section id="gift-registry" key="gift-registry" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
+        <SectionHeading label={L.giftRegistry} color={t.primaryColor} />
+        <GiftRegistrySection site={site} useCard={useCard} />
       </section>
     );
   }
-  if (site.sections.practicalInfo) {
+
+  if (site.sections.guestMessage && site.content?.guestMessageText?.trim()) {
     blocks.push(
-      <section key="info" className="wedding-fade-in" style={{ marginTop: '2.25rem' }}>
-        <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.practicalInfo}</h2>
+      <section key="guest" className="wedding-fade-in" style={{ marginTop: '2.5rem' }}>
+        <SectionHeading label={L.guestMessage} color={t.primaryColor} />
         <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
-          <p style={{ margin: 0, lineHeight: 1.65 }}>Parking · Hébergement · Dress code…</p>
+          <p style={{ margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap', fontSize: '1.05rem', fontStyle: 'italic' }}>{site.content.guestMessageText}</p>
         </div>
       </section>
     );
   }
-  if (site.sections.guestMessage) {
-    blocks.push(
-      <section key="guest" className="wedding-fade-in" style={{ marginTop: '2.25rem' }}>
-        <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.guestMessage}</h2>
-        <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
-          <p style={{ margin: 0, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{site.mainText || '—'}</p>
-        </div>
-      </section>
-    );
-  }
+
   if (site.sections.dressCode && site.content?.dressCode?.text) {
     blocks.push(
-      <section id="dress-code" key="dressCode" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
-        <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.dressCode}</h2>
+      <section id="dress-code" key="dressCode" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
+        <SectionHeading label={L.dressCode} color={t.primaryColor} />
         <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
           <p style={{ marginTop: 0, lineHeight: 1.65 }}>{site.content.dressCode.text}</p>
           {!!site.content.dressCode.colors?.length && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
               {site.content.dressCode.colors.map((c, i) => (
-                <span key={`${c}-${i}`} style={{ width: 24, height: 24, borderRadius: 999, background: c, border: '1px solid #ddd' }} />
+                <div key={`${c}-${i}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 999, background: c, border: '2px solid #fff', boxShadow: '0 2px 8px #0002' }} />
+                </div>
               ))}
             </div>
           )}
@@ -368,6 +503,16 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
       </section>
     );
   }
+
+  if (site.sections.qrCode) {
+    blocks.push(
+      <section key="qr" className="wedding-fade-in" style={{ marginTop: '2.5rem', textAlign: 'center' }}>
+        <SectionHeading label={L.qrCode} color={t.primaryColor} />
+        <QRCodeSection site={site} />
+      </section>
+    );
+  }
+
   return blocks;
 }
 
@@ -507,4 +652,320 @@ function linkBtn(site: WeddingSite): CSSProperties {
     fontWeight: 600,
     fontSize: '0.84rem',
   };
+}
+
+function SectionHeading({ label, color }: { label: string; color: string }) {
+  return (
+    <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+      <h2
+        style={{
+          display: 'inline-block',
+          fontSize: '0.82rem',
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color,
+          fontWeight: 700,
+          margin: 0,
+          paddingBottom: '0.5rem',
+          borderBottom: `2px solid ${color}40`,
+        }}
+      >
+        {label}
+      </h2>
+    </div>
+  );
+}
+
+function CoupleStoryTimeline({ site }: { site: WeddingSite }) {
+  const t = site.theme;
+  const items = site.content?.coupleStory ?? [];
+  return (
+    <div style={{ position: 'relative', paddingLeft: 32, paddingRight: 8 }}>
+      {/* vertical line */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 14,
+          top: 10,
+          bottom: 10,
+          width: 2,
+          background: `linear-gradient(to bottom, ${t.primaryColor}60, ${t.secondaryColor}40)`,
+          borderRadius: 2,
+        }}
+      />
+      {items.map((item, idx) => (
+        <article
+          key={item.id}
+          className="wedding-fade-in"
+          style={{ position: 'relative', marginBottom: idx < items.length - 1 ? '2rem' : 0 }}
+        >
+          {/* dot */}
+          <div
+            style={{
+              position: 'absolute',
+              left: -23,
+              top: 6,
+              width: 20,
+              height: 20,
+              borderRadius: 999,
+              background: t.primaryColor,
+              border: `3px solid ${t.backgroundColor || '#fff'}`,
+              boxShadow: `0 0 0 3px ${t.primaryColor}30`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 10,
+            }}
+          >
+            {item.emoji ? <span style={{ fontSize: 11 }}>{item.emoji}</span> : null}
+          </div>
+          <div
+            style={{
+              background: `${t.secondaryColor}12`,
+              border: `1px solid ${t.primaryColor}20`,
+              borderRadius: t.borderRadius,
+              padding: '1rem 1.1rem',
+            }}
+          >
+            <p style={{ margin: '0 0 0.25rem', fontSize: '0.75rem', fontWeight: 700, color: t.primaryColor, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              {item.year}
+            </p>
+            <p style={{ margin: '0 0 0.4rem', fontWeight: 700, fontSize: '1rem', color: t.textColor }}>{item.title}</p>
+            {item.description ? (
+              <p style={{ margin: 0, lineHeight: 1.7, fontSize: '0.93rem', opacity: 0.88 }}>{item.description}</p>
+            ) : null}
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+const JEWISH_EMOJIS: Record<string, string> = {
+  'chabbat-hatan': '🕌',
+  'henne': '🌸',
+  'mairie': '🏛️',
+  'houppa': '💍',
+  'brunch': '☕',
+  'sheva-berakhot': '🥂',
+  'depart': '👋',
+  'custom': '✨',
+};
+
+function JewishEventsSection({
+  site,
+  events,
+  useCard,
+}: {
+  site: WeddingSite;
+  events: import('../types').JewishWeddingEvent[];
+  useCard: typeof cardStyleSurface;
+}) {
+  const t = site.theme;
+  return (
+    <div style={{ display: 'grid', gap: '0.85rem', marginTop: '0.75rem' }}>
+      {events.map((ev) => (
+        <article
+          key={ev.id}
+          style={{
+            ...useCard({ theme: t }),
+            display: 'grid',
+            gridTemplateColumns: '48px 1fr',
+            gap: '0.85rem',
+            alignItems: 'flex-start',
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 14,
+              background: `${t.primaryColor}15`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 22,
+              flexShrink: 0,
+            }}
+          >
+            {JEWISH_EMOJIS[ev.type] ?? '✨'}
+          </div>
+          <div>
+            <p style={{ margin: '0 0 0.2rem', fontWeight: 700, fontSize: '1rem' }}>{ev.label}</p>
+            {(ev.date || ev.time) ? (
+              <p style={{ margin: '0 0 0.2rem', fontSize: '0.88rem', color: t.primaryColor, fontWeight: 600 }}>
+                {[ev.date, ev.time].filter(Boolean).join(' · ')}
+              </p>
+            ) : null}
+            {ev.place ? <p style={{ margin: '0 0 0.2rem', fontSize: '0.88rem', opacity: 0.85 }}>{ev.place}</p> : null}
+            {ev.description ? <p style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', lineHeight: 1.6, opacity: 0.88 }}>{ev.description}</p> : null}
+            {(ev.googleMapsUrl || ev.wazeUrl) ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                {ev.googleMapsUrl ? (
+                  <a href={ev.googleMapsUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>📍 Google Maps</a>
+                ) : null}
+                {ev.wazeUrl ? (
+                  <a href={ev.wazeUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>🚗 Waze</a>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function HotelCard({ hotel: h, site }: { hotel: import('../types').AccommodationItem; site: WeddingSite }) {
+  const t = site.theme;
+  return (
+    <article style={{ border: `1px solid ${t.primaryColor}25`, borderRadius: 12, padding: '0.85rem', display: 'grid', gap: '0.3rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <p style={{ margin: 0, fontWeight: 700, flex: 1 }}>🏨 {h.name || 'Hébergement'}</p>
+        {h.stars ? (
+          <span style={{ fontSize: '0.75rem', color: t.primaryColor }}>{'★'.repeat(Math.min(h.stars, 5))}</span>
+        ) : null}
+      </div>
+      {h.address ? <p style={{ margin: 0, fontSize: '0.88rem', opacity: 0.85 }}>{h.address}</p> : null}
+      {h.description ? <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.6, opacity: 0.82 }}>{h.description}</p> : null}
+      {h.distanceOrDuration ? (
+        <p style={{ margin: 0, fontSize: '0.82rem', color: t.primaryColor, fontWeight: 600 }}>{h.distanceOrDuration}</p>
+      ) : null}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+        {h.googleMapsUrl ? <a href={h.googleMapsUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>📍 Maps</a> : null}
+        {h.wazeUrl ? <a href={h.wazeUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>🚗 Waze</a> : null}
+        {h.phone ? <a href={`tel:${h.phone}`} style={linkBtn(site)}>📞 Appeler</a> : null}
+        {h.bookingUrl ? (
+          <a href={h.bookingUrl} target="_blank" rel="noreferrer" style={{ ...linkBtn(site), background: t.primaryColor, color: '#fff', borderColor: t.primaryColor }}>
+            Réserver
+          </a>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function GiftRegistrySection({ site, useCard }: { site: WeddingSite; useCard: typeof cardStyleSurface }) {
+  const t = site.theme;
+  const reg = site.content?.giftRegistry;
+  if (!reg) return null;
+  return (
+    <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem', textAlign: 'center' }}>
+      {reg.introText ? (
+        <p style={{ margin: '0 0 1.25rem', lineHeight: 1.7, fontSize: '1rem', fontStyle: 'italic' }}>{reg.introText}</p>
+      ) : null}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+        {reg.externalUrl ? (
+          <a
+            href={reg.externalUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '0.75rem 1.5rem',
+              borderRadius: t.borderRadius,
+              border: `1px solid ${t.primaryColor}60`,
+              color: t.textColor,
+              textDecoration: 'none',
+              fontWeight: 600,
+              background: `${t.secondaryColor}18`,
+              fontSize: '0.92rem',
+            }}
+          >
+            🛍️ Voir la liste de cadeaux
+          </a>
+        ) : null}
+        {reg.cagnotteUrl ? (
+          <a
+            href={reg.cagnotteUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '0.75rem 1.5rem',
+              borderRadius: t.borderRadius,
+              background: t.primaryColor,
+              color: '#fff',
+              textDecoration: 'none',
+              fontWeight: 600,
+              boxShadow: `0 6px 20px ${t.primaryColor}44`,
+              fontSize: '0.92rem',
+            }}
+          >
+            🎁 {reg.cagnotteLabel || 'Participer à la cagnotte'}
+          </a>
+        ) : null}
+      </div>
+      {reg.bankTransferInfo ? (
+        <details style={{ marginTop: '1.25rem', textAlign: 'left' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: t.primaryColor }}>
+            Virement bancaire
+          </summary>
+          <pre style={{ marginTop: 8, fontSize: '0.85rem', lineHeight: 1.7, opacity: 0.88, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+            {reg.bankTransferInfo}
+          </pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function QRCodeSection({ site }: { site: WeddingSite }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const url = typeof window !== 'undefined' ? window.location.href.split('?')[0] : '';
+
+  useEffect(() => {
+    if (!url) return;
+    QRCode.toDataURL(url, {
+      width: 200,
+      margin: 2,
+      color: { dark: site.theme.primaryColor, light: '#ffffff00' },
+    })
+      .then(setDataUrl)
+      .catch(() => null);
+  }, [url, site.theme.primaryColor]);
+
+  if (!dataUrl) return null;
+
+  return (
+    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '0.85rem', marginTop: '0.5rem' }}>
+      <div
+        style={{
+          padding: 16,
+          borderRadius: site.theme.borderRadius,
+          border: `1px solid ${site.theme.primaryColor}25`,
+          background: '#fff',
+          boxShadow: `0 8px 32px ${site.theme.primaryColor}14`,
+        }}
+      >
+        <img src={dataUrl} alt="QR Code du site" width={160} height={160} />
+      </div>
+      <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.7, maxWidth: 220, lineHeight: 1.5 }}>
+        {site.language === 'fr'
+          ? 'Scannez ce QR code pour accéder au site depuis votre téléphone'
+          : site.language === 'he'
+          ? 'סרקו את הקוד לכניסה לאתר'
+          : 'Scan to open this wedding site on your phone'}
+      </p>
+      <a
+        href={dataUrl}
+        download={`${site.slug}-qrcode.png`}
+        style={{
+          fontSize: '0.82rem',
+          color: site.theme.primaryColor,
+          fontWeight: 600,
+          textDecoration: 'none',
+          border: `1px solid ${site.theme.primaryColor}50`,
+          borderRadius: 8,
+          padding: '0.35rem 0.75rem',
+        }}
+      >
+        ⬇ Télécharger
+      </a>
+    </div>
+  );
 }

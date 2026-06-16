@@ -69,9 +69,10 @@ export default function AppLayout() {
       <Stack.Screen name="profile" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="messages/[id]" />
-      <Stack.Screen name="admin/index" />
+      <Stack.Screen name="admin" />
       <Stack.Screen name="prestataire/setup" />
       <Stack.Screen name="prestataire/profile-edit" />
+      <Stack.Screen name="rabbins" />
     </Stack>
   );
 }

@@ -64,12 +64,40 @@ export async function getPublicSiteBySlug(req: Request, res: Response): Promise<
         templateId: row.template_id ?? '',
         customText: row.custom_text ?? '',
         // Full rich config if available
-        siteConfig: (row as Record<string, unknown>).site_config ?? null,
-        inviteLinks: (row as Record<string, unknown>).invite_links ?? [],
+        siteConfig: (row as any).site_config ?? null,
+        inviteLinks: (row as any).invite_links ?? [],
       },
     });
   } catch (err) {
     console.error('getPublicSiteBySlug:', err);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+}
+
+/** Get the authenticated user's own site slug */
+export async function getMyPublicSite(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.auth?.sub;
+    if (userId == null) {
+      res.status(401).json({ success: false, message: 'Non authentifié' });
+      return;
+    }
+    const row = await service.getByUserId(userId);
+    if (!row) {
+      res.status(404).json({ success: false, message: 'Aucun site trouvé' });
+      return;
+    }
+    res.json({
+      success: true,
+      data: {
+        slug: row.slug,
+        brideName: row.bride_name,
+        groomName: row.groom_name,
+        isPublished: row.is_published,
+      },
+    });
+  } catch (err) {
+    console.error('getMyPublicSite:', err);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 }

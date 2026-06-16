@@ -19,7 +19,7 @@ export default function AuthIndexScreen() {
 
   const handleAfterSignIn = (isNew: boolean, role: string) => {
     if (role === 'prestataire') { router.replace('/(app)/(tabs)'); return; }
-    if (isNew) { router.replace('/(onboarding)/date-mariage'); } else { router.replace('/(app)/(tabs)'); }
+    if (isNew) { router.replace('/(onboarding)/setup'); } else { router.replace('/(app)/(tabs)'); }
   };
 
   const { signInWithGoogle } = useSocialAuth(handleAfterSignIn);

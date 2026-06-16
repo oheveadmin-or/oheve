@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PremiumGate } from '@/components/premium-gate';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { API_ENDPOINTS as ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
 
-type GuestStatus = 'confirmed' | 'pending' | 'declined';
+type GuestStatus = 'confirmed' | 'declined';
 type GuestFilter = 'all' | GuestStatus;
 
 type Guest = {
@@ -28,7 +29,7 @@ const GUESTS_INITIAL: Guest[] = [];
 
 let nextGuestId = 100;
 
-export default function GuestsScreen() {
+function GuestsScreenContent() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [guests, setGuests] = useState<Guest[]>(GUESTS_INITIAL);
@@ -129,10 +130,28 @@ export default function GuestsScreen() {
   }, [user?.accessToken, addRSVPGuest, connectSSE]);
 
   useEffect(() => () => { sseAbortRef.current?.abort(); }, []);
+
+  // Auto-charger le slug et les réponses RSVP au montage
+  useEffect(() => {
+    if (!user?.accessToken) return;
+    fetch(ENDPOINTS.myPublicSite, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((json: { success?: boolean; data?: { slug: string } } | null) => {
+        const slug = json?.data?.slug;
+        if (slug) {
+          setWeddingSlug(slug);
+          syncFromBackend(slug);
+        }
+      })
+      .catch(() => null);
+  }, [user?.accessToken, syncFromBackend]);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [name, setName] = useState('');
   const [guestCount, setGuestCount] = useState('1');
-  const [status, setStatus] = useState<GuestStatus>('pending');
+  const [status, setStatus] = useState<GuestStatus>('confirmed');
   const [group, setGroup] = useState('');
   const [table, setTable] = useState('');
 
@@ -140,23 +159,18 @@ export default function GuestsScreen() {
   const labels: Record<GuestFilter, string> = {
     all: 'Tous',
     confirmed: 'Confirmes',
-    pending: 'En attente',
     declined: 'Refuses',
   };
   const statusLabel: Record<GuestStatus, string> = {
     confirmed: 'Confirme',
-    pending: 'En attente',
     declined: 'Refuse',
   };
   const statusColor: Record<GuestStatus, string> = {
     confirmed: '#7A8A72',
-    pending: '#C4A882',
     declined: '#C17E7E',
   };
 
   const invitationCount = guests.length;
-  const confirmedInvitations = guests.filter((g) => g.status === 'confirmed').length;
-  const pendingInvitations = guests.filter((g) => g.status === 'pending').length;
   const declinedInvitations = guests.filter((g) => g.status === 'declined').length;
   const totalPeople = guests.reduce((sum, g) => sum + g.guestCount, 0);
   const confirmedPeople = guests.filter((g) => g.status === 'confirmed').reduce((sum, g) => sum + g.guestCount, 0);
@@ -167,19 +181,6 @@ export default function GuestsScreen() {
       { text: 'Annuler', style: 'cancel' },
       { text: 'Supprimer', style: 'destructive', onPress: () => setGuests((prev) => prev.filter((g) => g.id !== id)) },
     ]);
-  };
-
-  const onDeletePending = () => {
-    const pendingCount = guests.filter((g) => g.status === 'pending').length;
-    if (pendingCount === 0) { Alert.alert('Aucun invité en attente'); return; }
-    Alert.alert(
-      `Supprimer les ${pendingCount} invités en attente ?`,
-      'Tous les invités sans réponse seront supprimés.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: () => setGuests((prev) => prev.filter((g) => g.status !== 'pending')) },
-      ]
-    );
   };
 
   const onSyncFromSite = () => {
@@ -214,7 +215,7 @@ export default function GuestsScreen() {
     ]);
     setName('');
     setGuestCount('1');
-    setStatus('pending');
+    setStatus('confirmed');
     setGroup('');
     setTable('');
     setModalVisible(false);
@@ -258,11 +259,6 @@ export default function GuestsScreen() {
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryStatCol}>
-              <ThemedText style={[styles.summaryStatValue, { color: '#d97706' }]}>{pendingInvitations}</ThemedText>
-              <ThemedText style={styles.summaryStatLabel}>en attente</ThemedText>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryStatCol}>
               <ThemedText style={[styles.summaryStatValue, { color: '#dc2626' }]}>{declinedInvitations}</ThemedText>
               <ThemedText style={styles.summaryStatLabel}>refusees</ThemedText>
             </View>
@@ -289,7 +285,7 @@ export default function GuestsScreen() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {(['all', 'confirmed', 'pending', 'declined'] as GuestFilter[]).map((key) => (
+          {(['all', 'confirmed', 'declined'] as GuestFilter[]).map((key) => (
             <Pressable key={key} style={[styles.filterChip, filter === key && styles.filterChipActive]} onPress={() => setFilter(key)}>
               <ThemedText style={[styles.filterChipText, filter === key && styles.filterChipTextActive]}>
                 {labels[key]}
@@ -304,12 +300,6 @@ export default function GuestsScreen() {
             <Ionicons name="sync-outline" size={14} color="#7A8A72" />
             <ThemedText style={styles.actionBtnText}>Sync site</ThemedText>
           </Pressable>
-          {pendingInvitations > 0 && (
-            <Pressable style={[styles.actionBtn, styles.actionBtnDanger]} onPress={onDeletePending}>
-              <Ionicons name="trash-outline" size={14} color="#C17E7E" />
-              <ThemedText style={styles.actionBtnTextDanger}>Supprimer en attente ({pendingInvitations})</ThemedText>
-            </Pressable>
-          )}
         </View>
 
         <View style={styles.listContent}>
@@ -376,7 +366,7 @@ export default function GuestsScreen() {
 
                 <ThemedText style={styles.modalLabel}>Statut RSVP</ThemedText>
                 <View style={styles.statusRow}>
-                  {(['confirmed', 'pending', 'declined'] as GuestStatus[]).map((opt) => (
+                  {(['confirmed', 'declined'] as GuestStatus[]).map((opt) => (
                     <Pressable key={opt} style={[styles.statusChip, status === opt && styles.statusChipActive]} onPress={() => setStatus(opt)}>
                       <ThemedText style={[styles.statusChipText, status === opt && styles.statusChipTextActive]}>
                         {statusLabel[opt]}
@@ -482,3 +472,7 @@ const styles = StyleSheet.create({
   modalBtnPrimary: { flex: 1, backgroundColor: '#A7AD9A', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
   modalBtnPrimaryText: { color: '#fff', fontWeight: '700' },
 });
+
+export default function GuestsScreen() {
+  return <PremiumGate feature="Liste des invités" icon="people-outline"><GuestsScreenContent /></PremiumGate>;
+}

@@ -31,6 +31,10 @@ export interface AuthUser {
   subscription_plan?: SubscriptionPlan;
   subscription_status?: SubscriptionStatus;
   subscription_expires_at?: string;
+  bride_name?: string;
+  groom_name?: string;
+  premium?: boolean;
+  premium_purchased_at?: string;
 }
 
 const STORAGE_KEY = '@wedding_auth_v2';

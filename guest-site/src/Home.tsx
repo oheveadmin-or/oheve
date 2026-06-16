@@ -27,7 +27,7 @@ export default function Home() {
         En développement, l’API est proxifiée par Vite (voir <code>VITE_DEV_PROXY_API</code>) et{' '}
         <code>VITE_API_BASE_URL</code> pour la prod.
       </p>
-      <p style={note}>Localhost est normal avant déploiement — pour un lien public, déploie ce frontend chez ton hébergeur puis branche ton domaine.</p>
+      <p style={note}>Votre domaine : <strong>www.ohevewedding.com</strong> — les liens publics seront au format <code>www.ohevewedding.com/wedding/votre-slug</code> une fois le déploiement actif.</p>
     </main>
   );
 }

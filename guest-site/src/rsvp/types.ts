@@ -120,28 +120,15 @@ export function newEvent(id: string, label: string, partial?: Partial<Omit<RSVPE
   };
 }
 
-/** Seeds pour le builder — labels éditables par le couple */
+/** Événements d'un mariage juif typique — IDs stables pour cohérence avec l'éditeur */
 export function defaultRSVPEvents(): RSVPEvent[] {
-  const mk = (label: string, partial?: Partial<Omit<RSVPEvent, 'id' | 'label'>>) =>
-    newEvent(crypto.randomUUID(), label, partial);
+  const mk = (id: string, label: string, partial?: Partial<Omit<RSVPEvent, 'id' | 'label'>>) =>
+    newEvent(id, label, partial);
   return [
-    mk('Mairie', { dayLabel: 'Vendredi', time: '15:00', place: '', shortDescription: '', emojiIcon: '🏛️' }),
-    mk('Houppa', { dayLabel: 'Dimanche', time: '17:00', place: '', shortDescription: '', emojiIcon: '💍' }),
-    mk('Cocktail', { dayLabel: 'Dimanche', time: '19:30', place: '', shortDescription: '', emojiIcon: '🥂' }),
-    mk('Soirée', { dayLabel: 'Dimanche', time: '21:30', place: '', shortDescription: '', emojiIcon: '🎉' }),
-    mk('Chabbat Hatan', { dayLabel: 'Samedi', time: '', place: '', shortDescription: '', emojiIcon: '🕯️' }),
-    mk('Henné', { dayLabel: 'Lundi', time: '13:00', place: '', shortDescription: '', emojiIcon: '🧡' }),
-    mk('Brunch', { dayLabel: 'Lundi', time: '11:00', place: '', shortDescription: '', emojiIcon: '🍽️' }),
-    newEvent(crypto.randomUUID(), 'Autre événement', {
-      enabled: true,
-      askAttendance: true,
-      askGuestCount: false,
-      dayLabel: '',
-      time: '',
-      place: '',
-      shortDescription: '',
-      emojiIcon: '✨',
-    }),
+    mk('jewish-henne',         'Henné',              { dayLabel: '', time: '', place: '', shortDescription: '', emojiIcon: '🌸', enabled: false }),
+    mk('jewish-mairie',        'Mairie',              { dayLabel: '', time: '', place: '', shortDescription: '', emojiIcon: '🏛️', enabled: true }),
+    mk('jewish-houppa',        'Houppa & Cérémonie',  { dayLabel: '', time: '', place: '', shortDescription: '', emojiIcon: '💍', enabled: true }),
+    mk('jewish-chabbat-hatan', 'Chabbat Hatan',       { dayLabel: '', time: '', place: '', shortDescription: '', emojiIcon: '🕌', enabled: false }),
   ];
 }
 
@@ -156,12 +143,12 @@ export function createDefaultRSVPForm(weddingId: string): RSVPForm {
     events: defaultRSVPEvents(),
     activeFields: ['firstname', 'lastname', 'email'],
     settings: {
-      showDrinkPreference: true,
-      drinkOptions: ['Whisky', 'Vodka', 'Gin', 'Ricard', 'Vin', 'Boukha'],
+      showDrinkPreference: false,
+      drinkOptions: [],
       showMessage: true,
-      enableDietaryOptions: true,
-      dietaryOptions: ['Végétarien', 'Vegan', 'Sans gluten', 'Halal', 'Kasher'],
-      showDietaryOther: true,
+      enableDietaryOptions: false,
+      dietaryOptions: [],
+      showDietaryOther: false,
     },
     theme: {},
     updatedAt: now,

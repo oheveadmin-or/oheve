@@ -4,6 +4,8 @@ import path from 'path';
 import { Request, Response } from 'express';
 import { sendOtpEmail, sendResetEmail } from '../utils/mailer';
 
+import { isAdminEmail, sanitizeAssignedRole } from '../auth/admin';
+import { ensureAndGetRole } from '../auth/resolveUserRole';
 import {
   UserRole,
   generateRefreshToken,
@@ -53,9 +55,22 @@ export class ConnexionInscriptionController {
 
   // ── POST /inscription ──────────────────────────────────────────────────────
   async inscription(req: Request, res: Response) {
-    const { email, nom, prenom, mot_de_passe, role, otp_code } = req.body;
-    if (!email || !nom || !prenom || !mot_de_passe) {
+    const { email, nom, prenom, mot_de_passe, role, otp_code, bride_name, groom_name } = req.body;
+    const userRole: UserRole = (['client', 'prestataire', 'boutique'] as UserRole[]).includes(role) ? role : 'client';
+    const isClient = userRole === 'client';
+    const effectiveBride = isClient ? String(bride_name ?? prenom ?? '').trim() : '';
+    const effectiveGroom = isClient ? String(groom_name ?? nom ?? '').trim() : '';
+    const effectiveNom = isClient ? effectiveGroom : String(nom ?? '').trim();
+    const effectivePrenom = isClient ? effectiveBride : String(prenom ?? '').trim();
+
+    if (!email || !mot_de_passe) {
+      return res.status(400).json({ success: false, message: 'Email et mot de passe requis' });
+    }
+    if (!effectiveNom || !effectivePrenom) {
       return res.status(400).json({ success: false, message: 'Tous les champs sont requis' });
+    }
+    if (isClient && (!effectiveBride || !effectiveGroom)) {
+      return res.status(400).json({ success: false, message: 'Les prénoms des deux mariés sont requis' });
     }
     if (String(mot_de_passe).length < MIN_PWD) {
       return res.status(400).json({ success: false, message: `Mot de passe min. ${MIN_PWD} caractères` });
@@ -63,26 +78,35 @@ export class ConnexionInscriptionController {
     if (!otp_code) {
       return res.status(400).json({ success: false, message: 'Code de vérification requis' });
     }
-    const validRoles: UserRole[] = ['client', 'prestataire', 'boutique'];
-    const userRole: UserRole = validRoles.includes(role) ? role : 'client';
+    const normalizedEmail = email.trim().toLowerCase();
+    let finalRole: UserRole = userRole;
+    if (isAdminEmail(normalizedEmail)) finalRole = 'admin';
 
     try {
-      const otpValid = await repo.verifyOtp(email.trim().toLowerCase(), String(otp_code), 'inscription');
+      const otpValid = await repo.verifyOtp(normalizedEmail, String(otp_code), 'inscription');
       if (!otpValid) {
         return res.status(400).json({ success: false, message: 'Code de vérification incorrect ou expiré' });
       }
 
       const hash = await bcrypt.hash(String(mot_de_passe), SALT_ROUNDS);
-      const user = await repo.createUser(email.trim().toLowerCase(), nom.trim(), prenom.trim(), hash, userRole);
+      const user = await repo.createUser(
+        normalizedEmail,
+        effectiveNom,
+        effectivePrenom,
+        hash,
+        finalRole,
+        isClient ? { bride_name: effectiveBride, groom_name: effectiveGroom } : undefined,
+      );
+      const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
 
-      const accessToken = signAccessToken(user.id, user.email, user.role);
+      const accessToken = signAccessToken(user.id, user.email, effectiveRole);
       const refreshToken = generateRefreshToken();
       await repo.saveRefreshToken(user.id, refreshToken, refreshTokenExpiresAt(), req.headers['user-agent']);
 
       return res.status(201).json({
         success: true,
         message: 'Inscription réussie',
-        data: { ...user, accessToken, refreshToken },
+        data: { ...user, role: effectiveRole, accessToken, refreshToken },
       });
     } catch (err: unknown) {
       if ((err as { code?: string }).code === '23505') {
@@ -109,8 +133,9 @@ export class ConnexionInscriptionController {
         return res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' });
       }
 
+      const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
       const { mot_de_passe: _, ...safeUser } = user;
-      const accessToken = signAccessToken(safeUser.id, safeUser.email, safeUser.role);
+      const accessToken = signAccessToken(safeUser.id, safeUser.email, effectiveRole);
       const refreshToken = generateRefreshToken();
       await repo.saveRefreshToken(safeUser.id, refreshToken, refreshTokenExpiresAt(), req.headers['user-agent']);
 
@@ -119,6 +144,7 @@ export class ConnexionInscriptionController {
         message: 'Connexion réussie',
         data: {
           ...safeUser,
+          role: effectiveRole,
           budget_total: calcBudgetTotal(safeUser),
           accessToken,
           refreshToken,
@@ -146,18 +172,20 @@ export class ConnexionInscriptionController {
         return res.status(401).json({ success: false, message: 'Compte désactivé' });
       }
 
+      const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
+
       // Rotate: delete old, issue new
       await repo.deleteRefreshToken(refreshToken);
       const newRefreshToken = generateRefreshToken();
       await repo.saveRefreshToken(user.id, newRefreshToken, refreshTokenExpiresAt(), req.headers['user-agent']);
-      const accessToken = signAccessToken(user.id, user.email, user.role);
+      const accessToken = signAccessToken(user.id, user.email, effectiveRole);
 
       return res.status(200).json({
         success: true,
         data: {
           accessToken,
           refreshToken: newRefreshToken,
-          role: user.role,
+          role: effectiveRole,
           id: user.id,
           email: user.email,
           nom: user.nom,
@@ -191,9 +219,10 @@ export class ConnexionInscriptionController {
     try {
       const user = await repo.findById(req.auth!.sub);
       if (!user) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+      const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
       return res.status(200).json({
         success: true,
-        data: { ...user, budget_total: calcBudgetTotal(user) },
+        data: { ...user, role: effectiveRole, budget_total: calcBudgetTotal(user) },
       });
     } catch (err) {
       console.error('Erreur me:', err);
@@ -203,9 +232,26 @@ export class ConnexionInscriptionController {
 
   // ── PATCH /profile ─────────────────────────────────────────────────────────
   async updateProfile(req: Request, res: Response) {
-    const { nom, prenom, phone, avatar_url } = req.body;
+    const { nom, prenom, phone, avatar_url, role, bride_name, groom_name } = req.body;
     try {
-      const updated = await repo.updateProfile(req.auth!.sub, { nom, prenom, phone, avatar_url });
+      // Role update: update in DB then issue fresh tokens
+      if (role) {
+        const me = await repo.findById(req.auth!.sub);
+        if (!me) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+        const safeRole = sanitizeAssignedRole(me.email, role);
+        if (!safeRole || safeRole === 'admin') {
+          return res.status(403).json({ success: false, message: 'Rôle invalide ou non autorisé' });
+        }
+        const updated = await repo.updateRole(req.auth!.sub, safeRole);
+        if (!updated) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+        const accessToken = signAccessToken(updated.id, updated.email, updated.role);
+        const refreshToken = generateRefreshToken();
+        await repo.saveRefreshToken(updated.id, refreshToken, refreshTokenExpiresAt(), req.headers['user-agent']);
+        return res.status(200).json({ success: true, data: { ...updated, accessToken, refreshToken } });
+      }
+      const updated = await repo.updateProfile(req.auth!.sub, {
+        nom, prenom, phone, avatar_url, bride_name, groom_name,
+      });
       if (!updated) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
       return res.status(200).json({ success: true, data: updated });
     } catch (err) {
@@ -303,7 +349,8 @@ export class ConnexionInscriptionController {
         providerId: String(provider_user_id),
         avatarUrl: avatar_url,
       });
-      const accessToken = signAccessToken(user.id, user.email, user.role);
+      const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
+      const accessToken = signAccessToken(user.id, user.email, effectiveRole);
       const refreshToken = generateRefreshToken();
       await repo.saveRefreshToken(user.id, refreshToken, refreshTokenExpiresAt(), req.headers['user-agent']);
       return res.status(200).json({
@@ -311,10 +358,11 @@ export class ConnexionInscriptionController {
         message: 'Connexion réussie',
         data: {
           ...user,
+          role: effectiveRole,
           budget_total: calcBudgetTotal(user),
           accessToken,
           refreshToken,
-          isNew: !user.date_mariage,
+          isNew: user.isNew,
         },
       });
     } catch (err) {
@@ -440,9 +488,13 @@ export class ConnexionInscriptionController {
     if (!email || !nom || !prenom || !mot_de_passe) {
       return res.status(400).json({ success: false, message: 'Tous les champs sont requis' });
     }
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isAdminEmail(normalizedEmail)) {
+      return res.status(403).json({ success: false, message: 'Seul l\'email administrateur autorisé peut recevoir ce rôle' });
+    }
     try {
       const hash = await bcrypt.hash(String(mot_de_passe), SALT_ROUNDS);
-      const user = await repo.createUser(email.trim().toLowerCase(), nom.trim(), prenom.trim(), hash, 'admin');
+      const user = await repo.createUser(normalizedEmail, nom.trim(), prenom.trim(), hash, 'admin');
       return res.status(201).json({ success: true, message: 'Compte admin créé', data: { id: user.id, email: user.email, role: user.role } });
     } catch (err: unknown) {
       if ((err as { code?: string }).code === '23505') {

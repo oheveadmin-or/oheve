@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -16,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
+import { getTodoTasks, setTodoTasks } from '@/lib/todo-store';
 
 type TodoFilter = 'tous' | 'a_faire' | 'fait';
 
@@ -28,32 +30,26 @@ interface Todo {
   category?: string;
 }
 
-const CATEGORIES = ['Salle', 'Prestataires', 'Invités', 'Tenue', 'Déco', 'Budget', 'Administratif', 'Autre'];
+const CATEGORIES = ['Mariage', 'Mairie', 'Mikvé', 'Kala', 'Henné', 'Houppa/Soirée', 'Sac de secours J-J', 'Après-mariage', 'Planning Jour J', 'Autre'];
 
-let nextId = 100;
+const CAT_ICONS: Record<string, string> = {
+  'Mariage':              '💍',
+  'Mairie':               '🏛️',
+  'Mikvé':                '🕊️',
+  'Kala':                 '👗',
+  'Henné':                '🌿',
+  'Houppa/Soirée':        '🎊',
+  'Sac de secours J-J':   '🎒',
+  'Après-mariage':        '✈️',
+  'Planning Jour J':      '📋',
+  'Autre':                '📌',
+};
 
-const TODOS_MOCK: Todo[] = [
-  { id: '1', label: 'Confirmer la salle de réception', done: true, date: '2026-01-15', priorite: 'haute', category: 'Salle' },
-  { id: '2', label: 'Signer le contrat traiteur', done: false, date: '2026-06-15', priorite: 'haute', category: 'Prestataires' },
-  { id: '3', label: 'Envoyer les faire-part', done: true, date: '2026-04-01', priorite: 'haute', category: 'Invités' },
-  { id: '4', label: 'Première essayage robe', done: false, date: '2026-07-01', priorite: 'haute', category: 'Tenue' },
-  { id: '5', label: 'Réserver le photographe', done: true, date: '2026-03-01', priorite: 'haute', category: 'Prestataires' },
-  { id: '6', label: 'Choisir le DJ / groupe de musique', done: false, date: '2026-06-30', priorite: 'normale', category: 'Prestataires' },
-  { id: '7', label: 'Commander les fleurs — confirmer le florist', done: false, date: '2026-07-15', priorite: 'normale', category: 'Déco' },
-  { id: '8', label: 'Préparer le plan de table', done: false, date: '2026-08-15', priorite: 'haute', category: 'Invités' },
-  { id: '9', label: 'Relancer les invités sans réponse', done: false, date: '2026-07-01', priorite: 'normale', category: 'Invités' },
-  { id: '10', label: 'Commander les alliances', done: false, date: '2026-06-01', priorite: 'haute', category: 'Tenue' },
-  { id: '11', label: 'Réserver les hébergements pour les invités de loin', done: false, date: '2026-06-15', priorite: 'normale', category: 'Invités' },
-  { id: '12', label: 'Acte de mariage — déposer le dossier à la mairie', done: false, date: '2026-07-01', priorite: 'haute', category: 'Administratif' },
-  { id: '13', label: 'Organiser le voyage de noces', done: false, date: '2026-08-01', priorite: 'normale', category: 'Autre' },
-  { id: '14', label: 'Créer le site internet du mariage', done: false, date: '2026-06-15', priorite: 'normale', category: 'Autre' },
-  { id: '15', label: 'Choisir le menu du repas', done: false, date: '2026-07-15', priorite: 'normale', category: 'Prestataires' },
-  { id: '16', label: 'Préparer les cadeaux invités', done: false, date: '2026-08-20', priorite: 'basse', category: 'Déco' },
-  { id: '17', label: 'Dégustation chez le traiteur', done: false, date: '2026-06-20', priorite: 'haute', category: 'Prestataires' },
-  { id: '18', label: 'Confirmer la décoration florale', done: false, date: '2026-07-30', priorite: 'normale', category: 'Déco' },
-  { id: '19', label: 'Planning du jour J — horaires précis', done: false, date: '2026-09-01', priorite: 'haute', category: 'Administratif' },
-  { id: '20', label: 'Répétition cérémonie civile', done: false, date: '2026-09-10', priorite: 'normale', category: 'Administratif' },
-];
+let nextId = 1000;
+
+function storeToTodo(t: { id: string; title: string; category: string; done: boolean; status?: string }): Todo {
+  return { id: t.id, label: t.title, done: t.done || t.status === 'done', priorite: 'normale', category: t.category };
+}
 
 function priorityColor(p: Todo['priorite']) {
   if (p === 'haute') return C.error;
@@ -86,43 +82,63 @@ function isOverdue(d?: string): boolean {
 
 export default function TodosScreen() {
   const insets = useSafeAreaInsets();
-  const [todos, setTodos] = useState<Todo[]>(TODOS_MOCK);
+  const [todos, setTodos] = useState<Todo[]>(() => getTodoTasks().map(storeToTodo));
+  const [collapsedCats, setCollapsedCats] = useState<Record<string, boolean>>({});
+
+  useFocusEffect(useCallback(() => {
+    setTodos(getTodoTasks().map(storeToTodo));
+  }, []));
   const [filter, setFilter] = useState<TodoFilter>('tous');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [addModal, setAddModal] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newDate, setNewDate] = useState('');
   const [newPriority, setNewPriority] = useState<Todo['priorite']>('normale');
   const [newCategory, setNewCategory] = useState('Autre');
 
-  const filtered = todos.filter((t) => {
-    const matchFilter = filter === 'tous' || (filter === 'a_faire' ? !t.done : t.done);
-    const matchCateg = !selectedCategory || t.category === selectedCategory;
-    return matchFilter && matchCateg;
-  });
+  const filtered = todos.filter((t) =>
+    filter === 'tous' || (filter === 'a_faire' ? !t.done : t.done)
+  );
+
+  // Group by category, preserving CATEGORIES order
+  const grouped = CATEGORIES.map((cat) => ({
+    cat,
+    items: filtered.filter((t) => (t.category ?? 'Autre') === cat),
+  })).filter((g) => g.items.length > 0);
 
   const doneCount = todos.filter((t) => t.done).length;
   const totalCount = todos.length;
   const progress = totalCount > 0 ? doneCount / totalCount : 0;
 
+  const toggleCollapse = (cat: string) =>
+    setCollapsedCats((prev) => ({ ...prev, [cat]: !prev[cat] }));
+
   const toggleTodo = (id: string) => {
-    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+    setTodos((prev) => {
+      const next = prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t));
+      setTodoTasks(getTodoTasks().map((t) => t.id === id ? { ...t, done: !t.done } : t));
+      return next;
+    });
   };
 
   const deleteTodo = (id: string) => {
     Alert.alert('Supprimer', 'Supprimer cette tâche ?', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: () => setTodos((prev) => prev.filter((t) => t.id !== id)) },
+      {
+        text: 'Supprimer', style: 'destructive', onPress: () => {
+          setTodos((prev) => prev.filter((t) => t.id !== id));
+          setTodoTasks(getTodoTasks().filter((t) => t.id !== id));
+        },
+      },
     ]);
   };
 
   const handleAdd = () => {
     if (!newLabel.trim()) return;
     nextId += 1;
-    setTodos((prev) => [
-      ...prev,
-      { id: String(nextId), label: newLabel.trim(), done: false, date: newDate || undefined, priorite: newPriority, category: newCategory },
-    ]);
+    const newId = String(nextId);
+    const newTodo: Todo = { id: newId, label: newLabel.trim(), done: false, date: newDate || undefined, priorite: newPriority, category: newCategory };
+    setTodos((prev) => [...prev, newTodo]);
+    setTodoTasks([...getTodoTasks(), { id: newId, title: newLabel.trim(), category: newCategory, done: false }]);
     setNewLabel('');
     setNewDate('');
     setNewPriority('normale');
@@ -171,71 +187,79 @@ export default function TodosScreen() {
         ))}
       </View>
 
-      {/* Category chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={styles.catContent}>
-        <Pressable
-          style={[styles.catChip, !selectedCategory && styles.catChipActive]}
-          onPress={() => setSelectedCategory(null)}
-        >
-          <ThemedText style={[styles.catChipText, !selectedCategory && styles.catChipTextActive]}>Tout</ThemedText>
-        </Pressable>
-        {CATEGORIES.map((cat) => (
-          <Pressable
-            key={cat}
-            style={[styles.catChip, selectedCategory === cat && styles.catChipActive]}
-            onPress={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
-          >
-            <ThemedText style={[styles.catChipText, selectedCategory === cat && styles.catChipTextActive]}>{cat}</ThemedText>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      {/* List */}
-      <ScrollView style={styles.list} contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
-        {filtered.length === 0 && (
+      {/* Grouped list */}
+      <ScrollView
+        style={styles.list}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {grouped.length === 0 && (
           <View style={styles.emptyWrap}>
             <Ionicons name="checkmark-circle-outline" size={48} color={C.taupe} />
-            <ThemedText style={styles.emptyText}>Aucune tâche dans cette catégorie</ThemedText>
+            <ThemedText style={styles.emptyText}>Aucune tâche à afficher</ThemedText>
           </View>
         )}
-        {filtered.map((t) => {
-          const overdue = !t.done && isOverdue(t.date);
+
+        {grouped.map(({ cat, items }) => {
+          const collapsed = !!collapsedCats[cat];
+          const doneInCat = items.filter((t) => t.done).length;
+          const icon = CAT_ICONS[cat] ?? '📌';
+
           return (
-            <Pressable
-              key={t.id}
-              style={({ pressed }) => [styles.todoCard, t.done && styles.todoCardDone, pressed && { opacity: 0.85 }]}
-              onPress={() => toggleTodo(t.id)}
-              onLongPress={() => deleteTodo(t.id)}
-            >
-              <Pressable style={styles.checkbox} onPress={() => toggleTodo(t.id)} hitSlop={8}>
-                <Ionicons
-                  name={t.done ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={26}
-                  color={t.done ? C.success : C.textLight}
-                />
-              </Pressable>
-              <View style={styles.todoBody}>
-                <ThemedText style={[styles.todoLabel, t.done && styles.todoLabelDone]}>{t.label}</ThemedText>
-                <View style={styles.todoMeta}>
-                  {t.category && (
-                    <View style={styles.catPill}>
-                      <ThemedText style={styles.catPillText}>{t.category}</ThemedText>
-                    </View>
-                  )}
-                  {t.date && (
-                    <ThemedText style={[styles.todoDate, overdue && styles.todoDateOverdue]}>
-                      {overdue ? '⚠️ ' : ''}{formatDate(t.date)}
-                    </ThemedText>
-                  )}
-                  <View style={[styles.priorityPill, { backgroundColor: priorityBg(t.priorite) }]}>
-                    <ThemedText style={[styles.priorityText, { color: priorityColor(t.priorite) }]}>{priorityLabel(t.priorite)}</ThemedText>
+            <View key={cat} style={styles.catSection}>
+              {/* Section header */}
+              <Pressable style={styles.catHeader} onPress={() => toggleCollapse(cat)}>
+                <View style={styles.catHeaderLeft}>
+                  <ThemedText style={styles.catHeaderIcon}>{icon}</ThemedText>
+                  <ThemedText style={styles.catHeaderTitle}>{cat}</ThemedText>
+                  <View style={styles.catBadge}>
+                    <ThemedText style={styles.catBadgeText}>{doneInCat}/{items.length}</ThemedText>
                   </View>
                 </View>
-              </View>
-              <Pressable style={styles.deleteBtn} onPress={() => deleteTodo(t.id)} hitSlop={8}>
-                <Ionicons name="trash-outline" size={16} color={C.textLight} />
+                <Ionicons
+                  name={collapsed ? 'chevron-forward' : 'chevron-down'}
+                  size={16}
+                  color={C.textLight}
+                />
               </Pressable>
-            </Pressable>
+
+              {/* Tasks */}
+              {!collapsed && items.map((t) => {
+                const overdue = !t.done && isOverdue(t.date);
+                return (
+                  <Pressable
+                    key={t.id}
+                    style={({ pressed }) => [styles.todoCard, t.done && styles.todoCardDone, pressed && { opacity: 0.85 }]}
+                    onPress={() => toggleTodo(t.id)}
+                    onLongPress={() => deleteTodo(t.id)}
+                  >
+                    <Pressable style={styles.checkbox} onPress={() => toggleTodo(t.id)} hitSlop={8}>
+                      <Ionicons
+                        name={t.done ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={24}
+                        color={t.done ? C.success : C.textLight}
+                      />
+                    </Pressable>
+                    <View style={styles.todoBody}>
+                      <ThemedText style={[styles.todoLabel, t.done && styles.todoLabelDone]}>{t.label}</ThemedText>
+                      <View style={styles.todoMeta}>
+                        {t.date && (
+                          <ThemedText style={[styles.todoDate, overdue && styles.todoDateOverdue]}>
+                            {overdue ? '⚠️ ' : '📅 '}{formatDate(t.date)}
+                          </ThemedText>
+                        )}
+                        <View style={[styles.priorityPill, { backgroundColor: priorityBg(t.priorite) }]}>
+                          <ThemedText style={[styles.priorityText, { color: priorityColor(t.priorite) }]}>{priorityLabel(t.priorite)}</ThemedText>
+                        </View>
+                      </View>
+                    </View>
+                    <Pressable style={styles.deleteBtn} onPress={() => deleteTodo(t.id)} hitSlop={8}>
+                      <Ionicons name="trash-outline" size={15} color={C.textLight} />
+                    </Pressable>
+                  </Pressable>
+                );
+              })}
+            </View>
           );
         })}
       </ScrollView>
@@ -347,29 +371,41 @@ const styles = StyleSheet.create({
   filterChipText: { fontSize: 13, fontWeight: '500', color: C.textMid },
   filterChipTextActive: { color: C.textInvert, fontWeight: '700' },
 
-  catScroll: { maxHeight: 40, marginBottom: 14 },
-  catContent: { flexDirection: 'row', gap: 8, paddingRight: 8, alignItems: 'center' },
-  catChip: {
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: RADIUS.pill, borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
-  },
-  catChipActive: { backgroundColor: C.moka, borderColor: C.moka },
-  catChipText: { fontSize: 12, color: C.textMid, fontWeight: '500' },
-  catChipTextActive: { color: '#fff', fontWeight: '700' },
-
   list: { flex: 1 },
-  listContent: { gap: 10 },
+  listContent: { gap: 12, paddingTop: 4 },
+
+  catSection: {
+    backgroundColor: C.card,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: C.border,
+    overflow: 'hidden',
+  },
+  catHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: C.ivoire,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border,
+  },
+  catHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  catHeaderIcon: { fontSize: 18 },
+  catHeaderTitle: { fontSize: 14, fontWeight: '700', color: C.textDark },
+  catBadge: {
+    backgroundColor: C.saugePale, borderRadius: RADIUS.pill,
+    paddingHorizontal: 8, paddingVertical: 2,
+  },
+  catBadgeText: { fontSize: 11, fontWeight: '700', color: C.sauge },
 
   emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 14, color: C.textLight, textAlign: 'center' },
 
   todoCard: {
     flexDirection: 'row', alignItems: 'center',
-    padding: 14, borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
-    gap: 10,
+    paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: C.card, gap: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border,
   },
-  todoCardDone: { backgroundColor: C.cardAlt, borderColor: C.saugePale },
+  todoCardDone: { backgroundColor: C.cardAlt },
   checkbox: { width: 28 },
   todoBody: { flex: 1, gap: 5 },
   todoLabel: { fontSize: 15, fontWeight: '600', color: C.textDark },

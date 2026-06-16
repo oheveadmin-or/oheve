@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/contexts/auth-context';
 
 type QuickActionsSheetProps = {
   visible: boolean;
@@ -14,12 +15,16 @@ const ACTIONS = [
   { label: 'To-do', icon: 'checkbox-outline', route: '/(app)/(tabs)/todo' },
   { label: 'Invités', icon: 'person-add-outline', route: '/(app)/(tabs)/guests' },
   { label: 'Budget', icon: 'wallet-outline', route: '/(app)/(tabs)/budget' },
-  { label: 'Carte de mariage', icon: 'card-outline', route: '/(app)/wedding-card' },
-  { label: 'Planning jour J', icon: 'calendar-outline', route: '/(app)/planning-day' },
+  { label: 'Site Mariage', icon: 'globe-outline', route: '/(app)/wedding-card' },
   { label: 'Placement de table', icon: 'grid-outline', route: '/(app)/seating-plan' },
 ] as const;
 
 export function QuickActionsSheet({ visible, onClose }: QuickActionsSheetProps) {
+  const { user } = useAuth();
+  const actions = user?.role === 'admin'
+    ? [{ label: 'Panneau Admin', icon: 'shield-checkmark-outline' as const, route: '/(app)/admin' }, ...ACTIONS]
+    : ACTIONS;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -27,7 +32,7 @@ export function QuickActionsSheet({ visible, onClose }: QuickActionsSheetProps) 
           <View style={styles.handle} />
           <View style={styles.content}>
           <ThemedText style={styles.title}>Ajouter rapidement</ThemedText>
-          {ACTIONS.map((action) => (
+          {actions.map((action) => (
             <Pressable
               key={action.label}
               style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}

@@ -4,6 +4,7 @@ export type TodoTask = {
   category: string;
   done: boolean;
   status?: 'todo' | 'in_progress' | 'done';
+  dueDate?: string; // YYYY-MM-DD
 };
 
 const todoStore: { tasks: TodoTask[] } = {

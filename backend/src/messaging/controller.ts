@@ -178,4 +178,70 @@ export class MessagingController {
       return res.status(500).json({ success: false, message: 'Erreur' });
     }
   }
+
+  async sendDevis(req: Request, res: Response) {
+    const convId = parseInt(req.params.id, 10);
+    const { titre, services, tva_percent = 20, validite_jours = 30, notes } = req.body;
+
+    if (!titre || !Array.isArray(services) || !services.length) {
+      return res.status(400).json({ success: false, message: 'titre et services requis' });
+    }
+
+    try {
+      const conv = await repo.getConversation(convId, req.auth!.sub);
+      if (!conv) return res.status(404).json({ success: false, message: 'Conversation introuvable' });
+
+      const montant_ht = services.reduce(
+        (sum: number, s: any) => sum + (Number(s.prix_unitaire) * Number(s.quantite || 1)), 0
+      );
+      const montant_ttc = +(montant_ht * (1 + tva_percent / 100)).toFixed(2);
+
+      const devisRes = await repo.createDevis({
+        conversation_id: convId,
+        sender_id: req.auth!.sub,
+        titre,
+        services,
+        montant_ht: +montant_ht.toFixed(2),
+        tva_percent,
+        montant_ttc,
+        validite_jours,
+        notes: notes ?? null,
+      });
+
+      const message = await repo.sendDevisMessage(convId, req.auth!.sub, devisRes.id, titre, montant_ttc);
+      notifyRecipient(convId, req.auth!.sub, `📄 Devis : ${titre} — ${montant_ttc} €`).catch(() => {});
+
+      return res.status(201).json({ success: true, data: { devis: devisRes, message } });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
+  async updateDevisStatus(req: Request, res: Response) {
+    const devisId = parseInt(req.params.devisId, 10);
+    const { status } = req.body;
+    const allowed = ['accepte', 'refuse'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ success: false, message: 'status doit être accepte ou refuse' });
+    }
+    try {
+      const updated = await repo.updateDevisStatus(devisId, req.auth!.sub, status);
+      if (!updated) return res.status(404).json({ success: false, message: 'Devis introuvable' });
+      return res.json({ success: true, data: updated });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
+  async getDevis(req: Request, res: Response) {
+    const devisId = parseInt(req.params.devisId, 10);
+    try {
+      const devis = await repo.getDevisById(devisId, req.auth!.sub);
+      if (!devis) return res.status(404).json({ success: false, message: 'Devis introuvable' });
+      return res.json({ success: true, data: devis });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
 }

@@ -14,46 +14,36 @@ import { HeaderMenu } from '@/components/navigation/HeaderMenu';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
-import { prestatairesApi } from '@/services/auth/api';
+import { calendarApi, prestatairesApi, type CalendarEvent } from '@/services/auth/api';
 import {
   COUPLE_INSIGHTS,
   DAILY_TIPS,
-  HOME_MOCK,
   INSPIRATIONS,
-  PRIORITY_TASKS,
-  VENDOR_SUGGESTIONS,
-  VENDORS,
-  WEDDING_DAY,
 } from '@/data/home-dashboard-mock';
 import { useAuth } from '@/contexts/auth-context';
-import { getTodoTasks } from '@/lib/todo-store';
+import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
+import { getTodoTasks, setTodoTasks } from '@/lib/todo-store';
+import { getHomeProviders, type ProviderContact } from '@/lib/providers-store';
 import { useHomeDashboardStore } from '@/stores/use-home-dashboard-store';
 
 type HomeSection =
   | 'venue'
   | 'hero'
+  | 'appointments'
   | 'priorities'
   | 'budgetGuests'
   | 'vendors'
+  | 'jewishServices'
   | 'providerPhotos'
   | 'suggestions'
   | 'inspirations'
   | 'weather'
   | 'insights'
-  | 'checklist'
   | 'countdown';
 
 const HOME_SECTIONS: HomeSection[] = [
-  'venue', 'hero', 'priorities', 'budgetGuests', 'vendors', 'providerPhotos',
-  'suggestions', 'inspirations', 'weather', 'insights', 'checklist', 'countdown',
-];
-
-const QUICK_CHECKLIST = [
-  { id: 'q-1', label: 'Robe' },
-  { id: 'q-2', label: 'Salle' },
-  { id: 'q-3', label: 'Photographe' },
-  { id: 'q-4', label: 'Alliances' },
-  { id: 'q-5', label: 'Voyage de noces' },
+  'venue', 'hero', 'appointments', 'priorities', 'budgetGuests', 'vendors', 'jewishServices', 'providerPhotos',
+  'suggestions', 'inspirations', 'weather', 'insights', 'countdown',
 ];
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -94,19 +84,33 @@ function statusLabel(status: 'reserve' | 'attente' | 'devis') {
 
 type ProviderPhoto = { id: number; url: string; is_cover: boolean; prestataire_name?: string; prestataire_id?: number };
 
+function weatherCodeToDesc(code: number): string {
+  if (code === 0) return 'Ciel dégagé ☀️';
+  if (code <= 3) return 'Partiellement nuageux ⛅';
+  if (code <= 48) return 'Brumeux 🌫️';
+  if (code <= 67) return 'Pluvieux 🌧️';
+  if (code <= 77) return 'Neigeux ❄️';
+  if (code <= 82) return 'Averses 🌦️';
+  if (code <= 99) return 'Orageux ⛈️';
+  return 'Variable 🌤️';
+}
+
 export default function DashboardScreen() {
   const { user } = useAuth();
-  if (user?.role === 'prestataire') return <PrestataireHome />;
 
-  const prenom = user?.prenom ?? 'Emma';
-  const countdownDays = useMemo(() => getWeddingCountdownDays(WEDDING_DAY), []);
+  const coupleName = getCoupleDisplayName(user);
+  const coupleInitials = getCoupleInitials(user);
+  const countdownDays = useMemo(
+    () => user?.date_mariage ? getWeddingCountdownDays(user.date_mariage) : null,
+    [user?.date_mariage],
+  );
   const [todoCompletion, setTodoCompletion] = useState({ done: 0, total: 0 });
   const [realPriorityTasks, setRealPriorityTasks] = useState<{ id: string; label: string; deadline: string; done: boolean; level: 'urgent' | 'medium' }[]>([]);
   const [providerPhotos, setProviderPhotos] = useState<ProviderPhoto[]>([]);
   const [venueProvider, setVenueProvider] = useState<{ name: string; photoUrl?: string; id?: number } | null>(null);
-  const [quickChecklist, setQuickChecklist] = useState<Record<string, boolean>>({
-    'q-1': true, 'q-2': true, 'q-3': false, 'q-4': false, 'q-5': false,
-  });
+  const [weatherData, setWeatherData] = useState<{ temp: number; code: number; desc: string } | null>(null);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<CalendarEvent[]>([]);
+  const [homeProviders, setHomeProviders] = useState<ProviderContact[]>([]);
 
   const loading = useHomeDashboardStore((state) => state.loading);
   const taskDone = useHomeDashboardStore((state) => state.taskDone);
@@ -125,6 +129,29 @@ export default function DashboardScreen() {
     const timer = setTimeout(() => setLoading(false), 900);
     return () => clearTimeout(timer);
   }, [setLoading]);
+
+  const loadAppointments = useCallback(() => {
+    if (!user?.accessToken || user.role === 'prestataire') return;
+    calendarApi.getUpcoming(user.accessToken)
+      .then((res) => { if (res?.success && res.data) setUpcomingAppointments(res.data.upcoming ?? []); })
+      .catch(() => {});
+  }, [user?.accessToken, user?.role]);
+
+  useEffect(() => { loadAppointments(); }, [loadAppointments]);
+
+  useFocusEffect(useCallback(() => {
+    loadAppointments();
+    const providers = getHomeProviders();
+    setHomeProviders(providers);
+    // Sync venue card with any saved salle/lieu provider
+    const salleKeywords = ['salle', 'lieu', 'reception', 'venue'];
+    const venueFromHome = providers.find((p) =>
+      salleKeywords.some((kw) => p.categorie?.toLowerCase().includes(kw))
+    );
+    if (venueFromHome) {
+      setVenueProvider({ name: venueFromHome.nom, photoUrl: venueFromHome.coverUrl, id: venueFromHome.id ? parseInt(venueFromHome.id, 10) : undefined });
+    }
+  }, [loadAppointments]));
 
   useEffect(() => {
     if (!user?.accessToken) return;
@@ -169,27 +196,54 @@ export default function DashboardScreen() {
   );
 
   const heroMotivation = useMemo(() => {
-    if (HOME_MOCK.weddingProgress >= 80) return 'Vous êtes presque prêts pour le grand jour ✨';
-    if (HOME_MOCK.weddingProgress >= 60) return 'Excellent rythme, continuez comme ça 🌿';
+    const done = todoCompletion.done;
+    const total = todoCompletion.total;
+    const pct = total > 0 ? (done / total) * 100 : 0;
+    if (pct >= 80) return 'Vous êtes presque prêts pour le grand jour ✨';
+    if (pct >= 40) return 'Excellent rythme, continuez comme ça 🌿';
+    if (total === 0) return 'Bienvenue ! Ajoutez vos premières tâches 🎯';
     return 'Vous avancez bien, gardez le cap 🎯';
-  }, []);
+  }, [todoCompletion]);
 
-  const budgetLeft = HOME_MOCK.budget.total - HOME_MOCK.budget.spent;
-  const budgetProgress = Math.round((HOME_MOCK.budget.spent / HOME_MOCK.budget.total) * 100);
+  // Budget depuis le profil user (onboarding)
+  const budgetTotal = user?.budget_global ?? 0;
+  const budgetLeft = budgetTotal; // pas encore de dépenses tracées au départ
+  const budgetProgress = 0;
   const rsvpProgress = 0;
 
-  const completeTask = useCallback((taskId: string) => {
+  if (user?.role === 'prestataire') return <PrestataireHome />;
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      if (!user?.date_mariage || !user?.wedding_city) return;
+      const weddingDate = new Date(`${user.date_mariage}T00:00:00`);
+      const sevenDaysBefore = new Date(weddingDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+      if (new Date() < sevenDaysBefore) return;
+      try {
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(user.wedding_city)}&count=1&language=fr&format=json`);
+        const geoData = await geoRes.json();
+        if (!geoData?.results?.[0]) return;
+        const { latitude, longitude } = geoData.results[0];
+        const dateStr = user.date_mariage;
+        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max&timezone=Europe%2FParis&start_date=${dateStr}&end_date=${dateStr}`);
+        const weatherJson = await weatherRes.json();
+        const code = weatherJson?.daily?.weathercode?.[0];
+        const temp = weatherJson?.daily?.temperature_2m_max?.[0];
+        if (code == null || temp == null) return;
+        const desc = weatherCodeToDesc(code);
+        setWeatherData({ temp: Math.round(temp), code, desc });
+      } catch { /* ignoré */ }
+    };
+    fetchWeather();
+  }, [user?.date_mariage, user?.wedding_city]);
+
+  const completeTask = (taskId: string) => {
     Haptics.selectionAsync().catch(() => undefined);
     toggleTask(taskId);
-  }, [toggleTask]);
+    setTodoTasks(getTodoTasks().map((t) => t.id === taskId ? { ...t, done: true } : t));
+  };
 
-  const toggleChecklist = useCallback((itemId: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-    setQuickChecklist((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
-  }, []);
-
-  const renderSection = useCallback(
-    (section: HomeSection, index: number) => {
+  const renderSection = (section: HomeSection, index: number) => {
       if (section === 'venue') {
         const weddingLocation = user?.wedding_address || user?.wedding_city;
         return (
@@ -232,30 +286,74 @@ export default function DashboardScreen() {
       }
 
       if (section === 'hero') {
+        const todoPct = todoCompletion.total > 0
+          ? Math.round((todoCompletion.done / todoCompletion.total) * 100) : 0;
         return (
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
             <PremiumCard style={styles.heroCard}>
               <View style={styles.heroTop}>
                 <View style={{ flex: 1 }}>
                   <ThemedText style={styles.heroCaption}>Progression globale</ThemedText>
-                  <ThemedText style={styles.heroValue}>{HOME_MOCK.weddingProgress}% du mariage est prêt</ThemedText>
+                  <ThemedText style={styles.heroValue}>{todoPct}% du mariage est prêt</ThemedText>
                   <ThemedText style={styles.heroHint}>{heroMotivation}</ThemedText>
                 </View>
-                <DonutProgress progress={HOME_MOCK.weddingProgress} label={`${HOME_MOCK.weddingProgress}%`} />
+                <DonutProgress progress={todoPct} label={`${todoPct}%`} />
               </View>
               <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${HOME_MOCK.weddingProgress}%` }]} />
+                <View style={[styles.progressFill, { width: `${todoPct}%` }]} />
               </View>
               <View style={styles.heroFooter}>
                 <View style={styles.pill}>
-                  <Ionicons name="leaf-outline" size={13} color={C.saugeDark} />
-                  <ThemedText style={styles.pillText}>Score {HOME_MOCK.weddingScore}/100</ThemedText>
+                  <Ionicons name="checkmark-circle-outline" size={13} color={C.saugeDark} />
+                  <ThemedText style={styles.pillText}>{todoCompletion.done}/{todoCompletion.total} tâches</ThemedText>
                 </View>
-                <View style={styles.pill}>
-                  <Ionicons name="stats-chart-outline" size={13} color={C.saugeDark} />
-                  <ThemedText style={styles.pillText}>Projection {HOME_MOCK.budget.predictedFinal} €</ThemedText>
-                </View>
+                {budgetTotal > 0 && (
+                  <View style={styles.pill}>
+                    <Ionicons name="stats-chart-outline" size={13} color={C.saugeDark} />
+                    <ThemedText style={styles.pillText}>Budget {budgetTotal.toLocaleString('fr-FR')} €</ThemedText>
+                  </View>
+                )}
               </View>
+            </PremiumCard>
+          </AnimatedView>
+        );
+      }
+
+      if (section === 'appointments') {
+        return (
+          <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
+            <PremiumCard>
+              <SectionHeader
+                title="Rendez-vous"
+                subtitle="Votre agenda"
+                actionLabel="Calendrier"
+                onActionPress={() => router.push('/(app)/(tabs)/calendar' as never)}
+              />
+              {upcomingAppointments.length === 0 ? (
+                <View style={styles.emptyPriority}>
+                  <Ionicons name="calendar-outline" size={28} color={C.sauge} />
+                  <ThemedText style={styles.emptyPriorityTxt}>Vous n'avez aucun rendez-vous planifié.</ThemedText>
+                  <Pressable style={styles.siteRow} onPress={() => router.push('/(app)/(tabs)/calendar' as never)}>
+                    <Ionicons name="add-circle-outline" size={18} color={C.sauge} />
+                    <ThemedText style={[styles.siteLabel, { color: C.sauge }]}>Ajouter un rendez-vous</ThemedText>
+                  </Pressable>
+                </View>
+              ) : (
+                upcomingAppointments.map((appt) => (
+                  <View key={appt.id} style={styles.priorityRow}>
+                    <View style={[styles.priorityLevel, styles.priorityMedium]} />
+                    <View style={styles.priorityBody}>
+                      <ThemedText style={styles.priorityTitle}>{appt.title}</ThemedText>
+                      <ThemedText style={styles.priorityDeadline}>
+                        {appt.event_date
+                          ? new Date(`${appt.event_date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+                          : 'Date à définir'}
+                        {appt.event_time ? ` · ${String(appt.event_time).slice(0, 5)}` : ''}
+                      </ThemedText>
+                    </View>
+                  </View>
+                ))
+              )}
             </PremiumCard>
           </AnimatedView>
         );
@@ -312,9 +410,8 @@ export default function DashboardScreen() {
                 <View style={styles.compactRow}>
                   <DonutProgress progress={budgetProgress} size={64} stroke={7} label={`${budgetProgress}%`} />
                   <View>
-                    <ThemedText style={styles.miniKpi}>{HOME_MOCK.budget.total} €</ThemedText>
-                    <ThemedText style={styles.miniHint}>{budgetLeft} € restants</ThemedText>
-                    <ThemedText style={styles.miniHint}>{HOME_MOCK.budget.monthly} € ce mois</ThemedText>
+                    <ThemedText style={styles.miniKpi}>{budgetTotal > 0 ? `${budgetTotal.toLocaleString('fr-FR')} €` : '—'}</ThemedText>
+                    <ThemedText style={styles.miniHint}>{budgetTotal > 0 ? `${budgetLeft.toLocaleString('fr-FR')} € restants` : 'Définir un budget'}</ThemedText>
                   </View>
                 </View>
               </PremiumCard>
@@ -343,26 +440,113 @@ export default function DashboardScreen() {
         return (
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
             <PremiumCard>
-              <SectionHeader title="Prestataires" subtitle="Statut des réservations" actionLabel="Voir tout" onActionPress={() => router.push('/(app)/(tabs)/providers')} />
-              {VENDORS.map((vendor) => (
-                <View key={vendor.id} style={styles.vendorRow}>
-                  <View style={styles.vendorLeft}>
-                    <View style={styles.vendorLogo}>
-                      <ThemedText>{vendor.logo}</ThemedText>
-                    </View>
-                    <View>
-                      <ThemedText style={styles.vendorName}>{vendor.name}</ThemedText>
-                      <ThemedText style={styles.vendorCategory}>{vendor.category}</ThemedText>
-                    </View>
-                  </View>
-                  <View style={styles.vendorRight}>
-                    <View style={[styles.vendorBadge, { backgroundColor: statusBadgeColor(vendor.status) }]}>
-                      <ThemedText style={styles.vendorBadgeText}>{statusLabel(vendor.status)}</ThemedText>
-                    </View>
-                    <ThemedText style={styles.vendorDeposit}>{vendor.depositPaid ? 'Acompte versé' : 'Acompte en attente'}</ThemedText>
-                  </View>
+              <SectionHeader
+                title="Prestataires"
+                subtitle={homeProviders.length > 0 ? `${homeProviders.length} prestataire${homeProviders.length > 1 ? 's' : ''} ajouté${homeProviders.length > 1 ? 's' : ''}` : 'Statut des réservations'}
+                actionLabel="Voir tout"
+                onActionPress={() => router.push('/(app)/(tabs)/providers')}
+              />
+
+              {homeProviders.length === 0 ? (
+                <View style={styles.emptyPriority}>
+                  <Ionicons name="briefcase-outline" size={28} color={C.sauge} />
+                  <ThemedText style={styles.emptyPriorityTxt}>Aucun prestataire ajouté</ThemedText>
                 </View>
-              ))}
+              ) : (
+                <View style={styles.vendorsList}>
+                  {homeProviders.slice(0, 4).map((p) => {
+                    const photo = p.coverUrl ?? p.avatarUrl;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        style={styles.vendorRow}
+                        onPress={() => router.push(`/(app)/providers/${p.id}` as never)}
+                      >
+                        {/* Avatar / photo de couverture */}
+                        <View style={styles.vendorAvatar}>
+                          {photo ? (
+                            <Image source={{ uri: photo }} style={styles.vendorAvatarImg} contentFit="cover" />
+                          ) : (
+                            <View style={styles.vendorAvatarFallback}>
+                              <ThemedText style={styles.vendorAvatarInitial}>
+                                {p.nom.charAt(0).toUpperCase()}
+                              </ThemedText>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.vendorInfo}>
+                          <ThemedText style={styles.vendorName} numberOfLines={1}>{p.nom}</ThemedText>
+                          <ThemedText style={styles.vendorMeta} numberOfLines={1}>
+                            {p.categorie}{p.ville ? ` · ${p.ville}` : ''}
+                          </ThemedText>
+                        </View>
+                        {p.note > 0 && (
+                          <View style={styles.vendorRating}>
+                            <Ionicons name="star" size={11} color="#F5A623" />
+                            <ThemedText style={styles.vendorRatingText}>{p.note.toFixed(1)}</ThemedText>
+                          </View>
+                        )}
+                        <Ionicons name="chevron-forward" size={14} color={C.textLight} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
+              <Pressable style={styles.siteRow} onPress={() => router.push('/(app)/(tabs)/providers' as never)}>
+                <Ionicons name="add-circle-outline" size={18} color={C.sauge} />
+                <ThemedText style={[styles.siteLabel, { color: C.sauge }]}>
+                  {homeProviders.length === 0 ? 'Trouver des prestataires' : 'Ajouter un prestataire'}
+                </ThemedText>
+              </Pressable>
+            </PremiumCard>
+          </AnimatedView>
+        );
+      }
+
+      if (section === 'jewishServices') {
+        return (
+          <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
+            <PremiumCard>
+              <SectionHeader
+                title="Mariage juif ✡️"
+                subtitle="Officiants & services religieux"
+                actionLabel="Explorer"
+                onActionPress={() => router.push('/(app)/providers/categories/juif' as never)}
+              />
+              <View style={{ gap: 8 }}>
+                <Pressable
+                  style={styles.jewishRow}
+                  onPress={() => router.push('/(app)/rabbins' as never)}
+                >
+                  <View style={styles.jewishRowIcon}>
+                    <ThemedText style={{ fontSize: 20 }}>🕍</ThemedText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.jewishRowTitle}>Rabbins & Madrichot Kala</ThemedText>
+                    <ThemedText style={styles.jewishRowSub}>
+                      16 rabbins · 8 madrichot · Toute la France
+                    </ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={C.sauge} />
+                </Pressable>
+
+                <Pressable
+                  style={styles.jewishRow}
+                  onPress={() => router.push('/(app)/providers/categories/juif' as never)}
+                >
+                  <View style={styles.jewishRowIcon}>
+                    <ThemedText style={{ fontSize: 20 }}>🍽️</ThemedText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.jewishRowTitle}>Traiteurs casher & Prestataires</ThemedText>
+                    <ThemedText style={styles.jewishRowSub}>
+                      Traiteurs, DJ, photographes certifiés
+                    </ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={C.sauge} />
+                </Pressable>
+              </View>
             </PremiumCard>
           </AnimatedView>
         );
@@ -416,37 +600,14 @@ export default function DashboardScreen() {
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
             <PremiumCard>
               <SectionHeader title="Suggestions" subtitle="Sélection pour vous" />
-              <FlatList
-                data={VENDOR_SUGGESTIONS}
-                horizontal
-                keyExtractor={(item) => item.id}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => (
-                  <View style={styles.suggestionCard}>
-                    <View style={styles.suggestionImage}>
-                      <ThemedText style={styles.suggestionEmoji}>{item.image}</ThemedText>
-                    </View>
-                    <View style={styles.suggestionBody}>
-                      <ThemedText style={styles.suggestionTitle}>{item.name}</ThemedText>
-                      <ThemedText style={styles.suggestionMeta}>{item.type} · {item.style}</ThemedText>
-                      <ThemedText style={styles.suggestionMeta}>{item.avgPrice} · ⭐ {item.rating}</ThemedText>
-                    </View>
-                    <Pressable
-                      style={styles.favoriteBtn}
-                      onPress={() => {
-                        Haptics.selectionAsync().catch(() => undefined);
-                        toggleSuggestionFavorite(item.id);
-                      }}
-                    >
-                      <Ionicons
-                        name={savedSuggestionIds.includes(item.id) ? 'heart' : 'heart-outline'}
-                        size={17}
-                        color={savedSuggestionIds.includes(item.id) ? C.error : C.moka}
-                      />
-                    </Pressable>
-                  </View>
-                )}
-              />
+              <View style={styles.emptyPriority}>
+                <Ionicons name="search-outline" size={28} color={C.sauge} />
+                <ThemedText style={styles.emptyPriorityTxt}>Découvrez les prestataires dans l'onglet Explorer</ThemedText>
+              </View>
+              <Pressable style={styles.siteRow} onPress={() => router.push('/(app)/(tabs)/providers' as never)}>
+                <Ionicons name="compass-outline" size={18} color={C.sauge} />
+                <ThemedText style={[styles.siteLabel, { color: C.sauge }]}>Explorer les prestataires</ThemedText>
+              </Pressable>
             </PremiumCard>
           </AnimatedView>
         );
@@ -485,25 +646,30 @@ export default function DashboardScreen() {
       }
 
       if (section === 'weather') {
-        const weddingDate = new Date(`${WEDDING_DAY}T00:00:00`);
+        if (!user?.date_mariage) return null;
+        const weddingDate = new Date(`${user.date_mariage}T00:00:00`);
         const sevenDaysBefore = new Date(weddingDate.getTime() - 7 * 24 * 60 * 60 * 1000);
         const weatherAvailableDate = sevenDaysBefore.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
         const isWeatherAvailable = new Date() >= sevenDaysBefore;
+        const weddingCity = user?.wedding_city ?? '';
         return (
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
             <PremiumCard style={styles.weatherCard}>
-              <SectionHeader title="Météo du mariage" subtitle="Prévision J-7" />
-              {isWeatherAvailable ? (
+              <SectionHeader title="Météo du mariage" subtitle={weddingCity || 'Prévision J-7'} />
+              {isWeatherAvailable && weatherData ? (
                 <>
-                  <ThemedText style={styles.weatherTemp}>{HOME_MOCK.weather.averageTemp}°C · Ensoleillé ☀️</ThemedText>
-                  <ThemedText style={styles.weatherInfo}>{HOME_MOCK.weather.forecast}</ThemedText>
-                  <ThemedText style={styles.weatherInfo}>{HOME_MOCK.weather.advice}</ThemedText>
+                  <ThemedText style={styles.weatherTemp}>{weatherData.temp}°C — {weatherData.desc}</ThemedText>
+                  <ThemedText style={styles.weatherInfo}>Prévision pour le jour J à {weddingCity || 'votre ville'}.</ThemedText>
+                </>
+              ) : isWeatherAvailable ? (
+                <>
+                  <ThemedText style={styles.weatherTemp}>Chargement des prévisions…</ThemedText>
+                  <ThemedText style={styles.weatherInfo}>Récupération météo en cours pour {weddingCity || 'votre ville'}.</ThemedText>
                 </>
               ) : (
                 <>
-                  <ThemedText style={styles.weatherTemp}>Prévisions disponibles le {weatherAvailableDate}</ThemedText>
-                  <ThemedText style={styles.weatherInfo}>La météo réelle sera disponible 7 jours avant votre mariage.</ThemedText>
-                  <ThemedText style={styles.weatherInfo}>Prévision historique : {HOME_MOCK.weather.averageTemp}°C · {HOME_MOCK.weather.forecast}</ThemedText>
+                  <ThemedText style={styles.weatherTemp}>Disponible le {weatherAvailableDate}</ThemedText>
+                  <ThemedText style={styles.weatherInfo}>Les prévisions seront disponibles 7 jours avant votre mariage.</ThemedText>
                 </>
               )}
             </PremiumCard>
@@ -533,70 +699,49 @@ export default function DashboardScreen() {
         );
       }
 
-      if (section === 'checklist') {
-        return (
-          <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
-            <PremiumCard>
-              <SectionHeader title="Checklist rapide" subtitle={`Avancement : ${HOME_MOCK.stressLevel}`} />
-              {QUICK_CHECKLIST.map((item) => (
-                <Pressable key={item.id} style={styles.checkRow} onPress={() => toggleChecklist(item.id)}>
-                  <Ionicons
-                    name={quickChecklist[item.id] ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={20}
-                    color={quickChecklist[item.id] ? C.sauge : C.textLight}
-                  />
-                  <ThemedText style={[styles.checkLabel, quickChecklist[item.id] && styles.checkLabelDone]}>
-                    {item.label}
-                  </ThemedText>
-                </Pressable>
-              ))}
-              {/* Site mariage rapide */}
-              <Pressable style={styles.siteRow} onPress={() => router.push('/(app)/wedding-site-builder' as never)}>
-                <View style={styles.siteIcon}>
-                  <Ionicons name="globe-outline" size={16} color={C.sauge} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <ThemedText style={styles.siteLabel}>Site internet du mariage</ThemedText>
-                  <ThemedText style={styles.siteSub}>Créer & partager votre page</ThemedText>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={C.textLight} />
-              </Pressable>
-            </PremiumCard>
-          </AnimatedView>
-        );
-      }
-
       return (
         <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
           <PremiumCard style={styles.countdownCard}>
             <ThemedText style={styles.countdownOverline}>Compte à rebours</ThemedText>
-            <ThemedText style={styles.countdownValue}>J-{countdownDays}</ThemedText>
-            <ThemedText style={styles.countdownHint}>avant le grand jour 💍</ThemedText>
+            {countdownDays != null ? (
+              <>
+                <ThemedText style={styles.countdownValue}>J-{countdownDays}</ThemedText>
+                <ThemedText style={styles.countdownHint}>avant le grand jour 💍</ThemedText>
+              </>
+            ) : (
+              <>
+                <ThemedText style={styles.countdownValue}>—</ThemedText>
+                <Pressable onPress={() => router.push('/(app)/personal-info' as never)}>
+                  <ThemedText style={[styles.countdownHint, { color: C.sauge, fontWeight: '600' }]}>
+                    Ajouter ma date de mariage →
+                  </ThemedText>
+                </Pressable>
+              </>
+            )}
           </PremiumCard>
         </AnimatedView>
       );
-    },
-    [
-      budgetLeft, budgetProgress, completeTask, countdownDays, heroMotivation,
-      providerPhotos, quickChecklist, rsvpProgress, savedSuggestionIds,
-      taskDone, toggleChecklist, toggleSuggestionFavorite,
-      venueProvider, realPriorityTasks, user,
-    ]
-  );
+  };
 
   return (
     <GestureHandlerRootView style={styles.root}>
       <ScreenLayout edges={['top', 'left', 'right']} contentStyle={styles.layout}>
         <AnimatedView style={[styles.header, headerStyle]}>
           <View>
-            <ThemedText style={styles.hello}>Bonjour {prenom} & Lucas</ThemedText>
+            <ThemedText style={styles.hello}>
+              {coupleName ? `Bonjour ${coupleName} 👋` : 'Bienvenue sur Oheve'}
+            </ThemedText>
             <ThemedText style={styles.subHello}>
-              J-{countdownDays} · {todoCompletion.done}/{todoCompletion.total} tâches terminées
+              {countdownDays != null
+                ? `J-${countdownDays} · ${todoCompletion.done}/${todoCompletion.total} tâches`
+                : 'Renseignez votre date de mariage'}
             </ThemedText>
           </View>
           <View style={styles.headerActions}>
             <View style={styles.avatarBubble}>
-              <ThemedText style={styles.avatarText}>E&L</ThemedText>
+              <ThemedText style={styles.avatarText}>
+                {coupleInitials}
+              </ThemedText>
             </View>
             <Pressable style={styles.headerIcon}>
               <Ionicons name="notifications-outline" size={18} color={C.saugeDark} />
@@ -775,6 +920,17 @@ const styles = StyleSheet.create({
   },
   siteLabel: { fontSize: 14, fontWeight: '600', color: C.textDark },
   siteSub: { fontSize: 11, color: C.textLight },
+  jewishRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.card, borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 12,
+  },
+  jewishRowIcon: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: C.saugePale, alignItems: 'center', justifyContent: 'center',
+  },
+  jewishRowTitle: { fontSize: 14, fontWeight: '600', color: C.textDark },
+  jewishRowSub: { fontSize: 12, color: C.textLight, marginTop: 1 },
   countdownCard: { backgroundColor: C.saugePale, alignItems: 'center', paddingVertical: 28 },
   countdownOverline: { fontSize: 13, color: C.textLight, marginBottom: 6, letterSpacing: 1 },
   countdownValue: { fontSize: 52, fontWeight: '900', color: C.saugeDark },
@@ -818,9 +974,45 @@ const styles = StyleSheet.create({
   },
   venueProviderName: { fontSize: 12, color: '#fff', fontWeight: '700' },
   venueHint: { fontSize: 12, color: 'rgba(255,255,255,0.65)' },
+  jsGroup: { marginBottom: 14 },
+  jsGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
+  jsGroupIcon: { fontSize: 16 },
+  jsGroupTitle: { fontSize: 14, fontWeight: '800', color: C.saugeDark, textTransform: 'uppercase', letterSpacing: 0.5 },
+  jsRow: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: C.border, borderRadius: RADIUS.md,
+    paddingHorizontal: 12, paddingVertical: 11, marginBottom: 6,
+    backgroundColor: C.card,
+  },
+  jsRowBody: { flex: 1, gap: 2 },
+  jsName: { fontSize: 14, fontWeight: '700', color: C.textDark },
+  jsDetail: { fontSize: 12, color: C.textLight },
   emptyPriority: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 16, justifyContent: 'center',
   },
   emptyPriorityTxt: { fontSize: 14, color: C.textMid, fontWeight: '600' },
+
+  // Vendors list
+  vendorsList: { gap: 2, marginBottom: 4 },
+  vendorRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border,
+  },
+  vendorAvatar: {
+    width: 44, height: 44, borderRadius: 22, overflow: 'hidden',
+    backgroundColor: C.saugePale,
+  },
+  vendorAvatarImg: { width: 44, height: 44, borderRadius: 22 },
+  vendorAvatarFallback: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: C.saugePale, alignItems: 'center', justifyContent: 'center',
+  },
+  vendorAvatarInitial: { fontSize: 18, fontWeight: '700', color: C.saugeDark },
+  vendorInfo: { flex: 1 },
+  vendorName: { fontSize: 14, fontWeight: '700', color: C.textDark },
+  vendorMeta: { fontSize: 12, color: C.textLight, marginTop: 1 },
+  vendorRating: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  vendorRatingText: { fontSize: 12, color: C.textMid, fontWeight: '600' },
 });

@@ -2,22 +2,39 @@ import type { SiteLanguage } from '../types';
 import type { WeddingTemplateComponent } from '../types';
 import type { WeddingTheme } from '../types';
 
+import { HebrewElegantTemplate } from '@guest/wedding-sites/templates/HebrewElegantTemplate';
+import { UniversalTemplate } from '@guest/wedding-sites/templates/UniversalTemplate';
+
+// Legacy templates — kept for sites created before the UniversalTemplate system
 import { ArtDecoTemplate } from '@guest/wedding-sites/templates/ArtDecoTemplate';
 import { BohoTemplate } from '@guest/wedding-sites/templates/BohoTemplate';
 import { ClassicElegantTemplate } from '@guest/wedding-sites/templates/ClassicElegantTemplate';
-import { HebrewElegantTemplate } from '@guest/wedding-sites/templates/HebrewElegantTemplate';
 import { LuxuryDarkTemplate } from '@guest/wedding-sites/templates/LuxuryDarkTemplate';
 import { ModernMinimalTemplate } from '@guest/wedding-sites/templates/ModernMinimalTemplate';
 import { OrientalRoyalTemplate } from '@guest/wedding-sites/templates/OrientalRoyalTemplate';
 import { RomanticFloralTemplate } from '@guest/wedding-sites/templates/RomanticFloralTemplate';
 import { TelAvivTemplate } from '@guest/wedding-sites/templates/TelAvivTemplate';
 
+/**
+ * Route a site to its template component.
+ *
+ * Sites that already have `theme.heroStyle` set are "v2" sites — they use
+ * the UniversalTemplate which renders based on the full theme config.
+ *
+ * Sites without `heroStyle` are legacy sites — we keep their original template
+ * for backwards compatibility.
+ */
 export function getTemplateByTheme(
   theme: WeddingTheme,
   language: SiteLanguage
 ): WeddingTemplateComponent {
+  // Hebrew always uses the dedicated RTL template
   if (language === 'he') return HebrewElegantTemplate;
 
+  // v2 sites: heroStyle is set → use the new universal template
+  if (theme.heroStyle) return UniversalTemplate;
+
+  // v1 legacy routing (unchanged for old sites)
   if (theme.ambiance === 'religieux') return ClassicElegantTemplate;
 
   switch (theme.style) {

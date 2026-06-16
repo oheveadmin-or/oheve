@@ -2,7 +2,7 @@ import '../config/load-env';
 import bcrypt from 'bcrypt';
 import { pool } from '../config/database';
 
-const EMAIL = process.env.ADMIN_EMAIL ?? 'admin@jewishwedding.com';
+const EMAIL = process.env.ADMIN_EMAIL ?? 'oheveadmin@gmail.com';
 const PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin@2026!';
 
 async function main() {

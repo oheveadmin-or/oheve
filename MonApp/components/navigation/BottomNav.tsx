@@ -16,13 +16,15 @@ const CLIENT_LEFT = [
 ] as const;
 
 const CLIENT_RIGHT = [
+  { key: 'calendar', label: 'Calendrier', icon: 'calendar-outline', iconActive: 'calendar' },
   { key: 'messages', label: 'Messages', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
   { key: 'profile', label: 'Profil', icon: 'person-outline', iconActive: 'person' },
 ] as const;
 
 const PRESTATAIRE_TABS = [
   { key: 'index', label: 'Accueil', icon: 'home-outline', iconActive: 'home' },
-  { key: 'portfolio', label: 'Portfolio', icon: 'images-outline', iconActive: 'images' },
+  { key: 'calendar', label: 'Agenda', icon: 'calendar-outline', iconActive: 'calendar' },
+  { key: 'explore', label: 'Publier', icon: 'compass-outline', iconActive: 'compass' },
   { key: 'messages', label: 'Messages', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
   { key: 'profile', label: 'Profil', icon: 'person-outline', iconActive: 'person' },
 ] as const;

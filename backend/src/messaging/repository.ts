@@ -188,4 +188,67 @@ export class MessagingRepository {
     );
     return r.rows[0] ?? null;
   }
+
+  // ── Devis ────────────────────────────────────────────────────────────────────
+
+  async createDevis(data: {
+    conversation_id: number;
+    sender_id: number;
+    titre: string;
+    services: object[];
+    montant_ht: number;
+    tva_percent: number;
+    montant_ttc: number;
+    validite_jours: number;
+    notes: string | null;
+  }) {
+    const r = await pool.query(
+      `INSERT INTO devis
+         (conversation_id,sender_id,titre,services,montant_ht,tva_percent,montant_ttc,validite_jours,notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [data.conversation_id, data.sender_id, data.titre, JSON.stringify(data.services),
+       data.montant_ht, data.tva_percent, data.montant_ttc, data.validite_jours, data.notes]
+    );
+    return r.rows[0];
+  }
+
+  async sendDevisMessage(
+    conversationId: number,
+    senderId: number,
+    devisId: number,
+    titre: string,
+    montantTtc: number,
+  ): Promise<MessageRow> {
+    await pool.query(`UPDATE conversations SET last_message_at=NOW() WHERE id=$1`, [conversationId]);
+    const r = await pool.query(
+      `INSERT INTO messages (conversation_id,sender_id,content,message_type,devis_id)
+       VALUES ($1,$2,$3,'devis',$4) RETURNING *`,
+      [conversationId, senderId, `📄 Devis : ${titre} — ${montantTtc} €`, devisId]
+    );
+    return r.rows[0];
+  }
+
+  async updateDevisStatus(devisId: number, userId: number, status: string) {
+    const r = await pool.query(
+      `UPDATE devis SET status=$1, updated_at=NOW()
+       WHERE id=$2 AND conversation_id IN (
+         SELECT id FROM conversations WHERE client_id=$3 OR prestataire_id=$3
+       ) RETURNING *`,
+      [status, devisId, userId]
+    );
+    return r.rows[0] ?? null;
+  }
+
+  async getDevisById(devisId: number, userId: number) {
+    const r = await pool.query(
+      `SELECT d.*, u.nom AS sender_nom, u.prenom AS sender_prenom
+       FROM devis d
+       JOIN users u ON u.id=d.sender_id
+       WHERE d.id=$1 AND d.conversation_id IN (
+         SELECT id FROM conversations WHERE client_id=$2 OR prestataire_id=$2
+       )`,
+      [devisId, userId]
+    );
+    return r.rows[0] ?? null;
+  }
 }

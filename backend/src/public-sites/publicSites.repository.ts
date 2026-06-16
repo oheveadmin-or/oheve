@@ -67,6 +67,17 @@ export class PublicSitesRepository {
     return result.rows[0] ?? null;
   }
 
+  async findByUserId(userId: number): Promise<PublicSiteRow | null> {
+    const result = await pool.query(
+      `SELECT id, user_id, slug, bride_name, groom_name, wedding_date,
+              location, phone, template_id, custom_text, is_published,
+              site_config, invite_links, created_at, updated_at
+       FROM public_sites WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    );
+    return result.rows[0] ?? null;
+  }
+
   async updateSiteConfig(userId: number, slug: string, siteConfig: unknown, inviteLinks: unknown): Promise<void> {
     await pool.query(
       `UPDATE public_sites SET site_config = $1::jsonb, invite_links = $2::jsonb, updated_at = NOW()

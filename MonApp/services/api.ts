@@ -39,6 +39,7 @@ export interface WeddingLocationData {
   wedding_lat?: number;
   wedding_lng?: number;
   wedding_address?: string;
+  wedding_venue?: string;
 }
 
 export interface WeddingLocationResponse {

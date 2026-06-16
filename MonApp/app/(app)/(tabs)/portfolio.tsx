@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +17,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
-import { prestatairesApi } from '@/services/auth/api';
+import { prestatairesApi, uploadFile } from '@/services/auth/api';
+import { API_ENDPOINTS } from '@/constants/config';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
@@ -52,6 +54,7 @@ export default function PortfolioScreen() {
   }, [user]);
 
   useEffect(() => { fetchPhotos(); }, [fetchPhotos]);
+  useFocusEffect(useCallback(() => { fetchPhotos(); }, [fetchPhotos]));
 
   const pickAndUpload = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -72,20 +75,21 @@ export default function PortfolioScreen() {
     setUploading(true);
     try {
       for (const asset of result.assets) {
-        const formData = new FormData();
-        formData.append('photo', {
-          uri: asset.uri,
-          name: asset.fileName ?? `photo_${Date.now()}.jpg`,
-          type: asset.mimeType ?? 'image/jpeg',
-        } as never);
-
-        const res = await prestatairesApi.uploadPhoto(user!.accessToken, formData);
+        const res = await uploadFile(
+          `${API_ENDPOINTS.prestataires}/me/photos`,
+          user!.accessToken,
+          asset.uri,
+        );
         if (res?.success && res.data) {
-          setPhotos((prev) => [...prev, res.data]);
+          setPhotos((prev) => [...prev, res.data as never]);
+        } else if (res?.message) {
+          Alert.alert('Erreur', res.message);
+          break;
         }
       }
-    } catch {
-      Alert.alert('Erreur', 'Impossible d\'uploader la photo. Vérifiez votre connexion.');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert('Erreur upload', msg);
     } finally {
       setUploading(false);
     }

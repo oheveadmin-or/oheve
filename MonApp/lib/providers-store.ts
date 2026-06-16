@@ -12,6 +12,9 @@ export type ProviderContact = {
   email: string;
   adresse: string;
   instagram: string;
+  // Photos
+  coverUrl?: string;   // photo de couverture (première photo publiée)
+  avatarUrl?: string;  // avatar du profil prestataire
 };
 
 const store = new Map<string, ProviderContact>();

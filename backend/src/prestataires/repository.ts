@@ -21,6 +21,7 @@ export interface PrestaProfileRow {
   nom?: string;
   prenom?: string;
   avatar_url?: string;
+  cover_url?: string;
 }
 
 export class PrestatairesRepository {
@@ -71,19 +72,26 @@ export class PrestatairesRepository {
     return r.rows[0] ?? null;
   }
 
-  async list(category?: string, city?: string, limit = 50, offset = 0) {
+  async list(category?: string, city?: string, limit = 50, offset = 0, includeHidden = false) {
     const conditions: string[] = [];
     const vals: unknown[] = [];
     let i = 1;
+    if (!includeHidden) {
+      conditions.push(`COALESCE(p.is_hidden, false)=false`);
+      conditions.push(`COALESCE(p.is_suspended, false)=false`);
+      conditions.push(`u.is_active=true`);
+    }
     if (category) { conditions.push(`p.category=$${i++}`); vals.push(category); }
     if (city) { conditions.push(`p.location_city ILIKE $${i++}`); vals.push(`%${city}%`); }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     vals.push(limit, offset);
     const r = await pool.query(
       `SELECT p.*,u.email,u.nom,u.prenom,u.avatar_url,
-              u.role AS user_role,u.subscription_plan,u.subscription_status
+              u.role AS user_role,u.subscription_plan,u.subscription_status,
+              ph.url AS cover_url
        FROM prestataire_profiles p
        JOIN users u ON u.id=p.user_id
+       LEFT JOIN prestataire_photos ph ON ph.prestataire_id=p.user_id AND ph.is_cover=true
        ${where}
        ORDER BY
          CASE WHEN u.subscription_plan='plus' AND u.subscription_status='active' THEN 0

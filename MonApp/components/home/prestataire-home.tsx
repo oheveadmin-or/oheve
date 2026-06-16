@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   FlatList,
   Pressable,
@@ -22,45 +23,9 @@ import Animated, {
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
-import { prestatairesApi } from '@/services/auth/api';
+import { messagingApi, prestatairesApi } from '@/services/auth/api';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
-
-// ── Mock data (remplacé par API plus tard) ──────────────────────────────────
-const MOCK_STATS = {
-  viewsThisMonth: 142,
-  newInquiries: 8,
-  responseRate: 95,
-  profileScore: 82,
-  completeness: 75,
-};
-
-const MOCK_INQUIRIES = [
-  {
-    id: '1',
-    couple: 'Emma & Lucas',
-    date: '17 sep',
-    excerpt: 'Bonjour, nous aimerions en savoir plus sur vos tarifs...',
-    avatar: 'EL',
-    unread: true,
-  },
-  {
-    id: '2',
-    couple: 'Sophie & Marc',
-    date: '15 sep',
-    excerpt: 'Pouvez-vous nous envoyer un devis pour notre mariage...',
-    avatar: 'SM',
-    unread: true,
-  },
-  {
-    id: '3',
-    couple: 'Léna & Paul',
-    date: '12 sep',
-    excerpt: 'Avez-vous des disponibilités pour le 14 juin prochain ?',
-    avatar: 'LP',
-    unread: false,
-  },
-];
 
 const TIPS = [
   'Les profils avec 5+ photos reçoivent 3× plus de demandes',
@@ -71,12 +36,42 @@ const TIPS = [
 type PrestataireProfile = {
   business_name?: string;
   category?: string;
+  location_city?: string;
   city?: string;
   description?: string;
-  photos?: { id: number; url: string; is_cover: boolean }[];
+  instagram_url?: string;
+  website_url?: string;
+  price_min?: number;
+  price_max?: number;
 };
 
-// ── Sous-composants ──────────────────────────────────────────────────────────
+type Conversation = {
+  id: number;
+  other_nom: string;
+  other_prenom: string;
+  last_message?: string;
+  last_message_at?: string;
+  unread_count: number;
+};
+
+function calcCompleteness(profile: PrestataireProfile | null, photoCount: number): number {
+  if (!profile) return 0;
+  let score = 0;
+  if (profile.business_name) score += 20;
+  if (profile.category) score += 15;
+  if (profile.location_city ?? profile.city) score += 15;
+  if (profile.description) score += 20;
+  if (profile.instagram_url) score += 10;
+  if (profile.price_min != null || profile.price_max != null) score += 10;
+  if (photoCount >= 3) score += 10;
+  return Math.min(score, 100);
+}
+
+function formatDate(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
 
 function SkeletonLoader() {
   const opacity = useSharedValue(0.45);
@@ -117,34 +112,38 @@ function StatCard({
   );
 }
 
-// ── Composant principal ──────────────────────────────────────────────────────
 export function PrestataireHome() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<PrestataireProfile | null>(null);
   const [portfolioPhotos, setPortfolioPhotos] = useState<{ id: number; url: string; is_cover: boolean }[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const headerOpacity = useSharedValue(1);
-  const headerStyle = useAnimatedStyle(() => ({ opacity: headerOpacity.value }));
+  const headerStyle = useAnimatedStyle(() => ({ opacity: 1 }));
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     if (!user?.accessToken) { setLoading(false); return; }
-    prestatairesApi
-      .getById(user.accessToken, user.id)
-      .then((res) => { if (res?.success && res.data) setProfile(res.data); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-
-    prestatairesApi
-      .getPhotos(user.accessToken)
-      .then((res) => { if (res?.success && Array.isArray(res.data)) setPortfolioPhotos(res.data); })
-      .catch(() => {});
+    Promise.allSettled([
+      prestatairesApi.getById(user.accessToken, user.id),
+      prestatairesApi.getPhotos(user.accessToken),
+      messagingApi.listConversations(user.accessToken),
+    ]).then(([profRes, photoRes, convRes]) => {
+      if (profRes.status === 'fulfilled' && profRes.value?.success) setProfile(profRes.value.data);
+      if (photoRes.status === 'fulfilled' && photoRes.value?.success && Array.isArray(photoRes.value.data)) setPortfolioPhotos(photoRes.value.data);
+      if (convRes.status === 'fulfilled' && convRes.value?.success && Array.isArray(convRes.value.data)) setConversations(convRes.value.data);
+    }).finally(() => setLoading(false));
   }, [user]);
 
-  const businessName = profile?.business_name ?? `${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim();
-  const completeness = MOCK_STATS.completeness;
+  useEffect(() => { loadData(); }, [loadData]);
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  const onPress = (id: string) => {
+  const businessName = profile?.business_name ?? `${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim();
+  const city = profile?.location_city ?? profile?.city ?? '';
+  const completeness = calcCompleteness(profile, portfolioPhotos.length);
+  const unreadCount = conversations.reduce((s, c) => s + (c.unread_count ?? 0), 0);
+  const recentConvs = conversations.slice(0, 3);
+
+  const onPressConv = (id: number) => {
     Haptics.selectionAsync().catch(() => {});
     router.push(`/(app)/messages/${id}` as never);
   };
@@ -168,7 +167,7 @@ export function PrestataireHome() {
         <View>
           <ThemedText style={styles.hello}>Bonjour {user?.prenom} 👋</ThemedText>
           <ThemedText style={styles.subHello}>
-            {MOCK_STATS.newInquiries} nouvelles demandes · {MOCK_STATS.viewsThisMonth} vues
+            {unreadCount > 0 ? `${unreadCount} message${unreadCount > 1 ? 's' : ''} non lu${unreadCount > 1 ? 's' : ''}` : 'Aucun nouveau message'} · {portfolioPhotos.length} photo{portfolioPhotos.length !== 1 ? 's' : ''}
           </ThemedText>
         </View>
         <View style={styles.headerActions}>
@@ -195,7 +194,7 @@ export function PrestataireHome() {
           <View style={styles.heroTop}>
             <View style={{ flex: 1 }}>
               <ThemedText style={styles.heroCaption}>Votre profil</ThemedText>
-              <ThemedText style={styles.heroValue}>{businessName}</ThemedText>
+              <ThemedText style={styles.heroValue}>{businessName || 'Complétez votre profil'}</ThemedText>
               {profile?.category && (
                 <View style={styles.categoryPill}>
                   <ThemedText style={styles.categoryPillText}>
@@ -203,14 +202,13 @@ export function PrestataireHome() {
                   </ThemedText>
                 </View>
               )}
-              {profile?.city && (
+              {city ? (
                 <View style={styles.cityRow}>
                   <Ionicons name="location-outline" size={13} color="#A09890" />
-                  <ThemedText style={styles.cityText}>{profile.city}</ThemedText>
+                  <ThemedText style={styles.cityText}>{city}</ThemedText>
                 </View>
-              )}
+              ) : null}
             </View>
-            {/* Donut completeness */}
             <View style={styles.donutWrap}>
               <View style={styles.donutOuter}>
                 <ThemedText style={styles.donutValue}>{completeness}%</ThemedText>
@@ -223,13 +221,15 @@ export function PrestataireHome() {
             <View style={[styles.progressFill, { width: `${completeness}%` }]} />
           </View>
           <ThemedText style={styles.heroHint}>
-            Votre profil est visible par les mariés ✨
+            {completeness >= 80
+              ? 'Votre profil est visible par les mariés ✨'
+              : `Complétez votre profil pour être visible (${completeness}%)`}
           </ThemedText>
 
           <View style={styles.heroPills}>
             <View style={styles.pill}>
-              <Ionicons name="sparkles-outline" size={13} color="#A7AD9A" />
-              <ThemedText style={styles.pillText}>Score {MOCK_STATS.profileScore}/100</ThemedText>
+              <Ionicons name="images-outline" size={13} color="#A7AD9A" />
+              <ThemedText style={styles.pillText}>{portfolioPhotos.length} photo{portfolioPhotos.length !== 1 ? 's' : ''}</ThemedText>
             </View>
             <Pressable
               style={[styles.pill, styles.pillAction]}
@@ -244,23 +244,23 @@ export function PrestataireHome() {
         {/* ── Stats row ─────────────────────────────────────────────── */}
         <View style={styles.statsRow}>
           <StatCard
-            value={MOCK_STATS.viewsThisMonth}
-            label="Vues / mois"
-            icon="eye-outline"
+            value={portfolioPhotos.length}
+            label="Photos"
+            icon="images-outline"
             color={C.sauge}
             delay={100}
           />
           <StatCard
-            value={MOCK_STATS.newInquiries}
-            label="Demandes"
-            icon="mail-outline"
+            value={conversations.length}
+            label="Conversations"
+            icon="chatbubble-outline"
             color={C.warning}
             delay={140}
           />
           <StatCard
-            value={`${MOCK_STATS.responseRate}%`}
-            label="Réponses"
-            icon="checkmark-circle-outline"
+            value={unreadCount}
+            label="Non lus"
+            icon="mail-unread-outline"
             color={C.saugeDark}
             delay={180}
           />
@@ -270,31 +270,49 @@ export function PrestataireHome() {
         <AnimatedView entering={FadeInDown.delay(220).springify()} style={styles.card}>
           <View style={styles.cardHeader}>
             <View>
-              <ThemedText style={styles.cardTitle}>Dernières demandes</ThemedText>
-              <ThemedText style={styles.cardSub}>Mariés cherchant un prestataire</ThemedText>
+              <ThemedText style={styles.cardTitle}>Dernières conversations</ThemedText>
+              <ThemedText style={styles.cardSub}>
+                {conversations.length > 0
+                  ? `${conversations.length} conversation${conversations.length > 1 ? 's' : ''} au total`
+                  : 'Aucune conversation pour l\'instant'}
+              </ThemedText>
             </View>
             <Pressable onPress={() => router.push('/(app)/(tabs)/messages' as never)}>
               <ThemedText style={styles.cardAction}>Voir tout</ThemedText>
             </Pressable>
           </View>
 
-          {MOCK_INQUIRIES.map((item) => (
-            <Pressable key={item.id} style={styles.inquiryRow} onPress={() => onPress(item.id)}>
-              <View style={[styles.inquiryAvatar, item.unread && styles.inquiryAvatarUnread]}>
-                <ThemedText style={styles.inquiryAvatarText}>{item.avatar}</ThemedText>
-              </View>
-              <View style={styles.inquiryBody}>
-                <View style={styles.inquiryTop}>
-                  <ThemedText style={styles.inquiryCouple}>{item.couple}</ThemedText>
-                  <ThemedText style={styles.inquiryDate}>{item.date}</ThemedText>
-                </View>
-                <ThemedText style={styles.inquiryExcerpt} numberOfLines={1}>
-                  {item.excerpt}
-                </ThemedText>
-              </View>
-              {item.unread && <View style={styles.unreadDot} />}
-            </Pressable>
-          ))}
+          {recentConvs.length === 0 ? (
+            <View style={styles.emptyConvs}>
+              <Ionicons name="chatbubbles-outline" size={32} color={C.taupe} />
+              <ThemedText style={styles.emptyConvsText}>
+                Les mariés vous contacteront ici
+              </ThemedText>
+            </View>
+          ) : (
+            recentConvs.map((conv) => {
+              const initials = `${(conv.other_prenom?.[0] ?? '').toUpperCase()}${(conv.other_nom?.[0] ?? '').toUpperCase()}`;
+              return (
+                <Pressable key={conv.id} style={styles.inquiryRow} onPress={() => onPressConv(conv.id)}>
+                  <View style={[styles.inquiryAvatar, conv.unread_count > 0 && styles.inquiryAvatarUnread]}>
+                    <ThemedText style={styles.inquiryAvatarText}>{initials || '?'}</ThemedText>
+                  </View>
+                  <View style={styles.inquiryBody}>
+                    <View style={styles.inquiryTop}>
+                      <ThemedText style={styles.inquiryCouple}>
+                        {conv.other_prenom} {conv.other_nom}
+                      </ThemedText>
+                      <ThemedText style={styles.inquiryDate}>{formatDate(conv.last_message_at)}</ThemedText>
+                    </View>
+                    <ThemedText style={styles.inquiryExcerpt} numberOfLines={1}>
+                      {conv.last_message ?? 'Nouvelle conversation'}
+                    </ThemedText>
+                  </View>
+                  {conv.unread_count > 0 && <View style={styles.unreadDot} />}
+                </Pressable>
+              );
+            })
+          )}
         </AnimatedView>
 
         {/* ── Portfolio preview ─────────────────────────────────────── */}
@@ -302,7 +320,11 @@ export function PrestataireHome() {
           <View style={styles.cardHeader}>
             <View>
               <ThemedText style={styles.cardTitle}>Mon portfolio</ThemedText>
-              <ThemedText style={styles.cardSub}>Photos de vos réalisations</ThemedText>
+              <ThemedText style={styles.cardSub}>
+                {portfolioPhotos.length > 0
+                  ? `${portfolioPhotos.length} photo${portfolioPhotos.length > 1 ? 's' : ''} publiée${portfolioPhotos.length > 1 ? 's' : ''}`
+                  : 'Aucune photo pour l\'instant'}
+              </ThemedText>
             </View>
             <Pressable onPress={() => router.push('/(app)/(tabs)/portfolio' as never)}>
               <ThemedText style={styles.cardAction}>Gérer</ThemedText>
@@ -381,7 +403,9 @@ export function PrestataireHome() {
             {
               icon: 'chatbubble-outline',
               label: 'Tous les messages',
-              sub: `${MOCK_STATS.newInquiries} conversations actives`,
+              sub: conversations.length > 0
+                ? `${conversations.length} conversation${conversations.length > 1 ? 's' : ''}`
+                : 'Aucune conversation',
               route: '/(app)/(tabs)/messages',
               color: C.moka,
             },
@@ -424,7 +448,6 @@ export function PrestataireHome() {
   );
 }
 
-// ── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   layout: { gap: 0 },
   loadingWrap: { gap: 12, paddingTop: 8 },
@@ -442,7 +465,6 @@ const styles = StyleSheet.create({
 
   scrollContent: { paddingBottom: 130, gap: 12 },
 
-  // Header
   header: {
     paddingTop: 4,
     marginBottom: 12,
@@ -471,7 +493,6 @@ const styles = StyleSheet.create({
     backgroundColor: C.beige,
   },
 
-  // Hero card
   heroCard: {
     borderRadius: RADIUS.lg,
     backgroundColor: C.card,
@@ -536,7 +557,6 @@ const styles = StyleSheet.create({
   pillAction: { backgroundColor: C.sauge, borderColor: C.sauge },
   pillActionText: { fontSize: 11, color: C.textInvert, fontWeight: '700' },
 
-  // Stats
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {
     flex: 1,
@@ -563,7 +583,6 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: '800', color: C.textDark },
   statLabel: { fontSize: 11, color: C.textLight, textAlign: 'center' },
 
-  // Cards
   card: {
     backgroundColor: C.card,
     borderRadius: RADIUS.lg,
@@ -582,7 +601,9 @@ const styles = StyleSheet.create({
   cardSub: { fontSize: 12, color: C.textLight, marginTop: 2 },
   cardAction: { fontSize: 13, color: C.sauge, fontWeight: '700' },
 
-  // Inquiries
+  emptyConvs: { alignItems: 'center', gap: 8, paddingVertical: 16 },
+  emptyConvsText: { fontSize: 13, color: C.textLight, textAlign: 'center' },
+
   inquiryRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -613,7 +634,6 @@ const styles = StyleSheet.create({
     backgroundColor: C.sauge,
   },
 
-  // Portfolio
   photoAdd: {
     width: 88,
     height: 88,
@@ -663,7 +683,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Actions
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -683,7 +702,6 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 14, fontWeight: '700', color: C.textDark },
   actionSub: { fontSize: 12, color: C.textLight },
 
-  // Tips
   tipsCard: { backgroundColor: C.warningPale, borderColor: C.warning },
   tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 4 },
   tipTitle: { fontSize: 14, fontWeight: '700', color: C.moka },

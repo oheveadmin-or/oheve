@@ -14,6 +14,12 @@ export function sectionLabels(language: SiteLanguage) {
       dressCode: 'קוד לבוש',
       heroKicker: 'בשמחה',
       dateVenue: 'תאריך ומיקום',
+      coupleStory: 'הסיפור שלנו',
+      jewishSection: 'אירועי החתונה',
+      giftRegistry: 'רשימת מתנות',
+      qrCode: 'QR קוד',
+      rsvpCta: 'אשרו הגעה',
+      countdownTitle: 'עוד',
     };
   }
   if (language === 'en') {
@@ -29,6 +35,12 @@ export function sectionLabels(language: SiteLanguage) {
       dressCode: 'Dress code',
       heroKicker: 'With joy',
       dateVenue: 'Save the date',
+      coupleStory: 'Our story',
+      jewishSection: 'Wedding events',
+      giftRegistry: 'Gift registry',
+      qrCode: 'QR Code',
+      rsvpCta: 'RSVP now',
+      countdownTitle: 'Countdown',
     };
   }
   return {
@@ -43,5 +55,11 @@ export function sectionLabels(language: SiteLanguage) {
     dressCode: 'Dress code',
     heroKicker: 'Avec joie',
     dateVenue: 'Date & lieu',
+    coupleStory: 'Notre histoire',
+    jewishSection: 'Événements',
+    giftRegistry: 'Liste de mariage',
+    qrCode: 'QR Code',
+    rsvpCta: 'Confirmer ma présence',
+    countdownTitle: 'Compte à rebours',
   };
 }

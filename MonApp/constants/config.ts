@@ -119,7 +119,11 @@ export const API_ENDPOINTS = {
   weddingLocation: `${API_BASE_URL}/api/auth/wedding-location`,
   // Features
   publicSites: `${API_BASE_URL}/api/public-sites`,
+  myPublicSite: `${API_BASE_URL}/api/public-sites/me`,
   prestataires: `${API_BASE_URL}/api/prestataires`,
+  prestataireFeed: `${API_BASE_URL}/api/prestataires/feed/photos`,
+  photoLike: (photoId: number) => `${API_BASE_URL}/api/prestataires/photos/${photoId}/like`,
+  photoComments: (photoId: number) => `${API_BASE_URL}/api/prestataires/photos/${photoId}/comments`,
   conversations: `${API_BASE_URL}/api/conversations`,
   pushToken: `${API_BASE_URL}/api/conversations/push-token`,
   // Social auth
@@ -128,15 +132,43 @@ export const API_ENDPOINTS = {
   adminStats: `${API_BASE_URL}/api/admin/stats`,
   adminUsers: `${API_BASE_URL}/api/admin/users`,
   adminPrestataires: `${API_BASE_URL}/api/admin/prestataires`,
+  adminBoutiques: `${API_BASE_URL}/api/admin/boutiques`,
+  adminPublicSites: `${API_BASE_URL}/api/admin/public-sites`,
+  adminAnnonces: `${API_BASE_URL}/api/admin/annonces`,
+  adminReservations: `${API_BASE_URL}/api/admin/reservations`,
+  adminPayments: `${API_BASE_URL}/api/admin/payments`,
+  adminPaymentsStats: `${API_BASE_URL}/api/admin/payments/stats`,
   adminSubscriptions: `${API_BASE_URL}/api/admin/subscriptions`,
   // Abonnements
   subscriptionPlans: `${API_BASE_URL}/api/subscriptions/plans`,
   subscriptionMe: `${API_BASE_URL}/api/subscriptions/me`,
   subscriptionSubscribe: `${API_BASE_URL}/api/subscriptions/subscribe`,
+  // Oheve Premium
+  premiumPurchase: `${API_BASE_URL}/api/premium/purchase`,
+  premiumStatus: `${API_BASE_URL}/api/premium/status`,
+  // Payments
+  paymentsCreateIntent: `${API_BASE_URL}/api/payments/create-intent`,
+  paymentsHistory: `${API_BASE_URL}/api/payments/history`,
+  paymentsConnectOnboard: `${API_BASE_URL}/api/payments/connect/onboard`,
+  paymentsConnectStatus: `${API_BASE_URL}/api/payments/connect/status`,
+  // Devis
+  conversationDevis: (convId: number) => `${API_BASE_URL}/api/conversations/${convId}/devis`,
+  devisById: (convId: number, devisId: number) => `${API_BASE_URL}/api/conversations/${convId}/devis/${devisId}`,
+  devisStatus: (convId: number, devisId: number) => `${API_BASE_URL}/api/conversations/${convId}/devis/${devisId}/status`,
   // RSVP
   rsvp: (slug: string) => `${API_BASE_URL}/api/rsvp/${encodeURIComponent(slug)}/answers`,
   rsvpStream: (slug: string) => `${API_BASE_URL}/api/rsvp/${encodeURIComponent(slug)}/stream`,
   rsvpPushToken: (slug: string) => `${API_BASE_URL}/api/rsvp/${encodeURIComponent(slug)}/push-token`,
   // Wedding site config
   siteConfig: (slug: string) => `${API_BASE_URL}/api/public-sites/${encodeURIComponent(slug)}/config`,
+  // Calendrier
+  calendarEvents: `${API_BASE_URL}/api/calendar/events`,
+  calendarEvent: (id: number) => `${API_BASE_URL}/api/calendar/events/${id}`,
+  calendarUpcoming: `${API_BASE_URL}/api/calendar/upcoming`,
+  calendarAvailabilityMe: `${API_BASE_URL}/api/calendar/availability/me`,
+  calendarAvailabilityBlocks: `${API_BASE_URL}/api/calendar/availability/me/blocks`,
+  calendarAvailabilityBlock: (id: number) => `${API_BASE_URL}/api/calendar/availability/me/blocks/${id}`,
+  calendarProviderSlots: (prestataireId: number) => `${API_BASE_URL}/api/calendar/availability/${prestataireId}`,
+  calendarAppointments: `${API_BASE_URL}/api/calendar/appointments`,
+  calendarAppointmentRespond: (id: number) => `${API_BASE_URL}/api/calendar/appointments/${id}/respond`,
 } as const;

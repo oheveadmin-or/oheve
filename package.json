@@ -11,6 +11,7 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
+    "@stripe/stripe-react-native": "^0.66.0",
     "@types/pg": "^8.16.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",

@@ -9,6 +9,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { PremiumGate } from '@/components/premium-gate';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -125,7 +126,7 @@ const STEP_LABELS: Record<Step, string> = {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function WeddingSiteBuilderScreen() {
+function WeddingSiteBuilderContent() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
@@ -849,3 +850,7 @@ const styles = StyleSheet.create({
   },
   nextBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });
+
+export default function WeddingSiteBuilderScreen() {
+  return <PremiumGate feature="Site de mariage" icon="globe-outline"><WeddingSiteBuilderContent /></PremiumGate>;
+}

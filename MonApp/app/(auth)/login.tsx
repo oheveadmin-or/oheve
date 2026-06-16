@@ -31,7 +31,7 @@ export default function LoginScreen() {
 
   const handleAfterSocialSignIn = (isNew: boolean, role: string) => {
     if (role === 'prestataire') { router.replace('/(app)/(tabs)'); return; }
-    if (isNew) { router.replace('/(onboarding)/date-mariage'); } else { router.replace('/(app)/(tabs)'); }
+    if (isNew) { router.replace('/(onboarding)/setup'); } else { router.replace('/(app)/(tabs)'); }
   };
   const { signInWithGoogle, signInWithApple } = useSocialAuth(handleAfterSocialSignIn);
   const appleAvailable = useAppleAuthAvailable();
@@ -79,12 +79,8 @@ export default function LoginScreen() {
 
       if (data.wedding_location_type && data.date_mariage && data.budget_total != null) {
         router.replace('/(app)/(tabs)');
-      } else if (data.date_mariage && data.budget_total != null) {
-        router.replace('/(onboarding)/location');
-      } else if (data.date_mariage) {
-        router.replace('/(onboarding)/budget');
       } else {
-        router.replace('/(onboarding)/date-mariage');
+        router.replace('/(onboarding)/setup');
       }
     } catch {
       Alert.alert('Erreur', 'Une erreur est survenue. Vérifiez votre connexion.');

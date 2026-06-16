@@ -61,6 +61,59 @@ export class PhotosRepository {
     return deleted;
   }
 
+  async findFeedPhotos(limit: number, offset: number, viewerUserId?: number): Promise<(PhotoRow & { business_name: string; category: string; prenom: string; nom: string; like_count: number; comment_count: number; liked_by_me: boolean })[]> {
+    const r = await pool.query(
+      `SELECT pp.id, pp.filename, pp.is_cover, pp.created_at,
+              p.business_name, p.category,
+              u.id AS user_id, u.prenom, u.nom,
+              COUNT(DISTINCT pl.id)::int AS like_count,
+              COUNT(DISTINCT pc.id)::int AS comment_count,
+              bool_or(pl2.user_id IS NOT NULL) AS liked_by_me
+       FROM prestataire_photos pp
+       JOIN prestataire_profiles p ON pp.prestataire_id = p.id
+       JOIN users u ON p.user_id = u.id
+       LEFT JOIN photo_likes pl ON pl.photo_id = pp.id
+       LEFT JOIN photo_comments pc ON pc.photo_id = pp.id
+       LEFT JOIN photo_likes pl2 ON pl2.photo_id = pp.id AND pl2.user_id = $3
+       WHERE COALESCE(p.is_hidden, false) = false AND COALESCE(p.is_suspended, false) = false
+       GROUP BY pp.id, p.business_name, p.category, u.id, u.prenom, u.nom
+       ORDER BY pp.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset, viewerUserId ?? 0]
+    );
+    return r.rows;
+  }
+
+  async toggleLike(photoId: number, userId: number): Promise<{ liked: boolean; like_count: number }> {
+    const existing = await pool.query(`SELECT id FROM photo_likes WHERE photo_id=$1 AND user_id=$2`, [photoId, userId]);
+    if (existing.rowCount && existing.rowCount > 0) {
+      await pool.query(`DELETE FROM photo_likes WHERE photo_id=$1 AND user_id=$2`, [photoId, userId]);
+    } else {
+      await pool.query(`INSERT INTO photo_likes(photo_id, user_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, [photoId, userId]);
+    }
+    const count = await pool.query(`SELECT COUNT(*)::int AS cnt FROM photo_likes WHERE photo_id=$1`, [photoId]);
+    return { liked: !(existing.rowCount && existing.rowCount > 0), like_count: count.rows[0].cnt };
+  }
+
+  async addComment(photoId: number, userId: number, text: string): Promise<{ id: number; text: string; prenom: string; nom: string; created_at: string }> {
+    const r = await pool.query(
+      `INSERT INTO photo_comments(photo_id, user_id, text) VALUES($1,$2,$3) RETURNING id, text, created_at`,
+      [photoId, userId, text.trim()]
+    );
+    const u = await pool.query(`SELECT prenom, nom FROM users WHERE id=$1`, [userId]);
+    return { ...r.rows[0], prenom: u.rows[0]?.prenom ?? '', nom: u.rows[0]?.nom ?? '' };
+  }
+
+  async getComments(photoId: number): Promise<{ id: number; text: string; prenom: string; nom: string; created_at: string }[]> {
+    const r = await pool.query(
+      `SELECT pc.id, pc.text, pc.created_at, u.prenom, u.nom
+       FROM photo_comments pc JOIN users u ON pc.user_id = u.id
+       WHERE pc.photo_id = $1 ORDER BY pc.created_at ASC`,
+      [photoId]
+    );
+    return r.rows;
+  }
+
   async findPrestataireIdByUserId(userId: number): Promise<number | null> {
     const r = await pool.query(
       `SELECT id FROM prestataire_profiles WHERE user_id=$1 LIMIT 1`,

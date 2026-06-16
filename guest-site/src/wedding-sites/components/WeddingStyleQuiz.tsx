@@ -38,12 +38,9 @@ export function WeddingStyleQuiz({ value, onChange, onApply }: Props) {
   );
 
   return (
-    <fieldset style={field}>
-      <legend style={leg}>Assistant de style</legend>
-      <p style={hint}>Répondez puis cliquez sur « Appliquer au thème » pour générer automatiquement le thème.</p>
-
+    <div style={field}>
       {row(
-        'Préférez-vous un site plutôt sobre ou luxueux ?',
+        'Sobre ou luxueux ?',
         <select
           style={sel}
           value={q.solemnOrLuxury}
@@ -243,25 +240,19 @@ export function WeddingStyleQuiz({ value, onChange, onApply }: Props) {
       )}
 
       <button type="button" style={btnPrimary} onClick={() => onApply(q)}>
-        Appliquer au thème
+        ✨ Générer mon thème
       </button>
-    </fieldset>
+    </div>
   );
 }
 
 const field: CSSProperties = {
-  border: '1px solid #e8e4f5',
-  borderRadius: 14,
-  padding: '1rem 1.1rem 1.25rem',
-  margin: '1.25rem 0',
-  background: '#fff',
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: '0.75rem',
 };
 
-const leg: CSSProperties = { fontWeight: 700, padding: '0 0.35rem' };
-
-const hint: CSSProperties = { margin: '0 0 1rem', fontSize: '0.9rem', opacity: 0.88, lineHeight: 1.45 };
-
-const lab: CSSProperties = { display: 'block', marginBottom: '0.85rem', fontSize: '0.9rem' };
+const lab: CSSProperties = { display: 'block', marginBottom: '0', fontSize: '0.88rem' };
 
 const labTitle: CSSProperties = { display: 'block', marginBottom: 6, fontWeight: 600 };
 
@@ -274,13 +265,16 @@ const sel: CSSProperties = {
 };
 
 const btnPrimary: CSSProperties = {
+  gridColumn: '1 / -1',
   marginTop: 8,
   width: '100%',
-  padding: '0.65rem 1rem',
-  borderRadius: 10,
+  padding: '0.8rem 1rem',
+  borderRadius: 12,
   border: 'none',
-  fontWeight: 700,
+  fontWeight: 800,
+  fontSize: '1rem',
   cursor: 'pointer',
   background: 'linear-gradient(120deg, #5b4fd6, #8b5cf6)',
   color: '#fff',
+  boxShadow: '0 4px 16px rgba(91,79,214,0.35)',
 };

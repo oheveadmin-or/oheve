@@ -3,10 +3,13 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   FlatList,
+  KeyboardAvoidingView,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,11 +17,13 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
-import { prestatairesApi } from '@/services/auth/api';
+import { calendarApi, prestatairesApi } from '@/services/auth/api';
 import {
   addProviderToHome,
   getProviderContact,
@@ -46,23 +51,29 @@ type ApiRow = {
 export default function ProviderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [notes, setNotes] = useState('');
   const [added, setAdded] = useState(id ? isProviderInHome(id) : false);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [apiRow, setApiRow] = useState<ApiRow | null>(null);
+  const [paymentModal, setPaymentModal] = useState(false);
+  const [bookingModal, setBookingModal] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
-    if (!user?.accessToken || !id) return;
+    if (!user?.accessToken || !id) { setLoadingProfile(false); return; }
     const numId = parseInt(id, 10);
-    if (isNaN(numId)) return;
+    if (isNaN(numId)) { setLoadingProfile(false); return; }
 
     prestatairesApi
       .getPhotos(user.accessToken, numId)
       .then((res) => { if (res?.success && Array.isArray(res.data)) setPhotos(res.data); })
       .catch(() => {});
 
-    if (!getProviderContact(id)) {
+    if (getProviderContact(id)) {
+      setLoadingProfile(false);
+    } else {
       prestatairesApi
         .getById(user.accessToken, numId)
         .then((res: { success?: boolean; data?: {
@@ -88,7 +99,8 @@ export default function ProviderDetailScreen() {
             });
           }
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setLoadingProfile(false));
     }
   }, [id, user]);
 
@@ -137,6 +149,8 @@ export default function ProviderDetailScreen() {
       email: display.email,
       adresse: display.adresse,
       instagram: display.instagram,
+      coverUrl: coverPhoto?.url,
+      avatarUrl: user?.avatar_url,
     };
     addProviderToHome(providerForHome);
     setAdded(true);
@@ -168,18 +182,22 @@ export default function ProviderDetailScreen() {
         </Pressable>
       </Modal>
 
-      <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[0]}>
+      {/* ── Header fixe AU-DESSUS du ScrollView ─────────────────── */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <Pressable style={styles.retourBtn} onPress={goBack} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
+          <Ionicons name="arrow-back" size={20} color={C.saugeDark} />
+          <ThemedText style={styles.retourText}>Retour</ThemedText>
+        </Pressable>
+        <Pressable
+          style={styles.homeButton}
+          onPress={() => router.replace('/(app)/(tabs)')}
+          hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+        >
+          <Ionicons name="home-outline" size={18} color={C.saugeDark} />
+        </Pressable>
+      </View>
 
-        {/* ── Header flottant ──────────────────────────────────────── */}
-        <View style={styles.header}>
-          <Pressable style={styles.retourBtn} onPress={goBack}>
-            <Ionicons name="arrow-back" size={22} color="#6366f1" />
-            <ThemedText style={styles.retourText}>Retour</ThemedText>
-          </Pressable>
-          <Pressable style={styles.homeButton} onPress={() => router.replace('/(app)/(tabs)')}>
-            <Ionicons name="home-outline" size={18} color="#6366f1" />
-          </Pressable>
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* ── Photo de couverture hero ─────────────────────────────── */}
         {coverPhoto ? (
@@ -202,8 +220,8 @@ export default function ProviderDetailScreen() {
           </Pressable>
         ) : (
           <View style={styles.heroPlaceholder}>
-            <Ionicons name="business-outline" size={48} color="#c4b5fd" />
-            <ThemedText style={styles.heroTitle}>{display?.nom ?? '…'}</ThemedText>
+            <Ionicons name="business-outline" size={48} color={C.sauge} />
+            <ThemedText style={styles.heroTitleDark}>{display?.nom ?? '…'}</ThemedText>
           </View>
         )}
 
@@ -278,9 +296,13 @@ export default function ProviderDetailScreen() {
                 </View>
               )}
             </AnimatedView>
-          ) : (
+          ) : loadingProfile ? (
             <View style={styles.loadingRow}>
               <ThemedText style={styles.loadingText}>Chargement…</ThemedText>
+            </View>
+          ) : (
+            <View style={styles.loadingRow}>
+              <ThemedText style={styles.loadingText}>Profil en cours de configuration</ThemedText>
             </View>
           )}
 
@@ -308,9 +330,20 @@ export default function ProviderDetailScreen() {
             />
           </AnimatedView>
 
-          {/* ── CTA Ajouter ───────────────────────────────────────── */}
+          {/* ── CTAs ──────────────────────────────────────────────── */}
           {display && (
-            <AnimatedView entering={FadeInDown.delay(260).springify()}>
+            <AnimatedView entering={FadeInDown.delay(260).springify()} style={{ gap: 10 }}>
+              <Pressable style={styles.bookingBtn} onPress={() => setBookingModal(true)}>
+                <Ionicons name="calendar-outline" size={22} color={C.saugeDark} />
+                <ThemedText style={styles.bookingBtnText}>Voir les disponibilités</ThemedText>
+              </Pressable>
+
+              {/* Contribution sécurisée */}
+              <Pressable style={styles.payBtn} onPress={() => setPaymentModal(true)}>
+                <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
+                <ThemedText style={styles.payBtnText}>Contribution sécurisée</ThemedText>
+              </Pressable>
+
               <Pressable
                 style={[styles.addBtn, added && styles.addBtnDone]}
                 onPress={handleAddToHome}
@@ -325,9 +358,287 @@ export default function ProviderDetailScreen() {
           )}
         </View>
       </ScrollView>
+      {/* ── Modal contribution mariage sécurisée ──────────────── */}
+      <PaymentModal
+        visible={paymentModal}
+        onClose={() => setPaymentModal(false)}
+        providerId={id ?? ''}
+        providerName={display?.nom ?? ''}
+        providerCategory={apiRow?.categorie}
+        defaultPrice={display?.prix}
+      />
+      <BookingModal
+        visible={bookingModal}
+        onClose={() => setBookingModal(false)}
+        prestataireId={parseInt(id ?? '0', 10)}
+        prestataireName={display?.nom ?? ''}
+        accessToken={user?.accessToken}
+      />
     </ThemedView>
   );
 }
+
+// ── Modal prise de rendez-vous ───────────────────────────────────────────────
+function BookingModal({
+  visible,
+  onClose,
+  prestataireId,
+  prestataireName,
+  accessToken,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  prestataireId: number;
+  prestataireName: string;
+  accessToken?: string;
+}) {
+  const [step, setStep] = useState<'slots' | 'confirm'>('slots');
+  const [loading, setLoading] = useState(false);
+  const [hasAvailability, setHasAvailability] = useState(false);
+  const [slots, setSlots] = useState<{ date: string; slots: string[] }[]>([]);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [title, setTitle] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!visible || !accessToken || !prestataireId) return;
+    setStep('slots');
+    setSelectedDate('');
+    setSelectedTime('');
+    setTitle(`Rendez-vous — ${prestataireName}`);
+    setNotes('');
+    setLoading(true);
+    const from = new Date().toISOString().slice(0, 10);
+    const to = new Date();
+    to.setDate(to.getDate() + 30);
+    calendarApi
+      .getProviderSlots(accessToken, prestataireId, from, to.toISOString().slice(0, 10))
+      .then((res) => {
+        if (res?.success && res.data) {
+          setHasAvailability(res.data.has_availability);
+          setSlots(res.data.slots ?? []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [visible, accessToken, prestataireId, prestataireName]);
+
+  const handleBook = async () => {
+    if (!accessToken || !selectedDate || !selectedTime || !title.trim()) {
+      Alert.alert('Informations manquantes', 'Sélectionnez un créneau et un titre.');
+      return;
+    }
+    setSubmitting(true);
+    const res = await calendarApi.requestAppointment(accessToken, {
+      prestataire_id: prestataireId,
+      title: title.trim(),
+      requested_date: selectedDate,
+      requested_time: selectedTime,
+      notes: notes.trim() || undefined,
+    });
+    setSubmitting(false);
+    if (res?.success) {
+      Alert.alert(
+        'Rendez-vous confirmé ✓',
+        `Votre rendez-vous du ${new Date(`${selectedDate}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${selectedTime} a été ajouté à votre calendrier et à celui du prestataire.`,
+      );
+      onClose();
+    } else {
+      Alert.alert('Erreur', res?.message ?? 'Impossible de confirmer le rendez-vous');
+    }
+  };
+
+  const daySlots = slots.find((s) => s.date === selectedDate)?.slots ?? [];
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Pressable style={pmStyles.overlay} onPress={onClose} />
+        <View style={pmStyles.sheet}>
+          <View style={pmStyles.handle} />
+          <ThemedText style={pmStyles.headerTitle}>{prestataireName}</ThemedText>
+          <ThemedText style={pmStyles.headerSub}>
+            {step === 'slots' ? 'Créneaux ouverts par le prestataire' : 'Confirmer votre demande'}
+          </ThemedText>
+
+          {loading ? (
+            <ThemedText style={pmStyles.headerSub}>Chargement des disponibilités…</ThemedText>
+          ) : !hasAvailability || slots.length === 0 ? (
+            <View style={{ paddingVertical: 20, alignItems: 'center', gap: 8 }}>
+              <Ionicons name="calendar-outline" size={32} color={C.sauge} />
+              <ThemedText style={{ textAlign: 'center', color: C.textMid, fontSize: 14 }}>
+                Ce prestataire n'a pas encore configuré ses disponibilités.
+              </ThemedText>
+            </View>
+          ) : step === 'slots' ? (
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              {slots.map((day) => (
+                <View key={day.date} style={{ marginBottom: 14 }}>
+                  <ThemedText style={{ fontWeight: '700', color: C.textDark, marginBottom: 8 }}>
+                    {new Date(`${day.date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </ThemedText>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {day.slots.map((time) => {
+                      const active = selectedDate === day.date && selectedTime === time;
+                      return (
+                        <Pressable
+                          key={`${day.date}-${time}`}
+                          style={{
+                            paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99,
+                            backgroundColor: active ? C.sauge : C.saugePale,
+                          }}
+                          onPress={() => { setSelectedDate(day.date); setSelectedTime(time); }}
+                        >
+                          <ThemedText style={{ fontWeight: '600', color: active ? '#fff' : C.saugeDark, fontSize: 13 }}>
+                            {time}
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+              {selectedDate && selectedTime && (
+                <Pressable style={pmStyles.payBtn} onPress={() => setStep('confirm')}>
+                  <Ionicons name="calendar" size={18} color="#fff" />
+                  <ThemedText style={pmStyles.payBtnTxt}>Prendre rendez-vous</ThemedText>
+                </Pressable>
+              )}
+            </ScrollView>
+          ) : (
+            <View style={{ gap: 12 }}>
+              <ThemedText style={{ color: C.textMid, fontSize: 14 }}>
+                {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à {selectedTime}
+              </ThemedText>
+              <TextInput
+                style={styles.notesInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Titre du rendez-vous"
+                placeholderTextColor="#A09890"
+              />
+              <TextInput
+                style={styles.notesInput}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Notes (optionnel)"
+                placeholderTextColor="#A09890"
+                multiline
+              />
+              <Pressable style={pmStyles.payBtn} onPress={handleBook} disabled={submitting}>
+                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                <ThemedText style={pmStyles.payBtnTxt}>{submitting ? 'Confirmation…' : 'Confirmer le rendez-vous'}</ThemedText>
+              </Pressable>
+              <Pressable onPress={() => setStep('slots')}>
+                <ThemedText style={{ textAlign: 'center', color: C.sauge, fontWeight: '600' }}>← Choisir un autre créneau</ThemedText>
+              </Pressable>
+            </View>
+          )}
+          <View style={{ height: 24 }} />
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ── Modal saisie montant → redirige vers écran Stripe ────────────────────────
+function PaymentModal({
+  visible,
+  onClose,
+  providerId,
+  providerName,
+  providerCategory,
+  defaultPrice,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  providerId: string;
+  providerName: string;
+  providerCategory?: string;
+  defaultPrice?: string;
+}) {
+  const [amount, setAmount] = useState('');
+
+  const handleContinue = () => {
+    const euros = parseFloat(amount.replace(',', '.'));
+    if (!euros || euros < 1) {
+      Alert.alert('Montant invalide', 'Veuillez saisir un montant d\'au moins 1 €.');
+      return;
+    }
+    onClose();
+    router.push({
+      pathname: '/(app)/payment',
+      params: {
+        prestataire_id: providerId,
+        prestataire_nom: providerName,
+        prestataire_categorie: providerCategory ?? '',
+        amount_cents: String(Math.round(euros * 100)),
+        currency: 'eur',
+        description: `Paiement à ${providerName}`,
+      },
+    });
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, justifyContent: 'flex-end' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Pressable style={pmStyles.overlay} onPress={onClose} />
+        <View style={pmStyles.sheet}>
+          <View style={pmStyles.handle} />
+          <ThemedText style={pmStyles.headerTitle}>{providerName}</ThemedText>
+          <ThemedText style={pmStyles.headerSub}>Entrez le montant à payer</ThemedText>
+          <View style={pmStyles.amountRow}>
+            <TextInput
+              style={pmStyles.amountInput}
+              value={amount}
+              onChangeText={setAmount}
+              placeholder={defaultPrice && defaultPrice !== '—' ? defaultPrice.replace(/[^\d,.-]/g, '') : '500'}
+              placeholderTextColor="#A09890"
+              keyboardType="decimal-pad"
+              autoFocus
+            />
+            <ThemedText style={pmStyles.currencySymbol}>€</ThemedText>
+          </View>
+          <Pressable style={pmStyles.payBtn} onPress={handleContinue}>
+            <Ionicons name="card-outline" size={18} color="#fff" />
+            <ThemedText style={pmStyles.payBtnTxt}>
+              Contribution sécurisée {amount ? `· ${amount} €` : ''}
+            </ThemedText>
+          </Pressable>
+          <View style={pmStyles.secureRow}>
+            <Ionicons name="shield-checkmark-outline" size={13} color="#A09890" />
+            <ThemedText style={pmStyles.secureTxt}>Paiement sécurisé par Stripe · SSL 256 bits</ThemedText>
+          </View>
+          <View style={{ height: 32 }} />
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const pmStyles = StyleSheet.create({
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.3)' },
+  sheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingHorizontal: 20, paddingTop: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 10,
+  },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 16 },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: '#231b45', marginBottom: 4 },
+  headerSub: { fontSize: 13, color: '#A09890', marginBottom: 16 },
+  amountRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderColor: C.sauge, borderRadius: 14, paddingHorizontal: 14, marginBottom: 20 },
+  amountInput: { flex: 1, height: 56, fontSize: 26, fontWeight: '800', color: '#231b45' },
+  currencySymbol: { fontSize: 26, fontWeight: '800', color: C.sauge },
+  payBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.sauge, borderRadius: 16, paddingVertical: 16 },
+  payBtnTxt: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 12 },
+  secureTxt: { fontSize: 11, color: '#A09890' },
+});
 
 function CATEGORIES_LABEL(slug: string): string {
   const map: Record<string, string> = {
@@ -338,25 +649,25 @@ function CATEGORIES_LABEL(slug: string): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F6F2EA' },
+  container: { flex: 1, backgroundColor: C.ivoire },
 
-  // Header
+  // Header fixe (hors ScrollView) — paddingTop dynamique via insets
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#F6F2EA',
-    zIndex: 10,
+    paddingBottom: 12,
+    backgroundColor: C.ivoire,
+    zIndex: 20,
   },
-  retourBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  retourText: { color: '#6366f1', fontSize: 15, fontWeight: '600' },
+  retourBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingRight: 8 },
+  retourText: { color: C.saugeDark, fontSize: 15, fontWeight: '600' },
   homeButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#ede9fe',
+    backgroundColor: C.saugePale,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -365,12 +676,12 @@ const styles = StyleSheet.create({
   heroWrap: {
     width: SCREEN_WIDTH,
     height: 280,
-    backgroundColor: '#ede9fe',
+    backgroundColor: C.beige,
   },
   heroImage: { width: '100%', height: '100%' },
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(20,10,50,0.38)',
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(20,10,10,0.38)',
   },
   heroTextWrap: {
     position: 'absolute',
@@ -379,6 +690,7 @@ const styles = StyleSheet.create({
     right: 60,
   },
   heroTitle: { fontSize: 26, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
+  heroTitleDark: { fontSize: 22, fontWeight: '800', color: C.textDark, textAlign: 'center' },
   heroLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
   heroLocationText: { fontSize: 13, color: '#ffffffcc', fontWeight: '500' },
   heroPhotoCount: {
@@ -398,7 +710,7 @@ const styles = StyleSheet.create({
     height: 200,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f3f0ff',
+    backgroundColor: C.beige,
     gap: 12,
   },
 
@@ -410,13 +722,13 @@ const styles = StyleSheet.create({
   galleryThumb: {
     width: 120,
     height: 90,
-    borderRadius: 14,
+    borderRadius: RADIUS.md,
     overflow: 'hidden',
     marginRight: 10,
-    backgroundColor: '#ede9fe',
+    backgroundColor: C.beige,
   },
   galleryThumbFirst: { marginLeft: 0 },
-  galleryThumbCover: { borderWidth: 2.5, borderColor: '#6366f1' },
+  galleryThumbCover: { borderWidth: 2.5, borderColor: C.sauge },
   galleryImage: { width: '100%', height: '100%' },
   galleryBadge: {
     position: 'absolute',
@@ -428,7 +740,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 6,
     paddingVertical: 4,
-    backgroundColor: '#6366f1cc',
+    backgroundColor: 'rgba(107,113,80,0.8)',
   },
   galleryBadgeText: { fontSize: 9, color: '#fff', fontWeight: '700' },
 
@@ -437,21 +749,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#f3f0ff',
-    borderRadius: 12,
+    backgroundColor: C.saugePale,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginBottom: 6,
   },
-  priceText: { fontSize: 16, fontWeight: '800', color: '#4338ca' },
+  priceText: { fontSize: 16, fontWeight: '800', color: C.saugeDark },
   infoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
+    backgroundColor: C.card,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: '#e9e6ff',
+    borderColor: C.border,
     padding: 16,
     gap: 14,
-    shadowColor: '#A7AD9A',
+    shadowColor: C.moka,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -462,57 +774,84 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#f3f0ff',
+    backgroundColor: C.saugePale,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  infoLabel: { fontSize: 11, color: '#A09890', fontWeight: '600', marginBottom: 2 },
-  infoText: { fontSize: 14, color: '#231b45', fontWeight: '500' },
-  infoLink: { fontSize: 14, color: '#6366f1', fontWeight: '600' },
+  infoLabel: { fontSize: 11, color: C.textLight, fontWeight: '600', marginBottom: 2 },
+  infoText: { fontSize: 14, color: C.textDark, fontWeight: '500' },
+  infoLink: { fontSize: 14, color: C.sauge, fontWeight: '600' },
 
   loadingRow: { alignItems: 'center', paddingVertical: 20 },
-  loadingText: { color: '#A09890', fontSize: 14 },
+  loadingText: { color: C.textLight, fontSize: 14 },
 
   // Description
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#231b45', marginBottom: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: C.textDark, marginBottom: 10 },
   descCard: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
+    backgroundColor: C.card,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: '#e9e6ff',
+    borderColor: C.border,
     padding: 16,
   },
-  descText: { fontSize: 14, color: '#4b4475', lineHeight: 22 },
+  descText: { fontSize: 14, color: C.textMid, lineHeight: 22 },
 
   // Notes
   notesInput: {
     borderWidth: 1.5,
-    borderColor: '#e9e6ff',
-    borderRadius: 16,
+    borderColor: C.border,
+    borderRadius: RADIUS.lg,
     padding: 14,
     fontSize: 14,
     minHeight: 100,
     textAlignVertical: 'top',
-    backgroundColor: '#fff',
-    color: '#231b45',
+    backgroundColor: C.card,
+    color: C.textDark,
   },
 
   // CTA
-  addBtn: {
+  bookingBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#6366f1',
+    backgroundColor: C.saugePale,
     padding: 16,
-    borderRadius: 16,
-    shadowColor: '#6366f1',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: C.sauge,
+  },
+  bookingBtnText: { color: C.saugeDark, fontSize: 16, fontWeight: '700' },
+  payBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: C.sauge,
+    padding: 16,
+    borderRadius: RADIUS.lg,
+    shadowColor: C.sauge,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 5,
   },
-  addBtnDone: { backgroundColor: '#10b981', shadowColor: '#10b981' },
+  payBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: C.moka,
+    padding: 16,
+    borderRadius: RADIUS.lg,
+    shadowColor: C.moka,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  addBtnDone: { backgroundColor: C.textLight, shadowColor: C.textLight },
   addBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   // Modal plein écran

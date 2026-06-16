@@ -1,5 +1,6 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
+import { router } from 'expo-router';
 import { Alert, Platform } from 'react-native';
 
 import { API_ENDPOINTS } from '@/constants/config';
@@ -98,6 +99,10 @@ export function useSocialAuth(onAfterSignIn?: (isNew: boolean, role: string) => 
         return;
       }
       await signIn(result2.data);
+      if (result2.data.isNew) {
+        router.replace('/(auth)/role-select');
+        return;
+      }
       onAfterSignIn?.(result2.data.isNew, result2.data.role);
     } catch {
       Alert.alert('Erreur', 'Connexion Google impossible. Vérifiez votre connexion.');
@@ -131,6 +136,10 @@ export function useSocialAuth(onAfterSignIn?: (isNew: boolean, role: string) => 
         return;
       }
       await signIn(result.data);
+      if (result.data.isNew) {
+        router.replace('/(auth)/role-select');
+        return;
+      }
       onAfterSignIn?.(result.data.isNew, result.data.role);
     } catch (err: unknown) {
       if ((err as { code?: string }).code === 'ERR_REQUEST_CANCELED') return;
