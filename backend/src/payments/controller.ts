@@ -6,7 +6,15 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
 const PLATFORM_COMMISSION_RATE = 0.05; // 5%
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2026-05-27.dahlia' as any });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _stripe: any = null;
+function getStripe() {
+  if (!_stripe) {
+    if (!STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY non configurée');
+    _stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2026-05-27.dahlia' as any });
+  }
+  return _stripe;
+}
 
 export class PaymentsController {
 
@@ -36,7 +44,7 @@ export class PaymentsController {
       const commission = Math.round(amount_cents * PLATFORM_COMMISSION_RATE);
       const net = amount_cents - commission;
 
-      const intent = await stripe.paymentIntents.create({
+      const intent = await getStripe().paymentIntents.create({
         amount: amount_cents,
         currency,
         description,
@@ -92,7 +100,7 @@ export class PaymentsController {
       if (!accountId) {
         const userRes = await pool.query(`SELECT email, nom, prenom FROM users WHERE id=$1`, [userId]);
         const u = userRes.rows[0];
-        const account = await stripe.accounts.create({
+        const account = await getStripe().accounts.create({
           type: 'express',
           email: u?.email,
           business_type: 'individual',
@@ -107,7 +115,7 @@ export class PaymentsController {
         );
       }
 
-      const link = await stripe.accountLinks.create({
+      const link = await getStripe().accountLinks.create({
         account: accountId,
         refresh_url: refresh_url ?? 'https://app.oheve.com/settings/payments',
         return_url: return_url ?? 'https://app.oheve.com/settings/payments?connected=1',
@@ -134,7 +142,7 @@ export class PaymentsController {
       }
 
       // Synchroniser avec Stripe
-      const account = await stripe.accounts.retrieve(row.stripe_account_id);
+      const account = await getStripe().accounts.retrieve(row.stripe_account_id);
       await pool.query(
         `UPDATE stripe_connect_accounts SET
            onboarding_complete=$1, payouts_enabled=$2, charges_enabled=$3, updated_at=NOW()
@@ -192,7 +200,7 @@ export class PaymentsController {
     let event: any;
 
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+      event = getStripe().webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err: any) {
       return res.status(400).json({ error: `Webhook error: ${err.message}` });
     }
