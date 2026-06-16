@@ -104,7 +104,13 @@ function GuestsScreenContent() {
     })();
   }, [user?.accessToken, addRSVPGuest]);
 
-  const syncFromBackend = useCallback(async (slug: string) => {
+  const extractSlug = (input: string): string => {
+    const match = input.trim().match(/\/wedding\/([^/?#]+)/);
+    return match ? match[1] : input.trim();
+  };
+
+  const syncFromBackend = useCallback(async (rawSlug: string) => {
+    const slug = rawSlug.trim().match(/\/wedding\/([^/?#]+)/)?.[1] ?? rawSlug.trim();
     if (!slug || !user?.accessToken) return;
     setSyncLoading(true);
     try {
@@ -271,7 +277,7 @@ function GuestsScreenContent() {
             style={styles.slugInput}
             placeholder="Slug du site (ex: sarah-et-david)"
             value={weddingSlug}
-            onChangeText={setWeddingSlug}
+            onChangeText={(v) => setWeddingSlug(extractSlug(v))}
             autoCapitalize="none"
             autoCorrect={false}
           />
