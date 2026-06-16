@@ -40,11 +40,12 @@ export class ConnexionInscriptionController {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
     try {
       await repo.saveOtp(email.trim().toLowerCase(), code, purpose, expiresAt);
+      // Email envoyé en arrière-plan — ne bloque pas la réponse (SMTP peut être lent depuis Railway)
+      console.log(`\n📧 OTP pour ${email} : ${code} (valable 10 min)\n`);
       if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        await sendOtpEmail(email.trim(), code);
-      } else {
-        // Fallback console si SMTP non configuré
-        console.log(`\n📧 OTP pour ${email} : ${code} (valable 10 min)\n`);
+        sendOtpEmail(email.trim(), code).catch(err =>
+          console.error('SMTP error (non-bloquant):', err.message)
+        );
       }
       return res.status(200).json({ success: true, message: 'Code OTP envoyé' });
     } catch (err) {
