@@ -12,7 +12,7 @@ const DEV_API_ORIGIN =
 /** Uniquement si tu as un vrai TLS en local (rare) ; sinon le mini-site dev est en http://…:5173 */
 const DEV_GUEST_SITE_USE_HTTPS = process.env.EXPO_PUBLIC_GUEST_SITE_HTTPS === '1';
 
-const API_BASE_URL = __DEV__ ? DEV_API_ORIGIN : 'https://api.wedding-planner.com'; // À remplacer en prod
+const API_BASE_URL = __DEV__ ? DEV_API_ORIGIN : 'https://oheve-production.up.railway.app';
 
 /**
  * URL du générateur web (`guest-site`, Vite :5173) — prévisualisation thème / sections étendues.
