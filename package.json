@@ -1,32 +1,10 @@
 {
-  "name": "wedding-planner-api",
+  "name": "oheve-backend",
   "version": "1.0.0",
-  "description": "API backend pour The Event Planner - Wedding Planner",
-  "main": "dist/index.js",
+  "description": "Oheve Wedding Planner - API backend (see backend/)",
+  "private": true,
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "restart": "lsof -ti:3003 | xargs kill -9 2>/dev/null; tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "lint": "eslint src --ext .ts"
-  },
-  "dependencies": {
-    "@stripe/stripe-react-native": "^0.66.0",
-    "@types/pg": "^8.16.0",
-    "bcrypt": "^6.0.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
-    "openai": "^6.34.0",
-    "pg": "^8.18.0",
-    "react-native-view-shot": "^4.0.3"
-  },
-  "devDependencies": {
-    "@types/bcrypt": "^6.0.0",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/node": "^22.9.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
+    "build": "cd backend && npm install && npm run build",
+    "start": "cd backend && npm start"
   }
 }
