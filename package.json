@@ -4,7 +4,7 @@
   "description": "Oheve Wedding Planner - API backend (see backend/)",
   "private": true,
   "scripts": {
-    "build": "cd backend && npm install && npm run build",
+    "build": "cd backend && npm install --include=dev && npm run build",
     "start": "cd backend && npm start"
   }
 }
