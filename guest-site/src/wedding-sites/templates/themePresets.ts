@@ -2,7 +2,20 @@
  * Full structural presets for each style ID.
  * Each preset defines not just colors but also the hero layout,
  * background pattern, section separators, and card style.
- * This is what makes each theme visually distinct.
+ *
+ * Distribution of hero styles (max 3 per hero to ensure real visual diversity):
+ *   letterpress : classic, ivory-lace, vintage-rose
+ *   royal       : royal, black-tie, navy-gold
+ *   cinematic   : celestial, midnight-blue, dark-romance
+ *   garden      : garden-party, cherry-blossom, floral
+ *   art-deco    : art-deco, marrakech, oriental
+ *   luxe        : luxury, emerald-luxury, sephardic
+ *   faire-part  : gold-leaf, parisian
+ *   monogram    : romantic, english-garden
+ *   editorial   : boho, rustic-chic, provence
+ *   magazine    : modern, tel-aviv
+ *   split       : desert-sunset, mediterranean, tropical
+ *   minimal     : minimal, nordic-minimal, minimal-white
  */
 import type { WeddingTheme } from '../types';
 import type { ThemeStyle } from '../types';
@@ -10,28 +23,122 @@ import type { ThemeStyle } from '../types';
 type PresetOverride = Partial<WeddingTheme>;
 
 const PRESETS: Record<ThemeStyle, PresetOverride> = {
-  // ─── Élégance classique ────────────────────────────────────────────────────
+  // ─── LETTERPRESS GROUP ────────────────────────────────────────────────────
   classic: {
-    heroStyle: 'faire-part',
-    patternId: 'none',
+    heroStyle: 'letterpress',
+    patternId: 'linen',
     separatorStyle: 'diamond',
     cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    patternOpacity: 0.18,
+  },
+  'ivory-lace': {
+    heroStyle: 'letterpress',
+    patternId: 'dots',
+    separatorStyle: 'floral',
+    cardStyle: 'outline',
     cornerDecor: true,
     fontFamily: "'Cormorant Garamond', Georgia, serif",
+    patternOpacity: 0.12,
+  },
+  'vintage-rose': {
+    heroStyle: 'letterpress',
+    patternId: 'floral-subtle',
+    separatorStyle: 'floral',
+    cardStyle: 'outline',
+    cornerDecor: true,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    patternOpacity: 0.14,
   },
 
-  // ─── Luxe sombre ──────────────────────────────────────────────────────────
-  luxury: {
-    heroStyle: 'luxe',
-    patternId: 'dots',
+  // ─── ROYAL GROUP ──────────────────────────────────────────────────────────
+  royal: {
+    heroStyle: 'royal',
+    patternId: 'deco-geo',
     separatorStyle: 'stars',
+    cardStyle: 'premium',
+    cornerDecor: true,
+    fontFamily: "'Cinzel', serif",
+    patternOpacity: 0.09,
+  },
+  'black-tie': {
+    heroStyle: 'royal',
+    patternId: 'none',
+    separatorStyle: 'double-line',
+    cardStyle: 'double-border',
+    cornerDecor: true,
+    fontFamily: "'Cinzel', serif",
+  },
+  'navy-gold': {
+    heroStyle: 'royal',
+    patternId: 'stars-of-david',
+    separatorStyle: 'double-line',
+    cardStyle: 'double-border',
+    cornerDecor: true,
+    fontFamily: "'Cinzel', serif",
+    patternOpacity: 0.07,
+  },
+
+  // ─── CINEMATIC GROUP ──────────────────────────────────────────────────────
+  celestial: {
+    heroStyle: 'cinematic',
+    patternId: 'stars-of-david',
+    separatorStyle: 'stars',
+    cardStyle: 'glass',
+    cornerDecor: false,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    patternOpacity: 0.14,
+  },
+  'midnight-blue': {
+    heroStyle: 'cinematic',
+    patternId: 'damask',
+    separatorStyle: 'stars',
+    cardStyle: 'glass',
+    cornerDecor: false,
+    fontFamily: "'Cinzel', serif",
+    patternOpacity: 0.08,
+  },
+  'dark-romance': {
+    heroStyle: 'cinematic',
+    patternId: 'lines-diagonal',
+    separatorStyle: 'arabesque',
     cardStyle: 'luxe',
     cornerDecor: true,
     fontFamily: "'Playfair Display', Georgia, serif",
-    patternOpacity: 0.08,
+    patternOpacity: 0.07,
   },
 
-  // ─── Art Déco ─────────────────────────────────────────────────────────────
+  // ─── GARDEN GROUP ─────────────────────────────────────────────────────────
+  'garden-party': {
+    heroStyle: 'garden',
+    patternId: 'botanical',
+    separatorStyle: 'floral',
+    cardStyle: 'solid',
+    cornerDecor: false,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    patternOpacity: 0.12,
+  },
+  'cherry-blossom': {
+    heroStyle: 'garden',
+    patternId: 'floral-subtle',
+    separatorStyle: 'floral',
+    cardStyle: 'glass',
+    cornerDecor: false,
+    fontFamily: "'Raleway', sans-serif",
+    patternOpacity: 0.14,
+  },
+  floral: {
+    heroStyle: 'garden',
+    patternId: 'olive-branch',
+    separatorStyle: 'floral',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Playfair Display', Georgia, serif",
+    patternOpacity: 0.12,
+  },
+
+  // ─── ART-DECO GROUP ───────────────────────────────────────────────────────
   'art-deco': {
     heroStyle: 'art-deco',
     patternId: 'deco-geo',
@@ -39,197 +146,17 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cardStyle: 'double-border',
     cornerDecor: true,
     fontFamily: "'Cinzel', serif",
-    patternOpacity: 0.06,
-  },
-
-  // ─── Romantique ───────────────────────────────────────────────────────────
-  romantic: {
-    heroStyle: 'monogram',
-    patternId: 'floral-subtle',
-    separatorStyle: 'floral',
-    cardStyle: 'shadow',
-    cornerDecor: false,
-    fontFamily: "'Playfair Display', Georgia, serif",
-    patternOpacity: 0.07,
-  },
-
-  // ─── Boho ─────────────────────────────────────────────────────────────────
-  boho: {
-    heroStyle: 'editorial',
-    patternId: 'linen',
-    separatorStyle: 'floral',
-    cardStyle: 'solid',
-    cornerDecor: false,
-    fontFamily: "'Josefin Sans', sans-serif",
-    patternOpacity: 0.12,
-  },
-
-  // ─── Dark Romance ─────────────────────────────────────────────────────────
-  'dark-romance': {
-    heroStyle: 'luxe',
-    patternId: 'lines-diagonal',
-    separatorStyle: 'arabesque',
-    cardStyle: 'luxe',
-    cornerDecor: true,
-    fontFamily: "'Playfair Display', Georgia, serif",
-    patternOpacity: 0.05,
-  },
-
-  // ─── Céleste ──────────────────────────────────────────────────────────────
-  celestial: {
-    heroStyle: 'luxe',
-    patternId: 'stars-of-david',
-    separatorStyle: 'stars',
-    cardStyle: 'glass',
-    cornerDecor: true,
-    fontFamily: "'Cormorant Garamond', Georgia, serif",
-    patternOpacity: 0.1,
-  },
-
-  // ─── Navy & Or ────────────────────────────────────────────────────────────
-  'navy-gold': {
-    heroStyle: 'faire-part',
-    patternId: 'grid',
-    separatorStyle: 'double-line',
-    cardStyle: 'double-border',
-    cornerDecor: true,
-    fontFamily: "'Cinzel', serif",
-    patternOpacity: 0.04,
-  },
-
-  // ─── Parisien ─────────────────────────────────────────────────────────────
-  parisian: {
-    heroStyle: 'magazine',
-    patternId: 'dots',
-    separatorStyle: 'thin-line',
-    cardStyle: 'shadow',
-    cornerDecor: false,
-    fontFamily: "'Raleway', sans-serif",
-    patternOpacity: 0.06,
-  },
-
-  // ─── Rose Vintage ─────────────────────────────────────────────────────────
-  'vintage-rose': {
-    heroStyle: 'faire-part',
-    patternId: 'floral-subtle',
-    separatorStyle: 'floral',
-    cardStyle: 'outline',
-    cornerDecor: true,
-    fontFamily: "'Cormorant Garamond', Georgia, serif",
-    patternOpacity: 0.09,
-  },
-
-  // ─── Cerisier ─────────────────────────────────────────────────────────────
-  'cherry-blossom': {
-    heroStyle: 'monogram',
-    patternId: 'floral-subtle',
-    separatorStyle: 'floral',
-    cardStyle: 'glass',
-    cornerDecor: false,
-    fontFamily: "'Raleway', sans-serif",
-    patternOpacity: 0.1,
-  },
-
-  // ─── Floral ───────────────────────────────────────────────────────────────
-  floral: {
-    heroStyle: 'monogram',
-    patternId: 'floral-subtle',
-    separatorStyle: 'floral',
-    cardStyle: 'shadow',
-    cornerDecor: false,
-    fontFamily: "'Playfair Display', Georgia, serif",
     patternOpacity: 0.08,
   },
-
-  // ─── Garden Party ─────────────────────────────────────────────────────────
-  'garden-party': {
-    heroStyle: 'editorial',
-    patternId: 'floral-subtle',
-    separatorStyle: 'floral',
-    cardStyle: 'solid',
-    cornerDecor: false,
-    fontFamily: "'Josefin Sans', sans-serif",
-    patternOpacity: 0.1,
-  },
-
-  // ─── Tropical ─────────────────────────────────────────────────────────────
-  tropical: {
-    heroStyle: 'split',
-    patternId: 'floral-subtle',
-    separatorStyle: 'wave',
-    cardStyle: 'solid',
-    cornerDecor: false,
-    fontFamily: "'Josefin Sans', sans-serif",
-    patternOpacity: 0.12,
-  },
-
-  // ─── Émeraude ─────────────────────────────────────────────────────────────
-  'emerald-luxury': {
-    heroStyle: 'luxe',
-    patternId: 'deco-geo',
-    separatorStyle: 'diamond',
-    cardStyle: 'luxe',
-    cornerDecor: true,
-    fontFamily: "'Cinzel', serif",
-    patternOpacity: 0.05,
-  },
-
-  // ─── Marrakech ────────────────────────────────────────────────────────────
   marrakech: {
     heroStyle: 'art-deco',
-    patternId: 'oriental',
+    patternId: 'moroccan-tiles',
     separatorStyle: 'arabesque',
     cardStyle: 'double-border',
     cornerDecor: true,
-    fontFamily: "'Cinzel', serif",
-    patternOpacity: 0.1,
-  },
-
-  // ─── Desert Sunset ────────────────────────────────────────────────────────
-  'desert-sunset': {
-    heroStyle: 'split',
-    patternId: 'linen',
-    separatorStyle: 'wave',
-    cardStyle: 'solid',
-    cornerDecor: false,
-    fontFamily: "'Josefin Sans', sans-serif",
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
     patternOpacity: 0.12,
   },
-
-  // ─── Rustic Chic ──────────────────────────────────────────────────────────
-  'rustic-chic': {
-    heroStyle: 'editorial',
-    patternId: 'linen',
-    separatorStyle: 'thin-line',
-    cardStyle: 'solid',
-    cornerDecor: false,
-    fontFamily: "'Josefin Sans', sans-serif",
-    patternOpacity: 0.15,
-  },
-
-  // ─── Feuille d'Or ─────────────────────────────────────────────────────────
-  'gold-leaf': {
-    heroStyle: 'faire-part',
-    patternId: 'deco-geo',
-    separatorStyle: 'double-line',
-    cardStyle: 'premium',
-    cornerDecor: true,
-    fontFamily: "'Cinzel', serif",
-    patternOpacity: 0.05,
-  },
-
-  // ─── Ivoire & Dentelle ────────────────────────────────────────────────────
-  'ivory-lace': {
-    heroStyle: 'faire-part',
-    patternId: 'dots',
-    separatorStyle: 'floral',
-    cardStyle: 'outline',
-    cornerDecor: true,
-    fontFamily: "'Cormorant Garamond', Georgia, serif",
-    patternOpacity: 0.08,
-  },
-
-  // ─── Oriental ─────────────────────────────────────────────────────────────
   oriental: {
     heroStyle: 'art-deco',
     patternId: 'oriental',
@@ -237,10 +164,28 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cardStyle: 'double-border',
     cornerDecor: true,
     fontFamily: "'Cinzel', serif",
-    patternOpacity: 0.08,
+    patternOpacity: 0.1,
   },
 
-  // ─── Sépharade ────────────────────────────────────────────────────────────
+  // ─── LUXE GROUP ───────────────────────────────────────────────────────────
+  luxury: {
+    heroStyle: 'luxe',
+    patternId: 'dots',
+    separatorStyle: 'stars',
+    cardStyle: 'luxe',
+    cornerDecor: true,
+    fontFamily: "'Playfair Display', Georgia, serif",
+    patternOpacity: 0.12,
+  },
+  'emerald-luxury': {
+    heroStyle: 'luxe',
+    patternId: 'deco-geo',
+    separatorStyle: 'diamond',
+    cardStyle: 'luxe',
+    cornerDecor: true,
+    fontFamily: "'Cinzel', serif",
+    patternOpacity: 0.07,
+  },
   sephardic: {
     heroStyle: 'luxe',
     patternId: 'oriental',
@@ -248,21 +193,79 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cardStyle: 'luxe',
     cornerDecor: true,
     fontFamily: "'Cormorant Garamond', Georgia, serif",
-    patternOpacity: 0.08,
+    patternOpacity: 0.1,
   },
 
-  // ─── Royal ────────────────────────────────────────────────────────────────
-  royal: {
-    heroStyle: 'luxe',
+  // ─── FAIRE-PART GROUP ─────────────────────────────────────────────────────
+  'gold-leaf': {
+    heroStyle: 'faire-part',
     patternId: 'deco-geo',
-    separatorStyle: 'stars',
+    separatorStyle: 'double-line',
     cardStyle: 'premium',
     cornerDecor: true,
     fontFamily: "'Cinzel', serif",
-    patternOpacity: 0.06,
+    patternOpacity: 0.07,
+  },
+  parisian: {
+    heroStyle: 'faire-part',
+    patternId: 'dots',
+    separatorStyle: 'thin-line',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Raleway', sans-serif",
+    patternOpacity: 0.09,
   },
 
-  // ─── Moderne ──────────────────────────────────────────────────────────────
+  // ─── MONOGRAM GROUP ───────────────────────────────────────────────────────
+  romantic: {
+    heroStyle: 'monogram',
+    patternId: 'floral-subtle',
+    separatorStyle: 'floral',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Playfair Display', Georgia, serif",
+    patternOpacity: 0.12,
+  },
+  'english-garden': {
+    heroStyle: 'monogram',
+    patternId: 'botanical',
+    separatorStyle: 'floral',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    patternOpacity: 0.12,
+  },
+
+  // ─── EDITORIAL GROUP ──────────────────────────────────────────────────────
+  boho: {
+    heroStyle: 'editorial',
+    patternId: 'linen',
+    separatorStyle: 'floral',
+    cardStyle: 'solid',
+    cornerDecor: false,
+    fontFamily: "'Josefin Sans', sans-serif",
+    patternOpacity: 0.18,
+  },
+  'rustic-chic': {
+    heroStyle: 'editorial',
+    patternId: 'vine',
+    separatorStyle: 'thin-line',
+    cardStyle: 'solid',
+    cornerDecor: false,
+    fontFamily: "'Josefin Sans', sans-serif",
+    patternOpacity: 0.14,
+  },
+  provence: {
+    heroStyle: 'editorial',
+    patternId: 'floral-subtle',
+    separatorStyle: 'floral',
+    cardStyle: 'solid',
+    cornerDecor: false,
+    fontFamily: "'Josefin Sans', sans-serif",
+    patternOpacity: 0.14,
+  },
+
+  // ─── MAGAZINE GROUP ───────────────────────────────────────────────────────
   modern: {
     heroStyle: 'magazine',
     patternId: 'none',
@@ -271,8 +274,46 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cornerDecor: false,
     fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
   },
+  'tel-aviv': {
+    heroStyle: 'magazine',
+    patternId: 'dots',
+    separatorStyle: 'thin-line',
+    cardStyle: 'outline',
+    cornerDecor: false,
+    fontFamily: "'Heebo', system-ui, sans-serif",
+    patternOpacity: 0.1,
+  },
 
-  // ─── Minimal ──────────────────────────────────────────────────────────────
+  // ─── SPLIT GROUP ──────────────────────────────────────────────────────────
+  'desert-sunset': {
+    heroStyle: 'split',
+    patternId: 'linen',
+    separatorStyle: 'wave',
+    cardStyle: 'solid',
+    cornerDecor: false,
+    fontFamily: "'Josefin Sans', sans-serif",
+    patternOpacity: 0.18,
+  },
+  mediterranean: {
+    heroStyle: 'split',
+    patternId: 'chevron',
+    separatorStyle: 'wave',
+    cardStyle: 'solid',
+    cornerDecor: false,
+    fontFamily: "'Raleway', sans-serif",
+    patternOpacity: 0.1,
+  },
+  tropical: {
+    heroStyle: 'split',
+    patternId: 'hexagonal',
+    separatorStyle: 'wave',
+    cardStyle: 'solid',
+    cornerDecor: false,
+    fontFamily: "'Josefin Sans', sans-serif",
+    patternOpacity: 0.12,
+  },
+
+  // ─── MINIMAL GROUP ────────────────────────────────────────────────────────
   minimal: {
     heroStyle: 'minimal',
     patternId: 'none',
@@ -281,82 +322,15 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cornerDecor: false,
     fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
   },
-
-  // ─── Black Tie ────────────────────────────────────────────────────────────
-  'black-tie': {
-    heroStyle: 'art-deco',
-    patternId: 'none',
-    separatorStyle: 'double-line',
-    cardStyle: 'double-border',
-    cornerDecor: true,
-    fontFamily: "'Cinzel', serif",
-  },
-
-  // ─── Nordic ───────────────────────────────────────────────────────────────
   'nordic-minimal': {
     heroStyle: 'minimal',
-    patternId: 'none',
+    patternId: 'grid',
     separatorStyle: 'thin-line',
     cardStyle: 'solid',
     cornerDecor: false,
     fontFamily: "'Raleway', sans-serif",
+    patternOpacity: 0.05,
   },
-
-  // ─── Tel Aviv ─────────────────────────────────────────────────────────────
-  'tel-aviv': {
-    heroStyle: 'magazine',
-    patternId: 'none',
-    separatorStyle: 'thin-line',
-    cardStyle: 'solid',
-    cornerDecor: false,
-    fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
-  },
-
-  // ─── Minuit Bleu ──────────────────────────────────────────────────────────
-  'midnight-blue': {
-    heroStyle: 'split',
-    patternId: 'stars-of-david',
-    separatorStyle: 'stars',
-    cardStyle: 'glass',
-    cornerDecor: false,
-    fontFamily: "'Cinzel', serif",
-    patternOpacity: 0.06,
-  },
-
-  // ─── Méditerranéen ────────────────────────────────────────────────────────
-  mediterranean: {
-    heroStyle: 'split',
-    patternId: 'chevron',
-    separatorStyle: 'wave',
-    cardStyle: 'solid',
-    cornerDecor: false,
-    fontFamily: "'Raleway', sans-serif",
-    patternOpacity: 0.06,
-  },
-
-  // ─── Provence ─────────────────────────────────────────────────────────────
-  provence: {
-    heroStyle: 'editorial',
-    patternId: 'floral-subtle',
-    separatorStyle: 'floral',
-    cardStyle: 'solid',
-    cornerDecor: false,
-    fontFamily: "'Josefin Sans', sans-serif",
-    patternOpacity: 0.1,
-  },
-
-  // ─── Jardin Anglais ───────────────────────────────────────────────────────
-  'english-garden': {
-    heroStyle: 'monogram',
-    patternId: 'floral-subtle',
-    separatorStyle: 'floral',
-    cardStyle: 'shadow',
-    cornerDecor: false,
-    fontFamily: "'Cormorant Garamond', Georgia, serif",
-    patternOpacity: 0.08,
-  },
-
-  // ─── Minimaliste Blanc ────────────────────────────────────────────────────
   'minimal-white': {
     heroStyle: 'minimal',
     patternId: 'none',
@@ -381,4 +355,3 @@ export function applyThemePreset(theme: WeddingTheme): WeddingTheme {
     fontFamily: theme.fontFamily ?? preset.fontFamily ?? theme.fontFamily,
   };
 }
-

@@ -1,5 +1,6 @@
 import type { WeddingSite } from '../types';
 import { getTemplateByTheme } from '../utils/template-selector';
+import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 
 type Props = {
   draft: WeddingSite;
@@ -11,7 +12,9 @@ export function WeddingSitePreview({ draft }: Props) {
     <div className="wedding-preview-shell">
       <p className="wedding-preview-label">Aperçu en direct</p>
       <div className="wedding-preview-frame">
-        <Template site={draft} />
+        <ErrorBoundary>
+          <Template site={draft} />
+        </ErrorBoundary>
       </div>
     </div>
   );

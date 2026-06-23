@@ -8,6 +8,18 @@
 import type { WeddingSite } from '../types';
 import { generateSlugFromDisplayName, ensureUniqueSlug } from '../utils/slug';
 
+// ─── Auth token (optionnel — injecté via ?token= depuis l'app mobile) ─────────
+
+let _authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  _authToken = token;
+}
+
+function authHeaders(): Record<string, string> {
+  return _authToken ? { Authorization: `Bearer ${_authToken}` } : {};
+}
+
 // ─── Helpers API ─────────────────────────────────────────────────────────────
 
 function apiBase(): string | null {
@@ -22,7 +34,16 @@ function apiUrl(path: string): string | null {
   return `${base}${path}`;
 }
 
-// ─── localStorage fallback ────────────────────────────────────────────────────
+async function readApiError(res: Response): Promise<string> {
+  try {
+    const json = (await res.json()) as { message?: string };
+    return json.message?.trim() || `Erreur serveur (${res.status})`;
+  } catch {
+    return `Erreur serveur (${res.status})`;
+  }
+}
+
+// ─── localStorage fallback (dev sans backend uniquement) ─────────────────────
 
 const LS_KEY = 'guestsite_wedding_sites_v2';
 
@@ -48,15 +69,13 @@ export async function getWeddingSiteBySlug(slug: string): Promise<WeddingSite | 
 
   const url = apiUrl(`/api/wedding-sites/${encodeURIComponent(s)}`);
   if (url !== null) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) {
-        const json = await res.json() as { success: boolean; data?: WeddingSite };
-        if (json.success && json.data) return json.data;
-      }
-    } catch {
-      // fallback
+    const res = await fetch(url);
+    if (res.ok) {
+      const json = (await res.json()) as { success: boolean; data?: WeddingSite };
+      if (json.success && json.data) return json.data;
     }
+    if (res.status === 404) return null;
+    throw new Error(await readApiError(res));
   }
 
   return readAll().find((w) => w.slug.toLowerCase() === s) ?? null;
@@ -88,22 +107,35 @@ export type CreateWeddingSiteInput = Omit<WeddingSite, 'id' | 'slug' | 'createdA
 export async function createWeddingSite(data: CreateWeddingSiteInput): Promise<WeddingSite> {
   const url = apiUrl('/api/wedding-sites');
   if (url !== null) {
-    try {
+    // Backend requires a slug — auto-generate if not provided
+    const baseSlug =
+      data.slug?.trim() ||
+      generateSlugFromDisplayName(data.coupleName || `${data.brideName}-${data.groomName}`) ||
+      'mariage';
+
+    const slug = slugifySafe(baseSlug);
+    let lastError = 'Impossible de publier le site sur le serveur.';
+
+    // Try up to 5 times with a numeric suffix if the slug is taken
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidateSlug = attempt === 0 ? slug : `${slug}-${attempt}`;
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ ...data, slug: candidateSlug }),
       });
       if (res.ok) {
-        const json = await res.json() as { success: boolean; data?: WeddingSite };
+        const json = (await res.json()) as { success: boolean; data?: WeddingSite };
         if (json.success && json.data) return json.data;
       }
-    } catch {
-      // fallback
+      lastError = await readApiError(res);
+      if (res.status !== 409) break;
     }
+
+    throw new Error(lastError);
   }
 
-  // localStorage fallback
+  // localStorage fallback (dev sans backend)
   const now = new Date().toISOString();
   const sites = readAll();
 
@@ -140,22 +172,20 @@ export async function createWeddingSite(data: CreateWeddingSiteInput): Promise<W
 export async function updateWeddingSite(id: string, data: Partial<WeddingSite>): Promise<WeddingSite | null> {
   const url = apiUrl(`/api/wedding-sites/${encodeURIComponent(id)}`);
   if (url !== null) {
-    try {
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        const json = await res.json() as { success: boolean; data?: WeddingSite };
-        if (json.success && json.data) return json.data;
-      }
-    } catch {
-      // fallback
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const json = (await res.json()) as { success: boolean; data?: WeddingSite };
+      if (json.success && json.data) return json.data;
     }
+    if (res.status === 404) return null;
+    throw new Error(await readApiError(res));
   }
 
-  // localStorage fallback
+  // localStorage fallback (dev sans backend)
   const sites = readAll();
   const i = sites.findIndex((w) => w.id === id);
   if (i < 0) return null;

@@ -55,30 +55,51 @@ export type HeroStyle =
   | 'luxe'           // Fond sombre, texte dégradé or, ornements coins
   | 'art-deco'       // Géométrique, losanges, uppercase, années 20
   | 'magazine'       // Left-aligned editorial, bold, moderne
-  | 'minimal';       // Très épuré, noms en petit, beaucoup d'espace
+  | 'minimal'        // Très épuré, noms en petit, beaucoup d'espace
+  | 'royal'          // Héraldique, sceau, double cadre, ultra-formel
+  | 'garden'         // Couronne botanique, coins feuilles, organique
+  | 'cinematic'      // Plein écran dramatique, vignette, typographie géante
+  | 'letterpress';   // Carte imprimée en relief, profondeur typographique
 
 export type PatternId =
   | 'none'
-  | 'dots'           // Grille de points discrets
-  | 'lines-diagonal' // Rayures diagonales fines
-  | 'grid'           // Quadrillage classique
-  | 'deco-geo'       // Motif géométrique art déco
-  | 'floral-subtle'  // Motif floral très discret
-  | 'oriental'       // Arabesques orientales
-  | 'linen'          // Texture lin
-  | 'stars-of-david' // Étoiles de David minimalistes
-  | 'chevron'        // Chevrons modernes
-  | 'marble';        // Veines marbre légères
+  | 'dots'              // Grille de points discrets
+  | 'lines-diagonal'    // Rayures diagonales fines
+  | 'vertical-stripes'  // Rayures verticales
+  | 'horizontal-stripes'// Rayures horizontales
+  | 'grid'              // Quadrillage classique
+  | 'thick-grid'        // Quadrillage épais
+  | 'small-squares'     // Petits carreaux ouverts
+  | 'deco-geo'          // Motif géométrique art déco
+  | 'floral-subtle'     // Motif floral très discret
+  | 'oriental'          // Arabesques orientales
+  | 'linen'             // Texture lin
+  | 'paper-texture'     // Texture papier légère
+  | 'canvas-texture'    // Texture toile
+  | 'stars-of-david'    // Étoiles de David minimalistes
+  | 'chevron'           // Chevrons modernes
+  | 'marble'            // Veines marbre légères
+  | 'botanical'         // Branches et feuilles botaniques
+  | 'moroccan-tiles'    // Étoile 8 branches zellige marocain
+  | 'olive-branch'      // Branches d'olivier avec feuilles
+  | 'hexagonal'         // Nid d'abeilles géométrique
+  | 'damask'            // Damassé classique
+  | 'vine'              // Lierre et vignes sinueuses
+  | 'art-nouveau';      // Courbes organiques art nouveau
 
 export type SeparatorStyle =
   | 'none'
   | 'thin-line'      // Ligne fine colorée
+  | 'double-line'    // Deux lignes parallèles
+  | 'dots-line'      // Pointillés
   | 'diamond'        // ◆ entre deux lignes
-  | 'floral'         // ❧ ou ✿ ornemental
   | 'stars'          // ✦ ✦ ✦
+  | 'floral'         // ❧ ou ✿ ornemental
   | 'arabesque'      // Arabesque SVG
   | 'wave'           // Vague SVG douce
-  | 'double-line';   // Deux lignes parallèles
+  | 'art-deco-sep'   // Ornement géométrique art déco
+  | 'geometric'      // Losange central
+  | 'ornate';        // Vague ornementée
 
 export type WeddingTheme = {
   style: ThemeStyle;
@@ -171,7 +192,7 @@ export type CoupleStoryItem = {
 
 export type JewishWeddingEvent = {
   id: string;
-  type: 'chabbat-hatan' | 'henne' | 'mairie' | 'houppa' | 'brunch' | 'sheva-berakhot' | 'depart' | 'custom';
+  type: 'chabbat-hatan' | 'henne' | 'mairie' | 'houppa' | 'brunch' | 'sheva-berakhot' | 'depart' | 'pool-party' | 'custom';
   label: string;
   date: string;
   time: string;
@@ -202,10 +223,10 @@ export type WeddingSiteContent = {
   jewishEvents?: JewishWeddingEvent[];
   galleryPhotos?: string[];
   giftRegistry?: GiftRegistry;
-  parentsGroom?: { father?: string; mother?: string };
-  parentsBride?: { father?: string; mother?: string };
-  grandparentsGroom?: { paternalGrandfather?: string; paternalGrandmother?: string; maternalGrandfather?: string; maternalGrandmother?: string };
-  grandparentsBride?: { paternalGrandfather?: string; paternalGrandmother?: string; maternalGrandfather?: string; maternalGrandmother?: string };
+  parentsGroom?: { father?: string; mother?: string; isDivorced?: boolean };
+  parentsBride?: { father?: string; mother?: string; isDivorced?: boolean };
+  grandparentsGroom?: { grandfather?: string; grandmother?: string; paternalGrandfather?: string; paternalGrandmother?: string; maternalGrandfather?: string; maternalGrandmother?: string };
+  grandparentsBride?: { grandfather?: string; grandmother?: string; paternalGrandfather?: string; paternalGrandmother?: string; maternalGrandfather?: string; maternalGrandmother?: string };
   /** Nom de famille affiché : "Famille Attia" / "Famille Cohen" */
   groomFamilyName?: string;
   brideFamilyName?: string;
@@ -213,6 +234,8 @@ export type WeddingSiteContent = {
   monogramStyle?: string;
   practicalInfoText?: string;
   guestMessageText?: string;
+  /** Verset hébraïque (פסוק) affiché en arc au sommet du site */
+  hebrewQuote?: string;
 };
 
 export type InviteLink = {
@@ -287,17 +310,17 @@ export const defaultWeddingSections = (): WeddingSections => ({
   giftRegistry: false,
   practicalInfo: true,
   guestMessage: true,
-  dressCode: true,
+  dressCode: false,
   qrCode: true,
 });
 
 export const defaultWeddingTheme = (): WeddingTheme => ({
   style: 'classic',
   ambiance: 'chic',
-  primaryColor: '#5b4636',
-  secondaryColor: '#c9a962',
-  backgroundColor: '#faf7f2',
-  textColor: '#2c241c',
+  primaryColor: '#8F947F',
+  secondaryColor: '#C7B7A5',
+  backgroundColor: '#F6F2EA',
+  textColor: '#3D3229',
   fontFamily: "'Cormorant Garamond', Georgia, serif",
   titleSize: 'large',
   borderRadius: 12,

@@ -9,7 +9,7 @@ export const STYLE_PRESETS: ThemePreset[] = [
     label: 'Provence',
     description: 'Beige, ocre, vert olivier, serif doux',
     theme: {
-      style: 'classic',
+      style: 'provence',
       backgroundColor: '#f7efe3',
       textColor: '#3b2f25',
       primaryColor: '#a06a3b',
@@ -24,7 +24,7 @@ export const STYLE_PRESETS: ThemePreset[] = [
     label: 'Sephardic',
     description: 'Bordeaux, or, creme, typographie dense',
     theme: {
-      style: 'royal',
+      style: 'sephardic',
       backgroundColor: '#2a1218',
       textColor: '#f4ece0',
       primaryColor: '#8b1d3b',
@@ -39,7 +39,7 @@ export const STYLE_PRESETS: ThemePreset[] = [
     label: 'Minimaliste blanc',
     description: 'Fond blanc, accents noirs, sans-serif fin',
     theme: {
-      style: 'minimal',
+      style: 'minimal-white',
       backgroundColor: '#ffffff',
       textColor: '#111111',
       primaryColor: '#111111',
@@ -54,7 +54,7 @@ export const STYLE_PRESETS: ThemePreset[] = [
     label: 'Jardin anglais',
     description: 'Vert sauge, rose poudre, serif elegant',
     theme: {
-      style: 'floral',
+      style: 'english-garden',
       backgroundColor: '#f3f5ef',
       textColor: '#2f3b34',
       primaryColor: '#8aa089',
@@ -70,7 +70,7 @@ export const STYLE_PRESETS: ThemePreset[] = [
     label: 'Mediterraneen',
     description: 'Bleu nuit, blanc, or',
     theme: {
-      style: 'modern',
+      style: 'mediterranean',
       backgroundColor: '#f8fafc',
       textColor: '#10233c',
       primaryColor: '#0f2b46',

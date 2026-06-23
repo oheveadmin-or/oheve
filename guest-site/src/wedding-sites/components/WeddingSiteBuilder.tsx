@@ -1,22 +1,24 @@
 import type { CSSProperties, FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import { MonogramGenerator } from './MonogramGenerator';
 import { RSVPBuilder } from '@guest/rsvp/RSVPBuilder';
 import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
 import { FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
-import { createWeddingSite } from '../services/weddingSiteService';
+import { createWeddingSite, updateWeddingSite, setAuthToken, getWeddingSiteBySlug } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
-  CoupleStoryItem,
+  CardStyle,
   FAQItem,
   GiftRegistry,
+  HeroStyle,
   InviteLink,
   JewishWeddingEvent,
+  PatternId,
+  SeparatorStyle,
   SiteLanguage,
-  StyleQuizAnswers,
   ThemeAmbiance,
   ThemeLayout,
   TitleSize,
@@ -26,12 +28,98 @@ import type {
   WeddingTheme,
 } from '../types';
 import { defaultWeddingSections, defaultWeddingTheme } from '../types';
-import { mergeDateAndTimeToIso, splitIsoToDateAndTime } from '../utils/date';
+import { getPatternStyle } from '../templates/PatternOverlay';
+import { mergeDateAndTimeToIso } from '../utils/date';
 import { generateSlugFromDisplayName, slugify } from '../utils/slug';
-import { buildThemeFromQuizAnswers } from '../utils/theme-generator';
+import { applyThemePreset } from '../templates/themePresets';
 
 import { WeddingSitePreview } from './WeddingSitePreview';
-import { WeddingStyleQuiz } from './WeddingStyleQuiz';
+
+// ─── Design Studio options ────────────────────────────────────────────────────
+
+const HERO_STYLE_OPTIONS: { id: HeroStyle; label: string; icon: string; desc: string }[] = [
+  { id: 'editorial',   label: 'Éditorial',   icon: '📰', desc: 'Deux colonnes structurées' },
+  { id: 'faire-part',  label: 'Faire-part',  icon: '💌', desc: 'Style invitation papier' },
+  { id: 'art-deco',    label: 'Art Déco',    icon: '◆',  desc: 'Géométrique 1920s' },
+  { id: 'magazine',    label: 'Magazine',    icon: '📖', desc: 'Style éditorial bold' },
+  { id: 'minimal',     label: 'Minimal',     icon: '⬜', desc: 'Épuré, espace blanc' },
+  { id: 'royal',       label: 'Royal',       icon: '👑', desc: 'Héraldique formel' },
+  { id: 'garden',      label: 'Botanique',   icon: '🌿', desc: 'Couronne de feuilles' },
+  { id: 'cinematic',   label: 'Cinéma',      icon: '🎬', desc: 'Plein écran dramatique' },
+  { id: 'letterpress', label: 'Letterpress', icon: '🖋️', desc: 'Carte en relief' },
+];
+
+const PATTERN_OPTIONS: { id: PatternId; label: string }[] = [
+  { id: 'none',               label: 'Aucun' },
+  { id: 'grid',               label: 'Grille' },
+  { id: 'thick-grid',         label: 'Grille épais' },
+  { id: 'hexagonal',          label: 'Hexagone' },
+  { id: 'small-squares',      label: 'Carreaux' },
+  { id: 'deco-geo',           label: 'Géo déco' },
+  { id: 'horizontal-stripes', label: 'Rayures H' },
+  { id: 'linen',              label: 'Lin' },
+  { id: 'canvas-texture',     label: 'Toile' },
+  { id: 'marble',             label: 'Marbre' },
+  { id: 'olive-branch',       label: 'Olivier' },
+  { id: 'art-nouveau',        label: 'Art Nouveau' },
+  { id: 'oriental',           label: 'Oriental' },
+  { id: 'stars-of-david',     label: 'Étoile David' },
+];
+
+const SEPARATOR_OPTIONS: { id: SeparatorStyle; label: string }[] = [
+  { id: 'none',        label: 'Aucun' },
+  { id: 'thin-line',   label: 'Ligne fine' },
+  { id: 'double-line', label: 'Double ligne' },
+  { id: 'dots-line',   label: 'Pointillés' },
+  { id: 'diamond',     label: 'Losange' },
+  { id: 'stars',       label: 'Étoiles' },
+  { id: 'floral',      label: 'Floral' },
+  { id: 'arabesque',   label: 'Arabesque' },
+  { id: 'art-deco-sep', label: 'Art Déco' },
+  { id: 'geometric',   label: 'Géométrique' },
+];
+
+const CARD_STYLE_OPTIONS: { id: CardStyle; label: string; desc: string }[] = [
+  { id: 'solid',         label: 'Solid',         desc: 'Fond teinté discret' },
+  { id: 'shadow',        label: 'Shadow',        desc: 'Ombre portée élégante' },
+  { id: 'outline',       label: 'Outline',       desc: 'Bordure seule, transparent' },
+  { id: 'glass',         label: 'Glass',         desc: 'Verre givré, flou' },
+  { id: 'premium',       label: 'Premium',       desc: 'Dégradé luxueux' },
+  { id: 'double-border', label: 'Double bordure', desc: 'Cadre intérieur' },
+  { id: 'luxe',          label: 'Luxe',          desc: 'Ombre intense' },
+];
+
+function SepMini({ id, color }: { id: SeparatorStyle; color: string }) {
+  const w = 88;
+  const h = 14;
+  if (id === 'none') return null;
+  switch (id) {
+    case 'thin-line':
+      return <svg width={w} height={h}><line x1="0" y1="7" x2={w} y2="7" stroke={color} strokeWidth="1" opacity="0.5"/></svg>;
+    case 'double-line':
+      return <svg width={w} height={h}><line x1="0" y1="5" x2={w} y2="5" stroke={color} strokeWidth="1" opacity="0.5"/><line x1="8" y1="9" x2={w - 8} y2="9" stroke={color} strokeWidth="0.6" opacity="0.28"/></svg>;
+    case 'dots-line':
+      return <svg width={w} height={h}>{[0,1,2,3,4,5,6].map(i=><circle key={i} cx={i*12+8} cy="7" r={i===3?3:2} fill={color} opacity={i===3?0.8:0.4}/>)}</svg>;
+    case 'diamond':
+      return <svg width={w} height={h}><line x1="0" y1="7" x2="32" y2="7" stroke={color} strokeWidth="0.8" opacity="0.5"/><polygon points="44,4 49,7 44,10 39,7" fill={color} opacity="0.75"/><line x1="56" y1="7" x2={w} y2="7" stroke={color} strokeWidth="0.8" opacity="0.5"/></svg>;
+    case 'stars':
+      return <svg width={w} height={h}><line x1="0" y1="7" x2="24" y2="7" stroke={color} strokeWidth="0.8" opacity="0.4"/><polygon points="34,4 35.5,7.5 39,7.5 36.5,9.5 37.5,13 34,11 30.5,13 31.5,9.5 29,7.5 32.5,7.5" fill={color} opacity="0.7"/><line x1="44" y1="7" x2={w} y2="7" stroke={color} strokeWidth="0.8" opacity="0.4"/></svg>;
+    case 'floral':
+      return <svg width={w} height={h}><line x1="0" y1="7" x2="28" y2="7" stroke={color} strokeWidth="0.6" opacity="0.35"/><circle cx="40" cy="7" r="3.5" fill={color} opacity="0.7"/><circle cx="40" cy="3" r="2" fill={color} opacity="0.45"/><circle cx="40" cy="11" r="2" fill={color} opacity="0.45"/><circle cx="36" cy="7" r="2" fill={color} opacity="0.45"/><circle cx="44" cy="7" r="2" fill={color} opacity="0.45"/><line x1="52" y1="7" x2={w} y2="7" stroke={color} strokeWidth="0.6" opacity="0.35"/></svg>;
+    case 'arabesque':
+      return <svg width={w} height={h}><line x1="0" y1="7" x2="26" y2="7" stroke={color} strokeWidth="0.7" opacity="0.4"/><path d="M32,5 C36,9 40,10 44,7 C40,4 36,5 32,9 Z" fill={color} opacity="0.45"/><circle cx="44" cy="7" r="2" fill={color} opacity="0.7"/><line x1="52" y1="7" x2={w} y2="7" stroke={color} strokeWidth="0.7" opacity="0.4"/></svg>;
+    case 'wave':
+      return <svg width={w} height={h}><path d={`M0,7 C11,3 22,11 33,7 C44,3 55,11 66,7 C77,3 88,11 88,7`} fill="none" stroke={color} strokeWidth="1.2" opacity="0.5"/></svg>;
+    case 'art-deco-sep':
+      return <svg width={w} height={h}><line x1="0" y1="7" x2="22" y2="7" stroke={color} strokeWidth="0.8" opacity="0.45"/><polygon points="28,4 33,7 28,10 23,7" fill="none" stroke={color} strokeWidth="0.9" opacity="0.7"/><rect x="35" y="4.5" width="6" height="6" fill={color} opacity="0.6" transform="rotate(45 38 7)"/><polygon points="54,4 59,7 54,10 49,7" fill="none" stroke={color} strokeWidth="0.9" opacity="0.7"/><line x1="60" y1="7" x2={w} y2="7" stroke={color} strokeWidth="0.8" opacity="0.45"/></svg>;
+    case 'geometric':
+      return <svg width={w} height={h}><line x1="0" y1="7" x2="28" y2="7" stroke={color} strokeWidth="0.8" opacity="0.4"/><polygon points="44,2 56,7 44,12 32,7" fill="none" stroke={color} strokeWidth="0.9" opacity="0.7"/><circle cx="44" cy="7" r="2.5" fill={color} opacity="0.55"/><line x1="56" y1="7" x2={w} y2="7" stroke={color} strokeWidth="0.8" opacity="0.4"/></svg>;
+    case 'ornate':
+      return <svg width={w} height={h}><path d={`M0,7 C8,3 16,11 24,7 C30,4 34,10 44,7 C54,4 58,10 64,7 C72,3 80,11 88,7`} fill="none" stroke={color} strokeWidth="1" opacity="0.45"/><circle cx="44" cy="7" r="3" fill={color} opacity="0.65"/></svg>;
+    default:
+      return null;
+  }
+}
 
 /** ID stable dans rsvpForm.events pour chaque type d'événement juif */
 function jewishRsvpId(type: JewishWeddingEvent['type']) {
@@ -46,6 +134,7 @@ const JEWISH_META: Record<JewishWeddingEvent['type'], { emoji: string; label: st
   'brunch':         { emoji: '☕', label: 'Brunch' },
   'sheva-berakhot': { emoji: '🥂', label: 'Sheva Berakhot' },
   'depart':         { emoji: '👋', label: 'Au revoir des invités' },
+  'pool-party':     { emoji: '🏊', label: 'Pool Party' },
   'custom':         { emoji: '✨', label: 'Événement' },
 };
 
@@ -56,6 +145,7 @@ const DEFAULT_JEWISH_EVENTS: { type: JewishWeddingEvent['type']; label: string; 
   { type: 'houppa', label: 'Houppa & Cérémonie', emoji: '💍' },
   { type: 'brunch', label: 'Brunch', emoji: '☕', optional: true },
   { type: 'sheva-berakhot', label: 'Sheva Berakhot', emoji: '🥂', optional: true },
+  { type: 'pool-party', label: 'Pool Party', emoji: '🏊', optional: true },
   { type: 'depart', label: 'Au revoir des invités', emoji: '👋', optional: true },
 ];
 
@@ -63,18 +153,16 @@ function defaultGiftRegistry(): GiftRegistry {
   return { introText: '', externalUrl: '', cagnotteUrl: '', cagnotteLabel: '', bankTransferInfo: '' };
 }
 
-const initialDate = (): { date: string; time: string } => {
-  const iso = new Date();
-  iso.setMonth(iso.getMonth() + 3);
-  return splitIsoToDateAndTime(iso.toISOString());
-};
+const initialDate = (): { date: string; time: string } => ({ date: '', time: '' });
 
 export function WeddingSiteBuilder() {
+  const { slug: routeSlug } = useParams<{ slug?: string }>();
+  const [namesLocked, setNamesLocked] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
+  const [publishedId, setPublishedId] = useState<string | null>(null);
   const [slugCustom, setSlugCustom] = useState('');
-  const [quiz, setQuiz] = useState<StyleQuizAnswers | undefined>(undefined);
-  const [quizApplied, setQuizApplied] = useState(false);
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
 
   const [{ date, time }, setDt] = useState(initialDate);
@@ -87,7 +175,7 @@ export function WeddingSiteBuilder() {
   const [welcomeText, setWelcomeText] = useState('');
   const [mainText, setMainText] = useState('');
   const [language, setLanguage] = useState<SiteLanguage>('fr');
-  const [theme, setTheme] = useState<WeddingTheme>(() => defaultWeddingTheme());
+  const [theme, setTheme] = useState<WeddingTheme>(() => applyThemePreset(defaultWeddingTheme()));
   const [sections, setSections] = useState<WeddingSections>(() => defaultWeddingSections());
   const [content, setContent] = useState<WeddingSiteContent>({
     venue: {
@@ -165,6 +253,50 @@ export function WeddingSiteBuilder() {
   );
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('token');
+    if (t) setAuthToken(t);
+
+    if (!routeSlug) return;
+
+    getWeddingSiteBySlug(routeSlug).then((site) => {
+      if (!site) {
+        setLoadError('Site introuvable. Vérifiez que vous avez bien publié votre site depuis l\'application.');
+        return;
+      }
+      setLoadError(null);
+      setGroomName(site.groomName || '');
+      setBrideName(site.brideName || '');
+      setCoupleName(site.coupleName || '');
+      setCity(site.city || '');
+      setVenue(site.venue || '');
+      setWelcomeText(site.welcomeText || '');
+      setMainText(site.mainText || '');
+      setLanguage((site.language as SiteLanguage) || 'fr');
+      if (site.theme && typeof site.theme === 'object') setTheme(applyThemePreset({ ...defaultWeddingTheme(), ...(site.theme as WeddingTheme) }));
+      if (site.sections && typeof site.sections === 'object') setSections(site.sections as WeddingSections);
+      if (site.content && typeof site.content === 'object') setContent((prev) => ({ ...prev, ...(site.content as WeddingSiteContent) }));
+      if (site.rsvpForm) setRsvpForm(site.rsvpForm);
+      if (site.inviteLinks?.length) setInviteLinks(site.inviteLinks);
+      if (site.date) {
+        try {
+          const d = new Date(site.date);
+          const dateStr = d.toISOString().slice(0, 10);
+          const timeStr = site.time || d.toTimeString().slice(0, 5);
+          setDt({ date: dateStr, time: timeStr });
+        } catch { /* ignore bad dates */ }
+      }
+      setPublishedId(site.id);
+      setPublishedSlug(site.slug);
+      setNamesLocked(true);
+    }).catch((err: unknown) => {
+      console.error('[WeddingSiteBuilder] Erreur chargement site:', err);
+      setLoadError('Impossible de charger le site. Vérifiez votre connexion et réessayez.');
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeSlug]);
+
+  useEffect(() => {
     setRsvpForm((f) => (f.weddingId === draft.id ? f : { ...f, weddingId: draft.id }));
   }, [draft.id]);
 
@@ -218,19 +350,6 @@ export function WeddingSiteBuilder() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function applyQuiz(answers: StyleQuizAnswers) {
-    const { theme: nt, sections: ns, languageHint } = buildThemeFromQuizAnswers(answers);
-    setTheme(nt);
-    setSections(ns);
-    setLanguage(languageHint);
-    setQuizApplied(true);
-    setTimeout(() => setQuizApplied(false), 3000);
-    // scroll to preview on mobile
-    if (window.innerWidth < 960) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -241,7 +360,7 @@ export function WeddingSiteBuilder() {
         token: l.token || crypto.randomUUID().slice(0, 12),
       }));
 
-      const row = await createWeddingSite({
+      const siteData = {
         coupleName: displayCouple,
         groomName,
         brideName,
@@ -258,7 +377,13 @@ export function WeddingSiteBuilder() {
         rsvpForm: { ...rsvpForm, updatedAt: new Date().toISOString() },
         inviteLinks: finalInviteLinks,
         ...(custom ? { slug: custom } : {}),
-      });
+      };
+
+      const row = publishedId
+        ? (await updateWeddingSite(publishedId, siteData)) ?? await createWeddingSite(siteData)
+        : await createWeddingSite(siteData);
+
+      setPublishedId(row.id);
       setPublishedSlug(row.slug);
       setInviteLinks(row.inviteLinks ?? finalInviteLinks);
     } catch (err) {
@@ -348,29 +473,6 @@ export function WeddingSiteBuilder() {
 
   function removeFaq(id: string) {
     setContent((prev) => ({ ...prev, faq: (prev.faq ?? []).filter((q) => q.id !== id) }));
-  }
-
-  function addStoryItem() {
-    setContent((prev) => ({
-      ...prev,
-      coupleStory: [
-        ...(prev.coupleStory ?? []),
-        { id: crypto.randomUUID(), year: '', title: '', description: '', emoji: '❤️' },
-      ],
-    }));
-  }
-
-  function upsertStoryItem(idx: number, partial: Partial<CoupleStoryItem>) {
-    setContent((prev) => {
-      const list = [...(prev.coupleStory ?? [])];
-      const cur = list[idx] ?? { id: crypto.randomUUID(), year: '', title: '', description: '', emoji: '' };
-      list[idx] = { ...cur, ...partial };
-      return { ...prev, coupleStory: list };
-    });
-  }
-
-  function removeStoryItem(id: string) {
-    setContent((prev) => ({ ...prev, coupleStory: (prev.coupleStory ?? []).filter((s) => s.id !== id) }));
   }
 
   function syncJewishEventToRsvp(type: JewishWeddingEvent['type'], partial: { label?: string; time?: string; place?: string; date?: string; enabled?: boolean }) {
@@ -467,7 +569,7 @@ export function WeddingSiteBuilder() {
     <div className="wedding-builder-layout">
       <div style={formColumn}>
         <header style={{ marginBottom: '1rem' }}>
-          <h1 style={h1}>Créer le mini-site</h1>
+          <h1 style={h1}>{namesLocked ? `Personnaliser le site · ${groomName} & ${brideName}` : 'Créer le mini-site'}</h1>
 
           {/* Mobile experience banner */}
           {typeof window !== 'undefined' && window.innerWidth < 768 && (
@@ -482,7 +584,7 @@ export function WeddingSiteBuilder() {
           )}
 
           <p style={sub}>
-            Remplissez les infos, utilisez le quiz pour le style, vérifiez l'aperçu puis publiez. URL publique :{' '}
+            Remplissez les infos, personnalisez le style, vérifiez l'aperçu puis publiez. URL publique :{' '}
             <strong>www.ohevewedding.com/wedding/votre-slug</strong> — votre domaine est actif.
           </p>
           <Link to="/" style={{ fontSize: '0.92rem' }}>
@@ -490,44 +592,45 @@ export function WeddingSiteBuilder() {
           </Link>
         </header>
 
+        {loadError && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.88rem', color: '#991b1b', lineHeight: 1.5 }}>
+            ⚠️ {loadError}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-
-          {/* ── ASSISTANT DE STYLE (en premier) ───────────────────────────── */}
-          <section style={{ ...block, border: '2px solid #5b4fd6', background: 'linear-gradient(135deg, #faf8ff 0%, #f0ecff 100%)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '1.4rem' }}>✨</span>
-              <h2 style={{ ...h2, margin: 0, color: '#5b4fd6' }}>Commencez par l'assistant de style</h2>
-            </div>
-            <p style={{ fontSize: '0.88rem', color: '#4c1d95', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Répondez aux questions ci-dessous pour générer automatiquement le thème parfait pour votre mariage. Vous pourrez ajuster les détails ensuite.
-            </p>
-
-            {quizApplied && (
-              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '0.6rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>✅</span>
-                <span style={{ fontWeight: 700, color: '#166534', fontSize: '0.9rem' }}>Thème appliqué ! Regardez l'aperçu à droite (ou faites défiler vers le haut sur mobile).</span>
-              </div>
-            )}
-
-            <WeddingStyleQuiz
-              value={quiz ?? {}}
-              onChange={setQuiz}
-              onApply={applyQuiz}
-            />
-          </section>
 
           <section style={block}>
             <h2 style={h2}>Informations</h2>
             <div style={grid2}>
               <label style={lab}>
                 Prénom marié
-                <input style={inp} required value={groomName} onChange={(e) => setGroomName(e.target.value)} />
+                {namesLocked ? (
+                  <div style={lockedNameField}>
+                    <span style={{ fontSize: '0.9rem' }}>🔒</span>
+                    {groomName}
+                  </div>
+                ) : (
+                  <input style={inp} required value={groomName} onChange={(e) => setGroomName(e.target.value)} />
+                )}
               </label>
               <label style={lab}>
                 Prénom mariée
-                <input style={inp} required value={brideName} onChange={(e) => setBrideName(e.target.value)} />
+                {namesLocked ? (
+                  <div style={lockedNameField}>
+                    <span style={{ fontSize: '0.9rem' }}>🔒</span>
+                    {brideName}
+                  </div>
+                ) : (
+                  <input style={inp} required value={brideName} onChange={(e) => setBrideName(e.target.value)} />
+                )}
               </label>
             </div>
+            {namesLocked && (
+              <p style={{ fontSize: '0.78rem', color: '#92400e', background: '#fef3c7', borderRadius: 8, padding: '0.5rem 0.75rem', margin: 0 }}>
+                Les prénoms sont verrouillés — ils ont été définis depuis l'application Oheve.
+              </p>
+            )}
             <label style={lab}>
               Nom affiché du couple
               <input
@@ -583,6 +686,71 @@ export function WeddingSiteBuilder() {
                 <option value="en">English</option>
               </select>
             </label>
+
+            {/* ── Verset hébraïque en arc ── */}
+            <div style={{ marginTop: '1.2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', letterSpacing: '0.04em' }}>
+                  ✡️ פסוק — Verset hébraïque (affiché en arc en haut du site)
+                </span>
+              </div>
+              <select
+                style={{ ...inp, marginBottom: '0.5rem', fontFamily: "'Frank Ruhl Libre', serif", direction: 'rtl' }}
+                value={
+                  [
+                    'נעלה את ירושלים על ראש שמחתנו',
+                    'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה קוֹל חָתָן וְקוֹל כַּלָּה',
+                    'אֲנִי לְדוֹדִי וְדוֹדִי לִי',
+                    'זֶה הַיּוֹם עָשָׂה ה׳ נָגִילָה וְנִשְׂמְחָה בוֹ',
+                    'שִׂמְחוּ אֶת יְרוּשָׁלִַם וְגִילוּ בָהּ',
+                    'בְּרוּךְ הַבָּא בְּשֵׁם ה׳',
+                    'שִׂישׂ אָשִׂישׂ בַּה׳ תָּגֵל נַפְשִׁי בֵּאלֹהַי',
+                    'מַה יָּפוּ פְעָמַיִךְ בַּנְּעָלִים',
+                    'כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ',
+                  ].includes(content.hebrewQuote ?? '')
+                    ? (content.hebrewQuote ?? '')
+                    : content.hebrewQuote
+                    ? '__custom__'
+                    : ''
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '' || v !== '__custom__') {
+                    setContent((c) => ({ ...c, hebrewQuote: v === '' ? undefined : v }));
+                  }
+                }}
+              >
+                <option value="">— Aucun —</option>
+                <option value="נעלה את ירושלים על ראש שמחתנו">נעלה את ירושלים על ראש שמחתנו (תהלים קלז:ו)</option>
+                <option value="קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה קוֹל חָתָן וְקוֹל כַּלָּה">קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה (ירמיהו לג:יא)</option>
+                <option value="אֲנִי לְדוֹדִי וְדוֹדִי לִי">אֲנִי לְדוֹדִי וְדוֹדִי לִי (שיה״ש ו:ג)</option>
+                <option value="זֶה הַיּוֹם עָשָׂה ה׳ נָגִילָה וְנִשְׂמְחָה בוֹ">זֶה הַיּוֹם עָשָׂה ה׳ (תהלים קיח:כד)</option>
+                <option value="שִׂמְחוּ אֶת יְרוּשָׁלִַם וְגִילוּ בָהּ">שִׂמְחוּ אֶת יְרוּשָׁלִַם (ישעיהו סו:י)</option>
+                <option value="בְּרוּךְ הַבָּא בְּשֵׁם ה׳">בְּרוּךְ הַבָּא בְּשֵׁם ה׳ (תהלים קיח:כו)</option>
+                <option value="שִׂישׂ אָשִׂישׂ בַּה׳ תָּגֵל נַפְשִׁי בֵּאלֹהַי">שִׂישׂ אָשִׂישׂ בַּה׳ (ישעיהו סא:י)</option>
+                <option value="מַה יָּפוּ פְעָמַיִךְ בַּנְּעָלִים">מַה יָּפוּ פְעָמַיִךְ בַּנְּעָלִים (שיה״ש ז:ב)</option>
+                <option value="כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ">כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ (תהלים קלו)</option>
+                {content.hebrewQuote && ![
+                  'נעלה את ירושלים על ראש שמחתנו',
+                  'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה קוֹל חָתָן וְקוֹל כַּלָּה',
+                  'אֲנִי לְדוֹדִי וְדוֹדִי לִי',
+                  'זֶה הַיּוֹם עָשָׂה ה׳ נָגִילָה וְנִשְׂמְחָה בוֹ',
+                  'שִׂמְחוּ אֶת יְרוּשָׁלִַם וְגִילוּ בָהּ',
+                  'בְּרוּךְ הַבָּא בְּשֵׁם ה׳',
+                  'שִׂישׂ אָשִׂישׂ בַּה׳ תָּגֵל נַפְשִׁי בֵּאלֹהַי',
+                  'מַה יָּפוּ פְעָמַיִךְ בַּנְּעָלִים',
+                  'כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ',
+                ].includes(content.hebrewQuote) ? (
+                  <option value="__custom__">✏️ Personnalisé</option>
+                ) : null}
+              </select>
+              <input
+                style={{ ...inp, fontFamily: "'Frank Ruhl Libre', serif", direction: 'rtl', fontSize: '1rem' }}
+                placeholder="כתוב פסוק בחופשיות..."
+                value={content.hebrewQuote ?? ''}
+                onChange={(e) => setContent((c) => ({ ...c, hebrewQuote: e.target.value || undefined }))}
+              />
+            </div>
           </section>
 
           {/* ── Parents du couple ──────────────────────────────────────────── */}
@@ -604,6 +772,11 @@ export function WeddingSiteBuilder() {
                   value={content.groomFamilyName ?? ''}
                   onChange={(e) => setContent((c) => ({ ...c, groomFamilyName: e.target.value }))} />
               </label>
+            </div>
+
+            {/* Côté mariée */}
+            <p style={{ fontSize: '0.83rem', color: '#64748b', margin: '1rem 0 0.5rem', fontWeight: 600 }}>Côté mariée</p>
+            <div style={grid2}>
               <label style={lab}>
                 Père de la mariée
                 <input style={inp} placeholder="ex. Michel Benitah"
@@ -616,6 +789,33 @@ export function WeddingSiteBuilder() {
                   value={content.parentsBride?.mother ?? ''}
                   onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), mother: e.target.value } }))} />
               </label>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', cursor: 'pointer', marginBottom: '0.75rem' }}>
+              <input
+                type="checkbox"
+                checked={content.parentsBride?.isDivorced ?? false}
+                onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), isDivorced: e.target.checked } }))}
+              />
+              Parents divorcés (affichés séparément sur le site)
+            </label>
+            <div style={grid2}>
+              <label style={lab}>
+                Grand-père de la mariée
+                <input style={inp} placeholder="ex. Albert Benitah"
+                  value={content.grandparentsBride?.grandfather ?? content.grandparentsBride?.paternalGrandfather ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), grandfather: e.target.value } }))} />
+              </label>
+              <label style={lab}>
+                Grand-mère de la mariée
+                <input style={inp} placeholder="ex. Simone Benitah"
+                  value={content.grandparentsBride?.grandmother ?? content.grandparentsBride?.paternalGrandmother ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), grandmother: e.target.value } }))} />
+              </label>
+            </div>
+
+            {/* Côté marié */}
+            <p style={{ fontSize: '0.83rem', color: '#64748b', margin: '0.75rem 0 0.5rem', fontWeight: 600 }}>Côté marié</p>
+            <div style={grid2}>
               <label style={lab}>
                 Père du marié
                 <input style={inp} placeholder="ex. Patrick Cohen"
@@ -629,59 +829,26 @@ export function WeddingSiteBuilder() {
                   onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), mother: e.target.value } }))} />
               </label>
             </div>
-
-            {/* Grands-parents */}
-            <p style={{ fontSize: '0.83rem', color: '#64748b', margin: '1.25rem 0 0.5rem', fontWeight: 600 }}>
-              👴👵 Grands-parents (optionnel)
-            </p>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', cursor: 'pointer', marginBottom: '0.75rem' }}>
+              <input
+                type="checkbox"
+                checked={content.parentsGroom?.isDivorced ?? false}
+                onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), isDivorced: e.target.checked } }))}
+              />
+              Parents divorcés (affichés séparément sur le site)
+            </label>
             <div style={grid2}>
               <label style={lab}>
-                Grand-père paternel de la mariée
-                <input style={inp} placeholder="ex. Albert Benitah"
-                  value={content.grandparentsBride?.paternalGrandfather ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), paternalGrandfather: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Grand-mère paternelle de la mariée
-                <input style={inp} placeholder="ex. Simone Benitah"
-                  value={content.grandparentsBride?.paternalGrandmother ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), paternalGrandmother: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Grand-père maternel de la mariée
-                <input style={inp} placeholder="ex. Maurice Lévy"
-                  value={content.grandparentsBride?.maternalGrandfather ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), maternalGrandfather: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Grand-mère maternelle de la mariée
-                <input style={inp} placeholder="ex. Yvette Lévy"
-                  value={content.grandparentsBride?.maternalGrandmother ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), maternalGrandmother: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Grand-père paternel du marié
+                Grand-père du marié
                 <input style={inp} placeholder="ex. Roger Cohen"
-                  value={content.grandparentsGroom?.paternalGrandfather ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), paternalGrandfather: e.target.value } }))} />
+                  value={content.grandparentsGroom?.grandfather ?? content.grandparentsGroom?.paternalGrandfather ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), grandfather: e.target.value } }))} />
               </label>
               <label style={lab}>
-                Grand-mère paternelle du marié
+                Grand-mère du marié
                 <input style={inp} placeholder="ex. Rachel Cohen"
-                  value={content.grandparentsGroom?.paternalGrandmother ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), paternalGrandmother: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Grand-père maternel du marié
-                <input style={inp} placeholder="ex. André Marciano"
-                  value={content.grandparentsGroom?.maternalGrandfather ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), maternalGrandfather: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Grand-mère maternelle du marié
-                <input style={inp} placeholder="ex. Liliane Marciano"
-                  value={content.grandparentsGroom?.maternalGrandmother ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), maternalGrandmother: e.target.value } }))} />
+                  value={content.grandparentsGroom?.grandmother ?? content.grandparentsGroom?.paternalGrandmother ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), grandmother: e.target.value } }))} />
               </label>
             </div>
           </section>
@@ -693,10 +860,12 @@ export function WeddingSiteBuilder() {
               Générez automatiquement un logo monogramme pour le site et les faire-part. Téléchargez en SVG.
             </p>
             <MonogramGenerator
-              groomName={groomName || 'B'}
-              brideName={brideName || 'A'}
+              groomName={groomName}
+              brideName={brideName}
+              date={date}
               primaryColor={theme.primaryColor}
               backgroundColor={theme.backgroundColor}
+              initialStyle={content.monogramStyle}
               onSelect={(svg, style) => setContent((c) => ({ ...c, monogramSvg: svg, monogramStyle: style }))}
             />
             {content.monogramSvg ? (
@@ -714,7 +883,9 @@ export function WeddingSiteBuilder() {
           </section>
 
           <section style={block}>
-            <h2 style={h2}>Style & thème</h2>
+            <h2 style={h2}>🎨 Style & thème</h2>
+
+            {/* ── Preset ───────────────────────────────────────────────────── */}
             <label style={lab}>
               Preset visuel
               <select
@@ -723,80 +894,248 @@ export function WeddingSiteBuilder() {
                 onChange={(e) => {
                   const id = e.target.value as WeddingTheme['style'];
                   const preset = STYLE_PRESETS.find((s) => s.id === id);
-                  if (preset) setTheme({ ...theme, ...preset.theme, style: id });
-                  else setTheme({ ...theme, style: id });
+                  const { heroStyle: _h, patternId: _p, separatorStyle: _s, cardStyle: _c, cornerDecor: _co, ...rest } = theme;
+                  if (preset) setTheme(applyThemePreset({ ...rest, ...preset.theme, style: id } as WeddingTheme));
+                  else setTheme(applyThemePreset({ ...rest, style: id } as WeddingTheme));
                 }}
               >
                 {STYLE_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
+                  <option key={p.id} value={p.id}>{p.label}</option>
                 ))}
               </select>
             </label>
 
+            {/* ── Studio de Design ─────────────────────────────────────────── */}
+            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'linear-gradient(135deg, #F6F4EF 0%, #EDE8E0 100%)', borderRadius: 12, border: '1px solid #C7B7A5' }}>
+              <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', fontWeight: 800, color: '#8F947F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Studio de design
+              </p>
+
+              {/* Hero Style */}
+              <p style={studioSectionLabel}>Style du hero (haut de page)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: '1.25rem' }}>
+                {HERO_STYLE_OPTIONS.map((h) => {
+                  const active = (theme.heroStyle ?? 'editorial') === h.id;
+                  return (
+                    <button
+                      key={h.id}
+                      type="button"
+                      onClick={() => setTheme({ ...theme, heroStyle: h.id })}
+                      style={{
+                        padding: '0.6rem 0.25rem 0.45rem',
+                        border: `2px solid ${active ? '#8F947F' : '#C7B7A5'}`,
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        background: active ? '#E4E7DC' : '#fff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 3,
+                        textAlign: 'center',
+                      }}
+                    >
+                      <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>{h.icon}</span>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 700, color: active ? '#8F947F' : '#333', lineHeight: 1.2 }}>{h.label}</span>
+                      <span style={{ fontSize: '0.52rem', color: '#666', lineHeight: 1.2 }}>{h.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Pattern de fond */}
+              <p style={studioSectionLabel}>Motif de fond</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 5, marginBottom: '0.75rem' }}>
+                {PATTERN_OPTIONS.map((p) => {
+                  const active = (theme.patternId ?? 'none') === p.id;
+                  const patBg = p.id !== 'none' ? getPatternStyle(p.id, theme.primaryColor) : {};
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setTheme({ ...theme, patternId: p.id })}
+                      style={{
+                        padding: '0.3rem 0.15rem',
+                        border: `2px solid ${active ? '#8F947F' : '#C7B7A5'}`,
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        background: '#fff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 36,
+                          height: 26,
+                          borderRadius: 5,
+                          background: theme.backgroundColor || '#faf7f2',
+                          ...patBg,
+                          backgroundRepeat: 'repeat',
+                          border: `1px solid ${active ? '#a5b4fc' : '#e8e4f5'}`,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span style={{ fontSize: '0.5rem', fontWeight: 600, color: active ? '#8F947F' : '#444', textAlign: 'center', lineHeight: 1.2, wordBreak: 'break-word' }}>
+                        {p.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {(theme.patternId ?? 'none') !== 'none' && (
+                <label style={{ ...lab, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.25rem' }}>
+                  <span style={{ whiteSpace: 'nowrap' }}>Opacité : {Math.round((theme.patternOpacity ?? 0.07) * 100)}%</span>
+                  <input
+                    type="range"
+                    style={{ flex: 1, marginTop: 0 }}
+                    min={2}
+                    max={30}
+                    value={Math.round((theme.patternOpacity ?? 0.07) * 100)}
+                    onChange={(e) => setTheme({ ...theme, patternOpacity: Number(e.target.value) / 100 })}
+                  />
+                </label>
+              )}
+
+              {/* Séparateurs */}
+              <p style={studioSectionLabel}>Séparateurs de sections</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: '1.25rem' }}>
+                {SEPARATOR_OPTIONS.map((s) => {
+                  const active = (theme.separatorStyle ?? 'none') === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setTheme({ ...theme, separatorStyle: s.id })}
+                      style={{
+                        padding: '0.42rem 0.6rem',
+                        border: `2px solid ${active ? '#8F947F' : '#C7B7A5'}`,
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        background: active ? '#E4E7DC' : '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontSize: '0.62rem', fontWeight: 700, color: active ? '#8F947F' : '#333', minWidth: 58, textAlign: 'left' }}>
+                        {s.label}
+                      </span>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', height: 14 }}>
+                        <SepMini id={s.id} color={theme.primaryColor} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Style des cartes */}
+              <p style={studioSectionLabel}>Style des cartes</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5, marginBottom: '1.25rem' }}>
+                {CARD_STYLE_OPTIONS.map((c) => {
+                  const active = theme.cardStyle === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setTheme({ ...theme, cardStyle: c.id })}
+                      style={{
+                        padding: '0.55rem 0.25rem',
+                        border: `2px solid ${active ? '#8F947F' : '#C7B7A5'}`,
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        background: active ? '#E4E7DC' : '#fff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 3,
+                        textAlign: 'center',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: active ? '#8F947F' : '#333' }}>{c.label}</span>
+                      <span style={{ fontSize: '0.52rem', color: '#666', lineHeight: 1.3 }}>{c.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+            </div>
+
+            {/* ── Couleurs ─────────────────────────────────────────────────── */}
+            <p style={{ ...studioSectionLabel, marginTop: '1.25rem' }}>Combinaisons de couleurs</p>
+            {(() => {
+              const palettes = [
+                { name: 'Noir & Or', colors: ['#0B0B0B', '#D4AF37', '#EBFD2', '#FFFFFF'], primary: '#D4AF37', secondary: '#0B0B0B', bg: '#FDFBF5', text: '#0B0B0B' },
+                { name: 'Émeraude & Champagne', colors: ['#0F5132', '#D4AF37', '#E9DFC9', '#FFFFFF'], primary: '#0F5132', secondary: '#D4AF37', bg: '#F5F2EA', text: '#0F5132' },
+                { name: 'Bleu Nuit & Cuivré', colors: ['#0E2248', '#C97C5D', '#B7A69A', '#F5EFE6'], primary: '#0E2248', secondary: '#C97C5D', bg: '#F5EFE6', text: '#0E2248' },
+                { name: 'Bordeaux & Or Vieilli', colors: ['#580D1E', '#D4AF37', '#EEC7B7', '#F7F3EE'], primary: '#580D1E', secondary: '#D4AF37', bg: '#FAF6F1', text: '#3D0A14' },
+                { name: 'Vert Sauge & Bronze', colors: ['#8BBF7A', '#7A5A3A', '#DCD2BE', '#FAF7F2'], primary: '#8BBF7A', secondary: '#7A5A3A', bg: '#FAF7F2', text: '#3D3020' },
+                { name: 'Terracotta & Crème', colors: ['#C65A2E', '#F3EFE6', '#6B6F3C', '#D8BEBC'], primary: '#C65A2E', secondary: '#6B6F3C', bg: '#FAF5EE', text: '#3A2010' },
+                { name: 'Lavande & Gris', colors: ['#B9ABC9', '#BFC2C7', '#E8E0D2', '#FFFFFF'], primary: '#9B8BB0', secondary: '#BFC2C7', bg: '#F4F0F8', text: '#3D3550' },
+                { name: 'Noir & Blanc Marbre', colors: ['#000000', '#FFFFFF', '#E6E6E6', '#D4AF37'], primary: '#000000', secondary: '#D4AF37', bg: '#FAFAFA', text: '#111111' },
+                { name: 'Pétrole & Or', colors: ['#00AF57', '#D4AF37', '#EDED56', '#F6F2EA'], primary: '#005F67', secondary: '#D4AF37', bg: '#F2F8F8', text: '#003840' },
+                { name: 'Pêche & Or Rose', colors: ['#F2B9A7', '#F5DBCC', '#EBC9B7', '#E7A98D'], primary: '#D4856A', secondary: '#C9956A', bg: '#FDF5F0', text: '#6B3A2A' },
+                { name: 'Olive & Beige', colors: ['#4B5332', '#F4F1E8', '#D4C9B6', '#9B9E1D2'], primary: '#4B5332', secondary: '#C9B87A', bg: '#F4F1E8', text: '#2E3320' },
+                { name: 'Chocolat & Doré', colors: ['#4B2E1E', '#E7DFD2', '#B8A97B', '#D4AF37'], primary: '#5A3824', secondary: '#D4AF37', bg: '#FAF5EE', text: '#2E1A0E' },
+                { name: 'Bleu Grisé & Argent', colors: ['#8FA1B3', '#C0C6CC', '#FFFFFF', '#E0E3E6'], primary: '#5A7A96', secondary: '#A0A8B0', bg: '#F5F7FA', text: '#2A3A4A' },
+                { name: 'Fuchsia & Prune', colors: ['#BF1860', '#6A0038', '#D4AF37', '#F1C6D2'], primary: '#8B1050', secondary: '#D4AF37', bg: '#FDF0F5', text: '#3A0020' },
+                { name: 'Sable & Bleu Ciel', colors: ['#E6D8C2', '#B7D6E6', '#FFFFFF', '#E6E8BF0'], primary: '#7AAECC', secondary: '#C9B080', bg: '#F5F8FB', text: '#2A4A5A' },
+              ];
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  {palettes.map((p) => {
+                    const isActive = theme.primaryColor === p.primary && theme.secondaryColor === p.secondary;
+                    return (
+                      <button
+                        key={p.name}
+                        onClick={() => setTheme({ ...theme, primaryColor: p.primary, secondaryColor: p.secondary, backgroundColor: p.bg, textColor: p.text })}
+                        style={{ border: isActive ? '2px solid #8F947F' : '1.5px solid #e5e7eb', borderRadius: 8, padding: '0.4rem 0.3rem', background: isActive ? '#f5f3ee' : '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+                      >
+                        <div style={{ display: 'flex', gap: 2 }}>
+                          {p.colors.map((c, i) => <div key={i} style={{ width: 12, height: 12, borderRadius: '50%', background: c, border: '1px solid rgba(0,0,0,0.1)' }} />)}
+                        </div>
+                        <span style={{ fontSize: '0.48rem', fontWeight: 600, color: '#444', textAlign: 'center', lineHeight: 1.2 }}>{p.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+            <p style={{ ...studioSectionLabel, marginTop: '0.5rem', fontSize: '0.68rem' }}>Couleurs personnalisées</p>
             <div style={grid2}>
               <label style={lab}>
                 Couleur principale
-                <input
-                  style={{ ...inp, padding: 4, height: 40 }}
-                  type="color"
-                  value={theme.primaryColor}
-                  onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
-                />
+                <input style={{ ...inp, padding: 4, height: 40 }} type="color" value={theme.primaryColor} onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })} />
               </label>
               <label style={lab}>
                 Couleur secondaire
-                <input
-                  style={{ ...inp, padding: 4, height: 40 }}
-                  type="color"
-                  value={theme.secondaryColor}
-                  onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value })}
-                />
+                <input style={{ ...inp, padding: 4, height: 40 }} type="color" value={theme.secondaryColor} onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value })} />
               </label>
               <label style={lab}>
                 Fond
-                <input
-                  style={{ ...inp, padding: 4, height: 40 }}
-                  type="color"
-                  value={theme.backgroundColor}
-                  onChange={(e) => setTheme({ ...theme, backgroundColor: e.target.value })}
-                />
+                <input style={{ ...inp, padding: 4, height: 40 }} type="color" value={theme.backgroundColor} onChange={(e) => setTheme({ ...theme, backgroundColor: e.target.value })} />
               </label>
               <label style={lab}>
                 Texte
-                <input
-                  style={{ ...inp, padding: 4, height: 40 }}
-                  type="color"
-                  value={theme.textColor}
-                  onChange={(e) => setTheme({ ...theme, textColor: e.target.value })}
-                />
+                <input style={{ ...inp, padding: 4, height: 40 }} type="color" value={theme.textColor} onChange={(e) => setTheme({ ...theme, textColor: e.target.value })} />
               </label>
             </div>
 
+            {/* ── Typographie & réglages ────────────────────────────────────── */}
             <label style={lab}>
               Police
-              <select
-                style={inp}
-                value={theme.fontFamily}
-                onChange={(e) => setTheme({ ...theme, fontFamily: e.target.value })}
-              >
+              <select style={inp} value={theme.fontFamily} onChange={(e) => setTheme({ ...theme, fontFamily: e.target.value })}>
                 {FONT_OPTIONS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
+                  <option key={f.value} value={f.value}>{f.label}</option>
                 ))}
               </select>
             </label>
 
-            <div style={grid2}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.85rem' }}>
               <label style={lab}>
                 Taille du titre
-                <select
-                  style={inp}
-                  value={theme.titleSize}
-                  onChange={(e) => setTheme({ ...theme, titleSize: e.target.value as TitleSize })}
-                >
+                <select style={inp} value={theme.titleSize} onChange={(e) => setTheme({ ...theme, titleSize: e.target.value as TitleSize })}>
                   <option value="small">Small</option>
                   <option value="medium">Medium</option>
                   <option value="large">Large</option>
@@ -805,11 +1144,7 @@ export function WeddingSiteBuilder() {
               </label>
               <label style={lab}>
                 Ambiance
-                <select
-                  style={inp}
-                  value={theme.ambiance}
-                  onChange={(e) => setTheme({ ...theme, ambiance: e.target.value as ThemeAmbiance })}
-                >
+                <select style={inp} value={theme.ambiance} onChange={(e) => setTheme({ ...theme, ambiance: e.target.value as ThemeAmbiance })}>
                   <option value="sobre">Sobre</option>
                   <option value="chic">Chic</option>
                   <option value="festif">Festif</option>
@@ -818,25 +1153,8 @@ export function WeddingSiteBuilder() {
                 </select>
               </label>
               <label style={lab}>
-                Cartes
-                <select
-                  style={inp}
-                  value={theme.cardStyle}
-                  onChange={(e) => setTheme({ ...theme, cardStyle: e.target.value as WeddingTheme['cardStyle'] })}
-                >
-                  <option value="glass">Glass</option>
-                  <option value="solid">Solid</option>
-                  <option value="outline">Outline</option>
-                  <option value="shadow">Shadow</option>
-                </select>
-              </label>
-              <label style={lab}>
                 Mise en page
-                <select
-                  style={inp}
-                  value={theme.layout}
-                  onChange={(e) => setTheme({ ...theme, layout: e.target.value as ThemeLayout })}
-                >
+                <select style={inp} value={theme.layout} onChange={(e) => setTheme({ ...theme, layout: e.target.value as ThemeLayout })}>
                   <option value="centered">Centered</option>
                   <option value="split">Split</option>
                   <option value="hero">Hero</option>
@@ -844,13 +1162,14 @@ export function WeddingSiteBuilder() {
                 </select>
               </label>
             </div>
+
             <label style={lab}>
               Rayon des angles
               <input
                 style={inp}
                 type="range"
-                min={4}
-                max={32}
+                min={0}
+                max={40}
                 value={theme.borderRadius}
                 onChange={(e) => setTheme({ ...theme, borderRadius: Number(e.target.value) })}
               />
@@ -864,7 +1183,6 @@ export function WeddingSiteBuilder() {
               {(
                 [
                   ['hero', 'Accueil'],
-                  ['coupleStory', '💑 Notre histoire'],
                   ['program', 'Programme'],
                   ['jewishSection', '✡️ Événements mariage juif'],
                   ['location', 'Lieux'],
@@ -875,7 +1193,6 @@ export function WeddingSiteBuilder() {
                   ['giftRegistry', '🎁 Liste de mariage'],
                   ['practicalInfo', 'Infos pratiques'],
                   ['guestMessage', 'Message aux invités'],
-                  ['dressCode', 'Dress code'],
                   ['qrCode', 'QR Code'],
                 ] as const
               ).map(([key, label]) => (
@@ -933,7 +1250,7 @@ export function WeddingSiteBuilder() {
             </label>
             <div style={{ display: 'grid', gap: 10 }}>
               {(content.accommodations ?? []).map((hotel, idx) => (
-                <div key={hotel.id} style={{ border: '1px solid #ece8ff', borderRadius: 12, padding: '0.75rem' }}>
+                <div key={hotel.id} style={{ border: '1px solid #E4E7DC', borderRadius: 12, padding: '0.75rem' }}>
                   <div style={{ display: 'grid', gap: 8 }}>
                     <input style={inp} placeholder="Nom de l'hôtel" value={hotel.name} onChange={(e) => upsertAccommodation(idx, { name: e.target.value })} />
                     <input style={inp} placeholder="Adresse" value={hotel.address} onChange={(e) => upsertAccommodation(idx, { address: e.target.value })} />
@@ -965,7 +1282,7 @@ export function WeddingSiteBuilder() {
             <h2 style={h2}>FAQ</h2>
             <div style={{ display: 'grid', gap: 10 }}>
               {(content.faq ?? []).map((q, idx) => (
-                <div key={q.id} style={{ border: '1px solid #ece8ff', borderRadius: 12, padding: '0.75rem' }}>
+                <div key={q.id} style={{ border: '1px solid #E4E7DC', borderRadius: 12, padding: '0.75rem' }}>
                   <input style={inp} placeholder="Question" value={q.question} onChange={(e) => upsertFaq(idx, { question: e.target.value })} />
                   <textarea style={{ ...inp, minHeight: 70, resize: 'vertical' }} placeholder="Réponse" value={q.answer} onChange={(e) => upsertFaq(idx, { answer: e.target.value })} />
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -1011,28 +1328,6 @@ export function WeddingSiteBuilder() {
             </label>
           </section>
 
-          {/* ── Histoire du couple ──────────────────────────────────────────── */}
-          <section style={block}>
-            <h2 style={h2}>💑 Notre histoire (timeline)</h2>
-            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Activez la section "Notre histoire" dans les sections, puis ajoutez les moments clés de votre histoire (rencontre, fiançailles, etc.).
-            </p>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {(content.coupleStory ?? []).map((item, idx) => (
-                <div key={item.id} style={{ border: '1px solid #ece8ff', borderRadius: 12, padding: '0.75rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                    <input style={inp} placeholder="Année (ex. 2019)" value={item.year} onChange={(e) => upsertStoryItem(idx, { year: e.target.value })} />
-                    <input style={inp} placeholder="Emoji (ex. ❤️)" value={item.emoji ?? ''} onChange={(e) => upsertStoryItem(idx, { emoji: e.target.value })} />
-                  </div>
-                  <input style={{ ...inp, marginBottom: 8 }} placeholder="Titre (ex. Notre rencontre)" value={item.title} onChange={(e) => upsertStoryItem(idx, { title: e.target.value })} />
-                  <textarea style={{ ...inp, minHeight: 64, resize: 'vertical' }} placeholder="Description..." value={item.description} onChange={(e) => upsertStoryItem(idx, { description: e.target.value })} />
-                  <button type="button" style={{ ...dangerInlineBtn, marginTop: 6 }} onClick={() => removeStoryItem(item.id)}>Supprimer</button>
-                </div>
-              ))}
-            </div>
-            <button type="button" style={ghostInlineBtn} onClick={addStoryItem}>+ Ajouter un moment</button>
-          </section>
-
           {/* ── Section mariage juif ────────────────────────────────────────── */}
           <section style={block}>
             <h2 style={h2}>✡️ Événements du mariage juif</h2>
@@ -1044,7 +1339,7 @@ export function WeddingSiteBuilder() {
                 const existing = (content.jewishEvents ?? []).find((e) => e.type === def.type);
                 const enabled = existing?.enabled ?? false;
                 return (
-                  <div key={def.type} style={{ border: `1px solid ${enabled ? '#a78bfa' : '#ece8ff'}`, borderRadius: 12, padding: '0.75rem', background: enabled ? '#faf5ff' : '#fff' }}>
+                  <div key={def.type} style={{ border: `1px solid ${enabled ? '#8F947F' : '#E4E7DC'}`, borderRadius: 12, padding: '0.75rem', background: enabled ? '#E4E7DC' : '#fff' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, marginBottom: enabled ? 10 : 0, cursor: 'pointer' }}>
                       <input
                         type="checkbox"
@@ -1127,34 +1422,6 @@ export function WeddingSiteBuilder() {
             </label>
           </section>
 
-          <section style={block}>
-            <h2 style={h2}>Dress code</h2>
-            <label style={lab}>
-              Texte dress code
-              <textarea
-                style={{ ...inp, minHeight: 72, resize: 'vertical' }}
-                value={content.dressCode?.text ?? ''}
-                onChange={(e) => setContent((c) => ({ ...c, dressCode: { ...(c.dressCode ?? { text: '', colors: [] }), text: e.target.value } }))}
-              />
-            </label>
-            <label style={lab}>
-              Couleurs suggérées (hex séparées par virgules)
-              <input
-                style={inp}
-                value={(content.dressCode?.colors ?? []).join(', ')}
-                onChange={(e) =>
-                  setContent((c) => ({
-                    ...c,
-                    dressCode: {
-                      ...(c.dressCode ?? { text: '', colors: [] }),
-                      colors: e.target.value.split(',').map((x) => x.trim()).filter(Boolean),
-                    },
-                  }))
-                }
-              />
-            </label>
-          </section>
-
           <RSVPBuilder form={rsvpForm} onChange={setRsvpForm} />
 
           {/* ── Liens d'invitation ─────────────────────────────────────────── */}
@@ -1167,7 +1434,7 @@ export function WeddingSiteBuilder() {
             {/* Modèles rapides */}
             {inviteLinks.length === 0 && rsvpForm.events.filter((e) => e.enabled).length > 0 ? (
               <div style={{ display: 'grid', gap: 8, marginBottom: '1rem' }}>
-                <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#5b4fd6', margin: 0 }}>⚡ Modèles rapides</p>
+                <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#8F947F', margin: 0 }}>⚡ Modèles rapides</p>
                 {[
                   { label: '💍 Mariage uniquement', filter: (ev: RSVPEvent) => ['jewish-mairie', 'jewish-houppa'].includes(ev.id) },
                   { label: '💍 + 🕌 Mariage & Chabbat Hatan', filter: (ev: RSVPEvent) => ['jewish-mairie', 'jewish-houppa', 'jewish-chabbat-hatan'].includes(ev.id) },
@@ -1193,16 +1460,15 @@ export function WeddingSiteBuilder() {
                     </button>
                   );
                 })}
-                <div style={{ borderTop: '1px solid #ece8ff', marginTop: 4, paddingTop: 4 }} />
+                <div style={{ borderTop: '1px solid #E4E7DC', marginTop: 4, paddingTop: 4 }} />
               </div>
             ) : null}
 
             {inviteLinks.map((link, idx) => {
               const previewSlug = draft.slug || 'votre-site';
-              const token = link.token || '(sauvegarder pour générer)';
               const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/wedding/${previewSlug}/invite/${link.token}`;
               return (
-                <div key={link.id} style={{ border: `1px solid ${link.token ? '#a3e635' : '#ece8ff'}`, borderRadius: 12, padding: '0.85rem', marginBottom: 10 }}>
+                <div key={link.id} style={{ border: `1px solid ${link.token ? '#a3e635' : '#E4E7DC'}`, borderRadius: 12, padding: '0.85rem', marginBottom: 10 }}>
                   <div style={{ display: 'grid', gap: 8 }}>
                     <input
                       style={inp}
@@ -1261,7 +1527,7 @@ export function WeddingSiteBuilder() {
                         <span style={{ fontFamily: 'monospace' }}>{url}</span>
                         <button
                           type="button"
-                          style={{ marginLeft: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#5b4fd6', fontWeight: 700, fontSize: '0.8rem' }}
+                          style={{ marginLeft: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#8F947F', fontWeight: 700, fontSize: '0.8rem' }}
                           onClick={() => navigator.clipboard.writeText(url)}
                         >
                           📋 Copier
@@ -1309,7 +1575,7 @@ export function WeddingSiteBuilder() {
           </section>
 
           <button type="submit" style={submitBtn} disabled={saving}>
-            {saving ? 'Enregistrement…' : 'Publier le mini-site'}
+            {saving ? 'Enregistrement…' : namesLocked ? 'Sauvegarder les modifications' : 'Publier le mini-site'}
           </button>
         </form>
 
@@ -1413,8 +1679,8 @@ const block: CSSProperties = {
   padding: '1.1rem 1.1rem 1.2rem',
   background: '#fff',
   borderRadius: 14,
-  border: '1px solid #ece8ff',
-  boxShadow: '0 8px 28px rgba(91, 79, 214, 0.06)',
+  border: '1px solid #E4E7DC',
+  boxShadow: '0 8px 28px rgba(143, 148, 127, 0.08)',
 };
 
 const grid2: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' };
@@ -1432,7 +1698,7 @@ const inp: CSSProperties = {
   marginTop: 6,
   padding: '0.55rem 0.65rem',
   borderRadius: 10,
-  border: '1px solid #dcd7f7',
+  border: '1px solid #C7B7A5',
   fontSize: '0.95rem',
 };
 
@@ -1450,7 +1716,7 @@ const submitBtn: CSSProperties = {
   fontSize: '1rem',
   cursor: 'pointer',
   color: '#fff',
-  background: 'linear-gradient(120deg, #5b4fd6, #7c3aed)',
+  background: 'linear-gradient(120deg, #8F947F, #757B68)',
 };
 
 const footnote: CSSProperties = { fontSize: '0.8rem', opacity: 0.85, lineHeight: 1.45 };
@@ -1458,7 +1724,7 @@ const footnote: CSSProperties = { fontSize: '0.8rem', opacity: 0.85, lineHeight:
 const ghostInlineBtn: CSSProperties = {
   padding: '0.42rem 0.66rem',
   borderRadius: 9,
-  border: '1px solid #d8d2f5',
+  border: '1px solid #C7B7A5',
   background: '#fff',
   cursor: 'pointer',
   fontWeight: 700,
@@ -1474,4 +1740,28 @@ const dangerInlineBtn: CSSProperties = {
   color: '#9f1239',
   fontWeight: 700,
   fontSize: '0.82rem',
+};
+
+const studioSectionLabel: CSSProperties = {
+  margin: '0 0 0.5rem',
+  fontSize: '0.7rem',
+  fontWeight: 700,
+  color: '#757B68',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+};
+
+const lockedNameField: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.45rem',
+  marginTop: 6,
+  padding: '0.55rem 0.75rem',
+  borderRadius: 10,
+  border: '1px solid #e5e7eb',
+  fontSize: '0.95rem',
+  fontWeight: 600,
+  background: '#f9fafb',
+  color: '#6b7280',
+  userSelect: 'none',
 };

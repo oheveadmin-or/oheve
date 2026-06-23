@@ -36,8 +36,8 @@ export function WeddingPublicPage() {
         if (!url) {
           setErr(
             import.meta.env.DEV
-              ? 'Installez un backend sur /api/public-sites ou créez le site depuis /wedding/build (localStorage).'
-              : 'Variable VITE_API_BASE_URL manquante ou site introuvable.'
+              ? "Installez un backend sur /api/public-sites ou créez le site depuis /wedding/build (localStorage)."
+              : "Variable VITE_API_BASE_URL manquante ou site introuvable."
           );
           return;
         }
@@ -50,7 +50,11 @@ export function WeddingPublicPage() {
         };
 
         if (!res.ok) {
-          setErr(json.message || 'Ce mini-site n’existe pas ou n’est pas encore publié.');
+          setErr(
+            json.message === 'Non trouvé'
+              ? "Ce mini-site n'existe pas en ligne. Republiez-le depuis l'application (bouton Publier) pour que vos invités puissent y accéder."
+              : json.message || "Ce mini-site n'existe pas ou n'est pas encore publié."
+          );
           return;
         }
 
@@ -70,8 +74,8 @@ export function WeddingPublicPage() {
         if ((e as Error).name === 'AbortError') return;
         setErr(
           import.meta.env.DEV
-            ? 'Impossible de charger le site (réseau ou API).'
-            : 'Impossible de joindre l’API.'
+            ? "Impossible de charger le site (réseau ou API)."
+            : "Impossible de joindre l'API."
         );
       } finally {
         setLoading(false);
@@ -96,6 +100,34 @@ export function WeddingPublicPage() {
       </main>
     );
   }
+
+  const coupleLabel = site.coupleName || [site.brideName, site.groomName].filter(Boolean).join(' & ') || 'Mariage';
+  const weddingDate = site.date
+    ? new Date(site.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+  const locationLabel = site.city || site.venue || '';
+  const description = [coupleLabel, weddingDate, locationLabel].filter(Boolean).join(' · ');
+  const pageTitle = `${coupleLabel} — Site de mariage`;
+  const heroImage = (site.content as Record<string, unknown> | undefined)?.heroImageUrl as string | undefined;
+
+  // Inject dynamic meta tags for WhatsApp / social previews
+  useEffect(() => {
+    document.title = pageTitle;
+    const setMeta = (property: string, content: string, attr = 'property') => {
+      let el = document.querySelector(`meta[${attr}="${property}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, property);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+    setMeta('og:title', pageTitle);
+    setMeta('og:description', description || 'Retrouvez toutes les informations sur notre mariage.');
+    setMeta('og:type', 'website');
+    if (heroImage) setMeta('og:image', heroImage);
+    setMeta('description', description, 'name');
+  }, [pageTitle, description, heroImage]);
 
   const Template = getTemplateByTheme(site.theme, site.language);
   return <Template site={site} />;

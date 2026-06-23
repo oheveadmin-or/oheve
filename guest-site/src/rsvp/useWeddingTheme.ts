@@ -15,14 +15,14 @@ export function mergeWeddingUi(site: WeddingSite, rsvpForm?: RSVPForm | null) {
   const t = site.theme;
   const o = rsvpForm?.theme;
 
-  const primaryColor = o?.primaryColor ?? t.primaryColor;
-  const secondaryColor = o?.secondaryColor ?? t.secondaryColor;
-  const backgroundColor = o?.backgroundColor ?? t.backgroundColor;
-  const textColor = o?.textColor ?? t.textColor;
-  const fontFamily = o?.fontFamily ?? t.fontFamily;
-  const borderRadius = o?.borderRadius ?? t.borderRadius;
-  const cardStyle = o?.cardStyle ?? t.cardStyle;
-  const stylePreset = o?.style ?? t.style;
+  const primaryColor = o?.primaryColor ?? t.primaryColor ?? '#8F947F';
+  const secondaryColor = o?.secondaryColor ?? t.secondaryColor ?? '#6B7163';
+  const backgroundColor = o?.backgroundColor ?? t.backgroundColor ?? '#F6F2EA';
+  const textColor = o?.textColor ?? t.textColor ?? '#2C2C2C';
+  const fontFamily = o?.fontFamily ?? t.fontFamily ?? 'Georgia, serif';
+  const borderRadius = o?.borderRadius ?? t.borderRadius ?? 12;
+  const cardStyle = o?.cardStyle ?? t.cardStyle ?? 'default';
+  const stylePreset = o?.style ?? t.style ?? 'classic';
 
   const isDarkish =
     backgroundColor.toLowerCase().includes('#0') &&

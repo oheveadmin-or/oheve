@@ -11,6 +11,8 @@ import { sectionLabels } from '../i18n';
 import { cardStyleSurface } from './templateCardStyles';
 
 type GrandparentsData = {
+  grandfather?: string;
+  grandmother?: string;
   paternalGrandfather?: string;
   paternalGrandmother?: string;
   maternalGrandfather?: string;
@@ -20,8 +22,8 @@ type GrandparentsData = {
 function GrandparentsBlock({ gp, color }: { gp?: GrandparentsData; color: string }) {
   if (!gp) return null;
   const names = [
-    gp.paternalGrandfather,
-    gp.paternalGrandmother,
+    gp.grandfather || gp.paternalGrandfather,
+    gp.grandmother || gp.paternalGrandmother,
     gp.maternalGrandfather,
     gp.maternalGrandmother,
   ].filter(Boolean);
@@ -313,7 +315,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   if (site.sections.coupleStory && site.content?.coupleStory?.length) {
     blocks.push(
       <section id="couple-story" key="couple-story" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
-        <SectionHeading label={L.coupleStory} color={t.primaryColor} />
+        <SectionHeading label={L.coupleStory} color={t.primaryColor} theme={t} />
         <CoupleStoryTimeline site={site} />
       </section>
     );
@@ -339,7 +341,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
           {hasVenue ? (
             <div style={{ display: 'grid', gap: '0.85rem' }}>
               {venue?.photoUrl ? (
-                <img src={venue.photoUrl} alt={venue.name || 'Lieu du mariage'} style={{ width: '100%', borderRadius: 12, maxHeight: 300, objectFit: 'cover' }} />
+                <img src={venue.photoUrl} alt={venue.name || 'Lieu du mariage'} loading="lazy" style={{ width: '100%', borderRadius: 12, maxHeight: 300, objectFit: 'cover' }} />
               ) : null}
               <p style={{ margin: 0, fontWeight: 700 }}>{venue?.name || site.venue || 'Lieu principal'}</p>
               <p style={{ margin: 0, lineHeight: 1.7 }}>{venue?.address || [site.venue, site.city].filter(Boolean).join(', ') || '—'}</p>
@@ -364,7 +366,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     if (mainHotels.length) {
       blocks.push(
         <section id="accommodations" key="accommodations" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
-          <SectionHeading label={L.accommodations} color={t.primaryColor} />
+          <SectionHeading label={L.accommodations} color={t.primaryColor} theme={t} />
           <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
             {site.content?.accommodationsIntro ? <p style={{ marginTop: 0, lineHeight: 1.6 }}>{site.content.accommodationsIntro}</p> : null}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
@@ -380,7 +382,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     if (shabbatHotels.length) {
       blocks.push(
         <section id="shabbat-accommodations" key="shabbat-accommodations" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
-          <SectionHeading label="Hébergement Chabbat Hatan" color={t.primaryColor} />
+          <SectionHeading label="Hébergement Chabbat Hatan" color={t.primaryColor} theme={t} />
           <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
               {shabbatHotels.map((h) => (
@@ -397,7 +399,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     if (jevents.length) {
       blocks.push(
         <section id="jewish-section" key="jewish-section" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
-          <SectionHeading label={L.jewishSection} color={t.primaryColor} />
+          <SectionHeading label={L.jewishSection} color={t.primaryColor} theme={t} />
           <JewishEventsSection site={site} events={jevents} useCard={useCard} />
         </section>
       );
@@ -407,7 +409,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   if (site.sections.rsvp) {
     blocks.push(
       <section id="rsvp" key="rsvp" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
-        <SectionHeading label={L.rsvp} color={t.primaryColor} />
+        <SectionHeading label={L.rsvp} color={t.primaryColor} theme={t} />
         <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem', textAlign: 'center' }}>
           {site.rsvpForm?.introText ? <p style={{ marginTop: 0, lineHeight: 1.65 }}>{site.rsvpForm.introText}</p> : null}
           <Link
@@ -451,11 +453,11 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     if (photos.length) {
       blocks.push(
         <section key="gal" className="wedding-fade-in" style={{ marginTop: '2.5rem' }}>
-          <SectionHeading label={L.gallery} color={t.primaryColor} />
+          <SectionHeading label={L.gallery} color={t.primaryColor} theme={t} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, marginTop: '0.75rem' }}>
             {photos.map((url, i) => (
               <div key={i} style={{ aspectRatio: '1', borderRadius: t.borderRadius, overflow: 'hidden', background: `${t.primaryColor}10` }}>
-                <img src={url} alt={`Photo ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <img src={url} alt={`Photo ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               </div>
             ))}
           </div>
@@ -467,7 +469,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   if (site.sections.giftRegistry && site.content?.giftRegistry) {
     blocks.push(
       <section id="gift-registry" key="gift-registry" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
-        <SectionHeading label={L.giftRegistry} color={t.primaryColor} />
+        <SectionHeading label={L.giftRegistry} color={t.primaryColor} theme={t} />
         <GiftRegistrySection site={site} useCard={useCard} />
       </section>
     );
@@ -476,7 +478,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   if (site.sections.guestMessage && site.content?.guestMessageText?.trim()) {
     blocks.push(
       <section key="guest" className="wedding-fade-in" style={{ marginTop: '2.5rem' }}>
-        <SectionHeading label={L.guestMessage} color={t.primaryColor} />
+        <SectionHeading label={L.guestMessage} color={t.primaryColor} theme={t} />
         <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
           <p style={{ margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap', fontSize: '1.05rem', fontStyle: 'italic' }}>{site.content.guestMessageText}</p>
         </div>
@@ -487,7 +489,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   if (site.sections.dressCode && site.content?.dressCode?.text) {
     blocks.push(
       <section id="dress-code" key="dressCode" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
-        <SectionHeading label={L.dressCode} color={t.primaryColor} />
+        <SectionHeading label={L.dressCode} color={t.primaryColor} theme={t} />
         <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
           <p style={{ marginTop: 0, lineHeight: 1.65 }}>{site.content.dressCode.text}</p>
           {!!site.content.dressCode.colors?.length && (
@@ -507,7 +509,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   if (site.sections.qrCode) {
     blocks.push(
       <section key="qr" className="wedding-fade-in" style={{ marginTop: '2.5rem', textAlign: 'center' }}>
-        <SectionHeading label={L.qrCode} color={t.primaryColor} />
+        <SectionHeading label={L.qrCode} color={t.primaryColor} theme={t} />
         <QRCodeSection site={site} />
       </section>
     );
@@ -654,7 +656,94 @@ function linkBtn(site: WeddingSite): CSSProperties {
   };
 }
 
-function SectionHeading({ label, color }: { label: string; color: string }) {
+function SectionHeading({ label, color, theme }: { label: string; color: string; theme?: WeddingSite['theme'] }) {
+  const hs = theme?.heroStyle;
+
+  // Magazine / editorial — left-aligned, bold rule
+  if (hs === 'magazine' || hs === 'cinematic') {
+    return (
+      <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        <div style={{ width: 3, height: 22, background: color, borderRadius: 2, flexShrink: 0 }} />
+        <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: theme?.textColor ?? color, margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          {label}
+        </h2>
+      </div>
+    );
+  }
+
+  // Art-deco / oriental — geometric diamonds
+  if (hs === 'art-deco') {
+    return (
+      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center' }}>
+          <div style={{ width: 24, height: 1, background: color, opacity: 0.7 }} />
+          <div style={{ width: 5, height: 5, background: color, transform: 'rotate(45deg)', opacity: 0.8 }} />
+          <h2 style={{ fontSize: '0.62rem', letterSpacing: '0.55em', textTransform: 'uppercase', color, margin: 0, fontWeight: 700 }}>
+            {label}
+          </h2>
+          <div style={{ width: 5, height: 5, background: color, transform: 'rotate(45deg)', opacity: 0.8 }} />
+          <div style={{ width: 24, height: 1, background: color, opacity: 0.7 }} />
+        </div>
+      </div>
+    );
+  }
+
+  // Luxe / royal — diamond flanked gradient lines
+  if (hs === 'luxe' || hs === 'royal') {
+    return (
+      <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', justifyContent: 'center', marginBottom: '0.55rem' }}>
+          <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${color}88)`, maxWidth: 80 }} />
+          <div style={{ width: 5, height: 5, background: color, transform: 'rotate(45deg)', opacity: 0.85 }} />
+          <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${color}88, transparent)`, maxWidth: 80 }} />
+        </div>
+        <h2 style={{ fontSize: '0.65rem', letterSpacing: '0.42em', textTransform: 'uppercase', color, margin: 0, fontWeight: 500 }}>
+          {label}
+        </h2>
+      </div>
+    );
+  }
+
+  // Letterpress / faire-part — italic serif with thin underline
+  if (hs === 'letterpress' || hs === 'faire-part') {
+    return (
+      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.2rem', fontStyle: 'italic', color: theme?.textColor ?? color, margin: '0 0 0.5rem', fontFamily: theme?.fontFamily, fontWeight: 500 }}>
+          {label}
+        </h2>
+        <div style={{ width: 48, height: 1, background: color, margin: '0 auto', opacity: 0.4 }} />
+      </div>
+    );
+  }
+
+  // Garden / monogram — botanical flanked
+  if (hs === 'garden' || hs === 'monogram') {
+    return (
+      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'center' }}>
+          <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.5" fill={color} opacity="0.6"/><circle cx="7" cy="2" r="1.5" fill={color} opacity="0.45"/><circle cx="7" cy="12" r="1.5" fill={color} opacity="0.45"/><circle cx="2" cy="7" r="1.5" fill={color} opacity="0.45"/><circle cx="12" cy="7" r="1.5" fill={color} opacity="0.45"/></svg>
+          <h2 style={{ fontSize: '0.75rem', letterSpacing: '0.28em', textTransform: 'uppercase', color, margin: 0, fontWeight: 600 }}>
+            {label}
+          </h2>
+          <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.5" fill={color} opacity="0.6"/><circle cx="7" cy="2" r="1.5" fill={color} opacity="0.45"/><circle cx="7" cy="12" r="1.5" fill={color} opacity="0.45"/><circle cx="2" cy="7" r="1.5" fill={color} opacity="0.45"/><circle cx="12" cy="7" r="1.5" fill={color} opacity="0.45"/></svg>
+        </div>
+      </div>
+    );
+  }
+
+  // Minimal / editorial / split — thin left-anchored line
+  if (hs === 'minimal' || hs === 'editorial' || hs === 'split') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.5rem' }}>
+        <div style={{ width: 18, height: 1, background: color, flexShrink: 0, opacity: 0.7 }} />
+        <h2 style={{ fontSize: '0.72rem', letterSpacing: '0.2em', textTransform: 'uppercase', color, margin: 0, fontWeight: 500 }}>
+          {label}
+        </h2>
+      </div>
+    );
+  }
+
+  // Default — centered underline (classic style)
   return (
     <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
       <h2
@@ -741,17 +830,6 @@ function CoupleStoryTimeline({ site }: { site: WeddingSite }) {
   );
 }
 
-const JEWISH_EMOJIS: Record<string, string> = {
-  'chabbat-hatan': '🕌',
-  'henne': '🌸',
-  'mairie': '🏛️',
-  'houppa': '💍',
-  'brunch': '☕',
-  'sheva-berakhot': '🥂',
-  'depart': '👋',
-  'custom': '✨',
-};
-
 function JewishEventsSection({
   site,
   events,
@@ -769,27 +847,8 @@ function JewishEventsSection({
           key={ev.id}
           style={{
             ...useCard({ theme: t }),
-            display: 'grid',
-            gridTemplateColumns: '48px 1fr',
-            gap: '0.85rem',
-            alignItems: 'flex-start',
           }}
         >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              background: `${t.primaryColor}15`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-              flexShrink: 0,
-            }}
-          >
-            {JEWISH_EMOJIS[ev.type] ?? '✨'}
-          </div>
           <div>
             <p style={{ margin: '0 0 0.2rem', fontWeight: 700, fontSize: '1rem' }}>{ev.label}</p>
             {(ev.date || ev.time) ? (

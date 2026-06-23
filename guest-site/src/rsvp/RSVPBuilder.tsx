@@ -304,52 +304,6 @@ export function RSVPBuilder({ form, onChange }: RSVPBuilderProps) {
           Activer "Message aux mariés"
         </label>
 
-        <label style={toggleRow}>
-          <input
-            type="checkbox"
-            checked={settings.enableDietaryOptions}
-            onChange={(e) => {
-              const on = e.target.checked;
-              const nextFields: RSVPField[] = on
-                ? (Array.from(new Set([...form.activeFields, 'dietaryRestrictions'])) as RSVPField[])
-                : form.activeFields.filter((x) => x !== 'dietaryRestrictions');
-              patch({
-                ...form,
-                activeFields: nextFields,
-                settings: { ...settings, enableDietaryOptions: on },
-              });
-            }}
-          />
-          Activer régimes alimentaires
-        </label>
-        {settings.enableDietaryOptions ? (
-          <>
-            <label style={{ ...lbl, marginTop: 8 }}>
-              Options de régimes (une par ligne)
-              <textarea
-                style={{ ...inp, minHeight: 90, resize: 'vertical' }}
-                value={settings.dietaryOptions.join('\n')}
-                onChange={(e) =>
-                  patch({
-                    ...form,
-                    settings: {
-                      ...settings,
-                      dietaryOptions: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean),
-                    },
-                  })
-                }
-              />
-            </label>
-            <label style={toggleRow}>
-              <input
-                type="checkbox"
-                checked={settings.showDietaryOther}
-                onChange={(e) => patch({ ...form, settings: { ...settings, showDietaryOther: e.target.checked } })}
-              />
-              Autoriser "Autre"
-            </label>
-          </>
-        ) : null}
       </fieldset>
     </div>
   );
@@ -358,8 +312,8 @@ export function RSVPBuilder({ form, onChange }: RSVPBuilderProps) {
 const sheet: CSSProperties = {
   padding: '1rem 1rem 1.15rem',
   borderRadius: 14,
-  border: '1px solid #ebe6ff',
-  background: '#fcfbff',
+  border: '1px solid #E4E7DC',
+  background: '#F9F7F2',
   marginTop: 12,
 };
 
@@ -373,7 +327,7 @@ const inp: CSSProperties = {
   width: '100%',
   padding: '0.52rem 0.65rem',
   borderRadius: 10,
-  border: '1px solid #ddd8f5',
+  border: '1px solid #C7B7A5',
 };
 
 const inpTight: CSSProperties = { ...inp, marginTop: 0 };
@@ -387,7 +341,7 @@ const fieldset: CSSProperties = {
   margin: '0.85rem 0 0',
   padding: '0.85rem',
   borderRadius: 12,
-  border: '1px solid #eae5fc',
+  border: '1px solid #E4E7DC',
 };
 
 const legend: CSSProperties = { fontWeight: 800, padding: '0 0.3rem', fontSize: '0.88rem' };
@@ -397,29 +351,29 @@ const chipGrid: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, mar
 const chip = (on: boolean): CSSProperties => ({
   padding: '0.45rem 0.72rem',
   borderRadius: 999,
-  border: on ? '2px solid #6D5CE8' : '1px solid #ddd',
+  border: on ? '2px solid #8F947F' : '1px solid #C7B7A5',
   fontSize: '0.82rem',
   fontWeight: 700,
-  background: on ? '#f5f3ff' : '#fff',
+  background: on ? '#E4E7DC' : '#fff',
   cursor: 'pointer',
 });
 
 const table: CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', marginTop: 8 };
 
-const thr: CSSProperties = { background: '#f3f1fd' };
+const thr: CSSProperties = { background: '#F0EDE6' };
 
 const thCol: CSSProperties = {
   padding: '0.42rem',
-  borderBottom: '1px solid #e5dff8',
+  borderBottom: '1px solid #E4E7DC',
 };
 
 const tdSm: CSSProperties = {
   padding: '0.28rem',
-  borderBottom: '1px solid #f0eef9',
+  borderBottom: '1px solid #EDE8E0',
 };
 
 const smallInput: CSSProperties = {
-  border: '1px solid #ded9f6',
+  border: '1px solid #C7B7A5',
   borderRadius: 8,
   padding: '0.25rem',
 };
@@ -429,7 +383,7 @@ const centerCell: CSSProperties = { ...tdSm, textAlign: 'center' };
 const miniBtn: CSSProperties = {
   padding: '1px 5px',
   borderRadius: 6,
-  border: '1px solid #dcd6fb',
+  border: '1px solid #C7B7A5',
   background: '#fff',
   cursor: 'pointer',
   fontSize: 11,
@@ -448,7 +402,7 @@ const ghostBtn: CSSProperties = {
   marginTop: 10,
   padding: '0.45rem 0.75rem',
   borderRadius: 10,
-  border: '1px dashed #b6aefb',
+  border: '1px dashed #8F947F',
   background: '#fff',
   fontWeight: 700,
   cursor: 'pointer',
