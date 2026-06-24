@@ -129,6 +129,7 @@ export async function createWeddingSite(data: CreateWeddingSiteInput): Promise<W
         if (json.success && json.data) return json.data;
       }
       lastError = await readApiError(res);
+      // 409 = slug conflict → retry; 403 = already has a site → stop immediately
       if (res.status !== 409) break;
     }
 

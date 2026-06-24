@@ -88,6 +88,22 @@ export const weddingSitesRepo = {
     return rows[0];
   },
 
+  async findByUserId(userId: number): Promise<WeddingSiteRow[]> {
+    const { rows } = await pool.query(
+      `SELECT * FROM wedding_sites WHERE user_id = $1 ORDER BY updated_at DESC`,
+      [userId]
+    );
+    return rows;
+  },
+
+  async countByUserId(userId: number): Promise<number> {
+    const { rows } = await pool.query(
+      `SELECT COUNT(*) AS n FROM wedding_sites WHERE user_id = $1`,
+      [userId]
+    );
+    return Number(rows[0]?.n ?? 0);
+  },
+
   async update(id: string, userId: number | null, data: Partial<{
     slug: string;
     coupleName: string;

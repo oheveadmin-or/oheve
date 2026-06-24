@@ -6,6 +6,9 @@ type Props = {
   draft: WeddingSite;
 };
 
+const PREVIEW_SCALE = 0.55;
+const PREVIEW_HEIGHT = '78vh';
+
 export function WeddingSitePreview({ draft }: Props) {
   const Template = getTemplateByTheme(draft.theme, draft.language);
   return (
@@ -13,7 +16,19 @@ export function WeddingSitePreview({ draft }: Props) {
       <p className="wedding-preview-label">Aperçu en direct</p>
       <div className="wedding-preview-frame">
         <ErrorBoundary>
-          <Template site={draft} />
+          <div style={{ width: '100%', height: PREVIEW_HEIGHT, overflowX: 'hidden', overflowY: 'auto' }}>
+            <div
+              style={{
+                transform: `scale(${PREVIEW_SCALE})`,
+                transformOrigin: 'top left',
+                width: `${Math.round(100 / PREVIEW_SCALE)}%`,
+                pointerEvents: 'none',
+                userSelect: 'none',
+              }}
+            >
+              <Template site={draft} />
+            </div>
+          </div>
         </ErrorBoundary>
       </div>
     </div>

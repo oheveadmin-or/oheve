@@ -6,6 +6,7 @@ import { mapLegacyPublicSiteToWeddingSite, type LegacyPublicPayload } from '../u
 import { publicSitesFetchUrl } from '../utils/publicApiUrl';
 import { getWeddingSiteBySlug } from '../services/weddingSiteService';
 import type { WeddingSite } from '../types';
+import { defaultWeddingSections } from '../types';
 import { getTemplateByTheme } from '../utils/template-selector';
 
 export function WeddingPublicPage() {
@@ -28,7 +29,7 @@ export function WeddingPublicPage() {
       try {
         const local = await getWeddingSiteBySlug(s);
         if (local) {
-          setSite(local);
+          setSite({ ...local, sections: { ...defaultWeddingSections(), ...(local.sections as object) } });
           return;
         }
 
@@ -65,7 +66,8 @@ export function WeddingPublicPage() {
         }
 
         if ('theme' in d && 'sections' in d && 'language' in d) {
-          setSite(d as WeddingSite);
+          const site = d as WeddingSite;
+          setSite({ ...site, sections: { ...defaultWeddingSections(), ...(site.sections as object) } });
           return;
         }
 

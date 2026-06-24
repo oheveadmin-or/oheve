@@ -360,6 +360,7 @@ export async function runMigrations(): Promise<void> {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_calendar_events_user ON calendar_events(user_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON calendar_events(event_date)`);
+    await pool.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN NOT NULL DEFAULT FALSE`);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS provider_availability_settings (

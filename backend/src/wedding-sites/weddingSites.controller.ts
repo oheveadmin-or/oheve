@@ -26,6 +26,18 @@ function rowToSite(row: Awaited<ReturnType<typeof weddingSitesRepo.findBySlug>>)
   };
 }
 
+export async function getMySites(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.auth?.sub;
+    if (!userId) { res.status(401).json({ success: false, message: 'Authentification requise' }); return; }
+    const rows = await weddingSitesRepo.findByUserId(userId);
+    res.json({ success: true, data: rows.map(rowToSite) });
+  } catch (err) {
+    console.error('getMySites:', err);
+    res.status(500).json({ success: false });
+  }
+}
+
 export async function getWeddingSiteBySlug(req: Request, res: Response): Promise<void> {
   try {
     const slug = String(req.params.slug ?? '').trim().toLowerCase();
@@ -55,7 +67,17 @@ export async function checkSlugAvailable(req: Request, res: Response): Promise<v
 export async function createWeddingSite(req: Request, res: Response): Promise<void> {
   try {
     const b = req.body as Record<string, unknown>;
-    const userId = (req as any).user?.id ?? null;
+    const userId = req.auth?.sub ?? null;
+    const isAdmin = req.auth?.role === 'admin';
+
+    // Limit to 1 site per authenticated user (admins exempt)
+    if (userId && !isAdmin) {
+      const count = await weddingSitesRepo.countByUserId(userId);
+      if (count > 0) {
+        res.status(403).json({ success: false, message: 'Vous avez déjà un site mariage. Un seul site est autorisé par compte.' });
+        return;
+      }
+    }
 
     const slug = String(b.slug ?? '').trim().toLowerCase();
     if (!slug) { res.status(400).json({ success: false, message: 'slug requis' }); return; }
@@ -64,7 +86,7 @@ export async function createWeddingSite(req: Request, res: Response): Promise<vo
     if (exists) { res.status(409).json({ success: false, message: 'Slug déjà utilisé' }); return; }
 
     const row = await weddingSitesRepo.create({
-      userId,
+      userId: userId ?? undefined,
       slug,
       coupleName: String(b.coupleName ?? ''),
       groomName: String(b.groomName ?? ''),
@@ -93,7 +115,7 @@ export async function createWeddingSite(req: Request, res: Response): Promise<vo
 export async function updateWeddingSite(req: Request, res: Response): Promise<void> {
   try {
     const id = String(req.params.id ?? '').trim();
-    const userId = (req as any).user?.id ?? null;
+    const userId = req.auth?.sub ?? null;
     const b = req.body as Record<string, unknown>;
 
     const row = await weddingSitesRepo.update(id, userId, {

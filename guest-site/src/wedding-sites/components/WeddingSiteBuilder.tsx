@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import { MonogramGenerator } from './MonogramGenerator';
 import { RSVPBuilder } from '@guest/rsvp/RSVPBuilder';
 import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
+import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
 import { FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
 import { createWeddingSite, updateWeddingSite, setAuthToken, getWeddingSiteBySlug } from '../services/weddingSiteService';
@@ -274,7 +275,7 @@ export function WeddingSiteBuilder() {
       setMainText(site.mainText || '');
       setLanguage((site.language as SiteLanguage) || 'fr');
       if (site.theme && typeof site.theme === 'object') setTheme(applyThemePreset({ ...defaultWeddingTheme(), ...(site.theme as WeddingTheme) }));
-      if (site.sections && typeof site.sections === 'object') setSections(site.sections as WeddingSections);
+      if (site.sections && typeof site.sections === 'object') setSections({ ...defaultWeddingSections(), ...(site.sections as WeddingSections) });
       if (site.content && typeof site.content === 'object') setContent((prev) => ({ ...prev, ...(site.content as WeddingSiteContent) }));
       if (site.rsvpForm) setRsvpForm(site.rsvpForm);
       if (site.inviteLinks?.length) setInviteLinks(site.inviteLinks);
@@ -1640,13 +1641,9 @@ export function WeddingSiteBuilder() {
 
       <aside className="wedding-builder-preview">
         <WeddingSitePreview draft={draft} />
-        <RSVPPreview site={draft} form={rsvpForm} />
-
-        <p style={footnote}>
-          Aperçu mis à jour en direct. Sauvegarde démo dans le navigateur (localStorage) —{' '}
-          {/* SUPABASE */}
-          remplacez <code>weddingSiteService</code> par votre API lorsque vous branchez le backend.
-        </p>
+        <ErrorBoundary>
+          <RSVPPreview site={draft} form={rsvpForm} />
+        </ErrorBoundary>
       </aside>
     </div>
   );
