@@ -35,6 +35,8 @@ import { generateSlugFromDisplayName, slugify } from '../utils/slug';
 import { applyThemePreset } from '../templates/themePresets';
 
 import { WeddingSitePreview } from './WeddingSitePreview';
+import { VintageThemePreview } from './VintageThemePreview';
+import { ThemePicker } from './ThemePicker';
 
 // ─── Design Studio options ────────────────────────────────────────────────────
 
@@ -165,6 +167,8 @@ export function WeddingSiteBuilder() {
   const [publishedId, setPublishedId] = useState<string | null>(null);
   const [slugCustom, setSlugCustom] = useState('');
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
+
+  const [step, setStep] = useState<'pick' | 'build'>('pick');
 
   const [{ date, time }, setDt] = useState(initialDate);
 
@@ -566,6 +570,19 @@ export function WeddingSiteBuilder() {
     });
   }
 
+  if (step === 'pick') {
+    return (
+      <ThemePicker
+        currentStyleId={theme.style}
+        onSelect={(preset) => {
+          const { heroStyle: _h, patternId: _p, separatorStyle: _s, cardStyle: _c, cornerDecor: _co, ...rest } = theme;
+          setTheme(applyThemePreset({ ...rest, ...preset.theme, style: preset.id } as WeddingTheme));
+          setStep('build');
+        }}
+      />
+    );
+  }
+
   return (
     <div className="wedding-builder-layout">
       <div style={formColumn}>
@@ -588,9 +605,28 @@ export function WeddingSiteBuilder() {
             Remplissez les infos, personnalisez le style, vérifiez l'aperçu puis publiez. URL publique :{' '}
             <strong>www.ohevewedding.com/wedding/votre-slug</strong> — votre domaine est actif.
           </p>
-          <Link to="/" style={{ fontSize: '0.92rem' }}>
-            ← Retour
-          </Link>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Link to="/" style={{ fontSize: '0.92rem' }}>← Retour</Link>
+            {(
+              <button
+                type="button"
+                onClick={() => setStep('pick')}
+                style={{
+                  fontSize: '0.92rem',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#44597B',
+                  padding: 0,
+                  textDecoration: 'underline',
+                  textDecorationStyle: 'dotted',
+                  textUnderlineOffset: 3,
+                }}
+              >
+                ✦ Changer de thème
+              </button>
+            )}
+          </div>
         </header>
 
         {loadError && (
@@ -690,61 +726,46 @@ export function WeddingSiteBuilder() {
 
             {/* ── Verset hébraïque en arc ── */}
             <div style={{ marginTop: '1.2rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', letterSpacing: '0.04em' }}>
-                  ✡️ פסוק — Verset hébraïque (affiché en arc en haut du site)
-                </span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', letterSpacing: '0.04em', display: 'block', marginBottom: '0.6rem' }}>
+                ✡️ פסוק — Verset hébraïque (affiché en arc)
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: '0.75rem', direction: 'rtl' }}>
+                {[
+                  { v: '', label: '— Aucun —' },
+                  { v: 'אֲנִי לְדוֹדִי וְדוֹדִי לִי', label: 'אֲנִי לְדוֹדִי וְדוֹדִי לִי' },
+                  { v: 'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה קוֹל חָתָן וְקוֹל כַּלָּה', label: 'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה' },
+                  { v: 'נעלה את ירושלים על ראש שמחתנו', label: 'נעלה את ירושלים' },
+                  { v: 'זֶה הַיּוֹם עָשָׂה ה׳ נָגִילָה וְנִשְׂמְחָה בוֹ', label: 'זֶה הַיּוֹם עָשָׂה ה׳' },
+                  { v: 'שִׂמְחוּ אֶת יְרוּשָׁלִַם וְגִילוּ בָהּ', label: 'שִׂמְחוּ אֶת יְרוּשָׁלִַם' },
+                  { v: 'בְּרוּךְ הַבָּא בְּשֵׁם ה׳', label: 'בְּרוּךְ הַבָּא' },
+                  { v: 'שִׂישׂ אָשִׂישׂ בַּה׳ תָּגֵל נַפְשִׁי בֵּאלֹהַי', label: 'שִׂישׂ אָשִׂישׂ' },
+                  { v: 'כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ', label: 'כִּי טוֹב' },
+                ].map(({ v, label }) => {
+                  const isSelected = (content.hebrewQuote ?? '') === v;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setContent((c) => ({ ...c, hebrewQuote: v === '' ? undefined : v }))}
+                      style={{
+                        padding: '0.3rem 0.75rem',
+                        borderRadius: 999,
+                        border: `1.5px solid ${isSelected ? '#8F947F' : '#D1D5DB'}`,
+                        background: isSelected ? '#8F947F' : '#fff',
+                        color: isSelected ? '#fff' : '#374151',
+                        fontFamily: v ? "'Frank Ruhl Libre', serif" : 'inherit',
+                        fontSize: v ? '0.9rem' : '0.78rem',
+                        cursor: 'pointer',
+                        fontWeight: isSelected ? 700 : 400,
+                        direction: v ? 'rtl' : 'ltr',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
-              <select
-                style={{ ...inp, marginBottom: '0.5rem', fontFamily: "'Frank Ruhl Libre', serif", direction: 'rtl' }}
-                value={
-                  [
-                    'נעלה את ירושלים על ראש שמחתנו',
-                    'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה קוֹל חָתָן וְקוֹל כַּלָּה',
-                    'אֲנִי לְדוֹדִי וְדוֹדִי לִי',
-                    'זֶה הַיּוֹם עָשָׂה ה׳ נָגִילָה וְנִשְׂמְחָה בוֹ',
-                    'שִׂמְחוּ אֶת יְרוּשָׁלִַם וְגִילוּ בָהּ',
-                    'בְּרוּךְ הַבָּא בְּשֵׁם ה׳',
-                    'שִׂישׂ אָשִׂישׂ בַּה׳ תָּגֵל נַפְשִׁי בֵּאלֹהַי',
-                    'מַה יָּפוּ פְעָמַיִךְ בַּנְּעָלִים',
-                    'כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ',
-                  ].includes(content.hebrewQuote ?? '')
-                    ? (content.hebrewQuote ?? '')
-                    : content.hebrewQuote
-                    ? '__custom__'
-                    : ''
-                }
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === '' || v !== '__custom__') {
-                    setContent((c) => ({ ...c, hebrewQuote: v === '' ? undefined : v }));
-                  }
-                }}
-              >
-                <option value="">— Aucun —</option>
-                <option value="נעלה את ירושלים על ראש שמחתנו">נעלה את ירושלים על ראש שמחתנו (תהלים קלז:ו)</option>
-                <option value="קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה קוֹל חָתָן וְקוֹל כַּלָּה">קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה (ירמיהו לג:יא)</option>
-                <option value="אֲנִי לְדוֹדִי וְדוֹדִי לִי">אֲנִי לְדוֹדִי וְדוֹדִי לִי (שיה״ש ו:ג)</option>
-                <option value="זֶה הַיּוֹם עָשָׂה ה׳ נָגִילָה וְנִשְׂמְחָה בוֹ">זֶה הַיּוֹם עָשָׂה ה׳ (תהלים קיח:כד)</option>
-                <option value="שִׂמְחוּ אֶת יְרוּשָׁלִַם וְגִילוּ בָהּ">שִׂמְחוּ אֶת יְרוּשָׁלִַם (ישעיהו סו:י)</option>
-                <option value="בְּרוּךְ הַבָּא בְּשֵׁם ה׳">בְּרוּךְ הַבָּא בְּשֵׁם ה׳ (תהלים קיח:כו)</option>
-                <option value="שִׂישׂ אָשִׂישׂ בַּה׳ תָּגֵל נַפְשִׁי בֵּאלֹהַי">שִׂישׂ אָשִׂישׂ בַּה׳ (ישעיהו סא:י)</option>
-                <option value="מַה יָּפוּ פְעָמַיִךְ בַּנְּעָלִים">מַה יָּפוּ פְעָמַיִךְ בַּנְּעָלִים (שיה״ש ז:ב)</option>
-                <option value="כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ">כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ (תהלים קלו)</option>
-                {content.hebrewQuote && ![
-                  'נעלה את ירושלים על ראש שמחתנו',
-                  'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה קוֹל חָתָן וְקוֹל כַּלָּה',
-                  'אֲנִי לְדוֹדִי וְדוֹדִי לִי',
-                  'זֶה הַיּוֹם עָשָׂה ה׳ נָגִילָה וְנִשְׂמְחָה בוֹ',
-                  'שִׂמְחוּ אֶת יְרוּשָׁלִַם וְגִילוּ בָהּ',
-                  'בְּרוּךְ הַבָּא בְּשֵׁם ה׳',
-                  'שִׂישׂ אָשִׂישׂ בַּה׳ תָּגֵל נַפְשִׁי בֵּאלֹהַי',
-                  'מַה יָּפוּ פְעָמַיִךְ בַּנְּעָלִים',
-                  'כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ',
-                ].includes(content.hebrewQuote) ? (
-                  <option value="__custom__">✏️ Personnalisé</option>
-                ) : null}
-              </select>
               <input
                 style={{ ...inp, fontFamily: "'Frank Ruhl Libre', serif", direction: 'rtl', fontSize: '1rem' }}
                 placeholder="כתוב פסוק בחופשיות..."
@@ -867,18 +888,62 @@ export function WeddingSiteBuilder() {
               primaryColor={theme.primaryColor}
               backgroundColor={theme.backgroundColor}
               initialStyle={content.monogramStyle}
-              onSelect={(svg, style) => setContent((c) => ({ ...c, monogramSvg: svg, monogramStyle: style }))}
+              onSelect={(svg, style, sizePx) => setContent((c) => ({ ...c, monogramSvg: svg, monogramStyle: style, monogramSizePx: sizePx }))}
             />
             {content.monogramSvg ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '0.5rem 0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px solid #86efac', fontSize: '0.83rem', color: '#166534' }}>
-                ✅ Monogramme enregistré — il sera affiché dans le Hero du site
-                <button
-                  type="button"
-                  onClick={() => setContent((c) => ({ ...c, monogramSvg: undefined, monogramStyle: undefined }))}
-                  style={{ marginLeft: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: '0.8rem' }}
-                >
-                  Supprimer
-                </button>
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* Position du logo */}
+                <div style={{ padding: '0.75rem', background: '#fafaf8', borderRadius: 10, border: '1px solid #e2e0da' }}>
+                  <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', fontWeight: 700, color: '#555' }}>📍 Position du logo dans le hero</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
+                    {([
+                      { id: 'top-center',    icon: '⬆', label: 'Haut' },
+                      { id: 'center',        icon: '⊕', label: 'Centre' },
+                      { id: 'bottom-left',   icon: '↙', label: 'Bas G' },
+                      { id: 'bottom-center', icon: '⬇', label: 'Bas' },
+                      { id: 'bottom-right',  icon: '↘', label: 'Bas D' },
+                    ] as const).map((opt) => {
+                      const active = (content.monogramPosition ?? 'top-center') === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setContent((c) => ({ ...c, monogramPosition: opt.id }))}
+                          style={{
+                            padding: '0.4rem 0.2rem',
+                            border: `2px solid ${active ? '#8F947F' : '#ddd'}`,
+                            borderRadius: 8,
+                            background: active ? '#E4E7DC' : '#fff',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 2,
+                          }}
+                        >
+                          <span style={{ fontSize: '1rem' }}>{opt.icon}</span>
+                          <span style={{ fontSize: '0.58rem', color: active ? '#8F947F' : '#666', fontWeight: 600 }}>{opt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {theme.heroStyle === 'monogram' && (
+                    <p style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: '#999', fontStyle: 'italic' }}>
+                      En style « Monogramme », le logo est toujours affiché au centre.
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.5rem 0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px solid #86efac', fontSize: '0.83rem', color: '#166534' }}>
+                  ✅ Monogramme enregistré
+                  <button
+                    type="button"
+                    onClick={() => setContent((c) => ({ ...c, monogramSvg: undefined, monogramStyle: undefined, monogramPosition: undefined }))}
+                    style={{ marginLeft: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: '0.8rem' }}
+                  >
+                    Supprimer
+                  </button>
+                </div>
               </div>
             ) : null}
           </section>
@@ -905,6 +970,19 @@ export function WeddingSiteBuilder() {
                 ))}
               </select>
             </label>
+
+            {/* Aperçu visuel immédiat du thème sélectionné (avant la mise en page) */}
+            {theme.style === 'vintage-blue' ? (
+              <div style={{ marginTop: '1rem' }}>
+                <p style={studioSectionLabel}>Aperçu du thème</p>
+                <VintageThemePreview
+                  groomName={groomName || 'David'}
+                  brideName={brideName || 'Sarah'}
+                  targetDate={date ? mergeDateAndTimeToIso(date, time) : undefined}
+                  title={coupleName || 'Notre Mariage'}
+                />
+              </div>
+            ) : null}
 
             {/* ── Studio de Design ─────────────────────────────────────────── */}
             <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'linear-gradient(135deg, #F6F4EF 0%, #EDE8E0 100%)', borderRadius: 12, border: '1px solid #C7B7A5' }}>
@@ -1191,7 +1269,6 @@ export function WeddingSiteBuilder() {
                   ['rsvp', 'RSVP'],
                   ['faq', 'FAQ'],
                   ['gallery', '🖼️ Galerie'],
-                  ['giftRegistry', '🎁 Liste de mariage'],
                   ['practicalInfo', 'Infos pratiques'],
                   ['guestMessage', 'Message aux invités'],
                   ['qrCode', 'QR Code'],
@@ -1206,6 +1283,46 @@ export function WeddingSiteBuilder() {
                   {label}
                 </label>
               ))}
+            </div>
+
+            {/* ── Style de navigation ── */}
+            <div style={{ marginTop: '1.2rem' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.6rem' }}>
+                Navigation des invités
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {([
+                  { v: 'horizontal', label: 'Horizontale', desc: 'Liens en haut' },
+                  { v: 'hamburger', label: 'Menu', desc: 'Tiroir latéral' },
+                  { v: 'minimal', label: 'Minimale', desc: 'Prénom seul' },
+                ] as const).map(({ v, label, desc }) => {
+                  const cur = (theme.navStyle ?? 'horizontal') as string;
+                  const sel = cur === v;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setTheme((t) => ({ ...t, navStyle: v }))}
+                      style={{
+                        flex: 1,
+                        padding: '0.55rem 0.4rem',
+                        borderRadius: 10,
+                        border: `2px solid ${sel ? '#8F947F' : '#E4E7DC'}`,
+                        background: sel ? '#8F947F14' : '#fff',
+                        color: sel ? '#4a5240' : '#6b7280',
+                        fontWeight: sel ? 700 : 400,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, marginBottom: 2 }}>{label}</div>
+                      <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>{desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </section>
 
@@ -1386,43 +1503,6 @@ export function WeddingSiteBuilder() {
             />
           </section>
 
-          {/* ── Liste de mariage ────────────────────────────────────────────── */}
-          <section style={block}>
-            <h2 style={h2}>🎁 Liste de mariage</h2>
-            <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Activez la section "Liste de mariage" dans les sections.
-            </p>
-            <label style={lab}>
-              Texte d'introduction
-              <textarea
-                style={{ ...inp, minHeight: 72, resize: 'vertical' }}
-                value={content.giftRegistry?.introText ?? ''}
-                onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), introText: e.target.value } }))}
-              />
-            </label>
-            <label style={lab}>
-              Lien liste de cadeaux (Mariage.net, Amazon, etc.)
-              <input style={inp} placeholder="https://..." value={content.giftRegistry?.externalUrl ?? ''} onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), externalUrl: e.target.value } }))} />
-            </label>
-            <label style={lab}>
-              Lien cagnotte (Leetchi, Pot Commun, etc.)
-              <input style={inp} placeholder="https://..." value={content.giftRegistry?.cagnotteUrl ?? ''} onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), cagnotteUrl: e.target.value } }))} />
-            </label>
-            <label style={lab}>
-              Libellé bouton cagnotte
-              <input style={inp} placeholder="Participer à la cagnotte" value={content.giftRegistry?.cagnotteLabel ?? ''} onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), cagnotteLabel: e.target.value } }))} />
-            </label>
-            <label style={lab}>
-              Informations virement bancaire (optionnel)
-              <textarea
-                style={{ ...inp, minHeight: 80, resize: 'vertical', fontFamily: 'monospace', fontSize: '0.85rem' }}
-                placeholder={'IBAN : FR76...\nBIC : ...\nNom : ...'}
-                value={content.giftRegistry?.bankTransferInfo ?? ''}
-                onChange={(e) => setContent((c) => ({ ...c, giftRegistry: { ...(c.giftRegistry ?? defaultGiftRegistry()), bankTransferInfo: e.target.value } }))}
-              />
-            </label>
-          </section>
-
           <RSVPBuilder form={rsvpForm} onChange={setRsvpForm} />
 
           {/* ── Liens d'invitation ─────────────────────────────────────────── */}
@@ -1508,20 +1588,34 @@ export function WeddingSiteBuilder() {
                       ))}
                     </div>
 
-                    {/* Générer token immédiatement */}
-                    {!link.token ? (
-                      <button
-                        type="button"
-                        style={{ ...ghostInlineBtn, fontSize: '0.82rem' }}
-                        onClick={() => {
-                          const next = [...inviteLinks];
-                          next[idx] = { ...next[idx], token: crypto.randomUUID().slice(0, 10) };
-                          setInviteLinks(next);
-                        }}
-                      >
-                        🔑 Générer le lien maintenant
-                      </button>
-                    ) : (
+                    {/* Identifiant de segment (slug lisible ou UUID) */}
+                    <label style={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600, display: 'block' }}>
+                      Identifiant du lien
+                      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                        <input
+                          style={{ ...inp, flex: 1, fontFamily: 'monospace', fontSize: '0.82rem', marginBottom: 0 }}
+                          placeholder="ex: mariage, tout, famille, vip…"
+                          value={link.token}
+                          onChange={(e) => {
+                            const next = [...inviteLinks];
+                            next[idx] = { ...next[idx], token: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') };
+                            setInviteLinks(next);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          style={{ ...ghostInlineBtn, fontSize: '0.75rem', whiteSpace: 'nowrap', padding: '0 0.6rem' }}
+                          onClick={() => {
+                            const next = [...inviteLinks];
+                            next[idx] = { ...next[idx], token: crypto.randomUUID().slice(0, 8) };
+                            setInviteLinks(next);
+                          }}
+                        >
+                          Auto
+                        </button>
+                      </div>
+                    </label>
+                    {link.token ? (
                       <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.78rem', wordBreak: 'break-all', color: '#166534', border: '1px solid #86efac' }}>
                         🔗 <strong>{link.label || 'Lien'} :</strong>
                         <br />
@@ -1534,6 +1628,10 @@ export function WeddingSiteBuilder() {
                           📋 Copier
                         </button>
                       </div>
+                    ) : (
+                      <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>
+                        Tapez un identifiant ci-dessus pour générer le lien.
+                      </p>
                     )}
 
                     <button

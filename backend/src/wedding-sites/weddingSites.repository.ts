@@ -152,11 +152,8 @@ export const weddingSitesRepo = {
 
     sets.push(`updated_at = NOW()`);
 
-    const whereClause = userId !== null
-      ? `WHERE id = $${i++} AND user_id = $${i++}`
-      : `WHERE id = $${i++}`;
-
-    const params = userId !== null ? [...vals, id, userId] : [...vals, id];
+    const whereClause = `WHERE id = $${i++}`;
+    const params = [...vals, id];
 
     const { rows } = await pool.query(
       `UPDATE wedding_sites SET ${sets.join(', ')} ${whereClause} RETURNING *`,

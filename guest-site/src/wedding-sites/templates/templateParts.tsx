@@ -66,11 +66,15 @@ export function SectionBlock({
 export function HeroMonogram({ site }: { site: WeddingSite }) {
   const svg = site.content?.monogramSvg;
   if (!svg) return null;
+  const isDataUrl = svg.startsWith('data:');
   return (
-    <div
-      style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+      {isDataUrl ? (
+        <img src={svg} alt="Monogramme" style={{ maxHeight: 120, maxWidth: 240, objectFit: 'contain' }} />
+      ) : (
+        <div dangerouslySetInnerHTML={{ __html: svg }} />
+      )}
+    </div>
   );
 }
 
@@ -160,16 +164,22 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   const [visible, setVisible] = useState(true);
   const lastY = useRef(0);
   const L = sectionLabels(site.language);
+  const navStyle = site.theme.navStyle ?? 'horizontal';
+  const t = site.theme;
+
+  const hasAccommodations = site.sections.accommodations && (site.content?.accommodations ?? []).some((h) => !h.isShabbatHatan);
+  const hasFaq = site.sections.faq && (site.content?.faq ?? []).length > 0;
+  const hasLocation = site.sections.location && !!(site.content?.venue?.name || site.content?.venue?.address || site.venue || site.city);
 
   const anchors = [
-    site.sections.coupleStory ? { id: 'couple-story', label: L.coupleStory } : null,
+    site.sections.coupleStory && (site.content?.coupleStory?.length ?? 0) > 0 ? { id: 'couple-story', label: L.coupleStory } : null,
     site.sections.program ? { id: 'program', label: L.program } : null,
-    site.sections.jewishSection ? { id: 'jewish-section', label: L.jewishSection } : null,
-    site.sections.location ? { id: 'location', label: L.location } : null,
-    site.sections.accommodations ? { id: 'accommodations', label: L.accommodations } : null,
+    site.sections.jewishSection && (site.content?.jewishEvents ?? []).some((e) => e.enabled) ? { id: 'jewish-section', label: L.jewishSection } : null,
+    hasLocation ? { id: 'location', label: L.location } : null,
+    hasAccommodations ? { id: 'accommodations', label: L.accommodations } : null,
     site.sections.rsvp ? { id: 'rsvp', label: L.rsvp } : null,
-    site.sections.faq ? { id: 'faq', label: L.faq } : null,
-    site.sections.giftRegistry ? { id: 'gift-registry', label: L.giftRegistry } : null,
+    hasFaq ? { id: 'faq', label: L.faq } : null,
+    site.sections.giftRegistry && site.content?.giftRegistry ? { id: 'gift-registry', label: L.giftRegistry } : null,
   ].filter(Boolean) as { id: string; label: string }[];
 
   useEffect(() => {
@@ -184,63 +194,94 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const coupleLabel = site.coupleName || `${site.brideName} & ${site.groomName}`;
+  const navBase: CSSProperties = {
+    position: 'sticky',
+    top: 0,
+    zIndex: 60,
+    transform: visible ? 'translateY(0)' : 'translateY(-105%)',
+    transition: 'transform 220ms ease',
+    backdropFilter: 'blur(8px)',
+    background: `${t.backgroundColor}dd`,
+    borderBottom: `1px solid ${t.primaryColor}30`,
+  };
+
+  // ── Minimal: couple name only, no links ──────────────────────────────────
+  if (navStyle === 'minimal') {
+    return (
+      <nav style={navBase}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0.72rem 1rem', textAlign: 'center' }}>
+          <a href="#top" style={{ textDecoration: 'none', color: t.textColor, fontWeight: 700, letterSpacing: '0.08em' }}>
+            {coupleLabel}
+          </a>
+        </div>
+      </nav>
+    );
+  }
+
+  // ── Hamburger: always burger button (desktop + mobile), opens drawer ──────
+  if (navStyle === 'hamburger') {
+    return (
+      <nav style={navBase}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0.72rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <a href="#top" style={{ textDecoration: 'none', color: t.textColor, fontWeight: 700, letterSpacing: '0.05em' }}>
+            {coupleLabel}
+          </a>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            style={{ border: `1px solid ${t.primaryColor}66`, borderRadius: 10, background: menuOpen ? `${t.primaryColor}18` : 'transparent', padding: '0.35rem 0.65rem', color: t.primaryColor, fontWeight: 700, cursor: 'pointer', fontSize: '1rem' }}
+          >
+            {menuOpen ? '✕' : '☰'}
+          </button>
+        </div>
+        {menuOpen ? (
+          <div style={{ borderTop: `1px solid ${t.primaryColor}22`, padding: '0.55rem 1rem 0.8rem', display: 'grid', gap: 4 }}>
+            {anchors.map((a) => (
+              <a
+                key={a.id}
+                href={`#${a.id}`}
+                onClick={() => setMenuOpen(false)}
+                style={{ display: 'block', padding: '0.45rem 0.5rem', textDecoration: 'none', color: t.textColor, fontSize: '0.9rem', letterSpacing: '0.06em' }}
+              >
+                {a.label}
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </nav>
+    );
+  }
+
+  // ── Horizontal (default): links bar ──────────────────────────────────────
   if (!anchors.length) return null;
 
   return (
-    <nav
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 60,
-        transform: visible ? 'translateY(0)' : 'translateY(-105%)',
-        transition: 'transform 220ms ease',
-        backdropFilter: 'blur(8px)',
-        background: `${site.theme.backgroundColor}dd`,
-        borderBottom: `1px solid ${site.theme.primaryColor}30`,
-      }}
-    >
+    <nav style={navBase}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0.72rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <a href="#top" style={{ textDecoration: 'none', color: site.theme.textColor, fontWeight: 700, letterSpacing: '0.05em' }}>
-          {site.coupleName || `${site.brideName} & ${site.groomName}`}
+        <a href="#top" style={{ textDecoration: 'none', color: t.textColor, fontWeight: 700, letterSpacing: '0.05em' }}>
+          {coupleLabel}
         </a>
         <button
           type="button"
           className="wedding-mobile-nav-btn"
           onClick={() => setMenuOpen((v) => !v)}
-          style={{
-            display: 'none',
-            border: `1px solid ${site.theme.primaryColor}66`,
-            borderRadius: 10,
-            background: 'transparent',
-            padding: '0.35rem 0.55rem',
-            color: site.theme.primaryColor,
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
+          style={{ display: 'none', border: `1px solid ${t.primaryColor}66`, borderRadius: 10, background: 'transparent', padding: '0.35rem 0.55rem', color: t.primaryColor, fontWeight: 700, cursor: 'pointer' }}
         >
           ☰
         </button>
         <div className="wedding-nav-links" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {anchors.map((a) => (
-            <a
-              key={a.id}
-              href={`#${a.id}`}
-              style={{ color: site.theme.textColor, textDecoration: 'none', fontSize: '0.87rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}
-            >
+            <a key={a.id} href={`#${a.id}`} style={{ color: t.textColor, textDecoration: 'none', fontSize: '0.87rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {a.label}
             </a>
           ))}
         </div>
       </div>
       {menuOpen ? (
-        <div style={{ borderTop: `1px solid ${site.theme.primaryColor}22`, padding: '0.55rem 1rem 0.8rem' }} className="wedding-mobile-nav">
+        <div style={{ borderTop: `1px solid ${t.primaryColor}22`, padding: '0.55rem 1rem 0.8rem' }} className="wedding-mobile-nav">
           {anchors.map((a) => (
-            <a
-              key={a.id}
-              href={`#${a.id}`}
-              onClick={() => setMenuOpen(false)}
-              style={{ display: 'block', marginTop: 8, textDecoration: 'none', color: site.theme.textColor }}
-            >
+            <a key={a.id} href={`#${a.id}`} onClick={() => setMenuOpen(false)} style={{ display: 'block', marginTop: 8, textDecoration: 'none', color: t.textColor }}>
               {a.label}
             </a>
           ))}
@@ -322,11 +363,21 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   }
 
   if (site.sections.program) {
+    const isVintage = t.style === 'vintage-blue';
+    const progCardStyle: CSSProperties = isVintage
+      ? {
+          background: '#44597B',
+          borderRadius: 22,
+          padding: '2rem 1.6rem',
+          boxShadow: '0 22px 60px -30px rgba(52,70,97,0.7)',
+          marginTop: '0.75rem',
+        }
+      : { ...useCard({ theme: t }), marginTop: '0.75rem' };
     blocks.push(
       <section id="program" key="program" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
         <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.program}</h2>
-        <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
-          <ProgramTimeline site={site} />
+        <div style={progCardStyle}>
+          <ProgramTimeline site={site} isVintage={isVintage} />
         </div>
       </section>
     );
@@ -518,7 +569,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   return blocks;
 }
 
-function ProgramTimeline({ site }: { site: WeddingSite }) {
+function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVintage?: boolean }) {
   const events = (site.rsvpForm?.events ?? []).filter((e) => e.enabled);
   const days = Array.from(new Set(events.map((e) => e.dayLabel?.trim() || '').filter(Boolean)));
   const [activeDay, setActiveDay] = useState(days[0] ?? '');
@@ -533,8 +584,16 @@ function ProgramTimeline({ site }: { site: WeddingSite }) {
     return events.filter((e) => (e.dayLabel?.trim() || '') === activeDay);
   }, [activeDay, days, events]);
 
+  // Couleurs adaptées au fond bleu vintage
+  const textColor = isVintage ? '#F5F0E4' : site.theme.textColor;
+  const mutedColor = isVintage ? '#C7C2B4' : `${site.theme.textColor}99`;
+  const dotColor = isVintage ? '#D7D2C4' : site.theme.primaryColor;
+  const lineColor = isVintage ? '#9FAFC466' : `${site.theme.primaryColor}30`;
+  const btnActiveBg = isVintage ? 'rgba(255,255,255,0.18)' : `${site.theme.secondaryColor}44`;
+  const btnBg = isVintage ? 'rgba(255,255,255,0.08)' : '#fff';
+
   if (!events.length) {
-    return <p style={{ margin: 0, opacity: 0.8 }}>Programme a venir.</p>;
+    return <p style={{ margin: 0, opacity: 0.8, color: textColor }}>Programme a venir.</p>;
   }
 
   return (
@@ -547,11 +606,11 @@ function ProgramTimeline({ site }: { site: WeddingSite }) {
               type="button"
               onClick={() => setActiveDay(day)}
               style={{
-                border: `1px solid ${site.theme.primaryColor}60`,
+                border: `1px solid ${isVintage ? '#9FAFC466' : `${site.theme.primaryColor}60`}`,
                 borderRadius: 999,
                 padding: '0.35rem 0.75rem',
-                background: activeDay === day ? `${site.theme.secondaryColor}44` : '#fff',
-                color: site.theme.textColor,
+                background: activeDay === day ? btnActiveBg : btnBg,
+                color: textColor,
                 cursor: 'pointer',
                 fontWeight: 600,
               }}
@@ -565,15 +624,13 @@ function ProgramTimeline({ site }: { site: WeddingSite }) {
         {visible.map((ev, idx) => (
           <article key={ev.id} style={{ display: 'grid', gridTemplateColumns: '26px 1fr', gap: 10 }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ width: 24, height: 24, borderRadius: 999, background: `${site.theme.primaryColor}20`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
-                {ev.emojiIcon?.trim() || '•'}
-              </span>
-              {idx < visible.length - 1 ? <span style={{ marginTop: 4, width: 2, flex: 1, minHeight: 28, background: `${site.theme.primaryColor}30` }} /> : null}
+              <span style={{ width: 10, height: 10, borderRadius: 999, background: dotColor, display: 'inline-block', marginTop: 7, opacity: 0.85 }} />
+              {idx < visible.length - 1 ? <span style={{ marginTop: 4, width: 2, flex: 1, minHeight: 28, background: lineColor }} /> : null}
             </div>
             <div>
-              <p style={{ margin: '0 0 0.2rem', fontWeight: 700 }}>{ev.label}</p>
-              <p style={{ margin: '0 0 0.2rem', fontSize: '0.9rem', opacity: 0.9 }}>{[ev.time, ev.place].filter(Boolean).join(' · ') || 'Horaire a confirmer'}</p>
-              {ev.shortDescription ? <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.84 }}>{ev.shortDescription}</p> : null}
+              <p style={{ margin: '0 0 0.2rem', fontWeight: 700, color: textColor }}>{ev.label}</p>
+              <p style={{ margin: '0 0 0.2rem', fontSize: '0.9rem', color: mutedColor }}>{[ev.time, ev.place].filter(Boolean).join(' · ') || 'Horaire a confirmer'}</p>
+              {ev.shortDescription ? <p style={{ margin: 0, fontSize: '0.9rem', color: mutedColor }}>{ev.shortDescription}</p> : null}
             </div>
           </article>
         ))}
@@ -608,8 +665,8 @@ function useCountdown(isoDate: string) {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
-  const target = new Date(isoDate).getTime();
-  const diff = Math.max(0, target - now);
+  const target = isoDate ? new Date(isoDate).getTime() : NaN;
+  const diff = !isNaN(target) ? Math.max(0, target - now) : 0;
   const d = Math.floor(diff / 86400000);
   const h = Math.floor((diff % 86400000) / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);

@@ -339,12 +339,23 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cornerDecor: false,
     fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
   },
+
+  // ─── VINTAGE GROUP (bleu poussiéreux + ivoire) ────────────────────────────
+  'vintage-blue': {
+    heroStyle: 'faire-part',
+    patternId: 'floral-subtle',
+    separatorStyle: 'floral',
+    cardStyle: 'double-border',
+    cornerDecor: true,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    patternOpacity: 0.1,
+  },
 };
 
 /** Merge preset overrides into the theme, preserving explicit user values */
 export function applyThemePreset(theme: WeddingTheme): WeddingTheme {
   const preset = PRESETS[theme.style] ?? {};
-  return {
+  const base = {
     ...theme,
     heroStyle: theme.heroStyle ?? preset.heroStyle ?? 'editorial',
     patternId: theme.patternId ?? preset.patternId ?? 'none',
@@ -354,4 +365,16 @@ export function applyThemePreset(theme: WeddingTheme): WeddingTheme {
     cornerDecor: theme.cornerDecor ?? preset.cornerDecor ?? false,
     fontFamily: theme.fontFamily ?? preset.fontFamily ?? theme.fontFamily,
   };
+  // Force canonical colours for vintage-blue regardless of any saved default values
+  if (theme.style === 'vintage-blue') {
+    return {
+      ...base,
+      backgroundColor: '#F4EFE4',
+      primaryColor: '#44597B',
+      secondaryColor: '#B7A892',
+      textColor: '#2E3A52',
+      fontFamily: "'Cormorant Garamond', Georgia, serif",
+    };
+  }
+  return base;
 }
