@@ -11,9 +11,16 @@ export type VintageHeroProps = {
   name2?: string;
   description?: string;
   dateLabel?: string;
+  /** Ville (ex. « Paris ») affichée sous la date */
+  city?: string;
+  /** Lieu précis (ex. « Domaine des Lys ») affiché sous la date */
+  venue?: string;
   monogramSvg?: string;
   monogramSizePx?: number;
   hebrewQuote?: string;
+};
+
+export type VintageFamiliesProps = {
   parentsBride?: { father?: string; mother?: string; isDivorced?: boolean };
   parentsGroom?: { father?: string; mother?: string; isDivorced?: boolean };
   brideFamilyName?: string;
@@ -121,24 +128,15 @@ export function VintageHero({
   name2,
   description,
   dateLabel,
+  city,
+  venue,
   monogramSvg,
   monogramSizePx,
   hebrewQuote,
-  parentsBride,
-  parentsGroom,
-  brideFamilyName,
-  groomFamilyName,
-  grandparentsBride,
-  grandparentsGroom,
 }: VintageHeroProps) {
   const logoSize = monogramSizePx ? Math.round(Math.min(monogramSizePx * 0.375, 110)) : 52;
 
-  const brideLines = formatParentLine(parentsBride, brideFamilyName);
-  const groomLines = formatParentLine(parentsGroom, groomFamilyName);
-  const gpBrideLines = formatGrandparentLine(grandparentsBride);
-  const gpGroomLines = formatGrandparentLine(grandparentsGroom);
-  const hasParents = brideLines.length > 0 || groomLines.length > 0;
-  const hasGrandparents = gpBrideLines.length > 0 || gpGroomLines.length > 0;
+  const placeLine = [venue?.trim(), city?.trim()].filter(Boolean).join(' · ');
 
   return (
     <div
@@ -285,40 +283,6 @@ export function VintageHero({
         {/* ── Ruban ── */}
         <VintageRibbon width={104} color={V.colors.primary} style={{ marginTop: '-0.4rem', marginBottom: '0.5rem' }} />
 
-        {/* ── Familles (parents + grands-parents) ── */}
-        {(hasParents || hasGrandparents) && (
-          <div
-            style={{
-              fontFamily: V.fonts.body,
-              fontSize: '0.68rem',
-              letterSpacing: '0.1em',
-              color: V.colors.inkMuted,
-              lineHeight: 1.7,
-              margin: '0 auto 0.6rem',
-              maxWidth: 240,
-              textAlign: 'center',
-            }}
-          >
-            {/* Parents mariée */}
-            {brideLines.map((l, i) => <div key={`pb${i}`}>{l}</div>)}
-            {/* Séparateur entre les deux côtés */}
-            {brideLines.length > 0 && groomLines.length > 0 && (
-              <div style={{ fontStyle: 'italic', opacity: 0.6, margin: '0.05rem 0', fontSize: '0.62rem' }}>et</div>
-            )}
-            {/* Parents marié */}
-            {groomLines.map((l, i) => <div key={`pg${i}`}>{l}</div>)}
-            {/* Grands-parents (si présents) */}
-            {hasGrandparents && (hasParents) && (
-              <div style={{ opacity: 0.55, margin: '0.15rem 0 0', fontSize: '0.6rem', letterSpacing: '0.06em' }}>·</div>
-            )}
-            {gpBrideLines.map((l, i) => <div key={`gpb${i}`} style={{ opacity: 0.78 }}>{l}</div>)}
-            {gpBrideLines.length > 0 && gpGroomLines.length > 0 && (
-              <div style={{ fontStyle: 'italic', opacity: 0.5, margin: '0.05rem 0', fontSize: '0.62rem' }}>et</div>
-            )}
-            {gpGroomLines.map((l, i) => <div key={`gpg${i}`} style={{ opacity: 0.78 }}>{l}</div>)}
-          </div>
-        )}
-
         {/* ── Titre 1 — même police script que le titre 2 ── */}
         <div
           style={{
@@ -387,6 +351,22 @@ export function VintageHero({
           </div>
         ) : null}
 
+        {/* ── Lieu (ville · salle) ── */}
+        {placeLine ? (
+          <div
+            style={{
+              fontFamily: V.fonts.body,
+              fontSize: '0.66rem',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: V.colors.inkMuted,
+              marginTop: '0.5rem',
+            }}
+          >
+            {placeLine}
+          </div>
+        ) : null}
+
         {/* Petit point final */}
         <div
           style={{
@@ -397,6 +377,94 @@ export function VintageHero({
             margin: '1.2rem auto 0',
           }}
         />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * VintageFamilies — bloc « familles » (parents + grands-parents) affiché
+ * SOUS le décompte, format « M. et Mme NOM ».
+ */
+export function VintageFamilies({
+  parentsBride,
+  parentsGroom,
+  brideFamilyName,
+  groomFamilyName,
+  grandparentsBride,
+  grandparentsGroom,
+}: VintageFamiliesProps) {
+  const brideLines = formatParentLine(parentsBride, brideFamilyName);
+  const groomLines = formatParentLine(parentsGroom, groomFamilyName);
+  const gpBrideLines = formatGrandparentLine(grandparentsBride);
+  const gpGroomLines = formatGrandparentLine(grandparentsGroom);
+  const hasParents = brideLines.length > 0 || groomLines.length > 0;
+  const hasGrandparents = gpBrideLines.length > 0 || gpGroomLines.length > 0;
+
+  if (!hasParents && !hasGrandparents) return null;
+
+  return (
+    <div
+      style={{
+        background: V.backgrounds.page,
+        backgroundImage: V.backgrounds.paper,
+        padding: '0.5rem 1rem 2.4rem',
+        textAlign: 'center',
+      }}
+    >
+      <VintageRibbon width={84} color={V.colors.primary} style={{ margin: '0 auto 0.6rem' }} />
+
+      <div
+        style={{
+          fontFamily: V.fonts.body,
+          fontSize: '0.74rem',
+          letterSpacing: '0.1em',
+          color: V.colors.inkMuted,
+          lineHeight: 1.8,
+          margin: '0 auto',
+          maxWidth: 360,
+        }}
+      >
+        {/* Parents : deux colonnes côte à côte si les deux côtés présents */}
+        {hasParents && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: '0.4rem 2.4rem',
+            }}
+          >
+            {brideLines.length > 0 && (
+              <div>{brideLines.map((l, i) => <div key={`pb${i}`}>{l}</div>)}</div>
+            )}
+            {groomLines.length > 0 && (
+              <div>{groomLines.map((l, i) => <div key={`pg${i}`}>{l}</div>)}</div>
+            )}
+          </div>
+        )}
+
+        {/* Grands-parents */}
+        {hasGrandparents && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: '0.3rem 2.4rem',
+              marginTop: hasParents ? '0.5rem' : 0,
+              opacity: 0.82,
+              fontSize: '0.68rem',
+            }}
+          >
+            {gpBrideLines.length > 0 && (
+              <div>{gpBrideLines.map((l, i) => <div key={`gpb${i}`}>{l}</div>)}</div>
+            )}
+            {gpGroomLines.length > 0 && (
+              <div>{gpGroomLines.map((l, i) => <div key={`gpg${i}`}>{l}</div>)}</div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

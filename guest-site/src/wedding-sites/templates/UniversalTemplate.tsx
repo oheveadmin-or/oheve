@@ -27,7 +27,7 @@ import {
   HeroLetterpress,
 } from './HeroVariants';
 import { applyThemePreset } from './themePresets';
-import { VintageHero } from '../components/VintageHero';
+import { VintageHero, VintageFamilies } from '../components/VintageHero';
 import { VintageCountdown } from '../components/VintageCountdown';
 import { formatWeddingDate } from '../utils/date';
 import { VintageTheme as V } from '../themes/VintageTheme';
@@ -96,9 +96,15 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         name2={hasTwoNames ? `& ${site.groomName}` : undefined}
         description={site.welcomeText || undefined}
         dateLabel={formatWeddingDate(site.date, site.language)}
+        city={site.city || undefined}
+        venue={site.venue || site.content?.venue?.name || undefined}
         monogramSvg={site.content?.monogramSvg}
         monogramSizePx={site.content?.monogramSizePx}
         hebrewQuote={site.content?.hebrewQuote}
+      />
+      <VintageCountdown targetDate={site.date} language={site.language} />
+      {/* Familles — affichées juste sous le décompte */}
+      <VintageFamilies
         parentsBride={site.content?.parentsBride}
         parentsGroom={site.content?.parentsGroom}
         brideFamilyName={site.content?.brideFamilyName}
@@ -106,7 +112,6 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         grandparentsBride={site.content?.grandparentsBride}
         grandparentsGroom={site.content?.grandparentsGroom}
       />
-      <VintageCountdown targetDate={site.date} language={site.language} />
     </>
   );
 
