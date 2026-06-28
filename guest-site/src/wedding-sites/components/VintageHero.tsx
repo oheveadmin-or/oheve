@@ -4,7 +4,7 @@
  */
 import type { ParentTitleStyle } from '../types';
 import { VintageTheme as V } from '../themes/VintageTheme';
-import { VintageAcanthus, VintageRibbon, VintageCorner, VintageFrameTop, VintageFrameBottom } from './ornaments/VintageOrnaments';
+import { VintageRibbon, VintageDamaskField } from './ornaments/VintageOrnaments';
 
 type ParentsBlock = { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: ParentTitleStyle };
 
@@ -116,76 +116,36 @@ export function VintageHero({
         overflow: 'hidden',
       }}
     >
-      {/* ─ Gauche / Droite : acanthes pleine hauteur ─ */}
-      <VintageAcanthus
-        width={210} color={V.colors.primarySoft} opacity={0.55}
-        style={{ position: 'absolute', left: '-52px', top: '-8%', height: '118%' }}
-      />
-      <VintageAcanthus
-        flip width={210} color={V.colors.primarySoft} opacity={0.55}
-        style={{ position: 'absolute', right: '-52px', top: '-8%', height: '118%' }}
-      />
-      <VintageAcanthus
-        width={200} color={V.colors.primary} opacity={0.35}
-        style={{ position: 'absolute', left: '-45px', top: '-8%', height: '118%' }}
-      />
-      <VintageAcanthus
-        flip width={200} color={V.colors.primary} opacity={0.35}
-        style={{ position: 'absolute', right: '-45px', top: '-8%', height: '118%' }}
-      />
+      {/* ─ Fond floral baroque DENSE tout autour (façon papier peint damassé) ─ */}
+      <VintageDamaskField soft={V.colors.primarySoft} deep={V.colors.primary} />
 
-      {/* ─ Haut : cadre feuillagé horizontal ─ */}
-      <VintageFrameTop
-        width="100%" color={V.colors.primarySoft} opacity={0.6}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
-      />
-      <VintageFrameTop
-        width="100%" color={V.colors.primary} opacity={0.35}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
-      />
-
-      {/* ─ Bas : cadre feuillagé horizontal retourné ─ */}
-      <VintageFrameBottom
-        width="100%" color={V.colors.primarySoft} opacity={0.6}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
-      />
-      <VintageFrameBottom
-        width="100%" color={V.colors.primary} opacity={0.35}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
-      />
-
-      {/* ─ 4 coins ─ */}
-      <VintageCorner width={80} height={80} color={V.colors.primary} opacity={0.5}
-        style={{ position: 'absolute', top: 4, left: 4 }} />
-      <VintageCorner width={80} height={80} color={V.colors.primary} opacity={0.5}
-        style={{ position: 'absolute', top: 4, right: 4, transform: 'scaleX(-1)' }} />
-      <VintageCorner width={80} height={80} color={V.colors.primary} opacity={0.5}
-        style={{ position: 'absolute', bottom: 4, left: 4, transform: 'scaleY(-1)' }} />
-      <VintageCorner width={80} height={80} color={V.colors.primary} opacity={0.5}
-        style={{ position: 'absolute', bottom: 4, right: 4, transform: 'scale(-1,-1)' }} />
-
-      {/* Cadre ovale double-trait */}
+      {/* Cadre ovale double-trait — vertical, façon modèle */}
       <div
         style={{
           position: 'relative',
           zIndex: 1,
-          width: 'min(360px, 86%)',
-          padding: '2.2rem 1.7rem 2.6rem',
+          width: 'min(340px, 82%)',
+          minHeight: 'clamp(440px, 66vh, 560px)',
+          padding: '2.6rem 1.7rem 3rem',
           border: `${V.borders.frame} solid ${V.colors.primary}`,
-          borderRadius: '200px / 160px',
-          background: 'rgba(247, 244, 237, 0.90)',
+          borderRadius: '170px / 220px',
+          background: V.colors.ivory,
           textAlign: 'center',
-          boxShadow: V.shadows.soft,
+          boxShadow: V.shadows.card,
           overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
         {/* Cadre intérieur (double liseré comme sur le modèle) */}
         <div
           style={{
             position: 'absolute',
-            inset: 7,
+            inset: 8,
             border: `1px solid ${V.colors.primary}`,
-            borderRadius: '192px / 154px',
+            borderRadius: '162px / 212px',
             pointerEvents: 'none',
           }}
         />
