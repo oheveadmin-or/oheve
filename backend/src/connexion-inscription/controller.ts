@@ -36,16 +36,37 @@ export class ConnexionInscriptionController {
     if (!email) {
       return res.status(400).json({ success: false, message: 'Email requis' });
     }
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    const normalizedEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ success: false, message: 'Adresse email invalide' });
+    }
     try {
-      await repo.saveOtp(email.trim().toLowerCase(), code, purpose, expiresAt);
-      // Email envoyé en arrière-plan — ne bloque pas la réponse (SMTP peut être lent depuis Railway)
-      console.log(`\n📧 OTP pour ${email} : ${code} (valable 10 min)\n`);
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        sendOtpEmail(email.trim(), code).catch(err =>
-          console.error('SMTP error (non-bloquant):', err.message)
-        );
+      // Bloquer l'inscription si l'email est déjà utilisé
+      if (purpose === 'inscription') {
+        const existing = await repo.findByEmail(normalizedEmail);
+        if (existing) {
+          return res.status(409).json({ success: false, message: 'Cet email est déjà inscrit. Connecte-toi ou utilise un autre email.' });
+        }
+      }
+
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+      await repo.saveOtp(normalizedEmail, code, purpose, expiresAt);
+
+      console.log(`\n📧 OTP pour ${normalizedEmail} : ${code} (valable 10 min)\n`);
+      if (process.env.RESEND_API_KEY) {
+        sendOtpEmail(normalizedEmail, code).catch(err => {
+          console.error('Resend error (non-bloquant):', {
+            message: err?.message,
+            name: err?.name,
+            statusCode: err?.statusCode,
+            response: err?.response,
+            body: JSON.stringify(err),
+          });
+        });
+      } else {
+        console.warn('⚠️  RESEND_API_KEY manquante — OTP non envoyé par email');
       }
       return res.status(200).json({ success: true, message: 'Code OTP envoyé' });
     } catch (err) {
@@ -233,7 +254,7 @@ export class ConnexionInscriptionController {
 
   // ── PATCH /profile ─────────────────────────────────────────────────────────
   async updateProfile(req: Request, res: Response) {
-    const { nom, prenom, phone, avatar_url, role, bride_name, groom_name } = req.body;
+    const { nom, prenom, phone, avatar_url, role, bride_name, groom_name, date_mariage } = req.body;
     try {
       // Role update: update in DB then issue fresh tokens
       if (role) {
@@ -252,6 +273,7 @@ export class ConnexionInscriptionController {
       }
       const updated = await repo.updateProfile(req.auth!.sub, {
         nom, prenom, phone, avatar_url, bride_name, groom_name,
+        date_mariage: date_mariage !== undefined ? (date_mariage || null) : undefined,
       });
       if (!updated) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
       return res.status(200).json({ success: true, data: updated });
@@ -263,12 +285,12 @@ export class ConnexionInscriptionController {
 
   // ── PATCH /date-mariage ────────────────────────────────────────────────────
   async mettreAJourDateMariage(req: Request, res: Response) {
-    const { email, date_mariage } = req.body;
-    if (!email || !date_mariage) {
-      return res.status(400).json({ success: false, message: 'Email et date requis' });
+    const { date_mariage } = req.body;
+    if (!date_mariage) {
+      return res.status(400).json({ success: false, message: 'date_mariage requis' });
     }
     try {
-      const r = await repo.updateDateMariage(email.trim(), date_mariage);
+      const r = await repo.updateDateMariage(req.auth!.sub, date_mariage);
       if (r.rowCount === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
       return res.status(200).json({ success: true, message: 'Date enregistrée', data: r.rows[0] });
     } catch (err) {
@@ -279,14 +301,14 @@ export class ConnexionInscriptionController {
 
   // ── PATCH /budget ──────────────────────────────────────────────────────────
   async mettreAJourBudget(req: Request, res: Response) {
-    const { email, budget_mode, budget_global, budget_categories } = req.body;
-    if (!email || !budget_mode) {
-      return res.status(400).json({ success: false, message: 'Email et mode requis' });
+    const { budget_mode, budget_global, budget_categories } = req.body;
+    if (!budget_mode) {
+      return res.status(400).json({ success: false, message: 'budget_mode requis' });
     }
     try {
       if (budget_mode === 'global') {
         const montant = parseFloat(budget_global) || 0;
-        const r = await repo.updateBudgetGlobal(email.trim(), montant);
+        const r = await repo.updateBudgetGlobal(req.auth!.sub, montant);
         if (r.rowCount === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
         return res.status(200).json({ success: true, data: { ...r.rows[0], budget_total: montant } });
       }
@@ -295,7 +317,7 @@ export class ConnexionInscriptionController {
         const photographe = parseFloat(cat.photographe) || 0;
         const salle = parseFloat(cat.salle) || 0;
         const traiteurs = parseFloat(cat.traiteurs) || 0;
-        const r = await repo.updateBudgetCategories(email.trim(), { photographe, salle, traiteurs });
+        const r = await repo.updateBudgetCategories(req.auth!.sub, { photographe, salle, traiteurs });
         if (r.rowCount === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
         return res.status(200).json({ success: true, data: { ...r.rows[0], budget_total: photographe + salle + traiteurs } });
       }
@@ -308,15 +330,15 @@ export class ConnexionInscriptionController {
 
   // ── PATCH /wedding-location ────────────────────────────────────────────────
   async mettreAJourWeddingLocation(req: Request, res: Response) {
-    const { email, wedding_location_type, wedding_city, wedding_country, wedding_lat, wedding_lng, wedding_address } = req.body;
-    if (!email || !wedding_location_type) {
-      return res.status(400).json({ success: false, message: 'Email et type requis' });
+    const { wedding_location_type, wedding_city, wedding_country, wedding_lat, wedding_lng, wedding_address } = req.body;
+    if (!wedding_location_type) {
+      return res.status(400).json({ success: false, message: 'wedding_location_type requis' });
     }
     if (!['city', 'address', 'unknown'].includes(wedding_location_type)) {
       return res.status(400).json({ success: false, message: 'Type invalide' });
     }
     try {
-      const r = await repo.updateWeddingLocation(email.trim(), {
+      const r = await repo.updateWeddingLocation(req.auth!.sub, {
         wedding_location_type,
         wedding_city: wedding_location_type === 'city' ? wedding_city : null,
         wedding_country: wedding_location_type === 'city' ? wedding_country : null,
@@ -410,9 +432,9 @@ export class ConnexionInscriptionController {
       const code = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
       await repo.saveOtp(normalizedEmail, code, 'reset-password', expiresAt);
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      if (process.env.RESEND_API_KEY) {
         await sendResetEmail(normalizedEmail, code, user.prenom);
-      } else {
+      } else if (process.env.NODE_ENV !== 'production') {
         console.log(`\n🔑 Code reset pour ${normalizedEmail} : ${code} (15 min)\n`);
       }
       return res.status(200).json({ success: true, message: 'Si ce compte existe, un code a été envoyé' });
@@ -476,6 +498,34 @@ export class ConnexionInscriptionController {
     } catch (err) {
       console.error('Erreur changePassword:', err);
       return res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+  }
+
+  // ── DELETE /me ────────────────────────────────────────────────────────────
+  async deleteAccount(req: Request, res: Response) {
+    try {
+      const userId = req.auth!.sub;
+      await repo.deleteAllRefreshTokens(userId);
+      await repo.deleteAccount(userId);
+      return res.status(200).json({ success: true, message: 'Compte supprimé définitivement' });
+    } catch (err) {
+      console.error('Erreur deleteAccount:', err);
+      return res.status(500).json({ success: false, message: 'Erreur lors de la suppression du compte' });
+    }
+  }
+
+  // ── GET /export ────────────────────────────────────────────────────────────
+  async exportData(req: Request, res: Response) {
+    try {
+      const data = await repo.exportData(req.auth!.sub);
+      return res.status(200).json({
+        success: true,
+        exported_at: new Date().toISOString(),
+        data,
+      });
+    } catch (err) {
+      console.error('Erreur exportData:', err);
+      return res.status(500).json({ success: false, message: "Erreur lors de l'export" });
     }
   }
 
