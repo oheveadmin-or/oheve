@@ -3,7 +3,7 @@
  * 100 % piloté par VintageTheme — aucune couleur en dur.
  */
 import { VintageTheme as V } from '../themes/VintageTheme';
-import { VintageAcanthus, VintageRibbon } from './ornaments/VintageOrnaments';
+import { VintageAcanthus, VintageRibbon, VintageCorner, VintageFrameTop, VintageFrameBottom } from './ornaments/VintageOrnaments';
 
 export type VintageHeroProps = {
   kicker?: string;
@@ -136,19 +136,53 @@ export function VintageHero({
         overflow: 'hidden',
       }}
     >
+      {/* ─ Gauche / Droite : acanthes pleine hauteur ─ */}
       <VintageAcanthus
-        width={185}
-        color={V.colors.primarySoft}
-        opacity={0.9}
-        style={{ position: 'absolute', left: '-38px', top: '-3%', height: '106%' }}
+        width={210} color={V.colors.primarySoft} opacity={0.55}
+        style={{ position: 'absolute', left: '-52px', top: '-8%', height: '118%' }}
       />
       <VintageAcanthus
-        flip
-        width={185}
-        color={V.colors.primarySoft}
-        opacity={0.9}
-        style={{ position: 'absolute', right: '-38px', top: '-3%', height: '106%' }}
+        flip width={210} color={V.colors.primarySoft} opacity={0.55}
+        style={{ position: 'absolute', right: '-52px', top: '-8%', height: '118%' }}
       />
+      <VintageAcanthus
+        width={200} color={V.colors.primary} opacity={0.35}
+        style={{ position: 'absolute', left: '-45px', top: '-8%', height: '118%' }}
+      />
+      <VintageAcanthus
+        flip width={200} color={V.colors.primary} opacity={0.35}
+        style={{ position: 'absolute', right: '-45px', top: '-8%', height: '118%' }}
+      />
+
+      {/* ─ Haut : cadre feuillagé horizontal ─ */}
+      <VintageFrameTop
+        width="100%" color={V.colors.primarySoft} opacity={0.6}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+      />
+      <VintageFrameTop
+        width="100%" color={V.colors.primary} opacity={0.35}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+      />
+
+      {/* ─ Bas : cadre feuillagé horizontal retourné ─ */}
+      <VintageFrameBottom
+        width="100%" color={V.colors.primarySoft} opacity={0.6}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
+      />
+      <VintageFrameBottom
+        width="100%" color={V.colors.primary} opacity={0.35}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
+      />
+
+      {/* ─ 4 coins ─ */}
+      <VintageCorner width={80} height={80} color={V.colors.primary} opacity={0.5}
+        style={{ position: 'absolute', top: 4, left: 4 }} />
+      <VintageCorner width={80} height={80} color={V.colors.primary} opacity={0.5}
+        style={{ position: 'absolute', top: 4, right: 4, transform: 'scaleX(-1)' }} />
+      <VintageCorner width={80} height={80} color={V.colors.primary} opacity={0.5}
+        style={{ position: 'absolute', bottom: 4, left: 4, transform: 'scaleY(-1)' }} />
+      <VintageCorner width={80} height={80} color={V.colors.primary} opacity={0.5}
+        style={{ position: 'absolute', bottom: 4, right: 4, transform: 'scale(-1,-1)' }} />
 
       {/* Cadre ovale double-trait */}
       <div
@@ -156,22 +190,22 @@ export function VintageHero({
           position: 'relative',
           zIndex: 1,
           width: 'min(360px, 86%)',
-          padding: '2rem 1.7rem 2.4rem',
+          padding: '2.2rem 1.7rem 2.6rem',
           border: `${V.borders.frame} solid ${V.colors.primary}`,
-          borderRadius: '190px / 150px',
-          background: 'rgba(251, 248, 241, 0.86)',
+          borderRadius: '200px / 160px',
+          background: 'rgba(247, 244, 237, 0.90)',
           textAlign: 'center',
           boxShadow: V.shadows.soft,
           overflow: 'hidden',
         }}
       >
-        {/* Cadre intérieur */}
+        {/* Cadre intérieur (double liseré comme sur le modèle) */}
         <div
           style={{
             position: 'absolute',
-            inset: 9,
-            border: `1px solid ${V.colors.primary}66`,
-            borderRadius: '180px / 142px',
+            inset: 7,
+            border: `1px solid ${V.colors.primary}`,
+            borderRadius: '192px / 154px',
             pointerEvents: 'none',
           }}
         />
@@ -256,11 +290,11 @@ export function VintageHero({
           </div>
         )}
 
-        {/* ── Prénom 1 (script, même police que le 2ème) ── */}
+        {/* ── Titre 1 — même police script que le titre 2 ── */}
         <div
           style={{
             fontFamily: V.fonts.script,
-            fontSize: V.titleSizes.hero,
+            fontSize: V.titleSizes.script,
             color: V.colors.ink,
             lineHeight: 1.05,
             wordBreak: 'break-word',
@@ -271,7 +305,7 @@ export function VintageHero({
           {name1}
         </div>
 
-        {/* ── Prénom 2 (script) ── */}
+        {/* ── Titre 2 — Great Vibes calligraphique ── */}
         {name2 ? (
           <div
             style={{
@@ -289,17 +323,18 @@ export function VintageHero({
           </div>
         ) : null}
 
-        {/* ── Phrase d'accueil (s'adapte à la longueur du texte) ── */}
+        {/* ── Phrase d'accueil — Cinzel petites capitales, centrée ── */}
         {description ? (
           <p
             style={{
               fontFamily: V.fonts.body,
-              fontSize: '0.72rem',
-              lineHeight: 1.75,
-              letterSpacing: '0.08em',
+              fontSize: '0.68rem',
+              lineHeight: 1.85,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
               color: V.colors.inkMuted,
-              margin: '0.8rem auto 0',
-              maxWidth: 220,
+              margin: '0.9rem auto 0',
+              maxWidth: 210,
               wordBreak: 'break-word',
             }}
           >
@@ -307,15 +342,15 @@ export function VintageHero({
           </p>
         ) : null}
 
-        {/* ── Date ── */}
+        {/* ── Date — Playfair Display, grande et centrée ── */}
         {dateLabel ? (
           <div
             style={{
               fontFamily: V.fonts.display,
-              fontSize: '1.5rem',
-              fontWeight: 600,
-              letterSpacing: '0.1em',
-              color: V.colors.primary,
+              fontSize: '1.6rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              color: V.colors.ink,
               marginTop: '1rem',
             }}
           >
