@@ -37,7 +37,8 @@ export type ThemeStyle =
   | 'cherry-blossom'
   | 'dark-romance'
   | 'ivory-lace'
-  | 'midnight-blue';
+  | 'midnight-blue'
+  | 'vintage-blue';
 
 export type TitleSize = 'small' | 'medium' | 'large' | 'huge';
 
@@ -124,6 +125,8 @@ export type WeddingTheme = {
   separatorStyle?: SeparatorStyle;
   /** Whether to show corner decorations in hero/cards */
   cornerDecor?: boolean;
+  /** Navigation style shown to guests on the public site */
+  navStyle?: 'horizontal' | 'hamburger' | 'minimal';
 };
 
 export type WeddingSections = {
@@ -211,6 +214,9 @@ export type GiftRegistry = {
   bankTransferInfo: string;
 };
 
+/** Formule d'honneur pour les parents : couple, monsieur seul, madame seule */
+export type ParentTitleStyle = 'couple' | 'mr' | 'mme';
+
 export type WeddingSiteContent = {
   venue?: VenueInfo;
   accommodationsIntro?: string;
@@ -223,8 +229,8 @@ export type WeddingSiteContent = {
   jewishEvents?: JewishWeddingEvent[];
   galleryPhotos?: string[];
   giftRegistry?: GiftRegistry;
-  parentsGroom?: { father?: string; mother?: string; isDivorced?: boolean };
-  parentsBride?: { father?: string; mother?: string; isDivorced?: boolean };
+  parentsGroom?: { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: ParentTitleStyle };
+  parentsBride?: { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: ParentTitleStyle };
   grandparentsGroom?: { grandfather?: string; grandmother?: string; paternalGrandfather?: string; paternalGrandmother?: string; maternalGrandfather?: string; maternalGrandmother?: string };
   grandparentsBride?: { grandfather?: string; grandmother?: string; paternalGrandfather?: string; paternalGrandmother?: string; maternalGrandfather?: string; maternalGrandmother?: string };
   /** Nom de famille affiché : "Famille Attia" / "Famille Cohen" */
@@ -232,6 +238,10 @@ export type WeddingSiteContent = {
   brideFamilyName?: string;
   monogramSvg?: string;
   monogramStyle?: string;
+  /** Taille d'affichage du monogramme dans la carte (px) */
+  monogramSizePx?: number;
+  /** Position du logo/monogramme dans le hero */
+  monogramPosition?: 'top-center' | 'bottom-center' | 'bottom-left' | 'bottom-right' | 'center';
   practicalInfoText?: string;
   guestMessageText?: string;
   /** Verset hébraïque (פסוק) affiché en arc au sommet du site */

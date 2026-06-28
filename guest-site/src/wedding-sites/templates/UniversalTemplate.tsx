@@ -85,13 +85,10 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
   const isVintage = t.style === 'vintage-blue';
 
   // Carte d'invitation ovale + décompte dédiés au thème Vintage
-  const vintageKicker =
-    site.language === 'he' ? 'הזמנה לחתונה' : site.language === 'en' ? 'Wedding invitation' : 'Invitation au mariage';
   const hasTwoNames = !!(site.brideName?.trim() && site.groomName?.trim());
   const VintageHeroSection = (
     <>
       <VintageHero
-        kicker={vintageKicker}
         name1={hasTwoNames ? site.brideName : site.coupleName || site.brideName || site.groomName || ''}
         name2={hasTwoNames ? `& ${site.groomName}` : undefined}
         description={site.welcomeText || undefined}

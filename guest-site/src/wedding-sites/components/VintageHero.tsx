@@ -2,11 +2,13 @@
  * VintageHero — carte d'invitation ovale (papeterie vintage).
  * 100 % piloté par VintageTheme — aucune couleur en dur.
  */
+import type { ParentTitleStyle } from '../types';
 import { VintageTheme as V } from '../themes/VintageTheme';
 import { VintageAcanthus, VintageRibbon, VintageCorner, VintageFrameTop, VintageFrameBottom } from './ornaments/VintageOrnaments';
 
+type ParentsBlock = { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: ParentTitleStyle };
+
 export type VintageHeroProps = {
-  kicker?: string;
   name1: string;
   name2?: string;
   description?: string;
@@ -21,91 +23,58 @@ export type VintageHeroProps = {
 };
 
 export type VintageFamiliesProps = {
-  parentsBride?: { father?: string; mother?: string; isDivorced?: boolean };
-  parentsGroom?: { father?: string; mother?: string; isDivorced?: boolean };
+  parentsBride?: ParentsBlock;
+  parentsGroom?: ParentsBlock;
   brideFamilyName?: string;
   groomFamilyName?: string;
   grandparentsBride?: { grandfather?: string; grandmother?: string };
   grandparentsGroom?: { grandfather?: string; grandmother?: string };
 };
 
-/** Verset hébraïque en petit arc au sommet de l'ovale */
-function HebrewVerseArc({ text }: { text: string }) {
+/** Verset hébraïque (פסוק) — ligne droite, centrée, lisible (RTL) */
+function HebrewVerse({ text }: { text: string }) {
   const clean = text.replace(/[֑-ׇ]/g, '');
   return (
-    <svg
-      viewBox="0 0 300 60"
-      style={{ display: 'block', width: 'min(200px, 78%)', height: 'auto', margin: '0 auto 0.2rem', overflow: 'visible' }}
-      aria-label={text}
-      role="img"
+    <div
+      dir="rtl"
+      lang="he"
+      style={{
+        fontFamily: "'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', serif",
+        fontSize: '1.05rem',
+        lineHeight: 1.7,
+        color: V.colors.primary,
+        textAlign: 'center',
+        margin: '0 auto 0.7rem',
+        maxWidth: '92%',
+        opacity: 0.9,
+      }}
     >
-      <defs>
-        <path id="vh-hq-arc" d="M 16,54 Q 150,6 284,54" />
-      </defs>
-      <text
-        fontFamily="'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', serif"
-        fontSize="13"
-        fill={V.colors.primary}
-        textAnchor="middle"
-        opacity="0.85"
-      >
-        <textPath href="#vh-hq-arc" startOffset="50%">
-          {clean}
-        </textPath>
-      </text>
-    </svg>
+      {clean}
+    </div>
   );
 }
 
-/** Accroche « Invitation au mariage » en arc */
-function ArchedKicker({ text }: { text: string }) {
-  return (
-    <svg
-      viewBox="0 0 360 96"
-      role="img"
-      aria-label={text}
-      style={{ display: 'block', width: 'min(240px, 82%)', height: 'auto', aspectRatio: '360 / 96', margin: '0 auto', overflow: 'visible' }}
-    >
-      <defs>
-        <path id="vintage-arc" d="M 24,86 Q 180,6 336,86" />
-      </defs>
-      <text
-        fontFamily={V.fonts.display}
-        fontSize="15"
-        letterSpacing="4"
-        fill={V.colors.primary}
-        textAnchor="middle"
-      >
-        <textPath href="#vintage-arc" startOffset="50%">
-          {text.toUpperCase()}
-        </textPath>
-      </text>
-    </svg>
-  );
-}
-
-/** Formate un bloc parents en "M. et Mme NOM" ou lignes séparées si divorcés */
-function formatParentLine(
-  parents: { father?: string; mother?: string; isDivorced?: boolean } | undefined,
-  familyName: string | undefined,
-): string[] {
+/** Formate un bloc parents selon la formule choisie (couple / M. / Mme) */
+function formatParentLine(parents: ParentsBlock | undefined, familyName: string | undefined): string[] {
   if (!parents) return [];
-  const { father, mother, isDivorced } = parents;
+  const { father, mother, isDivorced, titleStyle = 'couple' } = parents;
   if (!father && !mother && !familyName) return [];
 
-  if (!isDivorced) {
-    const name =
-      familyName ||
-      (father ? father.trim().split(/\s+/).slice(-1)[0] : '') ||
-      (mother ? mother.trim().split(/\s+/).slice(-1)[0] : '');
-    return name ? [`M. et Mme ${name}`] : [];
+  const lastName = (full?: string) => (full ? full.trim().split(/\s+/).slice(-1)[0] : '');
+  const name = familyName || lastName(father) || lastName(mother);
+
+  // Divorcés : toujours une ligne par parent
+  if (isDivorced) {
+    const lines: string[] = [];
+    if (father) lines.push(`M. ${father}`);
+    if (mother) lines.push(`Mme ${mother}`);
+    return lines;
   }
 
-  // Divorcés : une ligne par parent
-  const lines: string[] = [];
-  if (father) lines.push(`M. ${father}`);
-  if (mother) lines.push(`Mme ${mother}`);
-  return lines;
+  // Formule explicite choisie dans le générateur
+  if (titleStyle === 'mr') return name ? [`M. ${name}`] : [];
+  if (titleStyle === 'mme') return name ? [`Mme ${name}`] : [];
+  return name ? [`M. et Mme ${name}`] : [];
 }
 
 /** Formate un bloc grands-parents "M. et Mme NOM" */
@@ -123,7 +92,6 @@ function formatGrandparentLine(
 }
 
 export function VintageHero({
-  kicker = 'Invitation au mariage',
   name1,
   name2,
   description,
@@ -135,8 +103,6 @@ export function VintageHero({
   hebrewQuote,
 }: VintageHeroProps) {
   const logoSize = monogramSizePx ? Math.round(Math.min(monogramSizePx * 0.375, 110)) : 52;
-
-  const placeLine = [venue?.trim(), city?.trim()].filter(Boolean).join(' · ');
 
   return (
     <div
@@ -224,9 +190,9 @@ export function VintageHero({
           }}
         />
 
-        {/* ── פסוק hébraïque en arc (au-dessus du logo) ── */}
+        {/* ── פסוק hébraïque (ligne droite, lisible) ── */}
         {hebrewQuote ? (
-          <HebrewVerseArc text={hebrewQuote} />
+          <HebrewVerse text={hebrewQuote} />
         ) : (
           <div style={{ height: '0.5rem' }} />
         )}
@@ -277,11 +243,8 @@ export function VintageHero({
           )}
         </div>
 
-        {/* ── Accroche en arc ── */}
-        <ArchedKicker text={kicker} />
-
         {/* ── Ruban ── */}
-        <VintageRibbon width={104} color={V.colors.primary} style={{ marginTop: '-0.4rem', marginBottom: '0.5rem' }} />
+        <VintageRibbon width={104} color={V.colors.primary} style={{ marginTop: '0.2rem', marginBottom: '0.6rem' }} />
 
         {/* ── Titre 1 — même police script que le titre 2 ── */}
         <div
@@ -351,19 +314,37 @@ export function VintageHero({
           </div>
         ) : null}
 
-        {/* ── Lieu (ville · salle) ── */}
-        {placeLine ? (
-          <div
-            style={{
-              fontFamily: V.fonts.body,
-              fontSize: '0.66rem',
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              color: V.colors.inkMuted,
-              marginTop: '0.5rem',
-            }}
-          >
-            {placeLine}
+        {/* ── Lieu — salle (en valeur) puis ville ── */}
+        {(venue?.trim() || city?.trim()) ? (
+          <div style={{ marginTop: '0.8rem' }}>
+            {venue?.trim() ? (
+              <div
+                style={{
+                  fontFamily: V.fonts.body,
+                  fontSize: '0.78rem',
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: V.colors.ink,
+                  lineHeight: 1.5,
+                }}
+              >
+                {venue.trim()}
+              </div>
+            ) : null}
+            {city?.trim() ? (
+              <div
+                style={{
+                  fontFamily: V.fonts.body,
+                  fontSize: '0.66rem',
+                  letterSpacing: '0.2em',
+                  textTransform: 'uppercase',
+                  color: V.colors.inkMuted,
+                  marginTop: '0.15rem',
+                }}
+              >
+                {city.trim()}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -382,9 +363,67 @@ export function VintageHero({
   );
 }
 
+/** Déduit le nom de famille à afficher en en-tête de colonne */
+function deriveFamilyName(
+  explicit: string | undefined,
+  parents: ParentsBlock | undefined,
+): string {
+  if (explicit?.trim()) return explicit.trim();
+  const last = (full?: string) => (full ? full.trim().split(/\s+/).slice(-1)[0] : '');
+  return last(parents?.father) || last(parents?.mother) || '';
+}
+
+/** Une colonne « famille » (en-tête + parents + grands-parents) */
+function FamilyColumn({
+  familyName,
+  parentLines,
+  grandparentLines,
+}: {
+  familyName: string;
+  parentLines: string[];
+  grandparentLines: string[];
+}) {
+  if (parentLines.length === 0 && grandparentLines.length === 0) return null;
+  return (
+    <div style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center' }}>
+      {familyName ? (
+        <div
+          style={{
+            fontFamily: V.fonts.body,
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: V.colors.primary,
+            marginBottom: '0.45rem',
+          }}
+        >
+          Famille {familyName}
+        </div>
+      ) : null}
+      <div
+        style={{
+          fontFamily: V.fonts.body,
+          fontSize: '0.74rem',
+          letterSpacing: '0.08em',
+          color: V.colors.inkMuted,
+          lineHeight: 1.7,
+        }}
+      >
+        {parentLines.map((l, i) => <div key={`p${i}`}>{l}</div>)}
+        {grandparentLines.length > 0 ? (
+          <div style={{ opacity: 0.78, fontSize: '0.68rem', marginTop: '0.3rem' }}>
+            {grandparentLines.map((l, i) => <div key={`g${i}`}>{l}</div>)}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /**
- * VintageFamilies — bloc « familles » (parents + grands-parents) affiché
- * SOUS le décompte, format « M. et Mme NOM ».
+ * VintageFamilies — bloc « familles » affiché SOUS le décompte.
+ * Deux colonnes : côté mariée (gauche) · côté marié (droite).
  */
 export function VintageFamilies({
   parentsBride,
@@ -398,73 +437,45 @@ export function VintageFamilies({
   const groomLines = formatParentLine(parentsGroom, groomFamilyName);
   const gpBrideLines = formatGrandparentLine(grandparentsBride);
   const gpGroomLines = formatGrandparentLine(grandparentsGroom);
-  const hasParents = brideLines.length > 0 || groomLines.length > 0;
-  const hasGrandparents = gpBrideLines.length > 0 || gpGroomLines.length > 0;
 
-  if (!hasParents && !hasGrandparents) return null;
+  const brideHas = brideLines.length > 0 || gpBrideLines.length > 0;
+  const groomHas = groomLines.length > 0 || gpGroomLines.length > 0;
+  if (!brideHas && !groomHas) return null;
+
+  const brideFam = deriveFamilyName(brideFamilyName, parentsBride);
+  const groomFam = deriveFamilyName(groomFamilyName, parentsGroom);
 
   return (
     <div
       style={{
         background: V.backgrounds.page,
         backgroundImage: V.backgrounds.paper,
-        padding: '0.5rem 1rem 2.4rem',
+        padding: '0.5rem 1.2rem 2.6rem',
         textAlign: 'center',
       }}
     >
-      <VintageRibbon width={84} color={V.colors.primary} style={{ margin: '0 auto 0.6rem' }} />
+      <VintageRibbon width={84} color={V.colors.primary} style={{ margin: '0 auto 0.9rem' }} />
 
       <div
         style={{
-          fontFamily: V.fonts.body,
-          fontSize: '0.74rem',
-          letterSpacing: '0.1em',
-          color: V.colors.inkMuted,
-          lineHeight: 1.8,
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          gap: '1.4rem',
+          maxWidth: 460,
           margin: '0 auto',
-          maxWidth: 360,
         }}
       >
-        {/* Parents : deux colonnes côte à côte si les deux côtés présents */}
-        {hasParents && (
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              gap: '0.4rem 2.4rem',
-            }}
-          >
-            {brideLines.length > 0 && (
-              <div>{brideLines.map((l, i) => <div key={`pb${i}`}>{l}</div>)}</div>
-            )}
-            {groomLines.length > 0 && (
-              <div>{groomLines.map((l, i) => <div key={`pg${i}`}>{l}</div>)}</div>
-            )}
-          </div>
-        )}
+        {/* Côté mariée (gauche) */}
+        <FamilyColumn familyName={brideFam} parentLines={brideLines} grandparentLines={gpBrideLines} />
 
-        {/* Grands-parents */}
-        {hasGrandparents && (
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              gap: '0.3rem 2.4rem',
-              marginTop: hasParents ? '0.5rem' : 0,
-              opacity: 0.82,
-              fontSize: '0.68rem',
-            }}
-          >
-            {gpBrideLines.length > 0 && (
-              <div>{gpBrideLines.map((l, i) => <div key={`gpb${i}`}>{l}</div>)}</div>
-            )}
-            {gpGroomLines.length > 0 && (
-              <div>{gpGroomLines.map((l, i) => <div key={`gpg${i}`}>{l}</div>)}</div>
-            )}
-          </div>
-        )}
+        {/* Filet vertical de séparation si les deux côtés sont présents */}
+        {brideHas && groomHas ? (
+          <div style={{ alignSelf: 'stretch', width: 1, background: V.colors.line, opacity: 0.7, flex: '0 0 auto' }} />
+        ) : null}
+
+        {/* Côté marié (droite) */}
+        <FamilyColumn familyName={groomFam} parentLines={groomLines} grandparentLines={gpGroomLines} />
       </div>
     </div>
   );

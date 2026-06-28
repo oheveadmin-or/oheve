@@ -812,7 +812,7 @@ export function WeddingSiteBuilder() {
                   onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), mother: e.target.value } }))} />
               </label>
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', cursor: 'pointer', marginBottom: '0.75rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
               <input
                 type="checkbox"
                 checked={content.parentsBride?.isDivorced ?? false}
@@ -820,6 +820,20 @@ export function WeddingSiteBuilder() {
               />
               Parents divorcés (affichés séparément sur le site)
             </label>
+            {!content.parentsBride?.isDivorced && (
+              <label style={{ ...lab, marginBottom: '0.75rem' }}>
+                Formule affichée
+                <select
+                  style={inp}
+                  value={content.parentsBride?.titleStyle ?? 'couple'}
+                  onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), titleStyle: e.target.value as 'couple' | 'mr' | 'mme' } }))}
+                >
+                  <option value="couple">M. et Mme</option>
+                  <option value="mr">M. seul</option>
+                  <option value="mme">Mme seule</option>
+                </select>
+              </label>
+            )}
             <div style={grid2}>
               <label style={lab}>
                 Grand-père de la mariée
@@ -851,7 +865,7 @@ export function WeddingSiteBuilder() {
                   onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), mother: e.target.value } }))} />
               </label>
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', cursor: 'pointer', marginBottom: '0.75rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
               <input
                 type="checkbox"
                 checked={content.parentsGroom?.isDivorced ?? false}
@@ -859,6 +873,20 @@ export function WeddingSiteBuilder() {
               />
               Parents divorcés (affichés séparément sur le site)
             </label>
+            {!content.parentsGroom?.isDivorced && (
+              <label style={{ ...lab, marginBottom: '0.75rem' }}>
+                Formule affichée
+                <select
+                  style={inp}
+                  value={content.parentsGroom?.titleStyle ?? 'couple'}
+                  onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), titleStyle: e.target.value as 'couple' | 'mr' | 'mme' } }))}
+                >
+                  <option value="couple">M. et Mme</option>
+                  <option value="mr">M. seul</option>
+                  <option value="mme">Mme seule</option>
+                </select>
+              </label>
+            )}
             <div style={grid2}>
               <label style={lab}>
                 Grand-père du marié
