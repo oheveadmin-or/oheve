@@ -2,7 +2,7 @@ import path from 'path';
 import { Router } from 'express';
 import multer from 'multer';
 
-import { requireAuth } from '../middleware/requireAuth';
+import { optionalAuth, requireAuth } from '../middleware/requireAuth';
 import { PrestatairesController } from './controller';
 import { PhotosController } from './photos.controller';
 
@@ -27,12 +27,12 @@ const upload = multer({
 });
 
 // ── Profil ────────────────────────────────────────────────────────────────────
-prestatairesRoutes.get('/', requireAuth, ctrl.list.bind(ctrl));
+prestatairesRoutes.get('/', optionalAuth, ctrl.list.bind(ctrl));
 prestatairesRoutes.get('/me', requireAuth, ctrl.getMyProfile.bind(ctrl));
 prestatairesRoutes.put('/me', requireAuth, ctrl.upsertProfile.bind(ctrl));
 
 // ── Feed photos (toutes les photos publiques) ─────────────────────────────────
-prestatairesRoutes.get('/feed/photos', requireAuth, photos.getFeedPhotos.bind(photos));
+prestatairesRoutes.get('/feed/photos', optionalAuth, photos.getFeedPhotos.bind(photos));
 
 // ── Photos (me) ───────────────────────────────────────────────────────────────
 prestatairesRoutes.get('/me/photos', requireAuth, photos.getMyPhotos.bind(photos));
@@ -47,4 +47,4 @@ prestatairesRoutes.post('/photos/:photoId/comments', requireAuth, photos.addComm
 
 // ── Profil & photos par userId ────────────────────────────────────────────────
 prestatairesRoutes.get('/:userId/photos', requireAuth, photos.getPhotos.bind(photos));
-prestatairesRoutes.get('/:userId', requireAuth, ctrl.getById.bind(ctrl));
+prestatairesRoutes.get('/:userId', optionalAuth, ctrl.getById.bind(ctrl));

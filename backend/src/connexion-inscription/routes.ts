@@ -34,14 +34,16 @@ connexionInscriptionRoutes.post('/social', ctrl.socialAuth.bind(ctrl));
 connexionInscriptionRoutes.post('/refresh', ctrl.refresh.bind(ctrl));
 connexionInscriptionRoutes.post('/create-admin', ctrl.createAdmin.bind(ctrl));
 
-// Onboarding (public — pas encore de token stable en onboarding)
-connexionInscriptionRoutes.patch('/date-mariage', ctrl.mettreAJourDateMariage.bind(ctrl));
-connexionInscriptionRoutes.patch('/budget', ctrl.mettreAJourBudget.bind(ctrl));
-connexionInscriptionRoutes.patch('/wedding-location', ctrl.mettreAJourWeddingLocation.bind(ctrl));
+// Onboarding (protégé — le token est émis dès l'inscription/connexion)
+connexionInscriptionRoutes.patch('/date-mariage', requireAuth, ctrl.mettreAJourDateMariage.bind(ctrl));
+connexionInscriptionRoutes.patch('/budget', requireAuth, ctrl.mettreAJourBudget.bind(ctrl));
+connexionInscriptionRoutes.patch('/wedding-location', requireAuth, ctrl.mettreAJourWeddingLocation.bind(ctrl));
 
 // Protected
 connexionInscriptionRoutes.post('/logout', requireAuth, ctrl.logout.bind(ctrl));
 connexionInscriptionRoutes.get('/me', requireAuth, ctrl.me.bind(ctrl));
+connexionInscriptionRoutes.delete('/me', requireAuth, ctrl.deleteAccount.bind(ctrl));
+connexionInscriptionRoutes.get('/export', requireAuth, ctrl.exportData.bind(ctrl));
 connexionInscriptionRoutes.patch('/profile', requireAuth, ctrl.updateProfile.bind(ctrl));
 connexionInscriptionRoutes.post('/avatar', requireAuth, uploadAvatar.single('avatar'), ctrl.uploadAvatar.bind(ctrl));
 connexionInscriptionRoutes.patch('/change-password', requireAuth, ctrl.changePassword.bind(ctrl));

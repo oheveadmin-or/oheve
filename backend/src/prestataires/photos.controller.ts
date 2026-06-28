@@ -16,7 +16,7 @@ export class PhotosController {
     try {
       const limit = Math.min(parseInt(req.query.limit as string || '50', 10), 100);
       const offset = parseInt(req.query.offset as string || '0', 10);
-      const rows = await repo.findFeedPhotos(limit, offset, req.auth!.sub);
+      const rows = await repo.findFeedPhotos(limit, offset, req.auth?.sub);
       const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
       const host = req.headers['x-forwarded-host'] ?? req.get('host');
       const withUrl = rows.map((p) => ({

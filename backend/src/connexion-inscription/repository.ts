@@ -106,31 +106,31 @@ export class ConnexionInscriptionRepository {
 
   // ── onboarding updates ──────────────────────────────────────────────────────
 
-  async updateDateMariage(email: string, date: string) {
+  async updateDateMariage(userId: number, date: string) {
     return pool.query(
-      `UPDATE users SET date_mariage=$1 WHERE email=$2
+      `UPDATE users SET date_mariage=$1 WHERE id=$2
        RETURNING id,email,nom,prenom,date_mariage,created_at`,
-      [date, email]
+      [date, userId]
     );
   }
 
-  async updateBudgetGlobal(email: string, montant: number) {
+  async updateBudgetGlobal(userId: number, montant: number) {
     return pool.query(
-      `UPDATE users SET budget_mode='global',budget_global=$1,budget_categories=NULL WHERE email=$2
+      `UPDATE users SET budget_mode='global',budget_global=$1,budget_categories=NULL WHERE id=$2
        RETURNING id,email,budget_mode,budget_global`,
-      [montant, email]
+      [montant, userId]
     );
   }
 
-  async updateBudgetCategories(email: string, cats: { photographe: number; salle: number; traiteurs: number }) {
+  async updateBudgetCategories(userId: number, cats: { photographe: number; salle: number; traiteurs: number }) {
     return pool.query(
-      `UPDATE users SET budget_mode='categories',budget_global=NULL,budget_categories=$1 WHERE email=$2
+      `UPDATE users SET budget_mode='categories',budget_global=NULL,budget_categories=$1 WHERE id=$2
        RETURNING id,email,budget_mode,budget_categories`,
-      [JSON.stringify(cats), email]
+      [JSON.stringify(cats), userId]
     );
   }
 
-  async updateWeddingLocation(email: string, data: {
+  async updateWeddingLocation(userId: number, data: {
     wedding_location_type: string;
     wedding_city?: string | null;
     wedding_country?: string | null;
@@ -142,11 +142,11 @@ export class ConnexionInscriptionRepository {
       `UPDATE users SET
          wedding_location_type=$1,wedding_city=$2,wedding_country=$3,
          wedding_lat=$4,wedding_lng=$5,wedding_address=$6
-       WHERE email=$7
+       WHERE id=$7
        RETURNING id,email,wedding_location_type,wedding_city,wedding_country,
                  wedding_lat,wedding_lng,wedding_address`,
       [data.wedding_location_type, data.wedding_city ?? null, data.wedding_country ?? null,
-       data.wedding_lat ?? null, data.wedding_lng ?? null, data.wedding_address ?? null, email]
+       data.wedding_lat ?? null, data.wedding_lng ?? null, data.wedding_address ?? null, userId]
     );
   }
 
@@ -217,6 +217,35 @@ export class ConnexionInscriptionRepository {
     return r.rows[0] ?? null;
   }
 
+  async deleteAccount(userId: number) {
+    await pool.query(`DELETE FROM users WHERE id=$1`, [userId]);
+  }
+
+  async exportData(userId: number): Promise<Record<string, unknown>> {
+    const user = await this.findById(userId);
+    if (!user) return {};
+
+    const [guests, conversations, payments, publicSite, calendarEvents] = await Promise.all([
+      pool.query(`SELECT id,guest_name,attending,guest_count,message,submitted_at FROM rsvp_answers ra
+                  JOIN public_sites ps ON ps.slug=ra.site_slug
+                  WHERE ps.user_id=$1 ORDER BY ra.submitted_at DESC`, [userId]),
+      pool.query(`SELECT id,created_at FROM conversations WHERE client_id=$1 OR prestataire_id=$1 ORDER BY created_at DESC`, [userId]),
+      pool.query(`SELECT id,amount_total,currency,status,description,created_at FROM payments WHERE client_id=$1 OR prestataire_id=$1 ORDER BY created_at DESC`, [userId]),
+      pool.query(`SELECT id,slug,bride_name,groom_name,wedding_date,location,is_published,created_at FROM public_sites WHERE user_id=$1`, [userId]),
+      pool.query(`SELECT id,title,event_date,event_time,location,created_at FROM calendar_events WHERE user_id=$1 ORDER BY event_date DESC`, [userId]),
+    ]);
+
+    const { mot_de_passe: _pwd, ...safeUser } = user as typeof user & { mot_de_passe?: string };
+    return {
+      profile: safeUser,
+      guests: guests.rows,
+      conversations: conversations.rows,
+      payments: payments.rows,
+      public_site: publicSite.rows[0] ?? null,
+      calendar_events: calendarEvents.rows,
+    };
+  }
+
   async updateProfile(userId: number, data: {
     nom?: string;
     prenom?: string;
@@ -224,6 +253,7 @@ export class ConnexionInscriptionRepository {
     avatar_url?: string;
     bride_name?: string;
     groom_name?: string;
+    date_mariage?: string | null;
   }) {
     const sets: string[] = [];
     const vals: unknown[] = [];
@@ -234,11 +264,12 @@ export class ConnexionInscriptionRepository {
     if (data.avatar_url !== undefined) { sets.push(`avatar_url=$${i++}`); vals.push(data.avatar_url); }
     if (data.bride_name !== undefined) { sets.push(`bride_name=$${i++}`); vals.push(data.bride_name); }
     if (data.groom_name !== undefined) { sets.push(`groom_name=$${i++}`); vals.push(data.groom_name); }
+    if (data.date_mariage !== undefined) { sets.push(`date_mariage=$${i++}`); vals.push(data.date_mariage); }
     if (sets.length === 0) return null;
     vals.push(userId);
     const r = await pool.query(
       `UPDATE users SET ${sets.join(',')} WHERE id=$${i}
-       RETURNING id,email,nom,prenom,role,is_active,avatar_url,phone,bride_name,groom_name,created_at`,
+       RETURNING id,email,nom,prenom,role,is_active,avatar_url,phone,bride_name,groom_name,date_mariage,created_at`,
       vals
     );
     return r.rows[0] ?? null;
