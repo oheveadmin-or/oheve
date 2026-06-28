@@ -103,6 +103,8 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         parentsGroom={site.content?.parentsGroom}
         brideFamilyName={site.content?.brideFamilyName}
         groomFamilyName={site.content?.groomFamilyName}
+        grandparentsBride={site.content?.grandparentsBride}
+        grandparentsGroom={site.content?.grandparentsGroom}
       />
       <VintageCountdown targetDate={site.date} language={site.language} />
     </>

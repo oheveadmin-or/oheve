@@ -13,15 +13,13 @@ export type VintageHeroProps = {
   dateLabel?: string;
   monogramSvg?: string;
   monogramSizePx?: number;
-  /** Verset hébraïque affiché en arc au-dessus du logo */
   hebrewQuote?: string;
-  /** Parents de la mariée */
   parentsBride?: { father?: string; mother?: string; isDivorced?: boolean };
-  /** Parents du marié */
   parentsGroom?: { father?: string; mother?: string; isDivorced?: boolean };
-  /** Nom de famille (pour affichage M. et Mme X) */
   brideFamilyName?: string;
   groomFamilyName?: string;
+  grandparentsBride?: { grandfather?: string; grandmother?: string };
+  grandparentsGroom?: { grandfather?: string; grandmother?: string };
 };
 
 /** Verset hébraïque en petit arc au sommet de l'ovale */
@@ -89,7 +87,6 @@ function formatParentLine(
   if (!father && !mother && !familyName) return [];
 
   if (!isDivorced) {
-    // M. et Mme [FamilyName ou patronyme du père]
     const name =
       familyName ||
       (father ? father.trim().split(/\s+/).slice(-1)[0] : '') ||
@@ -102,6 +99,20 @@ function formatParentLine(
   if (father) lines.push(`M. ${father}`);
   if (mother) lines.push(`Mme ${mother}`);
   return lines;
+}
+
+/** Formate un bloc grands-parents "M. et Mme NOM" */
+function formatGrandparentLine(
+  gp: { grandfather?: string; grandmother?: string } | undefined,
+): string[] {
+  if (!gp) return [];
+  const { grandfather, grandmother } = gp;
+  if (!grandfather && !grandmother) return [];
+  // Utilise le nom de famille du grand-père, sinon de la grand-mère
+  const name =
+    (grandfather ? grandfather.trim().split(/\s+/).slice(-1)[0] : '') ||
+    (grandmother ? grandmother.trim().split(/\s+/).slice(-1)[0] : '');
+  return name ? [`M. et Mme ${name}`] : [];
 }
 
 export function VintageHero({
@@ -117,12 +128,17 @@ export function VintageHero({
   parentsGroom,
   brideFamilyName,
   groomFamilyName,
+  grandparentsBride,
+  grandparentsGroom,
 }: VintageHeroProps) {
   const logoSize = monogramSizePx ? Math.round(Math.min(monogramSizePx * 0.375, 110)) : 52;
 
   const brideLines = formatParentLine(parentsBride, brideFamilyName);
   const groomLines = formatParentLine(parentsGroom, groomFamilyName);
+  const gpBrideLines = formatGrandparentLine(grandparentsBride);
+  const gpGroomLines = formatGrandparentLine(grandparentsGroom);
   const hasParents = brideLines.length > 0 || groomLines.length > 0;
+  const hasGrandparents = gpBrideLines.length > 0 || gpGroomLines.length > 0;
 
   return (
     <div
@@ -269,24 +285,37 @@ export function VintageHero({
         {/* ── Ruban ── */}
         <VintageRibbon width={104} color={V.colors.primary} style={{ marginTop: '-0.4rem', marginBottom: '0.5rem' }} />
 
-        {/* ── Parents (M. et Mme format) ── */}
-        {hasParents && (
+        {/* ── Familles (parents + grands-parents) ── */}
+        {(hasParents || hasGrandparents) && (
           <div
             style={{
               fontFamily: V.fonts.body,
-              fontSize: '0.72rem',
+              fontSize: '0.68rem',
               letterSpacing: '0.1em',
               color: V.colors.inkMuted,
-              lineHeight: 1.6,
+              lineHeight: 1.7,
               margin: '0 auto 0.6rem',
               maxWidth: 240,
+              textAlign: 'center',
             }}
           >
-            {brideLines.map((l, i) => <div key={i}>{l}</div>)}
+            {/* Parents mariée */}
+            {brideLines.map((l, i) => <div key={`pb${i}`}>{l}</div>)}
+            {/* Séparateur entre les deux côtés */}
             {brideLines.length > 0 && groomLines.length > 0 && (
-              <div style={{ fontStyle: 'italic', opacity: 0.7, margin: '0.1rem 0', fontSize: '0.65rem' }}>et</div>
+              <div style={{ fontStyle: 'italic', opacity: 0.6, margin: '0.05rem 0', fontSize: '0.62rem' }}>et</div>
             )}
-            {groomLines.map((l, i) => <div key={i}>{l}</div>)}
+            {/* Parents marié */}
+            {groomLines.map((l, i) => <div key={`pg${i}`}>{l}</div>)}
+            {/* Grands-parents (si présents) */}
+            {hasGrandparents && (hasParents) && (
+              <div style={{ opacity: 0.55, margin: '0.15rem 0 0', fontSize: '0.6rem', letterSpacing: '0.06em' }}>·</div>
+            )}
+            {gpBrideLines.map((l, i) => <div key={`gpb${i}`} style={{ opacity: 0.78 }}>{l}</div>)}
+            {gpBrideLines.length > 0 && gpGroomLines.length > 0 && (
+              <div style={{ fontStyle: 'italic', opacity: 0.5, margin: '0.05rem 0', fontSize: '0.62rem' }}>et</div>
+            )}
+            {gpGroomLines.map((l, i) => <div key={`gpg${i}`} style={{ opacity: 0.78 }}>{l}</div>)}
           </div>
         )}
 

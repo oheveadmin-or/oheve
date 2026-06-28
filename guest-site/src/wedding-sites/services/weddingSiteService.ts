@@ -107,7 +107,25 @@ export type CreateWeddingSiteInput = Omit<WeddingSite, 'id' | 'slug' | 'createdA
 export async function createWeddingSite(data: CreateWeddingSiteInput): Promise<WeddingSite> {
   const url = apiUrl('/api/wedding-sites');
   if (url !== null) {
-    // Backend requires a slug — auto-generate if not provided
+    // Si l'utilisateur a déjà un site (token valide), mettre à jour ce site plutôt que d'en créer un nouveau
+    if (_authToken) {
+      try {
+        const meRes = await fetch(apiUrl('/api/wedding-sites/me')!, {
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        });
+        if (meRes.ok) {
+          const meJson = (await meRes.json()) as { success: boolean; data?: WeddingSite[] };
+          if (meJson.success && meJson.data && meJson.data.length > 0) {
+            const existing = meJson.data[0];
+            const updated = await updateWeddingSite(existing.id, data);
+            if (updated) return updated;
+          }
+        }
+      } catch {
+        // Silently fall through to create
+      }
+    }
+
     const baseSlug =
       data.slug?.trim() ||
       generateSlugFromDisplayName(data.coupleName || `${data.brideName}-${data.groomName}`) ||
@@ -116,7 +134,6 @@ export async function createWeddingSite(data: CreateWeddingSiteInput): Promise<W
     const slug = slugifySafe(baseSlug);
     let lastError = 'Impossible de publier le site sur le serveur.';
 
-    // Try up to 5 times with a numeric suffix if the slug is taken
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidateSlug = attempt === 0 ? slug : `${slug}-${attempt}`;
       const res = await fetch(url, {
@@ -129,7 +146,6 @@ export async function createWeddingSite(data: CreateWeddingSiteInput): Promise<W
         if (json.success && json.data) return json.data;
       }
       lastError = await readApiError(res);
-      // 409 = slug conflict → retry; 403 = already has a site → stop immediately
       if (res.status !== 409) break;
     }
 
