@@ -2,9 +2,43 @@
  * VintageHero — carte d'invitation ovale (papeterie vintage).
  * 100 % piloté par VintageTheme — aucune couleur en dur.
  */
+import { useEffect, useState } from 'react';
 import type { ParentTitleStyle } from '../types';
 import { VintageTheme as V } from '../themes/VintageTheme';
 import { VintageRibbon, VintageDamaskField } from './ornaments/VintageOrnaments';
+
+/**
+ * Image de fond floral (baroque bleu sur ivoire). Déposer le fichier dans
+ * guest-site/public/ sous l'un de ces noms — il est détecté automatiquement.
+ * Si aucune image n'est trouvée, on retombe sur le motif SVG VintageDamaskField.
+ */
+const FLORAL_BG_CANDIDATES = [
+  '/vintage-floral-bg.png',
+  '/vintage-floral-bg.jpg',
+  '/vintage-floral-bg.jpeg',
+  '/vintage-floral-bg.webp',
+];
+
+function useFloralBgUrl(): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const candidate of FLORAL_BG_CANDIDATES) {
+        const ok = await new Promise<boolean>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = candidate;
+        });
+        if (cancelled) return;
+        if (ok) { setUrl(candidate); return; }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  return url;
+}
 
 type ParentsBlock = { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: ParentTitleStyle };
 
@@ -103,21 +137,25 @@ export function VintageHero({
   hebrewQuote,
 }: VintageHeroProps) {
   const logoSize = monogramSizePx ? Math.round(Math.min(monogramSizePx * 0.375, 110)) : 52;
+  const floralBg = useFloralBgUrl();
 
   return (
     <div
       style={{
         position: 'relative',
-        background: V.backgrounds.card,
-        backgroundImage: V.backgrounds.paper,
+        background: V.colors.cream,
+        backgroundImage: floralBg ? `url('${floralBg}')` : V.backgrounds.paper,
+        backgroundSize: floralBg ? '760px auto' : undefined,
+        backgroundRepeat: floralBg ? 'repeat' : undefined,
+        backgroundPosition: 'center top',
         padding: '2.4rem 1rem 2.8rem',
         display: 'flex',
         justifyContent: 'center',
         overflow: 'hidden',
       }}
     >
-      {/* ─ Fond floral baroque DENSE tout autour (façon papier peint damassé) ─ */}
-      <VintageDamaskField soft={V.colors.primarySoft} deep={V.colors.primary} />
+      {/* ─ Fond floral : image réelle si présente, sinon motif SVG dense ─ */}
+      {!floralBg && <VintageDamaskField soft={V.colors.primarySoft} deep={V.colors.primary} />}
 
       {/* Cadre ovale double-trait — vertical, façon modèle */}
       <div

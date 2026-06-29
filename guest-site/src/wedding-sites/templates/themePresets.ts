@@ -369,10 +369,10 @@ export function applyThemePreset(theme: WeddingTheme): WeddingTheme {
   if (theme.style === 'vintage-blue') {
     return {
       ...base,
-      backgroundColor: '#F4EFE4',
-      primaryColor: '#44597B',
-      secondaryColor: '#B7A892',
-      textColor: '#2E3A52',
+      backgroundColor: '#F4F3EA',
+      primaryColor: '#434A56',
+      secondaryColor: '#A8B6C3',
+      textColor: '#3A414E',
       fontFamily: "'Cormorant Garamond', Georgia, serif",
     };
   }
