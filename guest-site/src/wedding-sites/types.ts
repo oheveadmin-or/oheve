@@ -38,7 +38,9 @@ export type ThemeStyle =
   | 'dark-romance'
   | 'ivory-lace'
   | 'midnight-blue'
-  | 'vintage-blue';
+  | 'vintage-blue'
+  | 'editorial-cards'
+  | 'stripes-editorial';
 
 export type TitleSize = 'small' | 'medium' | 'large' | 'huge';
 

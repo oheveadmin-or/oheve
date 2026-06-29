@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { C } from '@/constants/OheveTheme';
@@ -39,7 +39,7 @@ export function PremiumGate({ feature, icon, children }: Props) {
       </View>
 
       {/* Contenu bloqué */}
-      <View style={s.content}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {/* Icône verrou */}
         <View style={s.lockWrap}>
           <View style={s.lockBg}>
@@ -104,7 +104,7 @@ export function PremiumGate({ feature, icon, children }: Props) {
           <Ionicons name="shield-checkmark-outline" size={12} color={C.textLight} />
           <ThemedText style={s.trustTxt}>Paiement unique · Sécurisé par Stripe · Aucun abonnement</ThemedText>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -118,7 +118,7 @@ const s = StyleSheet.create({
   },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: C.textDark },
 
-  content: { flex: 1, paddingHorizontal: 24, paddingTop: 24, gap: 20 },
+  content: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40, gap: 20 },
 
   lockWrap: { alignSelf: 'center', position: 'relative', marginBottom: 4 },
   lockBg: {
@@ -133,7 +133,7 @@ const s = StyleSheet.create({
     borderWidth: 2, borderColor: '#fff',
   },
 
-  title: { fontSize: 22, fontWeight: '900', color: C.textDark, textAlign: 'center' },
+  title: { fontSize: 22, fontWeight: '800', color: C.textDark, textAlign: 'center' },
   subtitle: { fontSize: 14, color: C.textMid, textAlign: 'center', lineHeight: 22 },
   featureName: { fontWeight: '700', color: C.saugeDark },
 
@@ -150,7 +150,7 @@ const s = StyleSheet.create({
   totalStrikeLabel: { fontSize: 12, color: C.textLight },
   totalStrike: { fontSize: 12, color: C.textLight, textDecorationLine: 'line-through' },
   todayLabel: { fontSize: 14, fontWeight: '700', color: C.textDark },
-  todayPrice: { fontSize: 20, fontWeight: '900', color: C.saugeDark },
+  todayPrice: { fontSize: 20, fontWeight: '800', color: C.saugeDark },
 
   cta: {
     backgroundColor: C.sauge, borderRadius: 16, paddingVertical: 16,

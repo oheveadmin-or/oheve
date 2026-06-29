@@ -195,6 +195,17 @@ function WeddingSiteBuilderContent() {
     );
   }
 
+  function makeSlug(bride: string, groom: string): string {
+    const first1 = bride.trim().split(/\s+/)[0] ?? bride;
+    const first2 = groom.trim().split(/\s+/)[0] ?? groom;
+    return `${first1}-${first2}`
+      .toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      || 'mariage';
+  }
+
   async function handlePublish() {
     if (!brideName.trim() || !groomName.trim()) {
       Alert.alert('Infos manquantes', 'Renseigne les prénoms de la mariée et du marié.');
@@ -212,54 +223,51 @@ function WeddingSiteBuilderContent() {
       const token = user?.accessToken;
       if (!token) throw new Error('Non connecté');
 
-      // 1. Create the public site (basic info)
-      const createRes = await fetch(API_ENDPOINTS.publicSites, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          brideName: brideName.trim(),
-          groomName: groomName.trim(),
-          weddingDate: weddingDate.trim(),
-          location: city.trim() || venue.trim(),
-          templateId: selectedStyle,
-          customText: welcomeText.trim(),
-          isPublished: true,
-        }),
-      });
-
-      const createJson = await createRes.json() as { success: boolean; data?: { slug: string; publicUrl: string }; message?: string };
-      if (!createRes.ok || !createJson.success || !createJson.data) {
-        throw new Error(createJson.message ?? 'Erreur création site');
-      }
-
-      const { slug, publicUrl } = createJson.data;
-
-      // 2. Save full config (theme, events, invite links)
       const generatedLinks = inviteLinks.map((l) => ({
         ...l,
         token: l.token || Math.random().toString(36).slice(2, 10),
       }));
 
-      await fetch(API_ENDPOINTS.siteConfig(slug), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          siteConfig: {
-            style: selectedStyle,
-            brideName: brideName.trim(),
-            groomName: groomName.trim(),
-            date: weddingDate.trim(),
-            city: city.trim(),
-            venue: venue.trim(),
-            welcomeText: welcomeText.trim(),
-            events: events.filter((e) => e.enabled),
-          },
-          inviteLinks: generatedLinks,
-        }),
-      });
+      const baseSlug = makeSlug(brideName.trim(), groomName.trim());
+      const body = {
+        coupleName: `${brideName.trim()} & ${groomName.trim()}`,
+        brideName: brideName.trim(),
+        groomName: groomName.trim(),
+        date: weddingDate.trim(),
+        time: '',
+        city: city.trim(),
+        venue: venue.trim(),
+        welcomeText: welcomeText.trim(),
+        mainText: '',
+        language: 'fr',
+        theme: { preset: selectedStyle, bgColor: preset.bg, accentColor: preset.accent, textColor: preset.text },
+        sections: {},
+        content: { rsvpEvents: events.filter((e) => e.enabled) },
+        rsvpForm: null,
+        inviteLinks: generatedLinks,
+      };
 
-      setPublishedSlug(slug);
-      setPublishedUrl(publicUrl);
+      // Try slug, retry with suffix on conflict
+      let createdSlug = '';
+      let createdId = '';
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt}`;
+        const res = await fetch(API_ENDPOINTS.weddingSites, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ ...body, slug }),
+        });
+        if (res.status === 409) continue;
+        const json = await res.json() as { success: boolean; data?: { id: string; slug: string }; message?: string };
+        if (!res.ok || !json.success || !json.data) throw new Error(json.message ?? 'Erreur création site');
+        createdSlug = json.data.slug;
+        createdId = json.data.id;
+        break;
+      }
+      if (!createdSlug) throw new Error('Slug déjà utilisé — change les prénoms ou réessaie.');
+
+      setPublishedSlug(createdSlug);
+      setPublishedUrl(`${API_ENDPOINTS.weddingSitePublicBase}/${createdSlug}`);
       setFinalLinks(generatedLinks);
     } catch (e) {
       Alert.alert('Erreur', (e as Error).message);

@@ -197,7 +197,7 @@ const s = StyleSheet.create({
   hero: { alignItems: 'center', gap: 12, paddingTop: 8 },
   badge: { backgroundColor: C.sauge, borderRadius: 99, paddingHorizontal: 18, paddingVertical: 6 },
   badgeTxt: { color: '#fff', fontWeight: '800', fontSize: 12, letterSpacing: 1.5 },
-  heroTitle: { fontSize: 26, fontWeight: '900', color: C.textDark, textAlign: 'center', lineHeight: 32 },
+  heroTitle: { fontSize: 26, fontWeight: '800', color: C.textDark, textAlign: 'center', lineHeight: 32 },
   heroSub: { fontSize: 15, color: C.textMid, textAlign: 'center', lineHeight: 22 },
 
   priceCard: {
@@ -208,7 +208,7 @@ const s = StyleSheet.create({
   activeBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   activeTxt: { fontSize: 14, fontWeight: '700', color: C.sauge },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  price: { fontSize: 48, fontWeight: '900', color: C.saugeDark },
+  price: { fontSize: 48, fontWeight: '800', color: C.saugeDark },
   priceNote: { fontSize: 14, color: C.textMid },
   priceDesc: { fontSize: 13, color: C.textLight },
 
@@ -235,7 +235,7 @@ const s = StyleSheet.create({
   totalLabel: { fontSize: 13, color: C.textLight },
   totalStrike: { fontSize: 13, color: C.textLight, textDecorationLine: 'line-through' },
   todayLabel: { fontSize: 15, fontWeight: '700', color: C.textDark },
-  todayPrice: { fontSize: 24, fontWeight: '900', color: C.saugeDark },
+  todayPrice: { fontSize: 24, fontWeight: '800', color: C.saugeDark },
 
   cta: {
     backgroundColor: C.sauge, borderRadius: 18, paddingVertical: 18,

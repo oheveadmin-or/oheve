@@ -1,47 +1,124 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Svg, { Circle, Defs, Ellipse, FeGaussianBlur, Filter, G, Line, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { C } from '@/constants/OheveTheme';
 import { Fonts } from '@/constants/theme';
-import { useSocialAuth } from '@/hooks/use-social-auth';
 
 const BG = C.ivoire;
 const LOGO_ACCENT = C.sauge;
 const LOGO_TEXT = C.textLight;
-const TITLE_TEXT = C.moka;
-const BORDER = C.border;
+const LEAF = C.sauge;
+
+/* ──────────────────────────────────────────────────────────────
+   Fond botanique : ombres douces de feuillage (lumière tamisée)
+   ────────────────────────────────────────────────────────────── */
+const VB_W = 390;
+const VB_H = 844;
+
+type Pt = { x: number; y: number };
+
+function bez(p0: Pt, p1: Pt, p2: Pt, t: number): Pt {
+  const u = 1 - t;
+  return {
+    x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+    y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y,
+  };
+}
+
+function bezAngle(p0: Pt, p1: Pt, p2: Pt, t: number): number {
+  const dx = 2 * (1 - t) * (p1.x - p0.x) + 2 * t * (p2.x - p1.x);
+  const dy = 2 * (1 - t) * (p1.y - p0.y) + 2 * t * (p2.y - p1.y);
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+}
+
+function Branch({
+  p0, p1, p2, count, rx, ry, opacity,
+}: { p0: Pt; p1: Pt; p2: Pt; count: number; rx: number; ry: number; opacity: number }) {
+  const leaves = [];
+  for (let i = 0; i < count; i++) {
+    const t = 0.12 + (i / (count - 1)) * 0.88;
+    const c = bez(p0, p1, p2, t);
+    const ang = bezAngle(p0, p1, p2, t);
+    const side = i % 2 === 0 ? 1 : -1;
+    const scale = 1 - 0.45 * t;
+    const perp = ((ang + 90) * Math.PI) / 180;
+    const off = ry * 0.55 * scale * side;
+    const cx = c.x + Math.cos(perp) * off;
+    const cy = c.y + Math.sin(perp) * off;
+    const rot = ang + side * 38;
+    leaves.push(
+      <Ellipse
+        key={i}
+        cx={cx}
+        cy={cy}
+        rx={rx * scale}
+        ry={ry * scale}
+        fill={LEAF}
+        transform={`rotate(${rot} ${cx} ${cy})`}
+      />,
+    );
+  }
+  return (
+    <G opacity={opacity}>
+      <Path
+        d={`M ${p0.x} ${p0.y} Q ${p1.x} ${p1.y} ${p2.x} ${p2.y}`}
+        stroke={LEAF}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        fill="none"
+      />
+      {leaves}
+    </G>
+  );
+}
+
+function BotanicalBackdrop() {
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Svg width="100%" height="100%" viewBox={`0 0 ${VB_W} ${VB_H}`} preserveAspectRatio="xMidYMid slice">
+        <Defs>
+          <Filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+            <FeGaussianBlur in="SourceGraphic" stdDeviation="3" />
+          </Filter>
+        </Defs>
+        <G filter="url(#soft)">
+          {/* canopée haut-gauche */}
+          <Branch p0={{ x: 30, y: -40 }} p1={{ x: 130, y: 30 }} p2={{ x: 120, y: 250 }} count={9} rx={15} ry={27} opacity={0.17} />
+          <Branch p0={{ x: -30, y: 40 }} p1={{ x: 60, y: 110 }} p2={{ x: 55, y: 300 }} count={7} rx={13} ry={23} opacity={0.12} />
+          {/* haut-droite */}
+          <Branch p0={{ x: 430, y: 30 }} p1={{ x: 300, y: 80 }} p2={{ x: 250, y: 300 }} count={9} rx={15} ry={26} opacity={0.15} />
+          <Branch p0={{ x: 395, y: -30 }} p1={{ x: 340, y: 30 }} p2={{ x: 310, y: 170 }} count={6} rx={12} ry={21} opacity={0.11} />
+          {/* bas-droite */}
+          <Branch p0={{ x: 430, y: 830 }} p1={{ x: 360, y: 760 }} p2={{ x: 335, y: 630 }} count={6} rx={13} ry={22} opacity={0.1} />
+          {/* bas-gauche */}
+          <Branch p0={{ x: -30, y: 850 }} p1={{ x: 55, y: 800 }} p2={{ x: 75, y: 690 }} count={5} rx={12} ry={20} opacity={0.09} />
+        </G>
+      </Svg>
+    </View>
+  );
+}
+
+/* Deux anneaux entrelacés (alliances) sous le logo */
+function RingsMark() {
+  return (
+    <Svg width={66} height={30} viewBox="0 0 66 30">
+      <Line x1={5} y1={15} x2={17} y2={15} stroke={C.taupe} strokeWidth={1} strokeLinecap="round" />
+      <Line x1={49} y1={15} x2={61} y2={15} stroke={C.taupe} strokeWidth={1} strokeLinecap="round" />
+      <Circle cx={28} cy={15} r={8.5} stroke={C.taupe} strokeWidth={1.8} fill="none" />
+      <Circle cx={38} cy={15} r={8.5} stroke={C.taupe} strokeWidth={1.8} fill="none" />
+    </Svg>
+  );
+}
 
 export default function AuthIndexScreen() {
   const insets = useSafeAreaInsets();
 
-  const handleAfterSignIn = (isNew: boolean, role: string) => {
-    if (role === 'prestataire') { router.replace('/(app)/(tabs)'); return; }
-    if (isNew) { router.replace('/(onboarding)/setup'); } else { router.replace('/(app)/(tabs)'); }
-  };
-
-  const { signInWithGoogle } = useSocialAuth(handleAfterSignIn);
-
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }]}>
-      <View pointerEvents="none" style={styles.flowersLayer}>
-        <View style={[styles.flower, styles.flowerTopLeft]}>
-          <View style={[styles.petal, styles.petalTop]} />
-          <View style={[styles.petal, styles.petalRight]} />
-          <View style={[styles.petal, styles.petalBottom]} />
-          <View style={[styles.petal, styles.petalLeft]} />
-          <View style={styles.flowerCore} />
-        </View>
-        <View style={[styles.flower, styles.flowerTopRight]}>
-          <View style={[styles.petal, styles.petalTop]} />
-          <View style={[styles.petal, styles.petalRight]} />
-          <View style={[styles.petal, styles.petalBottom]} />
-          <View style={[styles.petal, styles.petalLeft]} />
-          <View style={styles.flowerCore} />
-        </View>
-      </View>
+    <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 28 }]}>
+      <BotanicalBackdrop />
 
       <View style={styles.logoSection}>
         <View style={styles.monogramWrap}>
@@ -50,7 +127,9 @@ export default function AuthIndexScreen() {
         </View>
 
         <ThemedText style={styles.brandName}>oheve</ThemedText>
-        <ThemedText style={styles.brandAmpersand}>&amp;</ThemedText>
+        <View style={styles.ringsWrap}>
+          <RingsMark />
+        </View>
         <ThemedText style={styles.tagline}>L'APPLICATION DE MARIAGE</ThemedText>
       </View>
 
@@ -68,20 +147,6 @@ export default function AuthIndexScreen() {
         >
           <ThemedText style={styles.btnSecondaryText}>Créer un compte</ThemedText>
         </Pressable>
-
-        <View style={styles.orRow}>
-          <View style={styles.orLine} />
-          <ThemedText style={styles.orText}>ou</ThemedText>
-          <View style={styles.orLine} />
-        </View>
-
-        <Pressable
-          style={({ pressed }) => [styles.googleBtn, pressed && styles.pressed]}
-          onPress={signInWithGoogle}
-        >
-          <Ionicons name="logo-google" size={18} color="#4285F4" />
-          <ThemedText style={styles.googleBtnText}>Connexion avec Google</ThemedText>
-        </Pressable>
       </View>
     </View>
   );
@@ -94,63 +159,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 24,
     overflow: 'hidden',
-  },
-
-  flowersLayer: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 0,
-  },
-  flower: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    opacity: 0.22,
-  },
-  flowerTopLeft: {
-    top: -58,
-    left: -72,
-    transform: [{ rotate: '-14deg' }],
-  },
-  flowerTopRight: {
-    top: 44,
-    right: -78,
-    transform: [{ rotate: '16deg' }],
-  },
-  petal: {
-    position: 'absolute',
-    width: 80,
-    height: 50,
-    borderRadius: 28,
-    backgroundColor: C.sauge,
-  },
-  petalTop: {
-    top: 10,
-    left: 55,
-    transform: [{ rotate: '-8deg' }],
-  },
-  petalRight: {
-    top: 68,
-    right: 8,
-    transform: [{ rotate: '82deg' }],
-  },
-  petalBottom: {
-    bottom: 12,
-    left: 54,
-    transform: [{ rotate: '178deg' }],
-  },
-  petalLeft: {
-    top: 68,
-    left: 8,
-    transform: [{ rotate: '-82deg' }],
-  },
-  flowerCore: {
-    position: 'absolute',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: C.saugePale,
-    top: 81,
-    left: 81,
   },
 
   logoSection: {
@@ -195,15 +203,11 @@ const styles = StyleSheet.create({
     color: LOGO_TEXT,
     fontFamily: Fonts.serif,
     fontWeight: '300',
-    marginBottom: -2,
+    marginBottom: 6,
     letterSpacing: 0.2,
   },
-  brandAmpersand: {
-    fontSize: 23,
-    lineHeight: 24,
-    color: C.taupe,
-    fontFamily: Fonts.serif,
-    marginBottom: 8,
+  ringsWrap: {
+    marginBottom: 10,
   },
   tagline: {
     fontSize: 10,
@@ -239,7 +243,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: 'rgba(199,183,165,0.55)',
   },
   btnSecondaryText: {
     color: C.textMid,
@@ -248,30 +252,4 @@ const styles = StyleSheet.create({
   },
 
   pressed: { opacity: 0.78 },
-
-  orRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 2,
-  },
-  orLine: { flex: 1, height: 1, backgroundColor: C.border },
-  orText: { fontSize: 12, color: C.textLight, fontWeight: '500' },
-
-  googleBtn: {
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 15,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  googleBtnText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: TITLE_TEXT,
-  },
 });

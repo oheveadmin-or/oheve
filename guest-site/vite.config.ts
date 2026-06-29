@@ -11,8 +11,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: true,
-      port: 5173,
-      strictPort: true,
+      port: process.env.PORT ? parseInt(process.env.PORT) : 5174,
       proxy: {
         '/api': {
           target: proxyTarget,

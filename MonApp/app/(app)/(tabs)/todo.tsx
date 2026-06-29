@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '@/constants/OheveTheme';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
-import { getTodoTasks, setTodoTasks, type TodoTask } from '@/lib/todo-store';
+import { getTodoTasks, loadTodoTasks, setTodoTasks, type TodoTask } from '@/lib/todo-store';
 
 type TaskStatus = 'todo' | 'in_progress' | 'done';
 
@@ -47,6 +47,11 @@ export default function TodoScreen() {
   const insets = useSafeAreaInsets();
   const [tasks, setTasks] = useState<TodoTask[]>(() => getTodoTasks());
   const [modalVisible, setModalVisible] = useState(false);
+
+  // Charge les tâches persistées dès le montage
+  useEffect(() => {
+    loadTodoTasks().then((loaded) => setTasks(loaded));
+  }, []);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Mariage');
   const [customCategory, setCustomCategory] = useState('');

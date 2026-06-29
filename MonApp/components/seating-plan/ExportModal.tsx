@@ -4,7 +4,7 @@ import * as Sharing from 'expo-sharing';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator, Alert, Modal, Pressable,
-  ScrollView, StyleSheet, View,
+  ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { generateSeatingPlanHtml } from '@/lib/seating-plan/pdf-html';
+import { PANEL_TEMPLATES, DEFAULT_PANEL_TEMPLATE } from '@/lib/seating-plan/panel-templates';
+import type { PanelTemplateId } from '@/lib/seating-plan/panel-templates';
 import {
   CARD_STYLES,
   EXPORT_OPTIONS,
@@ -37,22 +39,105 @@ const EXPORT_LABELS: Record<PdfExportType, string> = {
   liste: 'Liste_Invites',
 };
 
+// ── Template thumbnail ─────────────────────────────────────────────────────────
+
+function TemplateThumbnail({
+  template, selected, onPress,
+}: {
+  template: typeof PANEL_TEMPLATES[0];
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={[th.wrapper, selected && { borderColor: template.primary, borderWidth: 2 }]} onPress={onPress}>
+      {/* Mini card preview */}
+      <View style={[th.card, { backgroundColor: template.bg, borderColor: template.accent + '88' }]}>
+        {/* Top color band */}
+        <View style={[th.topBand, { backgroundColor: template.primary }]} />
+        {/* Center: table number */}
+        <Text style={[th.num, { color: template.primary }]}>1</Text>
+        {/* Ornament symbol */}
+        <Text style={[th.symbol, { color: template.accent || template.primary }]}>{template.symbol}</Text>
+        {/* Guest list lines */}
+        <View style={th.lines}>
+          {[0.72, 0.55, 0.65, 0.5, 0.60].map((w, i) => (
+            <View key={i} style={[th.line, { width: `${w * 100}%`, backgroundColor: template.primary, opacity: 0.18 }]} />
+          ))}
+        </View>
+        {/* Badge */}
+        {template.badge && (
+          <View style={[th.badge, { backgroundColor: template.primary }]}>
+            <Text style={th.badgeTxt}>{template.badge}</Text>
+          </View>
+        )}
+        {/* Selected check */}
+        {selected && (
+          <View style={[th.check, { backgroundColor: template.primary }]}>
+            <Ionicons name="checkmark" size={9} color="#fff" />
+          </View>
+        )}
+      </View>
+      {/* Template name */}
+      <Text style={[th.label, selected && { color: template.primary, fontWeight: '700' }]} numberOfLines={2}>
+        {template.name}
+      </Text>
+    </Pressable>
+  );
+}
+
+const th = StyleSheet.create({
+  wrapper: {
+    width: '48%', marginBottom: 10, borderRadius: 8,
+    borderWidth: 1.5, borderColor: 'transparent', padding: 3,
+  },
+  card: {
+    height: 108, borderRadius: 6, borderWidth: 1,
+    overflow: 'hidden', alignItems: 'center', position: 'relative',
+  },
+  topBand: { width: '100%', height: 5, opacity: 0.7 },
+  num: {
+    fontSize: 22, fontWeight: '700', marginTop: 4, lineHeight: 26,
+    fontFamily: 'serif',
+  },
+  symbol: { fontSize: 10, marginTop: 0, opacity: 0.6 },
+  lines: { marginTop: 5, width: '80%' },
+  line: { height: 2, borderRadius: 1, marginBottom: 3 },
+  badge: {
+    position: 'absolute', top: 4, right: 4,
+    width: 14, height: 14, borderRadius: 7,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  badgeTxt: { fontSize: 7, color: '#fff', fontWeight: '700' },
+  check: {
+    position: 'absolute', bottom: 4, right: 4,
+    width: 16, height: 16, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  label: {
+    fontSize: 10, color: C.textMid, fontWeight: '500',
+    textAlign: 'center', marginTop: 4, lineHeight: 13,
+  },
+});
+
+// ── Main modal ─────────────────────────────────────────────────────────────────
+
 export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<PdfExportType>('panneaux');
   const [cardStyle, setCardStyle] = useState<PdfCardStyle>('elegant');
+  const [panelTemplate, setPanelTemplate] = useState<PanelTemplateId>(DEFAULT_PANEL_TEMPLATE);
   const [previewing, setPreviewing] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const previewHtml = useMemo(
-    () => generateSeatingPlanHtml(data, selected, { cardStyle }),
-    [data, selected, cardStyle],
+    () => generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate }),
+    [data, selected, cardStyle, panelTemplate],
   );
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const html = generateSeatingPlanHtml(data, selected, { cardStyle });
+      const html = generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate });
       const { uri } = await Print.printToFileAsync({ html, base64: false });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -99,6 +184,8 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
     );
   }
 
+  const activeTpl = PANEL_TEMPLATES.find((t) => t.id === panelTemplate) ?? PANEL_TEMPLATES[0];
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -108,6 +195,7 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
         <ThemedText style={styles.sheetSub}>Choisissez un format, prévisualisez puis exportez en PDF.</ThemedText>
 
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+          {/* Format selector */}
           {EXPORT_OPTIONS.map((opt) => {
             const active = selected === opt.type;
             return (
@@ -130,8 +218,30 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
             );
           })}
 
-          {/* Sélecteur de style affiché pour panneaux, cartes et marque-places */}
-          {(selected === 'panneaux' || selected === 'cartes' || selected === 'marque-places') && (
+          {/* ── Panneau template gallery ── */}
+          {selected === 'panneaux' && (
+            <View style={styles.galleryBox}>
+              <View style={styles.galleryHeader}>
+                <ThemedText style={styles.galleryTitle}>Choisir un modèle</ThemedText>
+                <View style={[styles.selectedBadge, { backgroundColor: activeTpl.primary + '22', borderColor: activeTpl.primary + '66' }]}>
+                  <Text style={[styles.selectedBadgeTxt, { color: activeTpl.primary }]}>{activeTpl.name}</Text>
+                </View>
+              </View>
+              <View style={styles.galleryGrid}>
+                {PANEL_TEMPLATES.map((tpl) => (
+                  <TemplateThumbnail
+                    key={tpl.id}
+                    template={tpl}
+                    selected={panelTemplate === tpl.id}
+                    onPress={() => setPanelTemplate(tpl.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Style selector for cartes & marque-places */}
+          {(selected === 'cartes' || selected === 'marque-places') && (
             <View style={styles.styleBox}>
               <ThemedText style={styles.styleTitle}>Style de carte</ThemedText>
               <View style={styles.styleRow}>
@@ -184,12 +294,12 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: '#fff',
     borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl,
-    paddingHorizontal: 20, paddingTop: 10, maxHeight: '90%',
+    paddingHorizontal: 20, paddingTop: 10, maxHeight: '92%',
   },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.saugePale, alignSelf: 'center', marginBottom: 12 },
   sheetTitle: { fontSize: 20, fontWeight: '700', color: C.textDark },
   sheetSub: { fontSize: 13, color: C.textMid, marginTop: 4, marginBottom: 14, lineHeight: 19 },
-  list: { maxHeight: 420 },
+  list: { maxHeight: 480 },
   option: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     padding: 12, borderRadius: RADIUS.md, borderWidth: 1.5, borderColor: C.saugePale,
@@ -205,6 +315,20 @@ const styles = StyleSheet.create({
   optionLabel: { fontSize: 14, fontWeight: '700', color: C.textDark },
   optionLabelOn: { color: C.saugeDark },
   optionDesc: { fontSize: 11, color: C.textLight, marginTop: 2, lineHeight: 15 },
+
+  // Gallery
+  galleryBox: {
+    marginBottom: 10, padding: 14, backgroundColor: C.ivoire,
+    borderRadius: RADIUS.md, borderWidth: 1, borderColor: C.saugePale,
+  },
+  galleryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  galleryTitle: { fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: C.textMid },
+  selectedBadge: {
+    paddingHorizontal: 10, paddingVertical: 3,
+    borderRadius: 99, borderWidth: 1,
+  },
+  selectedBadgeTxt: { fontSize: 10, fontWeight: '700' },
+  galleryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
 
   styleBox: {
     marginBottom: 10, padding: 14, backgroundColor: C.ivoire,

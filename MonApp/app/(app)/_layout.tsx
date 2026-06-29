@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 
 import { useAuth } from '@/contexts/auth-context';
 import { messagingApi } from '@/services/auth/api';
+import { loadPersistedBudget, syncBudgetTotal, BudgetProvider } from '@/lib/budget-store';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -37,6 +38,24 @@ export default function AppLayout() {
   const { user } = useAuth();
   const responseListenerRef = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
 
+  const budgetLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!user) return;
+    const profileBudget = user.budget_global ?? user.budget_total ?? 0;
+    const applyTotal = () => {
+      if (profileBudget <= 0) return;
+      syncBudgetTotal(profileBudget);
+    };
+    if (!budgetLoadedRef.current) {
+      // 1er passage : on charge le budget persisté puis on synchronise le total
+      budgetLoadedRef.current = true;
+      loadPersistedBudget().then(applyTotal);
+    } else {
+      // Le budget a changé dans le profil → resynchronisation immédiate
+      applyTotal();
+    }
+  }, [user?.id, user?.budget_global, user?.budget_total]);
+
   useEffect(() => {
     if (!user?.accessToken) return;
 
@@ -56,10 +75,12 @@ export default function AppLayout() {
   }, [user?.accessToken]);
 
   return (
+    <BudgetProvider>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="providers" />
       <Stack.Screen name="wedding-card/index" />
+      <Stack.Screen name="site-webview" />
       <Stack.Screen name="wedding-card/editor" />
       <Stack.Screen name="wedding-card/templates" />
       <Stack.Screen name="planning-day" />
@@ -74,5 +95,6 @@ export default function AppLayout() {
       <Stack.Screen name="prestataire/profile-edit" />
       <Stack.Screen name="rabbins" />
     </Stack>
+    </BudgetProvider>
   );
 }

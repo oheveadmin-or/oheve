@@ -18,7 +18,6 @@ const CLIENT_LEFT = [
 const CLIENT_RIGHT = [
   { key: 'calendar', label: 'Calendrier', icon: 'calendar-outline', iconActive: 'calendar' },
   { key: 'messages', label: 'Messages', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
-  { key: 'profile', label: 'Profil', icon: 'person-outline', iconActive: 'person' },
 ] as const;
 
 const PRESTATAIRE_TABS = [

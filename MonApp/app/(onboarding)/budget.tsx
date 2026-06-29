@@ -88,12 +88,13 @@ export default function BudgetScreen() {
 
     setLoading(true);
     try {
+      const token = user?.accessToken;
       if (mode === 'global') {
         await apiService.mettreAJourBudget({
           email,
           budget_mode: 'global',
           budget_global: parseFloat(budgetGlobal),
-        });
+        }, token);
       } else {
         await apiService.mettreAJourBudget({
           email,
@@ -103,7 +104,7 @@ export default function BudgetScreen() {
             salle: parseFloat(categories.salle) || 0,
             traiteurs: parseFloat(categories.traiteurs) || 0,
           },
-        });
+        }, token);
       }
       await updateUser({ budget_total: budgetTotal });
       router.replace('/(onboarding)/location');

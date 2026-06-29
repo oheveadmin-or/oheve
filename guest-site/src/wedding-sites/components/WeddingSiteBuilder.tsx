@@ -920,7 +920,8 @@ export function WeddingSiteBuilder() {
             />
             {content.monogramSvg ? (
               <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {/* Position du logo */}
+                {/* Position du logo — masqué pour Vintage (monogramme intégré dans la carte ovale) */}
+                {theme.style !== 'vintage-blue' ? (
                 <div style={{ padding: '0.75rem', background: '#fafaf8', borderRadius: 10, border: '1px solid #e2e0da' }}>
                   <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', fontWeight: 700, color: '#555' }}>📍 Position du logo dans le hero</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
@@ -961,6 +962,11 @@ export function WeddingSiteBuilder() {
                     </p>
                   )}
                 </div>
+                ) : (
+                  <p style={{ margin: 0, padding: '0.6rem 0.75rem', background: '#fafaf8', borderRadius: 10, border: '1px solid #e2e0da', fontSize: '0.74rem', color: '#999', fontStyle: 'italic' }}>
+                    Le monogramme est intégré automatiquement en haut de la carte ovale Vintage.
+                  </p>
+                )}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.5rem 0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px solid #86efac', fontSize: '0.83rem', color: '#166534' }}>
                   ✅ Monogramme enregistré

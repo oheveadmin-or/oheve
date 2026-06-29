@@ -56,7 +56,7 @@ export function BohoTemplate({ site }: WeddingTemplateProps) {
               paddingTop: '1.2rem',
             }}
           >
-            <span style={{ fontSize: '2rem' }}>🌿</span>
+            <span style={{ width: 40, height: 2, background: `${accent}55`, display: 'inline-block', borderRadius: 2 }} />
           </div>
 
           <p style={{ color: accent, fontSize: '0.75rem', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '0.8rem' }}>

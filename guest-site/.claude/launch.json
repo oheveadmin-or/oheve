@@ -2,10 +2,17 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "guest-site",
+      "name": "guest-site-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5173
+      "port": 5174,
+      "autoPort": true
+    },
+    {
+      "name": "guest-site-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "preview", "--port", "4175"],
+      "port": 4175
     }
   ]
 }

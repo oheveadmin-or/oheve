@@ -48,14 +48,18 @@ export interface WeddingLocationResponse {
   data?: Record<string, unknown>;
 }
 
+function authHeaders(token?: string | null): Record<string, string> {
+  const h: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) h['Authorization'] = `Bearer ${token}`;
+  return h;
+}
+
 export const apiService = {
-  async mettreAJourDateMariage(data: DateMariageData): Promise<DateMariageResponse> {
+  async mettreAJourDateMariage(data: DateMariageData, token?: string | null): Promise<DateMariageResponse> {
     try {
       const response = await fetch(API_ENDPOINTS.dateMariage, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: authHeaders(token),
         body: JSON.stringify(data),
       });
 
@@ -75,13 +79,11 @@ export const apiService = {
     }
   },
 
-  async mettreAJourBudget(data: BudgetData): Promise<BudgetResponse> {
+  async mettreAJourBudget(data: BudgetData, token?: string | null): Promise<BudgetResponse> {
     try {
       const response = await fetch(API_ENDPOINTS.budget, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: authHeaders(token),
         body: JSON.stringify(data),
       });
 
@@ -101,11 +103,11 @@ export const apiService = {
     }
   },
 
-  async mettreAJourWeddingLocation(data: WeddingLocationData): Promise<WeddingLocationResponse> {
+  async mettreAJourWeddingLocation(data: WeddingLocationData, token?: string | null): Promise<WeddingLocationResponse> {
     try {
       const response = await fetch(API_ENDPOINTS.weddingLocation, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(token),
         body: JSON.stringify(data),
       });
 

@@ -327,10 +327,12 @@ export default function OnboardingSetupScreen() {
       const d = selectedDate!;
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-      await apiService.mettreAJourDateMariage({ email, date_mariage: dateStr });
+      const token = user?.accessToken;
+
+      await apiService.mettreAJourDateMariage({ email, date_mariage: dateStr }, token);
 
       if (budgetMode === 'global') {
-        await apiService.mettreAJourBudget({ email, budget_mode: 'global', budget_global: budget });
+        await apiService.mettreAJourBudget({ email, budget_mode: 'global', budget_global: budget }, token);
         initBudget({ total: budget, mode: 'global' });
       } else {
         const cats: Record<string, number> = {};
@@ -338,7 +340,7 @@ export default function OnboardingSetupScreen() {
           const v = parseBudgetInput(catBudgets[c.key]);
           if (v > 0) cats[c.key] = v;
         });
-        await apiService.mettreAJourBudget({ email, budget_mode: 'categories', budget_categories: cats });
+        await apiService.mettreAJourBudget({ email, budget_mode: 'categories', budget_categories: cats }, token);
         const totalCat = Object.values(cats).reduce((s, v) => s + v, 0);
         initBudget({ total: totalCat, mode: 'categories', categoryAmounts: cats });
       }
@@ -352,7 +354,7 @@ export default function OnboardingSetupScreen() {
         wedding_lat: selectedCity!.lat,
         wedding_lng: selectedCity!.lon,
         wedding_venue: venueName,
-      });
+      }, token);
 
       await updateUser({
         date_mariage: dateStr,

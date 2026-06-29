@@ -350,6 +350,28 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     fontFamily: "'Cormorant Garamond', Georgia, serif",
     patternOpacity: 0.1,
   },
+
+  // ─── STRIPES EDITORIAL (noir & blanc, rayures CSS) ───────────────────────
+  'stripes-editorial': {
+    heroStyle: 'editorial',
+    patternId: 'none',
+    separatorStyle: 'none',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Playfair Display', Georgia, serif",
+  },
+
+  // ─── EDITORIAL CARDS (papeterie premium en cartes) ────────────────────────
+  // Modèle autonome : routé directement vers EditorialCardsTemplate
+  // (cf. template-selector). Le preset reste défini pour la cohérence du type.
+  'editorial-cards': {
+    heroStyle: 'editorial',
+    patternId: 'none',
+    separatorStyle: 'none',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Playfair Display', 'Cormorant Garamond', Georgia, serif",
+  },
 };
 
 /** Merge preset overrides into the theme, preserving explicit user values */

@@ -98,9 +98,9 @@ export default function CategoryProvidersScreen() {
   }, [slug]);
 
   useEffect(() => {
-    if (!user?.accessToken) { setLoading(false); return; }
+    setLoading(true);
     prestatairesApi
-      .list(user.accessToken)
+      .list(user?.accessToken)
       .then((res) => {
         if (!res?.success || !Array.isArray(res.data)) return;
         const cats = SLUG_TO_CATEGORIES[slug] ?? [slug];
@@ -111,7 +111,7 @@ export default function CategoryProvidersScreen() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user, slug]);
+  }, [user?.accessToken, slug]);
 
   const availableCities = useMemo(() => {
     const cities = new Set<string>();

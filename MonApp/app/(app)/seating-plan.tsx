@@ -41,6 +41,8 @@ type SeatingTable = {
   guestIds: string[];
   tableWidthCm: number;
   tableHeightCm: number;
+  pixelW?: number;
+  pixelH?: number;
 };
 
 type Guest = {
@@ -59,8 +61,7 @@ const DIMS: Record<TableShape, { w: number; h: number }> = {
 
 const SEAT_PAD = 14;
 
-function seatPositions(shape: TableShape, seats: number): { x: number; y: number }[] {
-  const { w, h } = DIMS[shape];
+function seatPositions(shape: TableShape, seats: number, w: number, h: number): { x: number; y: number }[] {
   const cx = w / 2;
   const cy = h / 2;
   const pts: { x: number; y: number }[] = [];
@@ -111,17 +112,18 @@ function DraggableTable({
   const sx = useSharedValue(table.x);
   const sy = useSharedValue(table.y);
 
-  const { w, h } = DIMS[table.shape];
+  const tw = table.pixelW ?? DIMS[table.shape].w;
+  const th = table.pixelH ?? DIMS[table.shape].h;
   const pad = SEAT_PAD + 6;
-  const totalW = w + pad * 2;
-  const totalH = h + pad * 2;
+  const totalW = tw + pad * 2;
+  const totalH = th + pad * 2;
 
   const assigned = table.guestIds.reduce((sum, gid) => {
     const g = guests.find((g) => g.id === gid);
     return sum + (g?.guestCount ?? 1);
   }, 0);
 
-  const dots = seatPositions(table.shape, table.seats);
+  const dots = seatPositions(table.shape, table.seats, tw, th);
 
   const pan = Gesture.Pan()
     .onStart(() => {
@@ -156,7 +158,7 @@ function DraggableTable({
     zIndex: isSelected ? 10 : 1,
   }));
 
-  const br = table.shape === 'round' ? w / 2 : table.shape === 'oval' ? h / 2 : 10;
+  const br = table.shape === 'round' ? Math.min(tw, th) / 2 : table.shape === 'oval' ? th / 2 : 10;
 
   return (
     <GestureDetector gesture={gesture}>
@@ -180,8 +182,8 @@ function DraggableTable({
             {
               left: pad,
               top: pad,
-              width: w,
-              height: h,
+              width: tw,
+              height: th,
               borderRadius: br,
               backgroundColor: isSelected ? table.color : table.color + '22',
               borderColor: table.color,
@@ -198,6 +200,95 @@ function DraggableTable({
         </View>
       </Animated.View>
     </GestureDetector>
+  );
+}
+
+// ── Resize constants ──────────────────────────────────────────────────────────
+
+const RESIZE_MIN_W = 50;
+const RESIZE_MAX_W = 240;
+const RESIZE_MIN_H = 40;
+const RESIZE_MAX_H = 240;
+const RESIZE_STEP = 10;
+
+// ── Resize Handles ────────────────────────────────────────────────────────────
+
+function ResizeHandles({
+  table,
+  onResize,
+}: {
+  table: SeatingTable;
+  onResize: (id: string, w: number, h: number) => void;
+}) {
+  const tw = table.pixelW ?? DIMS[table.shape].w;
+  const th = table.pixelH ?? DIMS[table.shape].h;
+  const pad = SEAT_PAD + 6;
+
+  const startW = useSharedValue(tw);
+  const startH = useSharedValue(th);
+
+  const diagGesture = Gesture.Pan()
+    .onStart(() => {
+      startW.value = tw;
+      startH.value = th;
+    })
+    .onUpdate((e) => {
+      const nw = Math.max(RESIZE_MIN_W, Math.min(RESIZE_MAX_W, startW.value + e.translationX));
+      const nh = Math.max(RESIZE_MIN_H, Math.min(RESIZE_MAX_H, startH.value + e.translationY));
+      runOnJS(onResize)(table.id, Math.round(nw), Math.round(nh));
+    });
+
+  const cx = table.x + tw / 2;
+  const cy = table.y + th / 2;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {/* Gauche — réduire largeur */}
+      <Pressable
+        style={[styles.resizeBtn, { left: table.x - pad - 30, top: cy - 14 }]}
+        onPress={() => onResize(table.id, Math.max(RESIZE_MIN_W, tw - RESIZE_STEP), th)}
+        hitSlop={8}
+      >
+        <Ionicons name="chevron-back" size={14} color="#fff" />
+      </Pressable>
+
+      {/* Droite — agrandir largeur */}
+      <Pressable
+        style={[styles.resizeBtn, { left: table.x + tw + pad + 2, top: cy - 14 }]}
+        onPress={() => onResize(table.id, Math.min(RESIZE_MAX_W, tw + RESIZE_STEP), th)}
+        hitSlop={8}
+      >
+        <Ionicons name="chevron-forward" size={14} color="#fff" />
+      </Pressable>
+
+      {/* Haut — réduire hauteur */}
+      <Pressable
+        style={[styles.resizeBtn, { left: cx - 14, top: table.y - pad - 30 }]}
+        onPress={() => onResize(table.id, tw, Math.max(RESIZE_MIN_H, th - RESIZE_STEP))}
+        hitSlop={8}
+      >
+        <Ionicons name="chevron-up" size={14} color="#fff" />
+      </Pressable>
+
+      {/* Bas — agrandir hauteur */}
+      <Pressable
+        style={[styles.resizeBtn, { left: cx - 14, top: table.y + th + pad + 2 }]}
+        onPress={() => onResize(table.id, tw, Math.min(RESIZE_MAX_H, th + RESIZE_STEP))}
+        hitSlop={8}
+      >
+        <Ionicons name="chevron-down" size={14} color="#fff" />
+      </Pressable>
+
+      {/* Coin bas-droit — redimensionner en diagonale (drag) */}
+      <GestureDetector gesture={diagGesture}>
+        <View style={[styles.resizeDiag, {
+          left: table.x + tw + pad - 10,
+          top: table.y + th + pad - 10,
+        }]}>
+          <Ionicons name="resize" size={13} color="#fff" />
+        </View>
+      </GestureDetector>
+    </View>
   );
 }
 
@@ -221,12 +312,11 @@ function ShapeIcon({ shape, active }: { shape: TableShape; active: boolean }) {
 let nextTableId = 20;
 let nextGuestId = 100;
 
-const STORAGE_KEY = 'seating_plan_v1';
-
 function SeatingPlanContent() {
   const insets = useSafeAreaInsets();
   const { hasPremiumAccess } = usePremiumAccess();
   const { user } = useAuth();
+  const STORAGE_KEY = `seating_plan_v1_${user?.id ?? 'guest'}`;
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [tables, setTables] = useState<SeatingTable[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -240,12 +330,22 @@ function SeatingPlanContent() {
       if (raw) {
         try {
           const data = JSON.parse(raw);
-          if (data.tables) setTables(data.tables);
-          if (data.guests) setGuests(data.guests);
+          if (data.tables) {
+            setTables(data.tables);
+            const maxId = (data.tables as SeatingTable[]).reduce(
+              (m: number, t) => Math.max(m, parseInt(t.id) || 0), 0
+            );
+            nextTableId = Math.max(nextTableId, maxId, data.nextTableId ?? 0);
+          }
+          if (data.guests) {
+            setGuests(data.guests);
+            const maxGId = (data.guests as Guest[]).reduce(
+              (m: number, g) => Math.max(m, parseInt(g.id) || 0), 0
+            );
+            nextGuestId = Math.max(nextGuestId, maxGId, data.nextGuestId ?? 0);
+          }
           if (data.roomWidth) setRoomWidth(data.roomWidth);
           if (data.roomHeight) setRoomHeight(data.roomHeight);
-          if (data.nextTableId) nextTableId = data.nextTableId;
-          if (data.nextGuestId) nextGuestId = data.nextGuestId;
         } catch {}
       }
       setLoaded(true);
@@ -301,6 +401,10 @@ function SeatingPlanContent() {
     setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
   }, []);
 
+  const handleResize = useCallback((id: string, w: number, h: number) => {
+    setTables((prev) => prev.map((t) => (t.id === id ? { ...t, pixelW: w, pixelH: h } : t)));
+  }, []);
+
   const handleSelect = useCallback((id: string) => {
     setSelectedId((prev) => (prev === id ? null : id));
   }, []);
@@ -330,6 +434,8 @@ function SeatingPlanContent() {
         guestIds: [],
         tableWidthCm: wCm,
         tableHeightCm: hCm,
+        pixelW: DIMS[newShape].w,
+        pixelH: DIMS[newShape].h,
       },
     ]);
     setNewTableName('');
@@ -498,6 +604,11 @@ function SeatingPlanContent() {
           />
         ))}
 
+        {/* Poignées de redimensionnement pour la table sélectionnée */}
+        {selected && (
+          <ResizeHandles table={selected} onResize={handleResize} />
+        )}
+
         {tables.length === 0 && (
           <View style={styles.emptyWrap}>
             <Ionicons name="grid-outline" size={52} color="#d1d5db" />
@@ -506,7 +617,7 @@ function SeatingPlanContent() {
         )}
 
         <View style={styles.legend} pointerEvents="none">
-          <ThemedText style={styles.legendText}>Appuie sur une table pour la sélectionner · Glisse pour déplacer</ThemedText>
+          <ThemedText style={styles.legendText}>Appuie pour sélectionner · Glisse pour déplacer · ‹ › ∧ ∨ pour redimensionner · ⤡ coin diagonal</ThemedText>
         </View>
       </View>
 
@@ -938,6 +1049,24 @@ const styles = StyleSheet.create({
   legendText: { fontSize: 10, color: '#b0a9f5', fontWeight: '500' },
 
   dot: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
+  resizeBtn: {
+    position: 'absolute',
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: '#A7AD9A',
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25, shadowRadius: 3, elevation: 6,
+  },
+  resizeDiag: {
+    position: 'absolute',
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: '#7B7063',
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25, shadowRadius: 3, elevation: 6,
+  },
   tableBody: {
     position: 'absolute',
     alignItems: 'center', justifyContent: 'center', gap: 2,

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -161,6 +162,8 @@ const CAT_COLORS: Record<Exclude<MainCategory, 'tout'>, string> = {
   souvenirs: '#f43f5e',
   salle: '#0891b2',
 };
+
+const FEED_CACHE_KEY = '@oheve:explore_feed_cache';
 
 let nextPostId = 200;
 
@@ -932,12 +935,46 @@ export default function ExploreScreen() {
     tenues: 'tenues', autres: 'photos',
   };
 
+  // ── Applique les feedPosts en fusionnant avec l'état existant et met en cache ─
+  const applyFeedPosts = useCallback((feedPosts: Post[]) => {
+    setPosts((prev) => {
+      const existingComments = new Map(
+        prev.filter((p) => p.id.startsWith('feed-')).map((p) => [p.id, p.comments])
+      );
+      const withoutFeed = prev.filter((post) => !post.id.startsWith('feed-'));
+      const merged = feedPosts.map((p) => ({
+        ...p,
+        comments: existingComments.get(p.id) ?? [],
+      }));
+      // Mettre à jour le cache (sans les commentaires locaux)
+      AsyncStorage.setItem(FEED_CACHE_KEY, JSON.stringify(feedPosts)).catch(() => {});
+      return [...merged, ...withoutFeed];
+    });
+  }, []);
+
+  // ── Charger le cache au démarrage pour que les réels ne disparaissent pas ──
+  useEffect(() => {
+    AsyncStorage.getItem(FEED_CACHE_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        try {
+          const cached = JSON.parse(raw) as Post[];
+          if (Array.isArray(cached) && cached.length > 0) {
+            setPosts((prev) => {
+              const withoutFeed = prev.filter((p) => !p.id.startsWith('feed-'));
+              return [...cached, ...withoutFeed];
+            });
+          }
+        } catch { /* ignore */ }
+      })
+      .catch(() => {});
+  }, []);
+
   // ── Fetch portfolio photos de tous les prestataires (rechargé à chaque focus) ─
   const loadFeed = useCallback(() => {
-    if (!user?.accessToken) return;
-    fetch(`${API_ENDPOINTS.prestataireFeed}`, {
-      headers: { Authorization: `Bearer ${user.accessToken}` },
-    })
+    const headers: Record<string, string> = {};
+    if (user?.accessToken) headers['Authorization'] = `Bearer ${user.accessToken}`;
+    fetch(`${API_ENDPOINTS.prestataireFeed}`, { headers })
       .then((r) => r.json())
       .then((json) => {
         if (!json?.success || !Array.isArray(json.data)) return;
@@ -961,20 +998,10 @@ export default function ExploreScreen() {
           bgColor: '#F5EFE8',
           bgEmoji: '📸',
         }));
-        setPosts((prev) => {
-          const existingComments = new Map(
-            prev.filter((p) => p.id.startsWith('feed-')).map((p) => [p.id, p.comments])
-          );
-          const withoutFeed = prev.filter((post) => !post.id.startsWith('feed-'));
-          const merged = feedPosts.map((p) => ({
-            ...p,
-            comments: existingComments.get(p.id) ?? [],
-          }));
-          return [...merged, ...withoutFeed];
-        });
+        applyFeedPosts(feedPosts);
       })
       .catch(() => {});
-  }, [user?.accessToken]);
+  }, [user?.accessToken, applyFeedPosts]);
 
   useFocusEffect(useCallback(() => { loadFeed(); }, [loadFeed]));
 

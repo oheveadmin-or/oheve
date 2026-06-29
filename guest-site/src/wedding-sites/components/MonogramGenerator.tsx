@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -751,6 +751,8 @@ const STYLES: MonogramStyle[] = [
 
 const GROUPS = ['Tous', ...Array.from(new Set(STYLES.map((s) => s.group)))];
 
+const CUSTOM_ID = 'custom';
+
 // ─── SVG render + export ─────────────────────────────────────────────────────────
 
 function MonogramSvg({ style, p, px }: { style: MonogramStyle; p: RP; px: number }) {
@@ -795,7 +797,7 @@ type FullProps = {
   backgroundColor?: string;
   /** Style déjà enregistré, pour ré-ouvrir sur la bonne sélection. */
   initialStyle?: string;
-  onSelect?: (svgString: string, style: string) => void;
+  onSelect?: (svgString: string, style: string, sizePx: number) => void;
 };
 
 export function MonogramGenerator({
@@ -814,11 +816,15 @@ export function MonogramGenerator({
   const dateStr = formatShortDate(date);
 
   const [selectedId, setSelectedId] = useState<string>(
-    initialStyle && STYLES.some((s) => s.id === initialStyle) ? initialStyle : 'm01',
+    initialStyle && (STYLES.some((s) => s.id === initialStyle) || initialStyle === CUSTOM_ID)
+      ? initialStyle
+      : 'm01',
   );
   const [size, setSize] = useState<SizeKey>('m');
   const [group, setGroup] = useState<string>('Tous');
   const [copied, setCopied] = useState(false);
+  const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = group === 'Tous' ? STYLES : STYLES.filter((s) => s.group === group);
   const selected = STYLES.find((s) => s.id === selectedId) ?? STYLES[0];
@@ -832,18 +838,52 @@ export function MonogramGenerator({
   // Garde le monogramme enregistré toujours synchronisé avec le style/taille/prénoms/couleurs courants.
   useEffect(() => {
     if (!onSelect) return;
-    onSelect(buildSvgString(selected, p, px), selectedId);
+    if (selectedId === CUSTOM_ID && customLogoUrl) {
+      onSelect(customLogoUrl, CUSTOM_ID, px);
+      return;
+    }
+    if (selectedId !== CUSTOM_ID) {
+      onSelect(buildSvgString(selected, p, px), selectedId, px);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, px, p]);
+  }, [selectedId, px, p, customLogoUrl]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      setCustomLogoUrl(url);
+      setSelectedId(CUSTOM_ID);
+      if (onSelect) onSelect(url, CUSTOM_ID, px);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
 
   function handleCopy() {
-    navigator.clipboard.writeText(buildSvgString(selected, p, px)).then(() => {
+    const text = selectedId === CUSTOM_ID && customLogoUrl
+      ? customLogoUrl
+      : buildSvgString(selected, p, px);
+    navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   }
 
   function handleDownload() {
+    if (selectedId === CUSTOM_ID && customLogoUrl) {
+      const ext = customLogoUrl.startsWith('data:image/svg') ? 'svg'
+        : customLogoUrl.startsWith('data:image/png') ? 'png'
+        : customLogoUrl.startsWith('data:image/webp') ? 'webp'
+        : 'jpg';
+      const a = document.createElement('a');
+      a.href = customLogoUrl;
+      a.download = `logo-personnalise.${ext}`;
+      a.click();
+      return;
+    }
     const blob = new Blob([buildSvgString(selected, p, px)], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -887,6 +927,40 @@ export function MonogramGenerator({
 
       {/* Grid of mini previews */}
       <div style={grid}>
+        {/* Upload tile — toujours visible quelle que soit la catégorie */}
+        <button
+          type="button"
+          title="Importer mon logo"
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            ...gridItem,
+            border: selectedId === CUSTOM_ID ? `2px solid ${primaryColor}` : '2px dashed #c8c8c8',
+            background: selectedId === CUSTOM_ID ? `${primaryColor}10` : '#f9f9f9',
+          }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+          <div style={{
+            width: 74, height: 74, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', borderRadius: 8, overflow: 'hidden',
+            background: '#f0efe9',
+          }}>
+            {customLogoUrl ? (
+              <img src={customLogoUrl} alt="Mon logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            ) : (
+              <span style={{ fontSize: '1.6rem', opacity: 0.5 }}>⬆️</span>
+            )}
+          </div>
+          <span style={{ fontSize: '0.6rem', color: '#777', marginTop: 2, textAlign: 'center', lineHeight: 1.2 }}>
+            {customLogoUrl ? 'Mon logo' : 'Importer\nmon logo'}
+          </span>
+        </button>
+
         {filtered.map((s) => (
           <button
             key={s.id}
@@ -924,13 +998,40 @@ export function MonogramGenerator({
             minWidth: 180,
           }}
         >
-          <MonogramSvg style={selected} p={p} px={px} />
+          {selectedId === CUSTOM_ID && customLogoUrl ? (
+            <img src={customLogoUrl} alt="Mon logo" style={{ width: px, height: px, objectFit: 'contain' }} />
+          ) : selectedId === CUSTOM_ID ? (
+            <div
+              style={{
+                width: px, height: px, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
+                border: '2px dashed #ccc', borderRadius: 10, cursor: 'pointer', color: '#aaa',
+              }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <span style={{ fontSize: '2rem' }}>⬆️</span>
+              <span style={{ fontSize: '0.75rem' }}>Cliquer pour importer</span>
+            </div>
+          ) : (
+            <MonogramSvg style={selected} p={p} px={px} />
+          )}
         </div>
 
         {/* Size picker + info */}
         <div style={{ flex: 1, minWidth: 140 }}>
-          <p style={{ margin: '0 0 0.3rem', fontWeight: 700, fontSize: '0.85rem', color: '#333' }}>{selected.label}</p>
-          <p style={{ margin: '0 0 0.8rem', fontSize: '0.76rem', color: '#888' }}>Groupe : {selected.group}</p>
+          <p style={{ margin: '0 0 0.3rem', fontWeight: 700, fontSize: '0.85rem', color: '#333' }}>
+            {selectedId === CUSTOM_ID ? 'Mon logo personnalisé' : selected.label}
+          </p>
+          <p style={{ margin: '0 0 0.8rem', fontSize: '0.76rem', color: '#888' }}>
+            {selectedId === CUSTOM_ID ? (
+              <span
+                style={{ cursor: 'pointer', textDecoration: 'underline', color: primaryColor }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {customLogoUrl ? 'Changer le fichier' : 'Importer un fichier…'}
+              </span>
+            ) : `Groupe : ${selected.group}`}
+          </p>
 
           <p style={{ margin: '0 0 0.4rem', fontSize: '0.8rem', fontWeight: 600, color: '#555' }}>Taille du logo</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

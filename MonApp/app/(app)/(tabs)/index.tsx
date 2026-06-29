@@ -10,7 +10,6 @@ import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler'
 
 import { PremiumCard, DonutProgress, SectionHeader } from '@/components/home/premium-elements';
 import { PrestataireHome } from '@/components/home/prestataire-home';
-import { HeaderMenu } from '@/components/navigation/HeaderMenu';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
@@ -22,9 +21,10 @@ import {
 } from '@/data/home-dashboard-mock';
 import { useAuth } from '@/contexts/auth-context';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
-import { getTodoTasks, setTodoTasks } from '@/lib/todo-store';
-import { getHomeProviders, type ProviderContact } from '@/lib/providers-store';
+import { getTodoTasks, loadTodoTasks, setTodoTasks } from '@/lib/todo-store';
+import { getHomeProviders, loadHomeProviders, type ProviderContact } from '@/lib/providers-store';
 import { useHomeDashboardStore } from '@/stores/use-home-dashboard-store';
+import { getTotalSpent, getTotalBudget, subscribeBudget } from '@/lib/budget-store';
 
 type HomeSection =
   | 'venue'
@@ -105,6 +105,8 @@ export default function DashboardScreen() {
     [user?.date_mariage],
   );
   const [todoCompletion, setTodoCompletion] = useState({ done: 0, total: 0 });
+  const [budgetSpent, setBudgetSpent] = useState(0);
+  const [budgetStoredTotal, setBudgetStoredTotal] = useState(0);
   const [realPriorityTasks, setRealPriorityTasks] = useState<{ id: string; label: string; deadline: string; done: boolean; level: 'urgent' | 'medium' }[]>([]);
   const [providerPhotos, setProviderPhotos] = useState<ProviderPhoto[]>([]);
   const [venueProvider, setVenueProvider] = useState<{ name: string; photoUrl?: string; id?: number } | null>(null);
@@ -130,6 +132,24 @@ export default function DashboardScreen() {
     return () => clearTimeout(timer);
   }, [setLoading]);
 
+  // Resync budget après chargement AsyncStorage (résout la course layout↔home)
+  useEffect(() => {
+    if (!user?.id) return;
+    const timer = setTimeout(() => {
+      setBudgetSpent(getTotalSpent());
+      setBudgetStoredTotal(getTotalBudget());
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [user?.id]);
+
+  // Subscription : mise à jour automatique quand le store change
+  useEffect(() => {
+    return subscribeBudget(() => {
+      setBudgetSpent(getTotalSpent());
+      setBudgetStoredTotal(getTotalBudget());
+    });
+  }, []);
+
   const loadAppointments = useCallback(() => {
     if (!user?.accessToken || user.role === 'prestataire') return;
     calendarApi.getUpcoming(user.accessToken)
@@ -141,16 +161,18 @@ export default function DashboardScreen() {
 
   useFocusEffect(useCallback(() => {
     loadAppointments();
-    const providers = getHomeProviders();
-    setHomeProviders(providers);
-    // Sync venue card with any saved salle/lieu provider
-    const salleKeywords = ['salle', 'lieu', 'reception', 'venue'];
-    const venueFromHome = providers.find((p) =>
-      salleKeywords.some((kw) => p.categorie?.toLowerCase().includes(kw))
-    );
-    if (venueFromHome) {
-      setVenueProvider({ name: venueFromHome.nom, photoUrl: venueFromHome.coverUrl, id: venueFromHome.id ? parseInt(venueFromHome.id, 10) : undefined });
-    }
+    loadHomeProviders().then(() => {
+      const providers = getHomeProviders();
+      setHomeProviders(providers);
+      // Sync venue card with any saved salle/lieu provider
+      const salleKeywords = ['salle', 'lieu', 'reception', 'venue'];
+      const venueFromHome = providers.find((p) =>
+        salleKeywords.some((kw) => p.categorie?.toLowerCase().includes(kw))
+      );
+      if (venueFromHome) {
+        setVenueProvider({ name: venueFromHome.nom, photoUrl: venueFromHome.coverUrl, id: venueFromHome.id ? parseInt(venueFromHome.id, 10) : undefined });
+      }
+    });
   }, [loadAppointments]));
 
   useEffect(() => {
@@ -181,17 +203,20 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const tasks = getTodoTasks();
-      const done = tasks.filter((task) => task.done).length;
-      setTodoCompletion({ done, total: tasks.length });
-      const undone = tasks.filter((t) => !t.done).slice(0, 3).map((t, i) => ({
-        id: t.id,
-        label: t.title,
-        deadline: t.category,
-        done: false,
-        level: (i === 0 ? 'urgent' : 'medium') as 'urgent' | 'medium',
-      }));
-      setRealPriorityTasks(undone);
+      setBudgetSpent(getTotalSpent());
+      setBudgetStoredTotal(getTotalBudget());
+      loadTodoTasks().then((tasks) => {
+        const done = tasks.filter((task) => task.done).length;
+        setTodoCompletion({ done, total: tasks.length });
+        const undone = tasks.filter((t) => !t.done).slice(0, 3).map((t, i) => ({
+          id: t.id,
+          label: t.title,
+          deadline: t.category,
+          done: false,
+          level: (i === 0 ? 'urgent' : 'medium') as 'urgent' | 'medium',
+        }));
+        setRealPriorityTasks(undone);
+      });
     }, [])
   );
 
@@ -205,20 +230,14 @@ export default function DashboardScreen() {
     return 'Vous avancez bien, gardez le cap 🎯';
   }, [todoCompletion]);
 
-  // Budget depuis le profil user (onboarding)
-  const budgetTotal = user?.budget_global ?? 0;
-  const budgetLeft = budgetTotal; // pas encore de dépenses tracées au départ
-  const budgetProgress = 0;
+  const budgetTotal = budgetStoredTotal > 0 ? budgetStoredTotal : (user?.budget_global ?? 0);
+  const budgetLeft = Math.max(0, budgetTotal - budgetSpent);
+  const budgetProgress = budgetTotal > 0 ? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100)) : 0;
   const rsvpProgress = 0;
-
-  if (user?.role === 'prestataire') return <PrestataireHome />;
 
   useEffect(() => {
     const fetchWeather = async () => {
       if (!user?.date_mariage || !user?.wedding_city) return;
-      const weddingDate = new Date(`${user.date_mariage}T00:00:00`);
-      const sevenDaysBefore = new Date(weddingDate.getTime() - 7 * 24 * 60 * 60 * 1000);
-      if (new Date() < sevenDaysBefore) return;
       try {
         const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(user.wedding_city)}&count=1&language=fr&format=json`);
         const geoData = await geoRes.json();
@@ -236,6 +255,8 @@ export default function DashboardScreen() {
     };
     fetchWeather();
   }, [user?.date_mariage, user?.wedding_city]);
+
+  if (user?.role === 'prestataire') return <PrestataireHome />;
 
   const completeTask = (taskId: string) => {
     Haptics.selectionAsync().catch(() => undefined);
@@ -647,29 +668,20 @@ export default function DashboardScreen() {
 
       if (section === 'weather') {
         if (!user?.date_mariage) return null;
-        const weddingDate = new Date(`${user.date_mariage}T00:00:00`);
-        const sevenDaysBefore = new Date(weddingDate.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const weatherAvailableDate = sevenDaysBefore.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-        const isWeatherAvailable = new Date() >= sevenDaysBefore;
         const weddingCity = user?.wedding_city ?? '';
         return (
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
             <PremiumCard style={styles.weatherCard}>
               <SectionHeader title="Météo du mariage" subtitle={weddingCity || 'Prévision J-7'} />
-              {isWeatherAvailable && weatherData ? (
+              {weatherData ? (
                 <>
                   <ThemedText style={styles.weatherTemp}>{weatherData.temp}°C — {weatherData.desc}</ThemedText>
                   <ThemedText style={styles.weatherInfo}>Prévision pour le jour J à {weddingCity || 'votre ville'}.</ThemedText>
                 </>
-              ) : isWeatherAvailable ? (
-                <>
-                  <ThemedText style={styles.weatherTemp}>Chargement des prévisions…</ThemedText>
-                  <ThemedText style={styles.weatherInfo}>Récupération météo en cours pour {weddingCity || 'votre ville'}.</ThemedText>
-                </>
               ) : (
                 <>
-                  <ThemedText style={styles.weatherTemp}>Disponible le {weatherAvailableDate}</ThemedText>
-                  <ThemedText style={styles.weatherInfo}>Les prévisions seront disponibles 7 jours avant votre mariage.</ThemedText>
+                  <ThemedText style={styles.weatherTemp}>Prévision en cours…</ThemedText>
+                  <ThemedText style={styles.weatherInfo}>Les prévisions météo se précisent à l'approche du mariage.</ThemedText>
                 </>
               )}
             </PremiumCard>
@@ -711,7 +723,7 @@ export default function DashboardScreen() {
             ) : (
               <>
                 <ThemedText style={styles.countdownValue}>—</ThemedText>
-                <Pressable onPress={() => router.push('/(app)/personal-info' as never)}>
+                <Pressable onPress={() => router.push('/(app)/personal-info?scrollToDate=1' as never)}>
                   <ThemedText style={[styles.countdownHint, { color: C.sauge, fontWeight: '600' }]}>
                     Ajouter ma date de mariage →
                   </ThemedText>
@@ -727,26 +739,28 @@ export default function DashboardScreen() {
     <GestureHandlerRootView style={styles.root}>
       <ScreenLayout edges={['top', 'left', 'right']} contentStyle={styles.layout}>
         <AnimatedView style={[styles.header, headerStyle]}>
-          <View>
-            <ThemedText style={styles.hello}>
-              {coupleName ? `Bonjour ${coupleName} 👋` : 'Bienvenue sur Oheve'}
-            </ThemedText>
-            <ThemedText style={styles.subHello}>
-              {countdownDays != null
-                ? `J-${countdownDays} · ${todoCompletion.done}/${todoCompletion.total} tâches`
-                : 'Renseignez votre date de mariage'}
-            </ThemedText>
-          </View>
-          <View style={styles.headerActions}>
-            <View style={styles.avatarBubble}>
-              <ThemedText style={styles.avatarText}>
-                {coupleInitials}
+          <View style={styles.profileCardRow}>
+            <Pressable onPress={() => router.push('/(app)/(tabs)/profile' as never)}>
+              <View style={styles.headerAvatar}>
+                <ThemedText style={styles.headerAvatarTxt}>{coupleInitials}</ThemedText>
+              </View>
+            </Pressable>
+            <View style={{ flex: 1, gap: 1 }}>
+              <ThemedText style={styles.hello}>
+                {coupleName ?? 'Oheve'}
+              </ThemedText>
+              <ThemedText style={styles.coupleSub}>Votre couple 💍</ThemedText>
+              <ThemedText style={styles.subHello}>
+                {countdownDays != null
+                  ? `J-${countdownDays} · ${todoCompletion.done}/${todoCompletion.total} tâches`
+                  : 'Renseignez votre date de mariage'}
               </ThemedText>
             </View>
-            <Pressable style={styles.headerIcon}>
-              <Ionicons name="notifications-outline" size={18} color={C.saugeDark} />
-            </Pressable>
-            <HeaderMenu />
+            <View style={styles.headerActions}>
+              <Pressable style={styles.headerIcon}>
+                <Ionicons name="notifications-outline" size={18} color={C.saugeDark} />
+              </Pressable>
+            </View>
           </View>
         </AnimatedView>
 
@@ -776,16 +790,19 @@ const styles = StyleSheet.create({
   layout: { gap: 6 },
   header: {
     paddingTop: 2, marginBottom: 10,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  hello: { fontSize: 22, fontWeight: '800', color: C.textDark },
-  subHello: { marginTop: 4, fontSize: 13, color: C.textLight },
+  profileCardRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+  },
+  headerAvatar: {
+    width: 54, height: 54, borderRadius: 27,
+    backgroundColor: C.sauge, alignItems: 'center', justifyContent: 'center',
+  },
+  headerAvatarTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  hello: { fontSize: 18, fontWeight: '800', color: C.textDark },
+  coupleSub: { fontSize: 12, color: C.textLight, marginTop: 1 },
+  subHello: { marginTop: 3, fontSize: 12, color: C.textLight },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  avatarBubble: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: C.saugePale, alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { color: C.saugeDark, fontWeight: '700', fontSize: 12 },
   headerIcon: {
     width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
@@ -853,23 +870,6 @@ const styles = StyleSheet.create({
     backgroundColor: C.beige, alignItems: 'center', justifyContent: 'center',
   },
   miniAvatarText: { fontSize: 10, color: C.moka, fontWeight: '700' },
-  vendorRow: {
-    borderWidth: 1, borderColor: C.border, borderRadius: RADIUS.md,
-    paddingHorizontal: 10, paddingVertical: 10, marginBottom: 8,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-  },
-  vendorLeft: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  vendorLogo: {
-    width: 36, height: 36, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: C.ivoire,
-  },
-  vendorName: { fontSize: 14, fontWeight: '700', color: C.textDark },
-  vendorCategory: { fontSize: 12, color: C.textLight, marginTop: 2 },
-  vendorRight: { alignItems: 'flex-end', gap: 3 },
-  vendorBadge: { borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 4 },
-  vendorBadgeText: { fontSize: 11, color: C.textMid, fontWeight: '700' },
-  vendorDeposit: { fontSize: 11, color: C.textLight },
   suggestionCard: {
     width: 188, borderWidth: 1, borderColor: C.border,
     borderRadius: RADIUS.lg, backgroundColor: C.card,
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
   jewishRowSub: { fontSize: 12, color: C.textLight, marginTop: 1 },
   countdownCard: { backgroundColor: C.saugePale, alignItems: 'center', paddingVertical: 28 },
   countdownOverline: { fontSize: 13, color: C.textLight, marginBottom: 6, letterSpacing: 1 },
-  countdownValue: { fontSize: 52, fontWeight: '900', color: C.saugeDark },
+  countdownValue: { fontSize: 52, fontWeight: '800', color: C.saugeDark },
   countdownHint: { fontSize: 16, color: C.textMid, marginTop: 6, fontWeight: '600' },
   providerPhotoCard: {
     width: 160, height: 130, borderRadius: RADIUS.lg,

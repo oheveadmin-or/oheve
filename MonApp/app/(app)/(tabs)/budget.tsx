@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { router } from 'expo-router';
+import { useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,18 +20,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
-import { HeaderMenu } from '@/components/navigation/HeaderMenu';
 import {
-  getCategories,
-  getTotalBudget,
-  getTotalSpent,
-  getTotalAcomptes,
-  getTotalSoldes,
   addExpense,
   removeExpense,
   updatePlanned,
   resetBudget,
-  type BudgetCategory,
+  useBudgetState,
 } from '@/lib/budget-store';
 
 function euro(v: number) {
@@ -56,15 +52,14 @@ const TYPE_COLORS = { acompte: '#D4A853', solde: C.sauge, depense: C.textMid };
 
 export default function BudgetScreen() {
   const insets = useSafeAreaInsets();
-  const [tick, setTick] = useState(0);
-  const refresh = useCallback(() => setTick(t => t + 1), []);
-  useFocusEffect(refresh);
 
-  const categories  = useMemo(() => getCategories(),   [tick]);
-  const totalBudget = useMemo(() => getTotalBudget(),  [tick]);
-  const totalSpent  = useMemo(() => getTotalSpent(),   [tick]);
-  const totalAcomp  = useMemo(() => getTotalAcomptes(),[tick]);
-  const totalSolde  = useMemo(() => getTotalSoldes(),  [tick]);
+  const {
+    categories,
+    totalBudget,
+    totalSpent,
+    totalAcomptes: totalAcomp,
+    totalSoldes: totalSolde,
+  } = useBudgetState();
   const totalPaid   = totalAcomp + totalSolde;
 
   const [showDetail,    setShowDetail]    = useState(false);
@@ -96,7 +91,6 @@ export default function BudgetScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowAddModal(false);
     setNewAmount(''); setNewNote('');
-    refresh();
   };
 
   const handleEditPlanned = () => {
@@ -104,13 +98,12 @@ export default function BudgetScreen() {
     if (isNaN(amount) || amount < 0) { Alert.alert('Montant invalide'); return; }
     updatePlanned(editKey, amount);
     setShowEditModal(false);
-    refresh();
   };
 
   const handleReset = () => {
     Alert.alert('Remettre à zéro', 'Toutes les dépenses seront effacées.', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Réinitialiser', style: 'destructive', onPress: () => { resetBudget(); refresh(); } },
+      { text: 'Réinitialiser', style: 'destructive', onPress: () => { resetBudget(); } },
     ]);
   };
 
@@ -118,11 +111,13 @@ export default function BudgetScreen() {
     <ScreenLayout edges={['top', 'left', 'right']} style={{ backgroundColor: C.ivoire }}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <View>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={22} color={C.textDark} />
+        </Pressable>
+        <View style={{ flex: 1 }}>
           <ThemedText style={styles.overline}>Mon mariage</ThemedText>
           <ThemedText style={styles.title}>Budget</ThemedText>
         </View>
-        <HeaderMenu />
       </View>
 
       <ScrollView
@@ -318,7 +313,8 @@ export default function BudgetScreen() {
                   <Pressable style={styles.editBtn} onPress={() => {
                     setEditKey(selected.key);
                     setEditPlanned(String(selected.planned || ''));
-                    setShowEditModal(true);
+                    setShowDetail(false);
+                    setTimeout(() => setShowEditModal(true), 350);
                   }}>
                     <Ionicons name="pencil-outline" size={15} color={C.saugeDark} />
                     <ThemedText style={styles.editBtnTxt}>Modifier le budget</ThemedText>
@@ -378,7 +374,7 @@ export default function BudgetScreen() {
                         </ThemedText>
                       </View>
                       <ThemedText style={styles.entryAmt}>{euro(entry.amount)}</ThemedText>
-                      <Pressable onPress={() => { removeExpense(selected.key, entry.id); refresh(); }} hitSlop={8} style={{ padding: 4 }}>
+                      <Pressable onPress={() => { removeExpense(selected.key, entry.id); }} hitSlop={8} style={{ padding: 4 }}>
                         <Ionicons name="trash-outline" size={14} color={C.error} />
                       </Pressable>
                     </View>
@@ -460,6 +456,7 @@ export default function BudgetScreen() {
 
       {/* ── Modal ajout paiement ── */}
       <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.overlay}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={styles.handle} />
@@ -480,39 +477,51 @@ export default function BudgetScreen() {
               ))}
             </View>
 
-            <TextInput
-              value={newAmount}
-              onChangeText={setNewAmount}
-              placeholder="Montant (ex: 1 500)"
-              keyboardType="decimal-pad"
-              style={styles.input}
-              placeholderTextColor={C.textLight}
-            />
+            <View>
+              <ThemedText style={styles.fieldLabel}>Montant *</ThemedText>
+              <View style={styles.amountRow}>
+                <TextInput
+                  value={newAmount}
+                  onChangeText={setNewAmount}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
+                  style={[styles.input, styles.amountInput]}
+                  placeholderTextColor={C.textLight}
+                  autoFocus
+                />
+                <ThemedText style={styles.amountSuffix}>€</ThemedText>
+              </View>
+            </View>
 
-            {/* Catégories */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {categories.map(c => (
-                <Pressable
-                  key={c.key}
-                  style={[styles.catChip, newCatKey === c.key && styles.catChipOn]}
-                  onPress={() => setNewCatKey(c.key)}
-                >
-                  <ThemedText style={styles.catChipIcon}>{c.icon}</ThemedText>
-                  <ThemedText style={[styles.catChipTxt, newCatKey === c.key && { color: '#fff' }]}>
-                    {c.label}
-                  </ThemedText>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <View>
+              <ThemedText style={styles.fieldLabel}>Catégorie</ThemedText>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {categories.map(c => (
+                  <Pressable
+                    key={c.key}
+                    style={[styles.catChip, newCatKey === c.key && styles.catChipOn]}
+                    onPress={() => setNewCatKey(c.key)}
+                  >
+                    <ThemedText style={styles.catChipIcon}>{c.icon}</ThemedText>
+                    <ThemedText style={[styles.catChipTxt, newCatKey === c.key && { color: '#fff' }]}>
+                      {c.label}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
 
-            <TextInput
-              value={newNote}
-              onChangeText={setNewNote}
-              placeholder="Prestataire ou note (optionnel)"
-              style={[styles.input, { height: 64 }]}
-              multiline
-              placeholderTextColor={C.textLight}
-            />
+            <View>
+              <ThemedText style={styles.fieldLabel}>Prestataire / Note <ThemedText style={{ color: C.textLight, fontWeight: '400' }}>(optionnel)</ThemedText></ThemedText>
+              <TextInput
+                value={newNote}
+                onChangeText={setNewNote}
+                placeholder="Ex : Château des Roses"
+                style={[styles.input, { height: 56 }]}
+                multiline
+                placeholderTextColor={C.textLight}
+              />
+            </View>
 
             <View style={styles.addActions}>
               <Pressable style={styles.cancelBtn} onPress={() => setShowAddModal(false)}>
@@ -524,6 +533,7 @@ export default function BudgetScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Modal modifier budget prévu ── */}
@@ -560,7 +570,8 @@ export default function BudgetScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 10 },
+  backBtn: { padding: 4 },
   overline:  { fontSize: 12, color: C.textLight, letterSpacing: 0.5 },
   title:     { fontSize: 30, fontWeight: '700', color: C.textDark },
   content:   { gap: 12, paddingTop: 4 },
@@ -704,6 +715,10 @@ const styles = StyleSheet.create({
   globalCatRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
 
   // Modals
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: C.textMid, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  amountRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  amountInput: { flex: 1, fontSize: 22, fontWeight: '700', color: C.textDark },
+  amountSuffix: { fontSize: 22, fontWeight: '700', color: C.textDark },
   typeRow: { flexDirection: 'row', gap: 8 },
   typeChip: {
     flex: 1, paddingVertical: 9, alignItems: 'center',

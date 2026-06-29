@@ -20,6 +20,7 @@ export function sectionLabels(language: SiteLanguage) {
       qrCode: 'QR קוד',
       rsvpCta: 'אשרו הגעה',
       countdownTitle: 'עוד',
+      families: 'המשפחות',
     };
   }
   if (language === 'en') {
@@ -41,6 +42,7 @@ export function sectionLabels(language: SiteLanguage) {
       qrCode: 'QR Code',
       rsvpCta: 'RSVP now',
       countdownTitle: 'Countdown',
+      families: 'The families',
     };
   }
   return {
@@ -61,5 +63,6 @@ export function sectionLabels(language: SiteLanguage) {
     qrCode: 'QR Code',
     rsvpCta: 'Confirmer ma présence',
     countdownTitle: 'Compte à rebours',
+    families: 'Les familles',
   };
 }

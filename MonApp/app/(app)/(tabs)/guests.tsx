@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PremiumGate } from '@/components/premium-gate';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { API_ENDPOINTS as ENDPOINTS } from '@/constants/config';
@@ -23,20 +22,91 @@ type Guest = {
   email?: string;
   phone?: string;
   fromRSVP?: boolean;
+  events?: Record<string, { attending: boolean; guestCount?: number }>;
+  manualEventId?: string;
 };
 
-const GUESTS_INITIAL: Guest[] = [];
+const KNOWN_EVENTS: { id: string; label: string; emoji: string }[] = [
+  { id: 'jewish-henne',         label: 'Henné',          emoji: '🌸' },
+  { id: 'jewish-mairie',        label: 'Mairie',          emoji: '🏛️' },
+  { id: 'jewish-houppa',        label: 'Houppa',          emoji: '💍' },
+  { id: 'jewish-chabbat-hatan', label: 'Chabbat Hatan',   emoji: '🕌' },
+  { id: 'jewish-brunch',        label: 'Brunch',          emoji: '☕' },
+  { id: 'jewish-sheva',         label: 'Sheva Berakhot',  emoji: '✡️' },
+];
+
+function eventLabel(id: string): string {
+  return KNOWN_EVENTS.find((e) => e.id === id)?.label ?? id;
+}
+function eventEmoji(id: string): string {
+  return KNOWN_EVENTS.find((e) => e.id === id)?.emoji ?? '📅';
+}
 
 let nextGuestId = 100;
 
-function GuestsScreenContent() {
+export default function GuestsScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const [guests, setGuests] = useState<Guest[]>(GUESTS_INITIAL);
-  const [filter, setFilter] = useState<GuestFilter>('all');
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [statusFilter, setStatusFilter] = useState<GuestFilter>('all');
+  const [eventFilter, setEventFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [weddingSlug, setWeddingSlug] = useState<string>('');
   const [syncLoading, setSyncLoading] = useState(false);
   const sseAbortRef = useRef<AbortController | null>(null);
+
+  // ── Computed ────────────────────────────────────────────────────────────────
+
+  const availableEvents = useMemo(() => {
+    const seen = new Set<string>();
+    guests.forEach((g) => {
+      if (g.events) {
+        Object.entries(g.events).forEach(([id, ev]) => { if (ev.attending) seen.add(id); });
+      }
+      if (g.manualEventId) seen.add(g.manualEventId);
+    });
+    const ordered = KNOWN_EVENTS.filter((e) => seen.has(e.id));
+    // also include any unknown event IDs not in KNOWN_EVENTS
+    [...seen].forEach((id) => {
+      if (!KNOWN_EVENTS.some((e) => e.id === id)) ordered.push({ id, label: id, emoji: '📅' });
+    });
+    return ordered;
+  }, [guests]);
+
+  const guestsByEvent = useMemo(() => {
+    if (eventFilter === 'all') return guests;
+    return guests.filter((g) => {
+      if (g.events) return g.events[eventFilter]?.attending === true;
+      if (g.manualEventId) return g.manualEventId === eventFilter;
+      return false;
+    });
+  }, [guests, eventFilter]);
+
+  const filtered = useMemo(() => {
+    let list = statusFilter === 'all' ? guestsByEvent : guestsByEvent.filter((g) => g.status === statusFilter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((g) =>
+        g.name.toLowerCase().includes(q) ||
+        (g.email ?? '').toLowerCase().includes(q) ||
+        (g.group ?? '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [guestsByEvent, statusFilter, searchQuery]);
+
+  const eventCount = useCallback(
+    (id: string) => guests.filter((g) => g.events?.[id]?.attending === true || g.manualEventId === id).length,
+    [guests],
+  );
+
+  const invitationCount   = guestsByEvent.length;
+  const declinedCount     = guestsByEvent.filter((g) => g.status === 'declined').length;
+  const totalPeople       = guestsByEvent.reduce((s, g) => s + g.guestCount, 0);
+  const confirmedPeople   = guestsByEvent.filter((g) => g.status === 'confirmed').reduce((s, g) => s + g.guestCount, 0);
+  const progress          = totalPeople > 0 ? confirmedPeople / totalPeople : 0;
+
+  // ── RSVP sync ───────────────────────────────────────────────────────────────
 
   const addRSVPGuest = useCallback((answer: {
     id: string; firstname: string; lastname: string;
@@ -47,7 +117,7 @@ function GuestsScreenContent() {
     const attending = answer.events
       ? Object.values(answer.events).filter((e) => e.attending)
       : [];
-    const totalPpl = attending.reduce((s, e) => s + (e.guestCount ?? 1), 0) || 1;
+    const totalPpl = attending.length > 0 ? Math.max(...attending.map((e) => e.guestCount ?? 1)) : 1;
 
     setGuests((prev) => {
       if (prev.some((g) => g.id === answer.id)) return prev;
@@ -63,6 +133,7 @@ function GuestsScreenContent() {
           email: answer.email,
           phone: answer.phone,
           fromRSVP: true,
+          events: answer.events,
         },
       ];
     });
@@ -137,7 +208,6 @@ function GuestsScreenContent() {
 
   useEffect(() => () => { sseAbortRef.current?.abort(); }, []);
 
-  // Auto-charger le slug et les réponses RSVP au montage
   useEffect(() => {
     if (!user?.accessToken) return;
     fetch(ENDPOINTS.myPublicSite, {
@@ -154,33 +224,15 @@ function GuestsScreenContent() {
       .catch(() => null);
   }, [user?.accessToken, syncFromBackend]);
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [name, setName] = useState('');
-  const [guestCount, setGuestCount] = useState('1');
-  const [status, setStatus] = useState<GuestStatus>('confirmed');
-  const [group, setGroup] = useState('');
-  const [table, setTable] = useState('');
+  // ── Modal state ──────────────────────────────────────────────────────────────
 
-  const filtered = filter === 'all' ? guests : guests.filter((g) => g.status === filter);
-  const labels: Record<GuestFilter, string> = {
-    all: 'Tous',
-    confirmed: 'Confirmes',
-    declined: 'Refuses',
-  };
-  const statusLabel: Record<GuestStatus, string> = {
-    confirmed: 'Confirme',
-    declined: 'Refuse',
-  };
-  const statusColor: Record<GuestStatus, string> = {
-    confirmed: '#7A8A72',
-    declined: '#C17E7E',
-  };
-
-  const invitationCount = guests.length;
-  const declinedInvitations = guests.filter((g) => g.status === 'declined').length;
-  const totalPeople = guests.reduce((sum, g) => sum + g.guestCount, 0);
-  const confirmedPeople = guests.filter((g) => g.status === 'confirmed').reduce((sum, g) => sum + g.guestCount, 0);
-  const progress = totalPeople > 0 ? confirmedPeople / totalPeople : 0;
+  const [modalVisible, setModalVisible]   = useState(false);
+  const [name, setName]                   = useState('');
+  const [guestCount, setGuestCount]       = useState('1');
+  const [status, setStatus]               = useState<GuestStatus>('confirmed');
+  const [group, setGroup]                 = useState('');
+  const [table, setTable]                 = useState('');
+  const [manualEventId, setManualEventId] = useState<string>('');
 
   const onDeleteGuest = (id: string) => {
     Alert.alert('Supprimer', 'Supprimer cet invité ?', [
@@ -192,17 +244,17 @@ function GuestsScreenContent() {
   const onSyncFromSite = () => {
     if (!weddingSlug.trim()) {
       Alert.prompt
-        ? Alert.prompt('Slug du site', 'Entrez le slug de votre site mariage (ex: sarah-david)', (val) => {
+        ? Alert.prompt('Slug du site', 'Entrez le slug de votre site mariage', (val) => {
             if (val) { setWeddingSlug(val); syncFromBackend(val); }
           })
-        : Alert.alert('Slug requis', 'Entrez le slug dans le champ de recherche avant de synchroniser.');
+        : Alert.alert('Slug requis', 'Entrez le slug dans le champ avant de synchroniser.');
       return;
     }
     syncFromBackend(weddingSlug.trim());
   };
 
   const onAddGuest = () => {
-    const cleanedName = name.trim();
+    const cleanedName  = name.trim();
     const cleanedGroup = group.trim();
     const count = Number(guestCount);
     if (!cleanedName || !cleanedGroup || Number.isNaN(count) || count < 1) return;
@@ -217,15 +269,20 @@ function GuestsScreenContent() {
         status,
         group: cleanedGroup,
         table: table.trim() || undefined,
+        manualEventId: manualEventId || undefined,
       },
     ]);
-    setName('');
-    setGuestCount('1');
-    setStatus('confirmed');
-    setGroup('');
-    setTable('');
+    setName(''); setGuestCount('1'); setStatus('confirmed');
+    setGroup(''); setTable(''); setManualEventId('');
     setModalVisible(false);
   };
+
+  // ── Labels ───────────────────────────────────────────────────────────────────
+
+  const statusLabel: Record<GuestStatus, string> = { confirmed: 'Confirme', declined: 'Refuse' };
+  const statusColor: Record<GuestStatus, string>  = { confirmed: '#7A8A72', declined: '#C17E7E' };
+
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <ScreenLayout constrainWidth={false} edges={['top', 'left', 'right']}>
@@ -239,9 +296,12 @@ function GuestsScreenContent() {
           <ThemedText style={styles.subtitle}>Gerez vos invites et suivez leurs confirmations.</ThemedText>
         </View>
 
+        {/* Summary card */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeadRow}>
-            <ThemedText style={styles.summaryTitle}>Invites confirmes</ThemedText>
+            <ThemedText style={styles.summaryTitle}>
+              {eventFilter === 'all' ? 'Tous les invités' : `${eventEmoji(eventFilter)} ${eventLabel(eventFilter)}`}
+            </ThemedText>
             <View style={styles.summaryIconBadge}>
               <Ionicons name="people" size={12} color="#A7AD9A" />
             </View>
@@ -265,13 +325,47 @@ function GuestsScreenContent() {
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryStatCol}>
-              <ThemedText style={[styles.summaryStatValue, { color: '#dc2626' }]}>{declinedInvitations}</ThemedText>
+              <ThemedText style={[styles.summaryStatValue, { color: '#dc2626' }]}>{declinedCount}</ThemedText>
               <ThemedText style={styles.summaryStatLabel}>refusees</ThemedText>
             </View>
+            {availableEvents.length > 0 && (
+              <>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryStatCol}>
+                  <ThemedText style={styles.summaryStatValue}>{availableEvents.length}</ThemedText>
+                  <ThemedText style={styles.summaryStatLabel}>evenements</ThemedText>
+                </View>
+              </>
+            )}
           </View>
         </View>
 
-        {/* Slug du site pour sync RSVP */}
+        {/* Event tabs — appear once data loaded */}
+        {availableEvents.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventTabRow}>
+            <Pressable
+              style={[styles.eventTab, eventFilter === 'all' && styles.eventTabActive]}
+              onPress={() => setEventFilter('all')}
+            >
+              <ThemedText style={[styles.eventTabText, eventFilter === 'all' && styles.eventTabTextActive]}>
+                Tous ({guests.length})
+              </ThemedText>
+            </Pressable>
+            {availableEvents.map((ev) => (
+              <Pressable
+                key={ev.id}
+                style={[styles.eventTab, eventFilter === ev.id && styles.eventTabActive]}
+                onPress={() => setEventFilter(ev.id)}
+              >
+                <ThemedText style={[styles.eventTabText, eventFilter === ev.id && styles.eventTabTextActive]}>
+                  {ev.emoji} {ev.label} ({eventCount(ev.id)})
+                </ThemedText>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Slug sync row */}
         <View style={styles.slugRow}>
           <TextInput
             style={styles.slugInput}
@@ -290,11 +384,32 @@ function GuestsScreenContent() {
           </Pressable>
         </View>
 
+        {/* Search bar */}
+        <View style={styles.searchRow}>
+          <Ionicons name="search-outline" size={15} color="#A09890" style={{ marginRight: 6 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher un invité..."
+            placeholderTextColor="#A09890"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color="#A09890" />
+            </Pressable>
+          )}
+        </View>
+
+        {/* Status filter chips */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
           {(['all', 'confirmed', 'declined'] as GuestFilter[]).map((key) => (
-            <Pressable key={key} style={[styles.filterChip, filter === key && styles.filterChipActive]} onPress={() => setFilter(key)}>
-              <ThemedText style={[styles.filterChipText, filter === key && styles.filterChipTextActive]}>
-                {labels[key]}
+            <Pressable key={key} style={[styles.filterChip, statusFilter === key && styles.filterChipActive]} onPress={() => setStatusFilter(key)}>
+              <ThemedText style={[styles.filterChipText, statusFilter === key && styles.filterChipTextActive]}>
+                {{ all: 'Tous', confirmed: 'Confirmes', declined: 'Refuses' }[key]}
               </ThemedText>
             </Pressable>
           ))}
@@ -308,11 +423,26 @@ function GuestsScreenContent() {
           </Pressable>
         </View>
 
+        {/* Guest list */}
         <View style={styles.listContent}>
+          {filtered.length === 0 && (
+            <View style={styles.emptyState}>
+              <ThemedText style={styles.emptyText}>
+                {eventFilter !== 'all'
+                  ? `Aucun invité pour ${eventLabel(eventFilter)}`
+                  : 'Aucun invité — synchronisez votre site ou ajoutez manuellement'}
+              </ThemedText>
+            </View>
+          )}
           {filtered.map((guest) => {
+            const attendingEvents = guest.events
+              ? Object.entries(guest.events).filter(([, ev]) => ev.attending).map(([id]) => id)
+              : guest.manualEventId ? [guest.manualEventId] : [];
+
             const details = [`${guest.guestCount} personne${guest.guestCount > 1 ? 's' : ''}`];
             if (guest.table) details.push(`Table ${guest.table}`);
-            details.push(guest.group);
+            if (!guest.fromRSVP) details.push(guest.group);
+
             return (
               <Pressable
                 key={guest.id}
@@ -324,9 +454,7 @@ function GuestsScreenContent() {
                 </View>
                 <View style={styles.guestBody}>
                   <View style={styles.guestTopRow}>
-                    <ThemedText style={styles.guestName} numberOfLines={1}>
-                      {guest.name}
-                    </ThemedText>
+                    <ThemedText style={styles.guestName} numberOfLines={1}>{guest.name}</ThemedText>
                     <View style={styles.guestRightSide}>
                       <ThemedText style={[styles.statusBadge, { color: statusColor[guest.status] }]} numberOfLines={1}>
                         {statusLabel[guest.status]}
@@ -334,12 +462,18 @@ function GuestsScreenContent() {
                     </View>
                   </View>
                   <ThemedText style={styles.guestDetails} numberOfLines={1}>
-                    {details.join(' • ')}
-                    {guest.email ? ` • ${guest.email}` : ''}
+                    {details.join(' • ')}{guest.email ? ` • ${guest.email}` : ''}
                   </ThemedText>
-                  {guest.fromRSVP && (
-                    <ThemedText style={styles.rsvpBadge}>RSVP site</ThemedText>
+                  {attendingEvents.length > 0 && (
+                    <View style={styles.guestEventRow}>
+                      {attendingEvents.map((id) => (
+                        <View key={id} style={styles.guestEventTag}>
+                          <ThemedText style={styles.guestEventTagText}>{eventEmoji(id)} {eventLabel(id)}</ThemedText>
+                        </View>
+                      ))}
+                    </View>
                   )}
+                  {guest.fromRSVP && <ThemedText style={styles.rsvpBadge}>RSVP site</ThemedText>}
                 </View>
                 <Pressable onPress={() => onDeleteGuest(guest.id)} hitSlop={8} style={styles.guestDeleteBtn}>
                   <Ionicons name="trash-outline" size={14} color="#d1d5db" />
@@ -356,13 +490,14 @@ function GuestsScreenContent() {
         </View>
       </ScrollView>
 
+      {/* Add guest modal */}
       <Modal visible={modalVisible} animationType="fade" transparent onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={styles.modalBackdrop} onPress={() => setModalVisible(false)} />
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalCenter}>
             <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
               <View style={styles.modalCard}>
-                <ThemedText style={styles.modalTitle}>Nouvel invite</ThemedText>
+                <ThemedText style={styles.modalTitle}>Nouvel invité</ThemedText>
 
                 <ThemedText style={styles.modalLabel}>Nom / foyer</ThemedText>
                 <TextInput style={styles.modalInput} value={name} onChangeText={setName} placeholder="Ex: Famille Martin" />
@@ -380,6 +515,27 @@ function GuestsScreenContent() {
                     </Pressable>
                   ))}
                 </View>
+
+                <ThemedText style={styles.modalLabel}>Événement</ThemedText>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventPickerRow}>
+                  <Pressable
+                    style={[styles.eventPickerChip, manualEventId === '' && styles.eventPickerChipActive]}
+                    onPress={() => setManualEventId('')}
+                  >
+                    <ThemedText style={[styles.eventPickerChipText, manualEventId === '' && styles.eventPickerChipTextActive]}>Tous</ThemedText>
+                  </Pressable>
+                  {KNOWN_EVENTS.map((ev) => (
+                    <Pressable
+                      key={ev.id}
+                      style={[styles.eventPickerChip, manualEventId === ev.id && styles.eventPickerChipActive]}
+                      onPress={() => setManualEventId(ev.id)}
+                    >
+                      <ThemedText style={[styles.eventPickerChipText, manualEventId === ev.id && styles.eventPickerChipTextActive]}>
+                        {ev.emoji} {ev.label}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </ScrollView>
 
                 <ThemedText style={styles.modalLabel}>Groupe</ThemedText>
                 <TextInput style={styles.modalInput} value={group} onChangeText={setGroup} placeholder="Ex: Famille" />
@@ -405,7 +561,7 @@ function GuestsScreenContent() {
 }
 
 const styles = StyleSheet.create({
-  rsvpBadge: { fontSize: 10, color: '#7A8A72', fontWeight: '700', marginTop: 1 },
+  rsvpBadge: { fontSize: 10, color: '#7A8A72', fontWeight: '700', marginTop: 2 },
   slugRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   slugInput: { flex: 1, height: 36, borderWidth: 1, borderColor: '#EBEBF2', borderRadius: 10, paddingHorizontal: 10, fontSize: 13, backgroundColor: '#fff' },
   slugSyncBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#7A8A72', alignItems: 'center', justifyContent: 'center' },
@@ -415,6 +571,7 @@ const styles = StyleSheet.create({
   header: { marginBottom: 8 },
   title: { fontWeight: '700', marginBottom: 2, color: '#3D3530', fontSize: 22 },
   subtitle: { fontSize: 12, color: '#8e8e98', lineHeight: 15, fontWeight: '500' },
+
   summaryCard: { borderWidth: 1, borderColor: '#EBEBF2', borderRadius: 14, backgroundColor: '#ffffff', paddingHorizontal: 10, paddingVertical: 10, marginBottom: 8 },
   summaryHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   summaryTitle: { fontSize: 11, color: '#707084', fontWeight: '600' },
@@ -430,35 +587,53 @@ const styles = StyleSheet.create({
   summaryDivider: { width: 1, height: 20, backgroundColor: '#ececf1' },
   summaryStatValue: { fontSize: 11, fontWeight: '700', color: '#A7AD9A', marginBottom: 1 },
   summaryStatLabel: { fontSize: 9, color: '#7c7c8e', fontWeight: '500' },
-  filterRow: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', gap: 6, marginBottom: 8, paddingVertical: 0, paddingRight: 8 },
+
+  eventTabRow: { flexDirection: 'row', gap: 6, marginBottom: 8, paddingRight: 8 },
+  eventTab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#E2D9CC', backgroundColor: '#fff' },
+  eventTabActive: { backgroundColor: '#7A8A72', borderColor: '#7A8A72' },
+  eventTabText: { fontSize: 11, fontWeight: '600', color: '#4b5563' },
+  eventTabTextActive: { color: '#fff' },
+
+  searchRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2D9CC',
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
+    marginBottom: 8,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: '#3D3530' },
+  filterRow: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', gap: 6, marginBottom: 8, paddingRight: 8 },
   filterChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: '#E2D9CC', backgroundColor: '#ffffff', justifyContent: 'center' },
   filterChipActive: { backgroundColor: '#A7AD9A', borderColor: '#A7AD9A' },
   filterChipText: { color: '#4b5563', fontSize: 10, fontWeight: '500' },
   filterChipTextActive: { color: '#fff', fontWeight: '700' },
+
   actionsRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
-  actionBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 8,
-    paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#fff',
-  },
-  actionBtnDanger: { borderColor: '#F5E8E8', backgroundColor: '#FFF8F8' },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#fff' },
   actionBtnText: { fontSize: 11, color: '#7A8A72', fontWeight: '600' },
-  actionBtnTextDanger: { fontSize: 11, color: '#C17E7E', fontWeight: '600' },
+
+  emptyState: { paddingVertical: 24, alignItems: 'center' },
+  emptyText: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
+
   guestDeleteBtn: { padding: 4 },
-  listContent: { gap: 4, paddingBottom: 2, paddingTop: 0 },
-  guestCard: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#E2D9CC', width: '100%', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 0 },
+  listContent: { gap: 4, paddingBottom: 2 },
+  guestCard: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#E2D9CC', width: '100%', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 0 },
   guestCardPressed: { opacity: 0.92 },
-  guestIconWrap: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#E8EDE4', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  guestIconWrap: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#E8EDE4', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   guestBody: { flex: 1, minWidth: 0 },
   guestTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 1 },
   guestRightSide: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8, flexShrink: 0 },
   guestName: { fontSize: 13, fontWeight: '700', color: '#3D3530', flex: 1, minWidth: 0, lineHeight: 15 },
   statusBadge: { fontSize: 10, fontWeight: '700', textAlign: 'right' },
   guestDetails: { fontSize: 10, color: '#6b7280', lineHeight: 12, fontWeight: '500', flexShrink: 1 },
+  guestEventRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 },
+  guestEventTag: { backgroundColor: '#F0F4EE', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  guestEventTagText: { fontSize: 9, color: '#7A8A72', fontWeight: '600' },
+
   listFooter: { marginTop: 6, paddingHorizontal: 2 },
   primaryBtn: { backgroundColor: '#A7AD9A', paddingVertical: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   primaryBtnPressed: { opacity: 0.9 },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+
   modalRoot: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: 12, paddingVertical: 10 },
   modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.25)' },
   modalCenter: { width: '100%', maxWidth: 520, alignSelf: 'center' },
@@ -472,13 +647,14 @@ const styles = StyleSheet.create({
   statusChipActive: { borderColor: '#A7AD9A', backgroundColor: '#E8EDE4' },
   statusChipText: { fontSize: 12, color: '#4b5563', fontWeight: '600' },
   statusChipTextActive: { color: '#A7AD9A' },
+  eventPickerRow: { flexDirection: 'row', gap: 6, marginBottom: 9, paddingRight: 4 },
+  eventPickerChip: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#E2D9CC', backgroundColor: '#fff' },
+  eventPickerChipActive: { backgroundColor: '#7A8A72', borderColor: '#7A8A72' },
+  eventPickerChipText: { fontSize: 11, color: '#4b5563', fontWeight: '500' },
+  eventPickerChipTextActive: { color: '#fff', fontWeight: '700' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 2 },
   modalBtnSecondary: { flex: 1, borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
   modalBtnSecondaryText: { color: '#4b5563', fontWeight: '700' },
   modalBtnPrimary: { flex: 1, backgroundColor: '#A7AD9A', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
   modalBtnPrimaryText: { color: '#fff', fontWeight: '700' },
 });
-
-export default function GuestsScreen() {
-  return <PremiumGate feature="Liste des invités" icon="people-outline"><GuestsScreenContent /></PremiumGate>;
-}

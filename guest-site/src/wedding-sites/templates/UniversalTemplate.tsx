@@ -246,6 +246,46 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
           )
         ) : null}
 
+        {/* Textes du site (mémoire + famille) — rendu vintage dédié */}
+        {isVintage && (site.content?.texts?.familyText?.trim() || site.content?.texts?.memorialText?.trim()) ? (
+          <section style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <VintageRibbon width={100} color={V.colors.primary} style={{ marginBottom: '0.7rem' }} />
+            {site.content?.texts?.familyText?.trim() ? (
+              <p
+                style={{
+                  fontFamily: V.fonts.body,
+                  fontSize: '0.92rem',
+                  lineHeight: 1.85,
+                  color: V.colors.inkMuted,
+                  maxWidth: 440,
+                  margin: '0 auto',
+                  whiteSpace: 'pre-wrap',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {site.content.texts.familyText}
+              </p>
+            ) : null}
+            {site.content?.texts?.memorialText?.trim() ? (
+              <p
+                style={{
+                  fontFamily: V.fonts.body,
+                  fontStyle: 'italic',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.7,
+                  color: V.colors.inkMuted,
+                  opacity: 0.85,
+                  maxWidth: 400,
+                  margin: '0.9rem auto 0',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {site.content.texts.memorialText}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         <div style={{ textAlign: site.language === 'he' ? 'right' : 'center' }}>
           {renderOptionalSections(enrichedSite, cardStyleSurface)}
         </div>

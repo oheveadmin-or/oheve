@@ -4,6 +4,8 @@ import type { WeddingTheme } from '../types';
 
 import { HebrewElegantTemplate } from '@guest/wedding-sites/templates/HebrewElegantTemplate';
 import { UniversalTemplate } from '@guest/wedding-sites/templates/UniversalTemplate';
+import { EditorialCardsTemplate } from '@guest/wedding-sites/templates/EditorialCardsTemplate';
+import { StripesEditorialTemplate } from '@guest/wedding-sites/templates/StripesEditorialTemplate';
 
 // Legacy templates — kept for sites created before the UniversalTemplate system
 import { ArtDecoTemplate } from '@guest/wedding-sites/templates/ArtDecoTemplate';
@@ -31,6 +33,13 @@ export function getTemplateByTheme(
   // Hebrew always uses the dedicated RTL template
   if (language === 'he') return HebrewElegantTemplate;
 
+  // Guard: theme can be null if DB row was created before theme column existed
+  if (!theme) return ClassicElegantTemplate;
+
+  // Standalone templates — routed by style id before the heroStyle catch-all
+  if (theme.style === 'stripes-editorial') return StripesEditorialTemplate;
+  if (theme.style === 'editorial-cards') return EditorialCardsTemplate;
+
   // v2 sites: heroStyle is set → use the new universal template
   if (theme.heroStyle) return UniversalTemplate;
 
@@ -38,6 +47,10 @@ export function getTemplateByTheme(
   if (theme.ambiance === 'religieux') return ClassicElegantTemplate;
 
   switch (theme.style) {
+    // Vintage blue always uses UniversalTemplate (handles isVintage check internally)
+    case 'vintage-blue':
+      return UniversalTemplate;
+
     case 'luxury':
     case 'celestial':
     case 'dark-romance':

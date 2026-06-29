@@ -103,7 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } catch {}
     }
-    await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.multiRemove([
+      STORAGE_KEY,
+      '@oheve:todo_tasks',
+      '@oheve_budget_v1',
+      '@oheve:home_providers',
+    ]);
     setUser(null);
     router.replace('/(auth)');
   }, [user]);

@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "MonApp",
-    "slug": "MonApp",
-    "version": "1.0.0",
+    "name": "Oheve",
+    "slug": "oheve",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "monapp",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.odayaattia.weddingplanner",
+      "bundleIdentifier": "com.oheve.wedding",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.odayaattia.weddingplanner",
+      "package": "com.oheve.wedding",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -56,17 +56,18 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "owner": "odou2000s-team",
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "a64b433f-00b5-49f0-b769-7a4da8f52cdf"
+        "projectId": "aebc2135-3ca1-4b4b-8a2c-d58fceeadc1a"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/a64b433f-00b5-49f0-b769-7a4da8f52cdf"
+      "url": "https://u.expo.dev/aebc2135-3ca1-4b4b-8a2c-d58fceeadc1a"
     }
   }
 }

@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 
 type QuickActionsSheetProps = {
@@ -43,7 +44,7 @@ export function QuickActionsSheet({ visible, onClose }: QuickActionsSheetProps) 
             >
               <View style={styles.itemLeft}>
                 <View style={styles.iconDot}>
-                  <Ionicons name={action.icon} size={16} color="#A7AD9A" />
+                  <Ionicons name={action.icon} size={16} color={C.sauge} />
                 </View>
                 <ThemedText style={styles.itemLabel}>{action.label}</ThemedText>
               </View>
@@ -64,39 +65,39 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(24, 18, 44, 0.28)',
+    backgroundColor: 'rgba(61,53,48,0.35)',
   },
   sheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: C.card,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    shadowColor: '#3D3530',
+    shadowColor: C.moka,
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.08,
     shadowRadius: 14,
     elevation: 10,
   },
   handle: {
-    width: 56,
-    height: 5,
+    width: 40,
+    height: 4,
     borderRadius: 999,
-    backgroundColor: '#d6d3f5',
+    backgroundColor: C.taupe,
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 4,
   },
   content: { paddingHorizontal: 18, paddingBottom: 18, gap: 10 },
-  title: { fontSize: 30, fontWeight: '700', marginBottom: 6 },
+  title: { fontSize: 28, fontWeight: '700', marginBottom: 6, color: C.textDark },
   item: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: C.border,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: C.card,
   },
   itemPressed: { opacity: 0.85 },
   itemLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -104,18 +105,18 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#f3f1ff',
+    backgroundColor: C.saugePale,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  itemLabel: { fontSize: 16, fontWeight: '500' },
+  itemLabel: { fontSize: 16, fontWeight: '500', color: C.textDark },
   cancelBtn: {
     borderRadius: 14,
-    backgroundColor: '#f3f1ff',
+    backgroundColor: C.beige,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 13,
     marginTop: 4,
   },
-  cancelText: { color: '#A7AD9A', fontSize: 16, fontWeight: '700' },
+  cancelText: { color: C.textMid, fontSize: 16, fontWeight: '700' },
 });

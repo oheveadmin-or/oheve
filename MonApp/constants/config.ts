@@ -113,6 +113,8 @@ export const API_ENDPOINTS = {
   forgotPassword: `${API_BASE_URL}/api/auth/forgot-password`,
   resetPassword: `${API_BASE_URL}/api/auth/reset-password`,
   changePassword: `${API_BASE_URL}/api/auth/change-password`,
+  deleteAccount: `${API_BASE_URL}/api/auth/me`,
+  exportData: `${API_BASE_URL}/api/auth/export`,
   // Onboarding
   dateMariage: `${API_BASE_URL}/api/auth/date-mariage`,
   budget: `${API_BASE_URL}/api/auth/budget`,
@@ -120,6 +122,9 @@ export const API_ENDPOINTS = {
   // Features
   publicSites: `${API_BASE_URL}/api/public-sites`,
   myPublicSite: `${API_BASE_URL}/api/public-sites/me`,
+  weddingSites: `${API_BASE_URL}/api/wedding-sites`,
+  mySites: `${API_BASE_URL}/api/wedding-sites/me`,
+  weddingSitePublicBase: 'https://oheve.pages.dev/wedding',
   prestataires: `${API_BASE_URL}/api/prestataires`,
   prestataireFeed: `${API_BASE_URL}/api/prestataires/feed/photos`,
   photoLike: (photoId: number) => `${API_BASE_URL}/api/prestataires/photos/${photoId}/like`,

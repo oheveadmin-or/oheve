@@ -1,5 +1,7 @@
 import { T } from './pdf-theme';
 import type { Guest, PdfCardStyle, PdfExportType, PdfOptions, SeatingPlanData, SeatingTable, TableShape } from './types';
+import { renderPanelPage, DEFAULT_PANEL_TEMPLATE } from './panel-templates';
+import type { PanelTemplateId } from './panel-templates';
 
 // Palette Oheve export — remplace les couleurs aléatoires des tables
 const ACCENTS = ['#8F947F', '#A09480', '#7B7063', '#C7B7A5', '#B5A692'];
@@ -501,88 +503,30 @@ function sealSvg(style: PdfCardStyle, num: number): string {
   </svg>`;
 }
 
-// ── 0. PANNEAUX CARTES (1 page par table — design imprimable) ─────────────────
+// ── 0. PANNEAUX CARTES (1 page par table — bibliothèque de modèles) ───────────
 
-function panneauxPages(data: SeatingPlanData, style: PdfCardStyle = 'elegant'): string {
+function panneauxPages(data: SeatingPlanData, _style: PdfCardStyle = 'elegant', templateId: PanelTemplateId = DEFAULT_PANEL_TEMPLATE): string {
   const { tables, guests, wedding } = data;
-  const wname = wedding.weddingTitle || wedding.coupleName || '';
-
-  const isClassique = style === 'classique';
-  const isModerne = style === 'moderne';
-  const isElegant = style === 'elegant';
-
-  const bg = isModerne ? '#ffffff' : isClassique ? '#ffffff' : T.ivoire;
-  const textFamily = isModerne
-    ? "'DM Sans',sans-serif"
-    : "'Cormorant Garamond',Georgia,serif";
-  const tableLabelColor = isModerne ? '#3C352F' : isClassique ? '#1a1a1a' : T.sauge;
-  const tableNumColor = isModerne ? '#3C352F' : isClassique ? '#1a1a1a' : GOLD;
-  const guestColor = isModerne ? '#3C352F' : isClassique ? '#1a1a1a' : T.textMid;
-  const borderStyle = isModerne
-    ? `border:1.5px solid #e0dbd6;`
-    : isClassique
-    ? `border:1px solid #1a1a1a;`
-    : `border:1.5px solid ${T.saugePale};`;
-  const borderTop = isElegant ? `border-top:3px solid ${GOLD};` : '';
 
   if (tables.length === 0) {
-    return `<div class="page" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:${bg};">
-      <div style="text-align:center;color:${T.textLight};font-style:italic;font-size:13px;">Aucune table à afficher</div>
+    return `<div class="page" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#F6F2EA;">
+      <div style="text-align:center;color:#9A9288;font-style:italic;font-size:13px;">Aucune table à afficher</div>
     </div>`;
   }
 
   return tables.map((t, idx) => {
     const ag = tableGuests(t, guests);
-    const names = expandGuests(ag); // chaque personne sur sa propre ligne
+    const guestNames = expandGuests(ag);
     const occupied = ag.reduce((s, g) => s + g.guestCount, 0);
-
-    const guestLines = names.length > 0
-      ? names.map((name, ni) => {
-          const isLast = ni === names.length - 1;
-          if (isModerne) {
-            return `<div style="font-size:12px;color:${guestColor};padding:5px 0;${!isLast ? `border-bottom:1px solid #f0ede9;` : ''}letter-spacing:0.3px;font-weight:500;">${esc(name)}</div>`;
-          }
-          if (isClassique) {
-            return `<div style="font-size:12.5px;color:${guestColor};padding:5px 0;${!isLast ? `border-bottom:1px dotted rgba(26,26,26,0.15);` : ''}font-family:'Cormorant Garamond',serif;letter-spacing:0.5px;">${esc(name)}</div>`;
-          }
-          // elegant
-          return `<div style="font-size:12.5px;color:${guestColor};padding:5px 0;${!isLast ? `border-bottom:1px solid ${T.saugePale};` : ''}font-family:'Cormorant Garamond',serif;letter-spacing:0.3px;">${esc(name)}</div>`;
-        }).join('')
-      : `<div style="font-size:11px;color:${T.textLight};font-style:italic;padding:8px 0;">Aucun invité assigné</div>`;
-
-    const tableTitle = isModerne
-      ? `<div style="font-size:9px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:${tableLabelColor};opacity:0.5;margin-bottom:6px;">TABLE</div>
-         <div style="font-size:58px;font-weight:700;color:${tableNumColor};line-height:1;margin-bottom:4px;">${idx + 1}</div>
-         ${t.name !== String(idx + 1) ? `<div style="font-size:14px;font-weight:600;color:${guestColor};margin-bottom:2px;">${esc(t.name)}</div>` : ''}`
-      : isClassique
-      ? `<div style="font-size:9px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${tableLabelColor};opacity:0.6;margin-bottom:10px;">Table</div>
-         ${sealSvg(style, idx + 1)}
-         ${t.name !== String(idx + 1) ? `<div style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:${guestColor};margin-top:6px;">${esc(t.name)}</div>` : ''}`
-      : `<div style="font-size:7.5px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${tableLabelColor};margin-bottom:10px;">Table</div>
-         ${sealSvg(style, idx + 1)}
-         ${t.name !== String(idx + 1) ? `<div style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:${T.textDark};margin-top:6px;">${esc(t.name)}</div>` : ''}`;
-
-    return `<div class="page" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:${isElegant ? T.ivoire : '#f5f4f2'};padding:14mm;">
-      <div style="width:100%;max-width:360px;${borderStyle}${borderTop}border-radius:${isModerne ? '4px' : '2px'};padding:${isModerne ? '32px 28px' : '36px 32px'};background:${bg};position:relative;text-align:center;">
-
-        ${isElegant ? `<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,${GOLD},transparent);"></div>` : ''}
-        ${isElegant ? `<div style="position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${GOLD},transparent);"></div>` : ''}
-
-        ${wname ? `<div style="font-size:7.5px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:${isElegant ? T.sauge : (isClassique ? 'rgba(26,26,26,0.4)' : '#aaa')};margin-bottom:${isModerne ? '20px' : '16px'};">${esc(wname)}</div>` : ''}
-
-        ${tableTitle}
-
-        <div style="margin:14px auto 16px;">${ornamentSvg(style)}</div>
-
-        <div style="text-align:left;max-height:320px;overflow:hidden;">
-          ${guestLines}
-        </div>
-
-        <div style="margin-top:14px;padding-top:10px;border-top:1px solid ${isElegant ? T.saugePale : (isClassique ? 'rgba(26,26,26,0.1)' : '#f0ede9')};font-size:8.5px;color:${isElegant ? T.textLight : (isModerne ? '#aaa' : 'rgba(26,26,26,0.4)')};letter-spacing:0.5px;">
-          ${shapeLabel(t.shape)} · ${occupied} / ${t.seats} places
-        </div>
-      </div>
-    </div>`;
+    return renderPanelPage(templateId, {
+      tableNum: idx + 1,
+      tableName: t.name,
+      guestNames,
+      occupied,
+      seats: t.seats,
+      coupleName: wedding.coupleName || '',
+      weddingTitle: wedding.weddingTitle || wedding.coupleName || '',
+    });
   }).join('');
 }
 
@@ -606,11 +550,12 @@ export function generateSeatingPlanHtml(
   options: PdfOptions = {},
 ): string {
   const cardStyle: PdfCardStyle = options.cardStyle ?? 'elegant';
+  const panelTemplate = options.panelTemplate ?? DEFAULT_PANEL_TEMPLATE;
   let pages = '';
 
   switch (type) {
     case 'panneaux':
-      pages += panneauxPages(data, cardStyle);
+      pages += panneauxPages(data, cardStyle, panelTemplate);
       break;
     case 'complet':
       pages += coverPage(data);

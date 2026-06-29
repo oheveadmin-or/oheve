@@ -32,6 +32,10 @@ export function useSocialAuth(onAfterSignIn?: (isNew: boolean, role: string) => 
 
   // ── Google via Supabase OAuth ─────────────────────────────────────────────
   const signInWithGoogle = async () => {
+    if (!supabase) {
+      Alert.alert('Google indisponible', "La connexion Google n'est pas configurée dans cette version.");
+      return;
+    }
     try {
       const redirectTo = 'monapp://';
 

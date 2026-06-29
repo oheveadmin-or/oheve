@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
     left: 20,
     right: 60,
   },
-  heroTitle: { fontSize: 26, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
+  heroTitle: { fontSize: 26, fontWeight: '800', color: '#fff', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
   heroTitleDark: { fontSize: 22, fontWeight: '800', color: C.textDark, textAlign: 'center' },
   heroLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
   heroLocationText: { fontSize: 13, color: '#ffffffcc', fontWeight: '500' },

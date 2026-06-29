@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert, KeyboardAvoidingView, Platform, Pressable,
   ScrollView, StyleSheet, TextInput, View, ActivityIndicator,
@@ -13,8 +13,15 @@ import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
 import { API_ENDPOINTS } from '@/constants/config';
 
+function parseDateMariage(dateStr?: string | null) {
+  if (!dateStr) return { day: '', month: '', year: '' };
+  const parts = dateStr.split('-');
+  return { day: parts[2] ?? '', month: parts[1] ?? '', year: parts[0] ?? '' };
+}
+
 export default function PersonalInfoScreen() {
   const { user, updateUser } = useAuth();
+  const { scrollToDate } = useLocalSearchParams<{ scrollToDate?: string }>();
 
   const isClient = user?.role === 'client';
   const [prenom, setPrenom] = useState(user?.prenom ?? '');
@@ -24,6 +31,26 @@ export default function PersonalInfoScreen() {
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const initDate = parseDateMariage(user?.date_mariage);
+  const [dateDay, setDateDay] = useState(initDate.day);
+  const [dateMonth, setDateMonth] = useState(initDate.month);
+  const [dateYear, setDateYear] = useState(initDate.year);
+  const monthRef = useRef<TextInput>(null);
+  const yearRef = useRef<TextInput>(null);
+  const dateDayRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const dateSectionY = useRef<number>(0);
+
+  useEffect(() => {
+    if (scrollToDate === '1' && isClient) {
+      const timer = setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: dateSectionY.current, animated: true });
+        setTimeout(() => dateDayRef.current?.focus(), 300);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [scrollToDate, isClient]);
 
   const handlePickAvatar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -94,6 +121,9 @@ export default function PersonalInfoScreen() {
                 prenom: brideName.trim(),
                 nom: groomName.trim(),
                 phone: phone.trim() || null,
+                date_mariage: (dateDay && dateMonth && dateYear)
+                  ? `${dateYear.padStart(4, '0')}-${dateMonth.padStart(2, '0')}-${dateDay.padStart(2, '0')}`
+                  : null,
               }
             : {
                 nom: nom.trim(),
@@ -113,6 +143,9 @@ export default function PersonalInfoScreen() {
         phone: json.data.phone,
         bride_name: json.data.bride_name,
         groom_name: json.data.groom_name,
+        date_mariage: json.data.date_mariage !== undefined
+          ? json.data.date_mariage
+          : user?.date_mariage,
       });
       Alert.alert('Enregistré', 'Vos informations ont été mises à jour');
     } catch {
@@ -130,7 +163,7 @@ export default function PersonalInfoScreen() {
   return (
     <ScreenLayout>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#A7AD9A" />
           </Pressable>
@@ -227,9 +260,73 @@ export default function PersonalInfoScreen() {
             placeholder="+33 6 12 34 56 78"
             placeholderTextColor="#A09890"
             keyboardType="phone-pad"
-            returnKeyType="done"
-            onSubmitEditing={handleSave}
+            returnKeyType="next"
           />
+
+          {isClient && (
+            <View onLayout={(e) => { dateSectionY.current = e.nativeEvent.layout.y; }}>
+              <ThemedText style={styles.label}>Date de mariage 💍</ThemedText>
+              <View style={styles.dateRow}>
+                <View style={styles.dateFieldWrap}>
+                  <TextInput
+                    ref={dateDayRef}
+                    style={styles.dateInput}
+                    value={dateDay}
+                    onChangeText={(v) => {
+                      const clean = v.replace(/\D/g, '').slice(0, 2);
+                      setDateDay(clean);
+                      if (clean.length === 2) monthRef.current?.focus();
+                    }}
+                    placeholder="JJ"
+                    placeholderTextColor="#A09890"
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    textAlign="center"
+                  />
+                  <ThemedText style={styles.dateLabel}>Jour</ThemedText>
+                </View>
+                <ThemedText style={styles.dateSep}>/</ThemedText>
+                <View style={styles.dateFieldWrap}>
+                  <TextInput
+                    ref={monthRef}
+                    style={styles.dateInput}
+                    value={dateMonth}
+                    onChangeText={(v) => {
+                      const clean = v.replace(/\D/g, '').slice(0, 2);
+                      setDateMonth(clean);
+                      if (clean.length === 2) yearRef.current?.focus();
+                    }}
+                    placeholder="MM"
+                    placeholderTextColor="#A09890"
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    textAlign="center"
+                  />
+                  <ThemedText style={styles.dateLabel}>Mois</ThemedText>
+                </View>
+                <ThemedText style={styles.dateSep}>/</ThemedText>
+                <View style={[styles.dateFieldWrap, { flex: 2 }]}>
+                  <TextInput
+                    ref={yearRef}
+                    style={styles.dateInput}
+                    value={dateYear}
+                    onChangeText={(v) => {
+                      const clean = v.replace(/\D/g, '').slice(0, 4);
+                      setDateYear(clean);
+                    }}
+                    placeholder="AAAA"
+                    placeholderTextColor="#A09890"
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    textAlign="center"
+                    returnKeyType="done"
+                    onSubmitEditing={handleSave}
+                  />
+                  <ThemedText style={styles.dateLabel}>Année</ThemedText>
+                </View>
+              </View>
+            </View>
+          )}
 
           <Pressable
             style={[styles.btn, saving && styles.btnDisabled]}
@@ -291,4 +388,14 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.6 },
   btnTxt: { color: '#fff', fontWeight: '700', fontSize: 16 },
+
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dateFieldWrap: { flex: 1, alignItems: 'center', gap: 4 },
+  dateInput: {
+    width: '100%', borderWidth: 1.5, borderColor: '#e5e7eb',
+    borderRadius: 12, paddingVertical: 12, fontSize: 17,
+    fontWeight: '700', color: '#3D3530', backgroundColor: '#fafafa',
+  },
+  dateLabel: { fontSize: 11, color: '#A09890', fontWeight: '500' },
+  dateSep: { fontSize: 22, color: '#A09890', fontWeight: '300', marginBottom: 18 },
 });

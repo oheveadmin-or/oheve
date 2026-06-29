@@ -50,11 +50,9 @@ export function cardStyleSurface({ theme, padded = true }: CardOpts): CSSPropert
   if (theme.cardStyle === 'double-border') {
     return {
       ...base,
-      background: `${theme.secondaryColor}18`,
-      border: `1px solid ${theme.primaryColor}55`,
-      outline: `3px solid transparent`,
-      outlineOffset: `-6px`,
-      boxShadow: `inset 0 0 0 4px ${theme.primaryColor}18`,
+      background: theme.backgroundColor || '#FBF8F1',
+      border: `1.5px solid ${theme.primaryColor}66`,
+      boxShadow: `inset 0 0 0 1.5px ${theme.primaryColor}33, 0 4px 20px -6px ${theme.primaryColor}20`,
     };
   }
   if (theme.cardStyle === 'luxe') {

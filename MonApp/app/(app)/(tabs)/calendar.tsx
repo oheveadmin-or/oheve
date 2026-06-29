@@ -209,12 +209,17 @@ function MonthGrid({
   onSelectDate: (iso: string) => void;
 }) {
   const today = isoToday();
+  if (!Number.isFinite(year) || !Number.isInteger(month) || month < 0 || month > 11) {
+    return <View style={mgStyles.grid} />;
+  }
   const firstDay = new Date(year, month, 1);
   const startDow = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const safeStart = Number.isFinite(startDow) ? startDow : 0;
+  const safeDays = Number.isFinite(daysInMonth) && daysInMonth > 0 ? daysInMonth : 30;
   const cells: (number | null)[] = [
-    ...Array(startDow).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ...Array(safeStart).fill(null),
+    ...Array.from({ length: safeDays }, (_, i) => i + 1),
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
@@ -340,6 +345,7 @@ function ClientCalendar() {
   // Naviguer sur une date et afficher le bon mois
   const goToDate = (iso: string) => {
     const d = new Date(`${iso}T12:00:00`);
+    if (isNaN(d.getTime())) return;
     setViewYear(d.getFullYear());
     setViewMonth(d.getMonth());
     setSelectedDate(iso);

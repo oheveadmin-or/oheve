@@ -346,11 +346,15 @@ export function HeroMonogramStyle({ site }: HeroProps) {
     >
       <PatternOverlay patternId={t.patternId ?? 'none'} color={t.primaryColor} opacity={t.patternOpacity ?? 0.07} />
       <div style={{ position: 'relative', zIndex: 1 }}>
-        {/* SVG or fallback monogram */}
+        {/* SVG or fallback monogram — scaled to 160px regardless of original export size */}
         {site.content?.monogramSvg ? (
           <div
-            style={{ marginBottom: '2rem' }}
-            dangerouslySetInnerHTML={{ __html: site.content.monogramSvg }}
+            style={{ width: 160, height: 160, marginBottom: '2rem' }}
+            dangerouslySetInnerHTML={{
+              __html: site.content.monogramSvg
+                .replace(/width="[^"]*"/, 'width="100%"')
+                .replace(/height="[^"]*"/, 'height="100%"'),
+            }}
           />
         ) : (
           <div

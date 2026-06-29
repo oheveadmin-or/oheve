@@ -104,17 +104,24 @@ export const authApi = {
 };
 
 // ── Prestataires ──────────────────────────────────────────────────────────────
+async function getPublic(url: string, token?: string) {
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url, { headers });
+  return res.json();
+}
+
 export const prestatairesApi = {
-  list: (accessToken: string, params?: { category?: string; city?: string }) => {
+  list: (accessToken?: string, params?: { category?: string; city?: string }) => {
     const q = new URLSearchParams();
     if (params?.category) q.set('category', params.category);
     if (params?.city) q.set('city', params.city);
     const url = `${API_ENDPOINTS.prestataires}?${q.toString()}`;
-    return get(url, accessToken);
+    return getPublic(url, accessToken);
   },
 
-  getById: (accessToken: string, userId: number) =>
-    get(`${API_ENDPOINTS.prestataires}/${userId}`, accessToken),
+  getById: (accessToken?: string, userId?: number) =>
+    getPublic(`${API_ENDPOINTS.prestataires}/${userId}`, accessToken),
 
   upsertProfile: (accessToken: string, data: object) => {
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };

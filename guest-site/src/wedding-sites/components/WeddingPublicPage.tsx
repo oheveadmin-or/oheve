@@ -6,7 +6,7 @@ import { mapLegacyPublicSiteToWeddingSite, type LegacyPublicPayload } from '../u
 import { publicSitesFetchUrl } from '../utils/publicApiUrl';
 import { getWeddingSiteBySlug } from '../services/weddingSiteService';
 import type { WeddingSite } from '../types';
-import { defaultWeddingSections } from '../types';
+import { defaultWeddingSections, defaultWeddingTheme } from '../types';
 import { getTemplateByTheme } from '../utils/template-selector';
 
 export function WeddingPublicPage() {
@@ -29,7 +29,11 @@ export function WeddingPublicPage() {
       try {
         const local = await getWeddingSiteBySlug(s);
         if (local) {
-          setSite({ ...local, sections: { ...defaultWeddingSections(), ...(local.sections as object) } });
+          setSite({
+            ...local,
+            theme: { ...defaultWeddingTheme(), ...(local.theme as object || {}) },
+            sections: { ...defaultWeddingSections(), ...(local.sections as object || {}) },
+          });
           return;
         }
 
@@ -67,7 +71,11 @@ export function WeddingPublicPage() {
 
         if ('theme' in d && 'sections' in d && 'language' in d) {
           const site = d as WeddingSite;
-          setSite({ ...site, sections: { ...defaultWeddingSections(), ...(site.sections as object) } });
+          setSite({
+            ...site,
+            theme: { ...defaultWeddingTheme(), ...(site.theme as object || {}) },
+            sections: { ...defaultWeddingSections(), ...(site.sections as object || {}) },
+          });
           return;
         }
 
@@ -87,6 +95,37 @@ export function WeddingPublicPage() {
     return () => ac.abort();
   }, [slug]);
 
+  const coupleLabel = site
+    ? site.coupleName || [site.brideName, site.groomName].filter(Boolean).join(' & ') || 'Mariage'
+    : 'Mariage';
+  const weddingDate = site?.date
+    ? new Date(site.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+  const locationLabel = site?.city || site?.venue || '';
+  const description = [coupleLabel, weddingDate, locationLabel].filter(Boolean).join(' · ');
+  const pageTitle = `${coupleLabel} — Site de mariage`;
+  const heroImage = (site?.content as Record<string, unknown> | undefined)?.heroImageUrl as string | undefined;
+
+  // Must be before any conditional return — hooks must always run in the same order
+  useEffect(() => {
+    if (!site) return;
+    document.title = pageTitle;
+    const setMeta = (property: string, content: string, attr = 'property') => {
+      let el = document.querySelector(`meta[${attr}="${property}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, property);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+    setMeta('og:title', pageTitle);
+    setMeta('og:description', description || 'Retrouvez toutes les informations sur notre mariage.');
+    setMeta('og:type', 'website');
+    if (heroImage) setMeta('og:image', heroImage);
+    setMeta('description', description, 'name');
+  }, [site, pageTitle, description, heroImage]);
+
   if (loading) {
     return (
       <main style={center}>
@@ -103,36 +142,19 @@ export function WeddingPublicPage() {
     );
   }
 
-  const coupleLabel = site.coupleName || [site.brideName, site.groomName].filter(Boolean).join(' & ') || 'Mariage';
-  const weddingDate = site.date
-    ? new Date(site.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-    : '';
-  const locationLabel = site.city || site.venue || '';
-  const description = [coupleLabel, weddingDate, locationLabel].filter(Boolean).join(' · ');
-  const pageTitle = `${coupleLabel} — Site de mariage`;
-  const heroImage = (site.content as Record<string, unknown> | undefined)?.heroImageUrl as string | undefined;
-
-  // Inject dynamic meta tags for WhatsApp / social previews
-  useEffect(() => {
-    document.title = pageTitle;
-    const setMeta = (property: string, content: string, attr = 'property') => {
-      let el = document.querySelector(`meta[${attr}="${property}"]`);
-      if (!el) {
-        el = document.createElement('meta');
-        el.setAttribute(attr, property);
-        document.head.appendChild(el);
-      }
-      el.setAttribute('content', content);
-    };
-    setMeta('og:title', pageTitle);
-    setMeta('og:description', description || 'Retrouvez toutes les informations sur notre mariage.');
-    setMeta('og:type', 'website');
-    if (heroImage) setMeta('og:image', heroImage);
-    setMeta('description', description, 'name');
-  }, [pageTitle, description, heroImage]);
-
   const Template = getTemplateByTheme(site.theme, site.language);
-  return <Template site={site} />;
+  return (
+    <>
+      <Template site={site} />
+      <footer style={footerStyle}>
+        <a href="mailto:support@ohevewedding.com" style={footerLinkStyle}>
+          support@ohevewedding.com
+        </a>
+        <span style={footerSepStyle}>·</span>
+        <span>© {new Date().getFullYear()} Oheve Wedding</span>
+      </footer>
+    </>
+  );
 }
 
 const center: CSSProperties = {
@@ -142,4 +164,26 @@ const center: CSSProperties = {
   justifyContent: 'center',
   padding: '1.5rem',
   textAlign: 'center',
+};
+
+const footerStyle: CSSProperties = {
+  textAlign: 'center',
+  padding: '1.5rem 1rem',
+  fontSize: '0.75rem',
+  color: '#9ca3af',
+  borderTop: '1px solid #e5e7eb',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '0.5rem',
+  flexWrap: 'wrap',
+};
+
+const footerLinkStyle: CSSProperties = {
+  color: '#7C8C6E',
+  textDecoration: 'none',
+};
+
+const footerSepStyle: CSSProperties = {
+  color: '#d1d5db',
 };

@@ -128,7 +128,7 @@ const s = StyleSheet.create({
   valueTotalLabel: { fontSize: 13, color: C.textLight },
   valueTotalStrike: { fontSize: 13, color: C.textLight, textDecorationLine: 'line-through' },
   valueTodayLabel: { fontSize: 15, fontWeight: '700', color: C.textDark },
-  valueTodayPrice: { fontSize: 24, fontWeight: '900', color: C.saugeDark },
+  valueTodayPrice: { fontSize: 24, fontWeight: '800', color: C.saugeDark },
   buyBtn: {
     backgroundColor: C.sauge, borderRadius: 16, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

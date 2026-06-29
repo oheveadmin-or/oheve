@@ -50,6 +50,11 @@ export default function RegisterScreen() {
       Alert.alert('Champs manquants', 'Tous les champs sont requis');
       return;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Email invalide', 'Entre une adresse email valide (ex: nom@gmail.com)');
+      return;
+    }
     if (password.length < 8) {
       Alert.alert('Mot de passe', 'Au moins 8 caractères');
       return;
@@ -156,7 +161,7 @@ export default function RegisterScreen() {
                   <TextInput
                     style={styles.input}
                     value={brideName} onChangeText={setBrideName}
-                    placeholder="Odaya" placeholderTextColor={C.textLight}
+                    placeholder="Léa" placeholderTextColor={C.textLight}
                     autoCapitalize="words" returnKeyType="next"
                   />
                 </View>
@@ -165,7 +170,7 @@ export default function RegisterScreen() {
                   <TextInput
                     style={styles.input}
                     value={groomName} onChangeText={setGroomName}
-                    placeholder="Aaron" placeholderTextColor={C.textLight}
+                    placeholder="Thomas" placeholderTextColor={C.textLight}
                     autoCapitalize="words" returnKeyType="next"
                   />
                 </View>

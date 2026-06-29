@@ -84,8 +84,7 @@ export default function ProvidersScreen() {
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (!user?.accessToken) return;
-    prestatairesApi.list(user.accessToken)
+    prestatairesApi.list(user?.accessToken)
       .then((res: { success?: boolean; data?: unknown[] }) => {
         if (res?.success && Array.isArray(res.data)) {
           const userCity = (user?.wedding_city ?? '').toLowerCase().trim();
@@ -117,7 +116,7 @@ export default function ProvidersScreen() {
         }
       })
       .catch(() => {});
-  }, [user?.accessToken]);
+  }, [user?.accessToken, user?.wedding_city]);
 
   const toggleFavorite = (id: string) => setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
 

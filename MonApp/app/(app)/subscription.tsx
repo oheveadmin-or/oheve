@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   planName: { fontSize: 22, fontWeight: '800', color: '#111827' },
   planNamePlus: { color: '#b45309' },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  priceAmount: { fontSize: 28, fontWeight: '900', color: '#A7AD9A' },
+  priceAmount: { fontSize: 28, fontWeight: '800', color: '#A7AD9A' },
   priceAmountPlus: { color: '#f59e0b' },
   priceInterval: { fontSize: 13, color: '#9ca3af' },
   featuresList: { gap: 10 },

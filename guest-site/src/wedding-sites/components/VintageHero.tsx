@@ -65,26 +65,48 @@ export type VintageFamiliesProps = {
   grandparentsGroom?: { grandfather?: string; grandmother?: string };
 };
 
-/** Verset hébraïque (פסוק) — ligne droite, centrée, lisible (RTL) */
+/** Verset hébraïque (פסוק) — disposé en arc arrondi au-dessus du monogramme (RTL) */
 function HebrewVerse({ text }: { text: string }) {
-  const clean = text.replace(/[֑-ׇ]/g, '');
+  const clean = text.replace(/[֑-ׇ]/g, '').trim();
+  if (!clean) return null;
+  // Largeur d'écriture adaptée à la longueur du verset (évite des lettres écrasées)
+  const w = 288;
+  const h = 112;
+  const pad = 18;
+  const fit = Math.min(w - 2 * pad, Math.max(150, clean.length * 8.5));
+  const pathId = 'vintage-hebrew-arc';
   return (
-    <div
-      dir="rtl"
-      lang="he"
-      style={{
-        fontFamily: "'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', serif",
-        fontSize: '1.05rem',
-        lineHeight: 1.7,
-        color: V.colors.primary,
-        textAlign: 'center',
-        margin: '0 auto 0.7rem',
-        maxWidth: '92%',
-        opacity: 0.9,
-      }}
+    <svg
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      aria-label={clean}
+      style={{ display: 'block', margin: '0 auto', maxWidth: '100%', overflow: 'visible' }}
     >
-      {clean}
-    </div>
+      <defs>
+        {/* Arc en dôme prononcé : le verset épouse la courbe de l'arrondi du haut */}
+        <path id={pathId} d={`M ${pad} ${h - 14} Q ${w / 2} 0 ${w - pad} ${h - 14}`} fill="none" />
+      </defs>
+      <text
+        fill={V.colors.primary}
+        style={{
+          fontFamily: "'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', serif",
+          fontSize: '14px',
+          letterSpacing: '0.4px',
+          opacity: 0.9,
+        }}
+      >
+        <textPath
+          href={`#${pathId}`}
+          startOffset="50%"
+          textLength={fit}
+          lengthAdjust="spacingAndGlyphs"
+          style={{ textAnchor: 'middle', direction: 'rtl' }}
+        >
+          {clean}
+        </textPath>
+      </text>
+    </svg>
   );
 }
 
@@ -163,10 +185,12 @@ export function VintageHero({
           position: 'relative',
           zIndex: 1,
           width: 'min(340px, 82%)',
-          minHeight: 'clamp(440px, 66vh, 560px)',
-          padding: '2.6rem 1.7rem 3rem',
+          minHeight: 'clamp(640px, 84vh, 720px)',
+          // Padding vertical symétrique : le contenu reste parfaitement centré
+          padding: '2.2rem 2rem',
           border: `${V.borders.frame} solid ${V.colors.primary}`,
-          borderRadius: '170px / 220px',
+          // Cap haut/bas bien arrondi (capsule) — symétrique
+          borderRadius: '170px / 150px',
           background: V.colors.ivory,
           textAlign: 'center',
           boxShadow: V.shadows.card,
@@ -174,7 +198,7 @@ export function VintageHero({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
         }}
       >
         {/* Cadre intérieur (double liseré comme sur le modèle) */}
@@ -183,18 +207,38 @@ export function VintageHero({
             position: 'absolute',
             inset: 8,
             border: `1px solid ${V.colors.primary}`,
-            borderRadius: '162px / 212px',
+            borderRadius: '162px / 142px',
             pointerEvents: 'none',
           }}
         />
 
-        {/* ── פסוק hébraïque (ligne droite, lisible) ── */}
+        {/* ── פסוק hébraïque — dans le flux, niché sous l'arrondi du haut ── */}
         {hebrewQuote ? (
-          <HebrewVerse text={hebrewQuote} />
-        ) : (
-          <div style={{ height: '0.5rem' }} />
-        )}
+          <div
+            style={{
+              width: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              flexShrink: 0,
+              marginBottom: '0.2rem',
+            }}
+          >
+            <HebrewVerse text={hebrewQuote} />
+          </div>
+        ) : null}
 
+        {/* ── Contenu central : centré dans l'espace sous le verset ── */}
+        <div
+          style={{
+            flex: 1,
+            alignSelf: 'stretch',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 0,
+          }}
+        >
         {/* ── Logo / monogramme ── */}
         <div
           style={{
@@ -353,9 +397,10 @@ export function VintageHero({
             height: 6,
             borderRadius: '50%',
             background: V.colors.primary,
-            margin: '1.2rem auto 0',
+            margin: '0.9rem auto 0',
           }}
         />
+        </div>
       </div>
     </div>
   );
@@ -446,8 +491,9 @@ export function VintageFamilies({
   return (
     <div
       style={{
-        background: V.backgrounds.page,
-        backgroundImage: V.backgrounds.paper,
+        // Pas de fond propre : on s'appuie sur le fond continu de la page
+        // (sinon le dégradé « paper » se ré-applique et dessine un rectangle visible).
+        background: 'transparent',
         padding: '0.5rem 1.2rem 2.6rem',
         textAlign: 'center',
       }}
