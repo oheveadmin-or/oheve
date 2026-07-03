@@ -1,5 +1,5 @@
 import type { CSSProperties, FormEvent } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { MonogramGenerator } from './MonogramGenerator';
@@ -8,7 +8,7 @@ import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
 import { FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
-import { createWeddingSite, updateWeddingSite, setAuthToken, getWeddingSiteBySlug } from '../services/weddingSiteService';
+import { createWeddingSite, updateWeddingSite, setAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
   CardStyle,
@@ -208,6 +208,43 @@ export function WeddingSiteBuilder() {
     ...createDefaultRSVPForm('preview-draft'),
     weddingId: 'preview-draft',
   }));
+
+  // ── Galerie : upload depuis l'appareil ──────────────────────────────────────
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const [galleryUploading, setGalleryUploading] = useState(0);
+  const [galleryError, setGalleryError] = useState<string | null>(null);
+
+  async function handleGalleryUpload(files: File[]) {
+    setGalleryError(null);
+    setGalleryUploading(files.length);
+    const failed: string[] = [];
+    for (const file of files) {
+      try {
+        const url = await uploadGalleryPhoto(file);
+        setContent((c) => ({ ...c, galleryPhotos: [...(c.galleryPhotos ?? []), url] }));
+      } catch (err) {
+        const reason = err instanceof Error && err.message ? ` — ${err.message}` : '';
+        failed.push(`${file.name}${reason}`);
+      } finally {
+        setGalleryUploading((n) => Math.max(0, n - 1));
+      }
+    }
+    if (failed.length) setGalleryError(`Échec de l'envoi : ${failed.join(', ')}`);
+  }
+
+  function moveGalleryPhoto(idx: number, dir: -1 | 1) {
+    setContent((c) => {
+      const arr = [...(c.galleryPhotos ?? [])];
+      const j = idx + dir;
+      if (j < 0 || j >= arr.length) return c;
+      [arr[idx], arr[j]] = [arr[j], arr[idx]];
+      return { ...c, galleryPhotos: arr };
+    });
+  }
+
+  function removeGalleryPhoto(idx: number) {
+    setContent((c) => ({ ...c, galleryPhotos: (c.galleryPhotos ?? []).filter((_, i) => i !== idx) }));
+  }
 
   const isoDate = useMemo(() => mergeDateAndTimeToIso(date, time), [date, time]);
 
@@ -1024,7 +1061,14 @@ export function WeddingSiteBuilder() {
                 Studio de design
               </p>
 
-              {/* Hero Style */}
+              {/* Hero Style — sans effet sur les templates autonomes (hero sur-mesure) */}
+              {['stripes-editorial', 'editorial-cards'].includes(theme.style) ? (
+                <p style={{ margin: '0 0 1.25rem', padding: '0.6rem 0.75rem', background: '#fffdf5', border: '1px solid #e7dfc9', borderRadius: 10, fontSize: '0.74rem', color: '#8a8060', lineHeight: 1.5 }}>
+                  ℹ️ Ce thème a un haut de page sur-mesure : le « style du hero » ne s'applique pas.
+                  Les motifs, séparateurs, cartes et couleurs ci-dessous restent actifs.
+                </p>
+              ) : (
+              <>
               <p style={studioSectionLabel}>Style du hero (haut de page)</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: '1.25rem' }}>
                 {HERO_STYLE_OPTIONS.map((h) => {
@@ -1054,6 +1098,8 @@ export function WeddingSiteBuilder() {
                   );
                 })}
               </div>
+              </>
+              )}
 
               {/* Pattern de fond */}
               <p style={studioSectionLabel}>Motif de fond</p>
@@ -1522,19 +1568,77 @@ export function WeddingSiteBuilder() {
           <section style={block}>
             <h2 style={h2}>🖼️ Galerie photos</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              URLs de vos photos (une par ligne). Hébergez vos photos sur Cloudinary, Google Photos, Imgur ou tout service public.
+              Ajoutez vos photos directement depuis votre appareil — elles sont optimisées et hébergées automatiquement.
+              La première photo sert d'image vedette sur le site.
             </p>
-            <textarea
-              style={{ ...inp, minHeight: 120, resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem' }}
-              placeholder={'https://example.com/photo1.jpg\nhttps://example.com/photo2.jpg'}
-              value={(content.galleryPhotos ?? []).join('\n')}
-              onChange={(e) =>
-                setContent((c) => ({
-                  ...c,
-                  galleryPhotos: e.target.value.split('\n').map((u) => u.trim()).filter(Boolean),
-                }))
-              }
+
+            {/* Vignettes avec réordonnancement et suppression */}
+            {(content.galleryPhotos ?? []).length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 8, marginBottom: '0.85rem' }}>
+                {(content.galleryPhotos ?? []).map((url, idx) => (
+                  <div key={`${url.slice(-24)}-${idx}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', border: idx === 0 ? '2px solid #8F947F' : '1px solid #E4E7DC', background: '#f4f2ed' }}>
+                    <img src={url} alt={`Photo ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    {idx === 0 && (
+                      <span style={{ position: 'absolute', top: 4, left: 4, background: '#8F947F', color: '#fff', fontSize: '0.55rem', fontWeight: 700, padding: '2px 6px', borderRadius: 6 }}>★ Vedette</span>
+                    )}
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', background: 'linear-gradient(transparent, rgba(0,0,0,0.55))', padding: '10px 4px 4px' }}>
+                      <button type="button" title="Reculer" disabled={idx === 0} onClick={() => moveGalleryPhoto(idx, -1)} style={galleryMiniBtn(idx === 0)}>←</button>
+                      <button type="button" title="Supprimer" onClick={() => removeGalleryPhoto(idx)} style={{ ...galleryMiniBtn(false), color: '#fca5a5' }}>✕</button>
+                      <button type="button" title="Avancer" disabled={idx === (content.galleryPhotos ?? []).length - 1} onClick={() => moveGalleryPhoto(idx, 1)} style={galleryMiniBtn(idx === (content.galleryPhotos ?? []).length - 1)}>→</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = '';
+                if (files.length) void handleGalleryUpload(files);
+              }}
             />
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              disabled={galleryUploading > 0}
+              style={{
+                width: '100%',
+                padding: '0.85rem',
+                borderRadius: 12,
+                border: '2px dashed #8F947F',
+                background: galleryUploading > 0 ? '#f0efe9' : '#FAFAF7',
+                color: '#5a6150',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                cursor: galleryUploading > 0 ? 'wait' : 'pointer',
+              }}
+            >
+              {galleryUploading > 0 ? `⏳ Envoi de ${galleryUploading} photo${galleryUploading > 1 ? 's' : ''}…` : '📤 Ajouter des photos depuis mon appareil'}
+            </button>
+            {galleryError && (
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: '#dc2626' }}>{galleryError}</p>
+            )}
+
+            <details style={{ marginTop: '0.85rem' }}>
+              <summary style={{ fontSize: '0.78rem', color: '#64748b', cursor: 'pointer' }}>Ou coller des URLs manuellement (Cloudinary, Imgur…)</summary>
+              <textarea
+                style={{ ...inp, minHeight: 100, resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem', marginTop: '0.5rem' }}
+                placeholder={'https://example.com/photo1.jpg\nhttps://example.com/photo2.jpg'}
+                value={(content.galleryPhotos ?? []).join('\n')}
+                onChange={(e) =>
+                  setContent((c) => ({
+                    ...c,
+                    galleryPhotos: e.target.value.split('\n').map((u) => u.trim()).filter(Boolean),
+                  }))
+                }
+              />
+            </details>
           </section>
 
           <RSVPBuilder form={rsvpForm} onChange={setRsvpForm} />
@@ -1879,6 +1983,20 @@ const studioSectionLabel: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
 };
+
+function galleryMiniBtn(disabled: boolean): CSSProperties {
+  return {
+    border: 'none',
+    background: 'transparent',
+    color: '#fff',
+    fontWeight: 800,
+    fontSize: '0.8rem',
+    cursor: disabled ? 'default' : 'pointer',
+    opacity: disabled ? 0.35 : 1,
+    padding: '0 6px',
+    lineHeight: 1.4,
+  };
+}
 
 const lockedNameField: CSSProperties = {
   display: 'flex',

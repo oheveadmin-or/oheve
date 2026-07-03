@@ -112,6 +112,19 @@ export async function createWeddingSite(req: Request, res: Response): Promise<vo
   }
 }
 
+export async function uploadGalleryPhoto(req: Request, res: Response): Promise<void> {
+  if (!req.file) {
+    res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
+    return;
+  }
+  const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
+  const host = req.headers['x-forwarded-host'] ?? req.get('host');
+  res.status(201).json({
+    success: true,
+    data: { url: `${protocol}://${host}/uploads/photos/${req.file.filename}` },
+  });
+}
+
 export async function updateWeddingSite(req: Request, res: Response): Promise<void> {
   try {
     const id = String(req.params.id ?? '').trim();

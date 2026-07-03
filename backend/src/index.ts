@@ -53,6 +53,8 @@ const corsOptions: cors.CorsOptions = {
     if (!origin) return callback(null, true);
     // En dev, tout est permis
     if (process.env.NODE_ENV !== 'production') return callback(null, true);
+    // Tests locaux (vite dev / preview) même quand NODE_ENV=production
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     // Autoriser les previews Cloudflare Pages (*.oheve.pages.dev)
     if (/^https:\/\/[a-z0-9-]+\.oheve\.pages\.dev$/.test(origin)) return callback(null, true);

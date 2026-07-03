@@ -229,3 +229,65 @@ function slugifySafe(s: string) {
   const t = generateSlugFromDisplayName(s.replace(/\s+/g, ' '));
   return t || 'mariage';
 }
+
+// ─── Upload de photos (galerie) ───────────────────────────────────────────────
+
+/**
+ * Redimensionne une image côté client (max 1600px, JPEG qualité 0.85)
+ * pour éviter d'envoyer des photos de 10 Mo depuis un téléphone.
+ */
+async function compressImage(file: File, maxDim = 1600, quality = 0.85): Promise<Blob> {
+  // Les SVG/GIF ne passent pas par canvas
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    if (scale >= 1 && file.size < 1.5 * 1024 * 1024) return file;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    return blob ?? file;
+  } catch {
+    return file;
+  }
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Upload une photo de galerie et retourne son URL publique.
+ * Backend indisponible (dev localStorage) → data URL compressée en fallback.
+ */
+export async function uploadGalleryPhoto(file: File): Promise<string> {
+  const compressed = await compressImage(file);
+
+  const url = apiUrl('/api/wedding-sites/upload-photo');
+  if (url !== null) {
+    const form = new FormData();
+    const name = file.name.replace(/\.[^.]*$/, '') || 'photo';
+    form.append('photo', compressed, compressed.type === 'image/jpeg' ? `${name}.jpg` : file.name);
+    const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: form }).catch(() => null);
+    if (res?.ok) {
+      const json = (await res.json()) as { success: boolean; data?: { url: string } };
+      if (json.success && json.data?.url) return json.data.url;
+    }
+    // En dev le proxy peut être présent sans backend → on tente le fallback local
+    if (!import.meta.env.DEV) {
+      throw new Error(res ? await readApiError(res) : 'Connexion au serveur impossible');
+    }
+  }
+
+  // Fallback dev : data URL compressée (aperçu local uniquement)
+  return blobToDataUrl(await compressImage(file, 1280, 0.8));
+}

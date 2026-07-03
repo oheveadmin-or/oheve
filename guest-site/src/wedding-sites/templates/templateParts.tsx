@@ -505,13 +505,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
       blocks.push(
         <section key="gal" className="wedding-fade-in" style={{ marginTop: '2.5rem' }}>
           <SectionHeading label={L.gallery} color={t.primaryColor} theme={t} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, marginTop: '0.75rem' }}>
-            {photos.map((url, i) => (
-              <div key={i} style={{ aspectRatio: '1', borderRadius: t.borderRadius, overflow: 'hidden', background: `${t.primaryColor}10` }}>
-                <img src={url} alt={`Photo ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              </div>
-            ))}
-          </div>
+          <PhotoGallery site={site} photos={photos} />
         </section>
       );
     }
@@ -567,6 +561,134 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   }
 
   return blocks;
+}
+
+/**
+ * Galerie éditoriale : mosaïque à colonnes (masonry), hauteurs naturelles,
+ * la première photo mise en avant, lightbox plein écran avec navigation.
+ */
+export function PhotoGallery({ site, photos }: { site: WeddingSite; photos: string[] }) {
+  const t = site.theme;
+  const [lightbox, setLightbox] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (lightbox === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(null);
+      if (e.key === 'ArrowRight') setLightbox((i) => (i === null ? null : (i + 1) % photos.length));
+      if (e.key === 'ArrowLeft') setLightbox((i) => (i === null ? null : (i - 1 + photos.length) % photos.length));
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [lightbox, photos.length]);
+
+  const radius = Math.max(4, t.borderRadius);
+
+  return (
+    <>
+      {/* Mise en avant de la 1re photo quand il y en a ≥ 3 */}
+      {photos.length >= 3 && (
+        <button
+          type="button"
+          onClick={() => setLightbox(0)}
+          style={{ display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'zoom-in', marginTop: '0.75rem' }}
+        >
+          <img
+            src={photos[0]}
+            alt="Photo 1"
+            loading="lazy"
+            style={{ width: '100%', aspectRatio: '16 / 9', objectFit: 'cover', display: 'block', borderRadius: radius, boxShadow: `0 18px 50px -22px ${t.primaryColor}66` }}
+          />
+        </button>
+      )}
+      <div style={{ columns: '2 220px', columnGap: 10, marginTop: 10 }}>
+        {(photos.length >= 3 ? photos.slice(1) : photos).map((url, i) => {
+          const idx = photos.length >= 3 ? i + 1 : i;
+          return (
+            <button
+              key={`${idx}-${url.slice(-16)}`}
+              type="button"
+              onClick={() => setLightbox(idx)}
+              style={{ display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'zoom-in', marginBottom: 10, breakInside: 'avoid' }}
+            >
+              <img
+                src={url}
+                alt={`Photo ${idx + 1}`}
+                loading="lazy"
+                style={{ width: '100%', display: 'block', borderRadius: radius, boxShadow: `0 10px 30px -18px ${t.primaryColor}55`, transition: 'transform 0.3s ease' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.015)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Lightbox */}
+      {lightbox !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setLightbox(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(12,10,8,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem' }}
+        >
+          <img
+            src={photos[lightbox]}
+            alt={`Photo ${lightbox + 1}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '92vw', maxHeight: '86vh', objectFit: 'contain', borderRadius: 6, boxShadow: '0 30px 90px rgba(0,0,0,0.6)' }}
+          />
+          <button type="button" aria-label="Fermer" onClick={() => setLightbox(null)} style={lightboxBtn({ top: 14, right: 16 })}>✕</button>
+          {photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="Précédente"
+                onClick={(e) => { e.stopPropagation(); setLightbox((lightbox - 1 + photos.length) % photos.length); }}
+                style={lightboxBtn({ left: 12, top: '50%', transform: 'translateY(-50%)' })}
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label="Suivante"
+                onClick={(e) => { e.stopPropagation(); setLightbox((lightbox + 1) % photos.length); }}
+                style={lightboxBtn({ right: 12, top: '50%', transform: 'translateY(-50%)' })}
+              >
+                ›
+              </button>
+            </>
+          )}
+          <div style={{ position: 'absolute', bottom: 14, left: 0, right: 0, textAlign: 'center', color: '#fff', fontSize: '0.8rem', letterSpacing: '0.12em', opacity: 0.8 }}>
+            {lightbox + 1} / {photos.length}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function lightboxBtn(pos: CSSProperties): CSSProperties {
+  return {
+    position: 'absolute',
+    ...pos,
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    border: '1px solid rgba(255,255,255,0.3)',
+    background: 'rgba(255,255,255,0.08)',
+    color: '#fff',
+    fontSize: '1.3rem',
+    lineHeight: 1,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
 }
 
 function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVintage?: boolean }) {
