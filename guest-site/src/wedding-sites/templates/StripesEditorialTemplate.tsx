@@ -219,6 +219,12 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                 maxWidth: '100%',
               }}
             >
+              {/* פסוק — tout en haut de la carte, comme sur un faire-part classique */}
+              {hebrewQuote && (
+                <p dir="rtl" style={{ fontFamily: fontTitle, fontSize: 'clamp(0.95rem,2.4vw,1.2rem)', lineHeight: 1.6, margin: '0 auto clamp(0.9rem,2.2vw,1.5rem)', color: inkProg }}>
+                  {hebrewQuote}
+                </p>
+              )}
               {monogramSvg && (
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'clamp(0.8rem,2vw,1.4rem)' }}>
                   {monogramIsImg ? (
@@ -264,11 +270,6 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
               {site.welcomeText?.trim() && (
                 <p style={{ fontFamily: fontTitle, fontStyle: 'italic', fontSize: 'clamp(0.95rem,2.4vw,1.25rem)', lineHeight: 1.6, maxWidth: 360, margin: 'clamp(1rem,2.5vw,1.6rem) auto 0', color: mutedProg }}>
                   {site.welcomeText}
-                </p>
-              )}
-              {hebrewQuote && (
-                <p dir="rtl" style={{ fontFamily: fontTitle, fontSize: 'clamp(1rem,2.6vw,1.35rem)', lineHeight: 1.7, margin: 'clamp(1rem,2.5vw,1.6rem) auto 0', color: inkProg }}>
-                  {hebrewQuote}
                 </p>
               )}
             </div>

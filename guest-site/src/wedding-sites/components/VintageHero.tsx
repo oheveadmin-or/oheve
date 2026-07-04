@@ -65,16 +65,40 @@ export type VintageFamiliesProps = {
   grandparentsGroom?: { grandfather?: string; grandmother?: string };
 };
 
-/** Verset hébraïque (פסוק) — disposé en arc arrondi au-dessus du monogramme (RTL) */
+/**
+ * Verset hébraïque (פסוק) — disposé en arc au-dessus du monogramme.
+ *
+ * Placement lettre par lettre le long d'une ellipse qui épouse l'arrondi
+ * du haut de la carte ovale (borderRadius 170/150). `textPath` + RTL +
+ * textLength écrasait les glyphes de façon imprévisible selon le navigateur ;
+ * ici chaque caractère est positionné et incliné individuellement, dans
+ * l'ordre de lecture droite → gauche.
+ */
 function HebrewVerse({ text }: { text: string }) {
+  // On retire les téamim/niqqoud (U+0591–U+05C7) : illisibles à cette taille
   const clean = text.replace(/[֑-ׇ]/g, '').trim();
   if (!clean) return null;
-  // Largeur d'écriture adaptée à la longueur du verset (évite des lettres écrasées)
-  const w = 288;
-  const h = 112;
-  const pad = 18;
-  const fit = Math.min(w - 2 * pad, Math.max(150, clean.length * 8.5));
-  const pathId = 'vintage-hebrew-arc';
+
+  const chars = Array.from(clean);
+  const n = chars.length;
+
+  // Taille de police dégressive pour les longs versets
+  const fs = n > 24 ? Math.max(10.5, 15 - (n - 24) * 0.18) : 15;
+
+  // Ellipse concentrique à l'arrondi de la carte (170/150), à l'échelle du panneau
+  const w = 280;
+  const rx = 126;
+  const ry = 108;
+  const cx = w / 2;
+  const cy = ry + fs + 6; // sommet de l'arc à y = fs + 6
+
+  // Angle total : avance moyenne d'un glyphe (~0.62 em) sur le rayon moyen
+  const rAvg = (rx + ry) / 2;
+  const spread = Math.min(1.9, (n * fs * 0.62) / rAvg);
+
+  // Hauteur utile : jusqu'aux extrémités de l'arc + la descente des glyphes
+  const h = Math.ceil(cy - ry * Math.cos(spread / 2) + fs * 0.9);
+
   return (
     <svg
       width={w}
@@ -83,29 +107,32 @@ function HebrewVerse({ text }: { text: string }) {
       aria-label={clean}
       style={{ display: 'block', margin: '0 auto', maxWidth: '100%', overflow: 'visible' }}
     >
-      <defs>
-        {/* Arc en dôme prononcé : le verset épouse la courbe de l'arrondi du haut */}
-        <path id={pathId} d={`M ${pad} ${h - 14} Q ${w / 2} 0 ${w - pad} ${h - 14}`} fill="none" />
-      </defs>
-      <text
-        fill={V.colors.primary}
-        style={{
-          fontFamily: "'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', serif",
-          fontSize: '14px',
-          letterSpacing: '0.4px',
-          opacity: 0.9,
-        }}
-      >
-        <textPath
-          href={`#${pathId}`}
-          startOffset="50%"
-          textLength={fit}
-          lengthAdjust="spacingAndGlyphs"
-          style={{ textAnchor: 'middle', direction: 'rtl' }}
-        >
-          {clean}
-        </textPath>
-      </text>
+      {chars.map((ch, i) => {
+        if (ch === ' ') return null; // l'espace garde son créneau, rien à dessiner
+        // RTL : 1er caractère à droite (+spread/2) → dernier à gauche (−spread/2)
+        const phi = n === 1 ? 0 : spread / 2 - (i * spread) / (n - 1);
+        const x = cx + rx * Math.sin(phi);
+        const y = cy - ry * Math.cos(phi);
+        // Inclinaison = tangente de l'ellipse au point (et non l'angle polaire)
+        const rot = (Math.atan2(ry * Math.sin(phi), rx * Math.cos(phi)) * 180) / Math.PI;
+        return (
+          <text
+            key={i}
+            x={x}
+            y={y}
+            fill={V.colors.primary}
+            transform={`rotate(${rot.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)})`}
+            style={{
+              fontFamily: "'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', serif",
+              fontSize: `${fs}px`,
+              opacity: 0.9,
+              textAnchor: 'middle',
+            }}
+          >
+            {ch}
+          </text>
+        );
+      })}
     </svg>
   );
 }
