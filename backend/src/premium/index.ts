@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { requireAuth } from '../middleware/requireAuth';
+import { requireAdmin } from '../middleware/requireAdmin';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2026-05-27.dahlia' as any });
 
@@ -50,9 +51,10 @@ premiumRoutes.post('/purchase', requireAuth, async (req: Request, res: Response)
   }
 });
 
-// POST /api/premium/activate — activé par le webhook Stripe (ou manuellement par admin)
-premiumRoutes.post('/activate/:userId', async (req: Request, res: Response) => {
-  // Appelé uniquement depuis le webhook interne
+// POST /api/premium/activate — réservé à l'admin. Le webhook Stripe active le
+// premium directement (payments/controller). Cette route était ouverte sans
+// auth : n'importe qui pouvait s'activer Premium gratuitement.
+premiumRoutes.post('/activate/:userId', requireAdmin, async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId, 10);
   const { payment_intent_id } = req.body;
 

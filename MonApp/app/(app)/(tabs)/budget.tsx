@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import {
   addExpense,
@@ -488,6 +489,7 @@ export default function BudgetScreen() {
                   style={[styles.input, styles.amountInput]}
                   placeholderTextColor={C.textLight}
                   autoFocus
+                  {...keyboardDoneProps}
                 />
                 <ThemedText style={styles.amountSuffix}>€</ThemedText>
               </View>
@@ -533,11 +535,13 @@ export default function BudgetScreen() {
             </View>
           </View>
         </View>
+        <KeyboardDoneBar />
         </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Modal modifier budget prévu ── */}
       <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => setShowEditModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.overlay}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={styles.handle} />
@@ -553,6 +557,7 @@ export default function BudgetScreen() {
               style={styles.input}
               placeholderTextColor={C.textLight}
               autoFocus
+              {...keyboardDoneProps}
             />
             <View style={styles.addActions}>
               <Pressable style={styles.cancelBtn} onPress={() => setShowEditModal(false)}>
@@ -564,6 +569,8 @@ export default function BudgetScreen() {
             </View>
           </View>
         </View>
+        <KeyboardDoneBar />
+        </KeyboardAvoidingView>
       </Modal>
     </ScreenLayout>
   );

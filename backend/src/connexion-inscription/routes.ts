@@ -47,3 +47,9 @@ connexionInscriptionRoutes.get('/export', requireAuth, ctrl.exportData.bind(ctrl
 connexionInscriptionRoutes.patch('/profile', requireAuth, ctrl.updateProfile.bind(ctrl));
 connexionInscriptionRoutes.post('/avatar', requireAuth, uploadAvatar.single('avatar'), ctrl.uploadAvatar.bind(ctrl));
 connexionInscriptionRoutes.patch('/change-password', requireAuth, ctrl.changePassword.bind(ctrl));
+
+// Méthodes de connexion (lier/délier Google & Apple, ajouter un mot de passe)
+connexionInscriptionRoutes.get('/auth-methods', requireAuth, ctrl.authMethods.bind(ctrl));
+connexionInscriptionRoutes.post('/link-provider', requireAuth, ctrl.linkProvider.bind(ctrl));
+connexionInscriptionRoutes.delete('/providers/:provider', requireAuth, ctrl.unlinkProvider.bind(ctrl));
+connexionInscriptionRoutes.post('/set-password', requireAuth, ctrl.setPassword.bind(ctrl));

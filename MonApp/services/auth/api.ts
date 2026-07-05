@@ -101,6 +101,19 @@ export const authApi = {
 
   updateRole: (accessToken: string, role: string) =>
     patch(API_ENDPOINTS.profile, { role }, accessToken),
+
+  // ── Méthodes de connexion (email / Google / Apple) ──────────────────────────
+  getAuthMethods: (accessToken: string) =>
+    get(API_ENDPOINTS.authMethods, accessToken),
+
+  unlinkProvider: (accessToken: string, provider: 'google' | 'apple') =>
+    fetch(API_ENDPOINTS.unlinkProvider(provider), {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }).then((r) => r.json()),
+
+  setPassword: (accessToken: string, new_password: string) =>
+    post(API_ENDPOINTS.setPassword, { new_password }, accessToken),
 };
 
 // ── Prestataires ──────────────────────────────────────────────────────────────
@@ -188,7 +201,14 @@ export const messagingApi = {
       headers: { Authorization: `Bearer ${accessToken}` },
       body: form,
     });
-    return res.json();
+    // Le serveur peut renvoyer du non-JSON (erreur multer, proxy…) :
+    // on parse défensivement pour afficher un vrai message à l'utilisateur.
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { success: false, message: `Erreur serveur (${res.status})` };
+    }
   },
 
   registerPushToken: (accessToken: string, token: string, platform: string) =>

@@ -20,6 +20,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { ThemedView } from '@/components/themed-view';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
@@ -600,6 +601,7 @@ function PaymentModal({
               placeholder={defaultPrice && defaultPrice !== '—' ? defaultPrice.replace(/[^\d,.-]/g, '') : '500'}
               placeholderTextColor="#A09890"
               keyboardType="decimal-pad"
+              {...keyboardDoneProps}
               autoFocus
             />
             <ThemedText style={pmStyles.currencySymbol}>€</ThemedText>
@@ -617,6 +619,7 @@ function PaymentModal({
           <View style={{ height: 32 }} />
         </View>
       </KeyboardAvoidingView>
+      <KeyboardDoneBar />
     </Modal>
   );
 }

@@ -444,6 +444,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', backgroundColor: C.card,
   },
   priorityChipText: { fontSize: 13, fontWeight: '600', color: C.textMid },
+  catChip: {
+    paddingVertical: 8, paddingHorizontal: 14,
+    borderRadius: RADIUS.sm, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', backgroundColor: C.card,
+  },
+  catChipActive: { backgroundColor: C.sauge, borderColor: C.sauge },
+  catChipText: { fontSize: 13, fontWeight: '600', color: C.textMid },
+  catChipTextActive: { color: C.ivoire },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
   modalCancelBtn: {
     flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: RADIUS.sm,

@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -951,7 +952,7 @@ function PrestataireAgenda() {
               <TextInput style={styles.timeInput} value={workEnd} onChangeText={setWorkEnd} placeholder="18:00" placeholderTextColor={C.textLight} />
             </View>
             <ThemedText style={styles.modalLabel}>Durée créneau (min)</ThemedText>
-            <TextInput style={styles.input} value={slotDuration} onChangeText={setSlotDuration} keyboardType="number-pad" placeholderTextColor={C.textLight} />
+            <TextInput style={styles.input} value={slotDuration} onChangeText={setSlotDuration} keyboardType="number-pad" placeholderTextColor={C.textLight} {...keyboardDoneProps} />
             <View style={styles.modalActions}>
               <Pressable style={styles.cancelBtn} onPress={() => setShowSettings(false)}>
                 <ThemedText style={styles.cancelBtnText}>Annuler</ThemedText>
@@ -962,6 +963,7 @@ function PrestataireAgenda() {
             </View>
           </View>
         </View>
+        <KeyboardDoneBar />
       </Modal>
 
       {/* Modal contre-proposition */}

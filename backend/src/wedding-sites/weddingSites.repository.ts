@@ -152,13 +152,31 @@ export const weddingSitesRepo = {
 
     sets.push(`updated_at = NOW()`);
 
-    const whereClause = `WHERE id = $${i++}`;
-    const params = [...vals, id];
+    // Contrôle de propriété : seul le propriétaire peut modifier son site.
+    // Les anciens sites créés sans compte (user_id NULL) sont "réclamés" par
+    // le premier utilisateur authentifié qui les modifie.
+    if (userId == null) return null;
+    sets.push(`user_id = COALESCE(user_id, $${i++})`);
+    vals.push(userId);
+
+    const whereClause = `WHERE id = $${i++} AND (user_id = $${i++} OR user_id IS NULL)`;
+    const params = [...vals, id, userId];
 
     const { rows } = await pool.query(
       `UPDATE wedding_sites SET ${sets.join(', ')} ${whereClause} RETURNING *`,
       params
     );
     return rows[0] ?? null;
+  },
+
+  /** true si le propriétaire du site a payé Oheve Premium (ou site sans compte legacy). */
+  async isOwnerPremium(row: WeddingSiteRow): Promise<boolean> {
+    if (row.user_id == null) return true; // sites legacy sans compte : non bloqués
+    const { rows } = await pool.query(
+      `SELECT premium, role FROM users WHERE id = $1`,
+      [row.user_id]
+    );
+    const u = rows[0] as { premium?: boolean; role?: string } | undefined;
+    return !!u && (u.premium === true || u.role === 'admin');
   },
 };

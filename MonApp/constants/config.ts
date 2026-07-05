@@ -133,6 +133,11 @@ export const API_ENDPOINTS = {
   pushToken: `${API_BASE_URL}/api/conversations/push-token`,
   // Social auth
   socialAuth: `${API_BASE_URL}/api/auth/social`,
+  // Méthodes de connexion (lier/délier Google & Apple, ajouter un mot de passe)
+  authMethods: `${API_BASE_URL}/api/auth/auth-methods`,
+  linkProvider: `${API_BASE_URL}/api/auth/link-provider`,
+  unlinkProvider: (provider: string) => `${API_BASE_URL}/api/auth/providers/${provider}`,
+  setPassword: `${API_BASE_URL}/api/auth/set-password`,
   // Admin
   adminStats: `${API_BASE_URL}/api/admin/stats`,
   adminUsers: `${API_BASE_URL}/api/admin/users`,

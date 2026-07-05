@@ -13,6 +13,11 @@ import {
   signAccessToken,
   verifyAccessToken,
 } from '../auth/jwt';
+import {
+  isSupabaseVerifyConfigured,
+  verifyAppleIdentityToken,
+  verifySupabaseAccessToken,
+} from '../auth/socialVerify';
 import { ConnexionInscriptionRepository } from './repository';
 
 const SALT_ROUNDS = 12;
@@ -147,12 +152,32 @@ export class ConnexionInscriptionController {
     }
     try {
       const user = await repo.findByEmail(email.trim().toLowerCase());
-      if (!user || !user.mot_de_passe || !user.is_active) {
-        return res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' });
+      if (!user || !user.is_active) {
+        // Cas 2 : email inconnu → l'app propose la création de compte
+        return res.status(401).json({
+          success: false,
+          code: 'EMAIL_NOT_FOUND',
+          message: 'Aucun compte n\'existe avec cet email.',
+        });
+      }
+      if (!user.mot_de_passe) {
+        // Compte créé via Google/Apple, sans mot de passe
+        const methods = await repo.getAuthMethods(user.id);
+        const providers = methods.providers.map(p => p.provider === 'apple' ? 'Apple' : 'Google');
+        return res.status(401).json({
+          success: false,
+          code: 'SOCIAL_ONLY',
+          providers: methods.providers.map(p => p.provider),
+          message: `Ce compte utilise ${providers.join(' / ') || 'une connexion sociale'}. Connecte-toi avec, puis ajoute un mot de passe depuis les réglages si tu veux.`,
+        });
       }
       const ok = await bcrypt.compare(String(mot_de_passe), user.mot_de_passe);
       if (!ok) {
-        return res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' });
+        return res.status(401).json({
+          success: false,
+          code: 'WRONG_PASSWORD',
+          message: 'Mot de passe incorrect.',
+        });
       }
 
       const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
@@ -196,17 +221,17 @@ export class ConnexionInscriptionController {
 
       const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
 
-      // Rotate: delete old, issue new
-      await repo.deleteRefreshToken(refreshToken);
-      const newRefreshToken = generateRefreshToken();
-      await repo.saveRefreshToken(user.id, newRefreshToken, refreshTokenExpiresAt(), req.headers['user-agent']);
+      // Sliding expiration : même token, validité prolongée. Pas de rotation —
+      // si l'app était tuée avant d'avoir persisté un token tourné, l'ancien
+      // était déjà supprimé côté serveur et la session devenait irrécupérable.
+      await repo.touchRefreshToken(refreshToken, refreshTokenExpiresAt());
       const accessToken = signAccessToken(user.id, user.email, effectiveRole);
 
       return res.status(200).json({
         success: true,
         data: {
           accessToken,
-          refreshToken: newRefreshToken,
+          refreshToken,
           role: effectiveRole,
           id: user.id,
           email: user.email,
@@ -354,22 +379,62 @@ export class ConnexionInscriptionController {
     }
   }
 
+  /**
+   * Vérifie l'identité sociale côté serveur.
+   * Renvoie l'identité vérifiée, ou null si aucun token n'est fourni (anciens
+   * builds de l'app) — toléré tant que SOCIAL_AUTH_REQUIRE_VERIFIED n'est pas
+   * activé, avec un warning en log.
+   */
+  private async verifySocialIdentity(req: Request): Promise<
+    | { ok: true; identity: { providerUserId: string; email: string | null } | null }
+    | { ok: false; status: number; message: string }
+  > {
+    const { provider, identity_token, supabase_access_token } = req.body;
+    try {
+      if (provider === 'apple' && identity_token) {
+        const v = await verifyAppleIdentityToken(String(identity_token));
+        return { ok: true, identity: v };
+      }
+      if (provider === 'google' && supabase_access_token && isSupabaseVerifyConfigured()) {
+        const v = await verifySupabaseAccessToken(String(supabase_access_token));
+        return { ok: true, identity: v };
+      }
+    } catch (err) {
+      console.error(`Vérification ${provider} échouée:`, (err as Error).message);
+      return { ok: false, status: 401, message: 'Identité sociale invalide — reconnecte-toi.' };
+    }
+    if (process.env.SOCIAL_AUTH_REQUIRE_VERIFIED === 'true') {
+      return { ok: false, status: 401, message: 'Version de l\'app obsolète — mets-la à jour pour te connecter.' };
+    }
+    console.warn(`⚠️  /social ${provider} sans token vérifiable — identité NON vérifiée (legacy). ` +
+      `Configure SUPABASE_URL + SUPABASE_ANON_KEY et active SOCIAL_AUTH_REQUIRE_VERIFIED=true.`);
+    return { ok: true, identity: null };
+  }
+
   // ── POST /social ───────────────────────────────────────────────────────────
   async socialAuth(req: Request, res: Response) {
     const { provider, provider_user_id, email, nom, prenom, avatar_url } = req.body;
-    if (!provider || !provider_user_id || !email) {
-      return res.status(400).json({ success: false, message: 'provider, provider_user_id et email requis' });
-    }
-    if (!['google', 'apple'].includes(provider)) {
+    if (!provider || !['google', 'apple'].includes(provider)) {
       return res.status(400).json({ success: false, message: 'Provider invalide' });
     }
     try {
+      const verified = await this.verifySocialIdentity(req);
+      if (!verified.ok) {
+        return res.status(verified.status).json({ success: false, message: verified.message });
+      }
+      // L'identité vérifiée (token) prime toujours sur ce que le client déclare
+      const providerId = verified.identity?.providerUserId ?? String(provider_user_id ?? '');
+      const verifiedEmail = verified.identity ? verified.identity.email : (email ? String(email).trim().toLowerCase() : null);
+      if (!providerId) {
+        return res.status(400).json({ success: false, message: 'provider_user_id requis' });
+      }
+
       const user = await repo.findOrCreateSocialUser({
-        email: email.trim().toLowerCase(),
+        email: verifiedEmail,
         nom: (nom ?? '').trim(),
         prenom: (prenom ?? '').trim(),
         provider,
-        providerId: String(provider_user_id),
+        providerId,
         avatarUrl: avatar_url,
       });
       const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
@@ -389,8 +454,123 @@ export class ConnexionInscriptionController {
         },
       });
     } catch (err) {
+      if ((err as { code?: string }).code === 'NO_EMAIL') {
+        return res.status(400).json({ success: false, message: 'Impossible de récupérer ton email — réessaie.' });
+      }
       console.error('Erreur social auth:', err);
       return res.status(500).json({ success: false, message: "Erreur lors de la connexion sociale" });
+    }
+  }
+
+  // ── GET /auth-methods ──────────────────────────────────────────────────────
+  async authMethods(req: Request, res: Response) {
+    try {
+      const methods = await repo.getAuthMethods(req.auth!.sub);
+      return res.status(200).json({
+        success: true,
+        data: { has_password: methods.hasPassword, providers: methods.providers },
+      });
+    } catch (err) {
+      console.error('Erreur authMethods:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
+  // ── POST /link-provider ────────────────────────────────────────────────────
+  // Cas 7 : lier Google ou Apple au compte connecté.
+  async linkProvider(req: Request, res: Response) {
+    const { provider, provider_user_id, email } = req.body;
+    if (!provider || !['google', 'apple'].includes(provider)) {
+      return res.status(400).json({ success: false, message: 'Provider invalide' });
+    }
+    try {
+      const verified = await this.verifySocialIdentity(req);
+      if (!verified.ok) {
+        return res.status(verified.status).json({ success: false, message: verified.message });
+      }
+      const providerId = verified.identity?.providerUserId ?? String(provider_user_id ?? '');
+      const providerEmail = verified.identity ? verified.identity.email : (email ? String(email).trim().toLowerCase() : null);
+      if (!providerId) {
+        return res.status(400).json({ success: false, message: 'provider_user_id requis' });
+      }
+
+      const owner = await repo.findProviderOwner(provider, providerId);
+      if (owner && owner !== req.auth!.sub) {
+        return res.status(409).json({
+          success: false,
+          message: `Ce compte ${provider === 'apple' ? 'Apple' : 'Google'} est déjà associé à un autre profil.`,
+        });
+      }
+      await repo.linkProvider(req.auth!.sub, provider, providerId, providerEmail);
+      const methods = await repo.getAuthMethods(req.auth!.sub);
+      return res.status(200).json({
+        success: true,
+        message: `${provider === 'apple' ? 'Apple' : 'Google'} lié à ton compte`,
+        data: { has_password: methods.hasPassword, providers: methods.providers },
+      });
+    } catch (err) {
+      console.error('Erreur linkProvider:', err);
+      return res.status(500).json({ success: false, message: 'Erreur lors de la liaison' });
+    }
+  }
+
+  // ── DELETE /providers/:provider ────────────────────────────────────────────
+  // Cas 7 : délier une méthode — uniquement s'il en reste au moins une autre.
+  async unlinkProvider(req: Request, res: Response) {
+    const provider = String(req.params.provider ?? '');
+    if (!['google', 'apple'].includes(provider)) {
+      return res.status(400).json({ success: false, message: 'Provider invalide' });
+    }
+    try {
+      const methods = await repo.getAuthMethods(req.auth!.sub);
+      const remaining = (methods.hasPassword ? 1 : 0) +
+        methods.providers.filter(p => p.provider !== provider).length;
+      if (remaining === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Impossible de supprimer ta dernière méthode de connexion. Ajoute d\'abord un mot de passe.',
+        });
+      }
+      const removed = await repo.unlinkProvider(req.auth!.sub, provider);
+      if (!removed) {
+        return res.status(404).json({ success: false, message: 'Cette méthode n\'est pas liée à ton compte' });
+      }
+      const updated = await repo.getAuthMethods(req.auth!.sub);
+      return res.status(200).json({
+        success: true,
+        message: 'Méthode de connexion supprimée',
+        data: { has_password: updated.hasPassword, providers: updated.providers },
+      });
+    } catch (err) {
+      console.error('Erreur unlinkProvider:', err);
+      return res.status(500).json({ success: false, message: 'Erreur lors de la suppression' });
+    }
+  }
+
+  // ── POST /set-password ─────────────────────────────────────────────────────
+  // Cas 7 : ajouter un mot de passe à un compte social (qui n'en a pas encore).
+  async setPassword(req: Request, res: Response) {
+    const { new_password } = req.body;
+    if (!new_password) {
+      return res.status(400).json({ success: false, message: 'Nouveau mot de passe requis' });
+    }
+    if (String(new_password).length < MIN_PWD) {
+      return res.status(400).json({ success: false, message: `Mot de passe min. ${MIN_PWD} caractères` });
+    }
+    try {
+      const methods = await repo.getAuthMethods(req.auth!.sub);
+      if (methods.hasPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ce compte a déjà un mot de passe — utilise "Changer le mot de passe".',
+        });
+      }
+      const hash = await bcrypt.hash(String(new_password), SALT_ROUNDS);
+      await repo.setPasswordById(req.auth!.sub, hash);
+      return res.status(200).json({ success: true, message: 'Mot de passe ajouté — tu peux maintenant te connecter par email.' });
+    } catch (err) {
+      console.error('Erreur setPassword:', err);
+      return res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
   }
 

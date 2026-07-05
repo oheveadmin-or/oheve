@@ -73,6 +73,7 @@ type Provider = {
   price_max?: number;
   description?: string;
   cover_url?: string;
+  avatar_url?: string;
 };
 
 export default function CategoryProvidersScreen() {
@@ -248,8 +249,8 @@ export default function CategoryProvidersScreen() {
                   style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
                   onPress={() => router.push(`/(app)/providers/${p.user_id}` as never)}
                 >
-                  {p.cover_url ? (
-                    <Image source={{ uri: p.cover_url }} style={styles.cardThumb} contentFit="cover" />
+                  {(p.avatar_url ?? p.cover_url) ? (
+                    <Image source={{ uri: p.avatar_url ?? p.cover_url }} style={styles.cardThumb} contentFit="cover" />
                   ) : (
                     <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
                       <Ionicons name="business-outline" size={22} color={C.sauge} />

@@ -39,6 +39,22 @@ export interface AuthUser {
 
 const STORAGE_KEY = '@wedding_auth_v2';
 
+// Identifiant Apple opaque ("000416.fd0b41…2305") utilisé par erreur comme
+// nom sur d'anciens comptes "Masquer mon email" — on ne l'affiche jamais.
+const APPLE_OPAQUE_ID = /^\d{6}\.[0-9a-f]{16,64}\.\d{2,6}$/i;
+
+// Le backend renvoie parfois date_mariage en ISO complet ("2026-07-17T00:00:00.000Z").
+// On normalise en "YYYY-MM-DD" partout pour éviter les J-NaN et champs cassés.
+function normalizeUser<T extends Partial<AuthUser>>(u: T): T {
+  const out = { ...u };
+  if (out?.date_mariage && out.date_mariage.length > 10) {
+    out.date_mariage = out.date_mariage.slice(0, 10);
+  }
+  if (out?.nom && APPLE_OPAQUE_ID.test(out.nom)) out.nom = '';
+  if (out?.prenom && APPLE_OPAQUE_ID.test(out.prenom)) out.prenom = '';
+  return out;
+}
+
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
@@ -61,27 +77,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (!raw) { setLoading(false); return; }
-        const stored: AuthUser = JSON.parse(raw);
+        const stored: AuthUser = normalizeUser(JSON.parse(raw));
+
+        // Session restaurée immédiatement : l'utilisateur reste connecté même
+        // hors-ligne ou pendant un cold start du serveur. Le refresh se fait
+        // en arrière-plan et ne déconnecte que si le token est vraiment rejeté.
+        setUser(stored);
+        setLoading(false);
 
         const res = await fetch(API_ENDPOINTS.refresh, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken: stored.refreshToken }),
         });
-        const json = await res.json();
 
+        if (res.status === 400 || res.status === 401) {
+          await AsyncStorage.removeItem(STORAGE_KEY);
+          setUser(null);
+          return;
+        }
+
+        const json = await res.json();
         if (json.success) {
           const refreshed = { ...stored, accessToken: json.data.accessToken, refreshToken: json.data.refreshToken };
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed));
           setUser(refreshed);
-        } else {
-          await AsyncStorage.removeItem(STORAGE_KEY);
         }
+        // 5xx ou réponse invalide : on garde la session stockée.
       } catch {
-        try {
-          const raw = await AsyncStorage.getItem(STORAGE_KEY);
-          if (raw) setUser(JSON.parse(raw));
-        } catch {}
+        // Erreur réseau : on garde la session stockée.
       } finally {
         setLoading(false);
       }
@@ -89,8 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (newUser: AuthUser) => {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
-    setUser(newUser);
+    const normalized = normalizeUser(newUser);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    setUser(normalized);
   }, []);
 
   const signOut = useCallback(async (allDevices = false) => {
@@ -103,12 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } catch {}
     }
-    await AsyncStorage.multiRemove([
-      STORAGE_KEY,
-      '@oheve:todo_tasks',
-      '@oheve_budget_v1',
-      '@oheve:home_providers',
-    ]);
+    // On ne supprime QUE la session : les tâches, le budget et les prestataires
+    // restent en place pour être retrouvés à la reconnexion (demande client).
+    await AsyncStorage.removeItem(STORAGE_KEY);
     setUser(null);
     router.replace('/(auth)');
   }, [user]);
@@ -122,8 +144,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: user.refreshToken }),
       });
+      // Ne déconnecte que si le token est définitivement rejeté (pas sur 5xx/réseau).
+      if (res.status === 400 || res.status === 401) { await signOut(); return null; }
       const json = await res.json();
-      if (!json.success) { await signOut(); return null; }
+      if (!json.success) return null;
       const updated = { ...user, accessToken: json.data.accessToken, refreshToken: json.data.refreshToken };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       setUser(updated);
@@ -137,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = useCallback(async (updates: Partial<AuthUser>) => {
     if (!user) return;
-    const updated = { ...user, ...updates };
+    const updated = normalizeUser({ ...user, ...updates });
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     setUser(updated);
   }, [user]);

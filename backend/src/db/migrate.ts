@@ -59,6 +59,15 @@ const USERS_ADD_COLS = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_purchased_at TIMESTAMP WITH TIME ZONE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_stripe_payment_intent_id TEXT`,
+  // ── Réparation : comptes Apple créés avec l'id du relay comme nom ──────────
+  // ("000416.fd0b…" affiché comme nom de profil). On vide pour laisser la place
+  // aux prénoms des mariés saisis dans l'app.
+  `UPDATE users SET nom = ''
+     WHERE email LIKE '%@privaterelay.appleid.com'
+       AND nom = split_part(email, '@', 1)`,
+  `UPDATE users SET prenom = ''
+     WHERE email LIKE '%@privaterelay.appleid.com'
+       AND prenom = split_part(email, '@', 1)`,
 ];
 
 // ── refresh_tokens ────────────────────────────────────────────────────────────
@@ -426,6 +435,28 @@ export async function runMigrations(): Promise<void> {
       )
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_photo_comments_photo ON photo_comments(photo_id)`);
+
+    // ── Méthodes de connexion multiples (email + Google + Apple sur un compte) ─
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_auth_providers (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider VARCHAR(20) NOT NULL,
+        provider_user_id VARCHAR(255) NOT NULL,
+        email VARCHAR(255),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(provider, provider_user_id),
+        UNIQUE(user_id, provider)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_auth_providers_user ON user_auth_providers(user_id)`);
+    // Backfill depuis les anciennes colonnes users.social_provider*
+    await pool.query(`
+      INSERT INTO user_auth_providers (user_id, provider, provider_user_id, email)
+      SELECT id, social_provider, social_provider_id, email FROM users
+      WHERE social_provider IS NOT NULL AND social_provider_id IS NOT NULL
+      ON CONFLICT DO NOTHING
+    `);
 
     // ── Wedding Sites (web builder) ───────────────────────────────────────────
     await pool.query(`

@@ -1,30 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as XLSX from 'xlsx';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { API_ENDPOINTS as ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
+import {
+  addGuest as storeAddGuest,
+  addGuests as storeAddGuests,
+  getGuests,
+  loadGuests,
+  removeGuest as storeRemoveGuest,
+  subscribeGuests,
+  type GuestStatus,
+  type StoredGuest as Guest,
+} from '@/lib/guests-store';
 
-type GuestStatus = 'confirmed' | 'declined';
 type GuestFilter = 'all' | GuestStatus;
-
-type Guest = {
-  id: string;
-  name: string;
-  guestCount: number;
-  status: GuestStatus;
-  group: string;
-  table?: string;
-  email?: string;
-  phone?: string;
-  fromRSVP?: boolean;
-  events?: Record<string, { attending: boolean; guestCount?: number }>;
-  manualEventId?: string;
-};
 
 const KNOWN_EVENTS: { id: string; label: string; emoji: string }[] = [
   { id: 'jewish-henne',         label: 'Henné',          emoji: '🌸' },
@@ -42,12 +42,18 @@ function eventEmoji(id: string): string {
   return KNOWN_EVENTS.find((e) => e.id === id)?.emoji ?? '📅';
 }
 
-let nextGuestId = 100;
-
 export default function GuestsScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const [guests, setGuests] = useState<Guest[]>([]);
+  const [guests, setGuestsState] = useState<Guest[]>([]);
+
+  // Le store est la source de vérité : chargé au montage, mis à jour par abonnement.
+  useEffect(() => {
+    let alive = true;
+    loadGuests().then(() => { if (alive) setGuestsState(getGuests()); });
+    const unsub = subscribeGuests(() => setGuestsState(getGuests()));
+    return () => { alive = false; unsub(); };
+  }, []);
   const [statusFilter, setStatusFilter] = useState<GuestFilter>('all');
   const [eventFilter, setEventFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,23 +125,16 @@ export default function GuestsScreen() {
       : [];
     const totalPpl = attending.length > 0 ? Math.max(...attending.map((e) => e.guestCount ?? 1)) : 1;
 
-    setGuests((prev) => {
-      if (prev.some((g) => g.id === answer.id)) return prev;
-      nextGuestId += 1;
-      return [
-        ...prev,
-        {
-          id: answer.id,
-          name: `${answer.firstname} ${answer.lastname}`,
-          guestCount: totalPpl,
-          status: attending.length > 0 ? 'confirmed' : 'declined',
-          group: 'RSVP site',
-          email: answer.email,
-          phone: answer.phone,
-          fromRSVP: true,
-          events: answer.events,
-        },
-      ];
+    storeAddGuest({
+      id: answer.id,
+      name: `${answer.firstname} ${answer.lastname}`,
+      guestCount: totalPpl,
+      status: attending.length > 0 ? 'confirmed' : 'declined',
+      group: 'RSVP site',
+      email: answer.email,
+      phone: answer.phone,
+      fromRSVP: true,
+      events: answer.events,
     });
   }, []);
 
@@ -224,6 +223,41 @@ export default function GuestsScreen() {
       .catch(() => null);
   }, [user?.accessToken, syncFromBackend]);
 
+  // ── Lien carte de mariage rattaché à la liste d'invités ─────────────────────
+  // Le site + ses liens d'invitation par groupe sont affichés ici pour que le
+  // couple partage TOUJOURS le bon lien (fini les mauvais liens importés).
+
+  type SiteInviteLink = { id: string; label: string; token: string };
+  const [mySiteLinks, setMySiteLinks] = useState<{ slug: string; inviteLinks: SiteInviteLink[] } | null>(null);
+
+  useEffect(() => {
+    if (!user?.accessToken) return;
+    fetch(ENDPOINTS.mySites, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: { success?: boolean; data?: { slug: string; inviteLinks?: SiteInviteLink[] }[] } | null) => {
+        const site = json?.data?.[0];
+        if (site?.slug) {
+          setMySiteLinks({ slug: site.slug, inviteLinks: (site.inviteLinks ?? []).filter((l) => l.token) });
+          if (!weddingSlug) setWeddingSlug(site.slug);
+        }
+      })
+      .catch(() => null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.accessToken]);
+
+  const siteBaseUrl = ENDPOINTS.weddingSitePublicBase;
+  const shareInviteLink = async (url: string, label?: string) => {
+    try {
+      await Share.share({ message: label ? `${label} — ${url}` : url });
+    } catch { /* annulé */ }
+  };
+  const copyInviteLink = async (url: string) => {
+    await Clipboard.setStringAsync(url);
+    Alert.alert('Copié', 'Le lien a été copié.');
+  };
+
   // ── Modal state ──────────────────────────────────────────────────────────────
 
   const [modalVisible, setModalVisible]   = useState(false);
@@ -237,7 +271,7 @@ export default function GuestsScreen() {
   const onDeleteGuest = (id: string) => {
     Alert.alert('Supprimer', 'Supprimer cet invité ?', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: () => setGuests((prev) => prev.filter((g) => g.id !== id)) },
+      { text: 'Supprimer', style: 'destructive', onPress: () => storeRemoveGuest(id) },
     ]);
   };
 
@@ -259,22 +293,90 @@ export default function GuestsScreen() {
     const count = Number(guestCount);
     if (!cleanedName || !cleanedGroup || Number.isNaN(count) || count < 1) return;
 
-    nextGuestId += 1;
-    setGuests((prev) => [
-      ...prev,
-      {
-        id: String(nextGuestId),
-        name: cleanedName,
-        guestCount: Math.round(count),
-        status,
-        group: cleanedGroup,
-        table: table.trim() || undefined,
-        manualEventId: manualEventId || undefined,
-      },
-    ]);
+    storeAddGuest({
+      id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: cleanedName,
+      guestCount: Math.round(count),
+      status,
+      group: cleanedGroup,
+      table: table.trim() || undefined,
+      manualEventId: manualEventId || undefined,
+    });
     setName(''); setGuestCount('1'); setStatus('confirmed');
     setGroup(''); setTable(''); setManualEventId('');
     setModalVisible(false);
+  };
+
+  // ── Import Excel ─────────────────────────────────────────────────────────────
+
+  const onImportExcel = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+        'application/vnd.ms-excel', // .xls
+        'text/csv',
+        'text/comma-separated-values',
+      ],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    try {
+      const b64 = await FileSystem.readAsStringAsync(result.assets[0].uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const wb = XLSX.read(b64, { type: 'base64' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+      if (rows.length === 0) {
+        Alert.alert('Import Excel', 'Le fichier est vide.');
+        return;
+      }
+
+      // Détection souple des colonnes (Nom / Personnes / Email / Téléphone / Groupe / Table)
+      const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+      const findKey = (row: Record<string, unknown>, candidates: string[]) =>
+        Object.keys(row).find((k) => candidates.includes(norm(k)));
+
+      const first = rows[0];
+      const nameKey = findKey(first, ['nom', 'name', 'invite', 'invites', 'famille', 'foyer', 'nom / foyer']);
+      if (!nameKey) {
+        Alert.alert('Import Excel', 'Colonne "Nom" introuvable. Ajoute une colonne Nom (ou Name / Famille) dans ton fichier.');
+        return;
+      }
+      const countKey = findKey(first, ['personnes', 'nombre', 'nb', 'count', 'pax', 'nombre de personnes']);
+      const emailKey = findKey(first, ['email', 'mail', 'e-mail']);
+      const phoneKey = findKey(first, ['telephone', 'phone', 'tel', 'portable']);
+      const groupKey = findKey(first, ['groupe', 'group', 'famille/groupe', 'cote']);
+      const tableKey = findKey(first, ['table', 'table n°', 'table no']);
+
+      const imported: Guest[] = rows
+        .map((row, i): Guest | null => {
+          const nm = String(row[nameKey] ?? '').trim();
+          if (!nm) return null;
+          const rawCount = countKey ? Number(row[countKey]) : 1;
+          return {
+            id: `excel-${Date.now()}-${i}`,
+            name: nm,
+            guestCount: Number.isFinite(rawCount) && rawCount >= 1 ? Math.round(rawCount) : 1,
+            status: 'confirmed' as GuestStatus,
+            group: groupKey ? String(row[groupKey] ?? '').trim() || 'Import Excel' : 'Import Excel',
+            email: emailKey ? String(row[emailKey] ?? '').trim() || undefined : undefined,
+            phone: phoneKey ? String(row[phoneKey] ?? '').trim() || undefined : undefined,
+            table: tableKey ? String(row[tableKey] ?? '').trim() || undefined : undefined,
+          };
+        })
+        .filter((g): g is Guest => g !== null);
+
+      const added = storeAddGuests(imported);
+      Alert.alert(
+        'Import Excel',
+        added > 0
+          ? `${added} invité(s) importé(s)${imported.length - added > 0 ? ` (${imported.length - added} doublon(s) ignoré(s))` : ''}.`
+          : 'Aucun nouvel invité (tous déjà présents dans la liste).',
+      );
+    } catch {
+      Alert.alert('Erreur', 'Impossible de lire ce fichier. Utilise un fichier .xlsx, .xls ou .csv.');
+    }
   };
 
   // ── Labels ───────────────────────────────────────────────────────────────────
@@ -421,7 +523,57 @@ export default function GuestsScreen() {
             <Ionicons name="sync-outline" size={14} color="#7A8A72" />
             <ThemedText style={styles.actionBtnText}>Sync site</ThemedText>
           </Pressable>
+          <Pressable style={styles.actionBtn} onPress={onImportExcel}>
+            <Ionicons name="document-attach-outline" size={14} color="#7A8A72" />
+            <ThemedText style={styles.actionBtnText}>Importer Excel</ThemedText>
+          </Pressable>
         </View>
+
+        {/* Lien carte de mariage — rattaché à la liste d'invités */}
+        {mySiteLinks && (
+          <View style={styles.inviteLinksCard}>
+            <View style={styles.inviteLinksHead}>
+              <Ionicons name="link-outline" size={15} color="#7A8A72" />
+              <ThemedText style={styles.inviteLinksTitle}>Lien carte de mariage</ThemedText>
+            </View>
+            <ThemedText style={styles.inviteLinksHint}>
+              Partagez ces liens officiels à vos invités — les réponses arrivent directement dans cette liste.
+            </ThemedText>
+
+            <View style={styles.inviteLinkRow}>
+              <View style={{ flex: 1 }}>
+                <ThemedText style={styles.inviteLinkLabel}>Site principal</ThemedText>
+                <ThemedText style={styles.inviteLinkUrl} numberOfLines={1}>
+                  {siteBaseUrl}/{mySiteLinks.slug}
+                </ThemedText>
+              </View>
+              <Pressable hitSlop={8} onPress={() => copyInviteLink(`${siteBaseUrl}/${mySiteLinks.slug}`)}>
+                <Ionicons name="copy-outline" size={17} color="#7A8A72" />
+              </Pressable>
+              <Pressable hitSlop={8} onPress={() => shareInviteLink(`${siteBaseUrl}/${mySiteLinks.slug}`)}>
+                <Ionicons name="share-outline" size={17} color="#7A8A72" />
+              </Pressable>
+            </View>
+
+            {mySiteLinks.inviteLinks.map((l) => {
+              const url = `${siteBaseUrl}/${mySiteLinks.slug}/invite/${l.token}`;
+              return (
+                <View key={l.id} style={styles.inviteLinkRow}>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.inviteLinkLabel}>{l.label || 'Groupe'}</ThemedText>
+                    <ThemedText style={styles.inviteLinkUrl} numberOfLines={1}>{url}</ThemedText>
+                  </View>
+                  <Pressable hitSlop={8} onPress={() => copyInviteLink(url)}>
+                    <Ionicons name="copy-outline" size={17} color="#7A8A72" />
+                  </Pressable>
+                  <Pressable hitSlop={8} onPress={() => shareInviteLink(url, l.label)}>
+                    <Ionicons name="share-outline" size={17} color="#7A8A72" />
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Guest list */}
         <View style={styles.listContent}>
@@ -503,7 +655,7 @@ export default function GuestsScreen() {
                 <TextInput style={styles.modalInput} value={name} onChangeText={setName} placeholder="Ex: Famille Martin" />
 
                 <ThemedText style={styles.modalLabel}>Nombre de personnes</ThemedText>
-                <TextInput style={styles.modalInput} value={guestCount} onChangeText={setGuestCount} keyboardType="number-pad" placeholder="Ex: 2" />
+                <TextInput style={styles.modalInput} value={guestCount} onChangeText={setGuestCount} keyboardType="number-pad" placeholder="Ex: 2" {...keyboardDoneProps} />
 
                 <ThemedText style={styles.modalLabel}>Statut RSVP</ThemedText>
                 <View style={styles.statusRow}>
@@ -555,6 +707,7 @@ export default function GuestsScreen() {
             </ScrollView>
           </KeyboardAvoidingView>
         </View>
+        <KeyboardDoneBar />
       </Modal>
     </ScreenLayout>
   );
@@ -608,6 +761,20 @@ const styles = StyleSheet.create({
   filterChipTextActive: { color: '#fff', fontWeight: '700' },
 
   actionsRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
+  inviteLinksCard: {
+    borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 12,
+    backgroundColor: '#fff', padding: 12, marginBottom: 10, gap: 8,
+  },
+  inviteLinksHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  inviteLinksTitle: { fontSize: 14, fontWeight: '700', color: '#3D3530' },
+  inviteLinksHint: { fontSize: 11, color: '#A09890', lineHeight: 15 },
+  inviteLinkRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E2D9CC',
+    paddingTop: 8,
+  },
+  inviteLinkLabel: { fontSize: 12, fontWeight: '700', color: '#7A8A72' },
+  inviteLinkUrl: { fontSize: 11, color: '#6B6058', marginTop: 1 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#fff' },
   actionBtnText: { fontSize: 11, color: '#7A8A72', fontWeight: '600' },
 

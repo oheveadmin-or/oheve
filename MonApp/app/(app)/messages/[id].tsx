@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
@@ -121,6 +122,7 @@ function DevisModal({
                   value={s.quantite ? String(s.quantite) : ''}
                   onChangeText={(v) => updateLine(i, 'quantite', v)}
                   keyboardType="numeric"
+                  {...keyboardDoneProps}
                   placeholder="Qté"
                   placeholderTextColor={C.textLight}
                 />
@@ -129,6 +131,7 @@ function DevisModal({
                   value={s.prix_unitaire ? String(s.prix_unitaire) : ''}
                   onChangeText={(v) => updateLine(i, 'prix_unitaire', v)}
                   keyboardType="decimal-pad"
+                  {...keyboardDoneProps}
                   placeholder="PU €"
                   placeholderTextColor={C.textLight}
                 />
@@ -147,11 +150,11 @@ function DevisModal({
             <View style={dStyles.row2}>
               <View style={{ flex: 1 }}>
                 <ThemedText style={dStyles.lbl}>TVA (%)</ThemedText>
-                <TextInput style={dStyles.input} value={tva} onChangeText={setTva} keyboardType="numeric" placeholder="20" placeholderTextColor={C.textLight} />
+                <TextInput style={dStyles.input} value={tva} onChangeText={setTva} keyboardType="numeric" placeholder="20" placeholderTextColor={C.textLight} {...keyboardDoneProps} />
               </View>
               <View style={{ flex: 1 }}>
                 <ThemedText style={dStyles.lbl}>Validité (jours)</ThemedText>
-                <TextInput style={dStyles.input} value={validite} onChangeText={setValidite} keyboardType="numeric" placeholder="30" placeholderTextColor={C.textLight} />
+                <TextInput style={dStyles.input} value={validite} onChangeText={setValidite} keyboardType="numeric" placeholder="30" placeholderTextColor={C.textLight} {...keyboardDoneProps} />
               </View>
             </View>
 
@@ -179,6 +182,7 @@ function DevisModal({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+      <KeyboardDoneBar />
     </Modal>
   );
 }

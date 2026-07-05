@@ -1,6 +1,24 @@
 import type { Request, Response } from 'express';
+import { pool } from '../config/database';
 import { addSSEClient, getRSVPAnswers, submitRSVP } from './rsvp.service';
 import { rsvpRepository } from './rsvp.repository';
+
+/**
+ * Vérifie que le slug appartient bien à l'utilisateur authentifié.
+ * Sans ce contrôle, n'importe quel compte pouvait lire les réponses RSVP
+ * (noms, emails, téléphones) de n'importe quel mariage.
+ * Les sites legacy sans propriétaire (user_id NULL) restent accessibles.
+ */
+async function userOwnsSlug(userId: number, slug: string): Promise<boolean> {
+  const { rows } = await pool.query(
+    `SELECT user_id FROM wedding_sites WHERE slug = $1
+     UNION ALL
+     SELECT user_id FROM public_sites WHERE slug = $1`,
+    [slug.toLowerCase()]
+  );
+  if (rows.length === 0) return false;
+  return rows.some((r: { user_id: number | null }) => r.user_id === null || r.user_id === userId);
+}
 
 export async function postRSVPAnswer(req: Request, res: Response): Promise<void> {
   const { slug } = req.params;
@@ -37,6 +55,10 @@ export async function postRSVPAnswer(req: Request, res: Response): Promise<void>
 export async function getRSVPAnswerList(req: Request, res: Response): Promise<void> {
   const { slug } = req.params;
   try {
+    if (req.auth?.role !== 'admin' && !(await userOwnsSlug(req.auth!.sub, slug))) {
+      res.status(403).json({ success: false, message: 'Accès refusé : ce site ne vous appartient pas.' });
+      return;
+    }
     const rows = await getRSVPAnswers(slug);
     res.json({ success: true, data: rows });
   } catch (err) {
@@ -46,8 +68,13 @@ export async function getRSVPAnswerList(req: Request, res: Response): Promise<vo
 }
 
 /** SSE endpoint — the app connects here to receive live RSVP notifications */
-export function sseRSVPStream(req: Request, res: Response): void {
+export async function sseRSVPStream(req: Request, res: Response): Promise<void> {
   const { slug } = req.params;
+
+  if (req.auth?.role !== 'admin' && !(await userOwnsSlug(req.auth!.sub, slug).catch(() => false))) {
+    res.status(403).json({ success: false, message: 'Accès refusé : ce site ne vous appartient pas.' });
+    return;
+  }
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -71,9 +98,11 @@ export function sseRSVPStream(req: Request, res: Response): void {
 /** Register an Expo push token for a wedding slug */
 export async function postRegisterPushToken(req: Request, res: Response): Promise<void> {
   const { slug } = req.params;
-  const { userId, expoPushToken } = req.body as { userId?: number; expoPushToken?: string };
-  if (!userId || !expoPushToken) {
-    res.status(400).json({ success: false, message: 'userId et expoPushToken requis.' });
+  const { expoPushToken } = req.body as { expoPushToken?: string };
+  // userId vient du token vérifié — jamais du body (usurpation possible sinon)
+  const userId = req.auth!.sub;
+  if (!expoPushToken) {
+    res.status(400).json({ success: false, message: 'expoPushToken requis.' });
     return;
   }
   try {

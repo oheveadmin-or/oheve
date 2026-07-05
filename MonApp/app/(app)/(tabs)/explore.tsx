@@ -476,7 +476,7 @@ function ReelCard({
       <View style={[reelStyles.rightCol, { bottom: insets.bottom + 90 }]}>
         <Pressable style={reelStyles.actionBtn} onPress={() => onLike(post.id)} hitSlop={12}>
           <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={30} color={post.isLiked ? '#f43f5e' : '#fff'} />
-          <ThemedText style={reelStyles.actionCount}>{post.likes + (post.isLiked ? 1 : 0)}</ThemedText>
+          <ThemedText style={reelStyles.actionCount}>{post.likes}</ThemedText>
         </Pressable>
         <Pressable style={reelStyles.actionBtn} onPress={() => onComment(post)} hitSlop={12}>
           <Ionicons name="chatbubble-outline" size={26} color="#fff" />
@@ -570,7 +570,7 @@ function GridCard({
           <ThemedText style={gridStyles.author} numberOfLines={1}>{post.author}</ThemedText>
           <Pressable style={gridStyles.likeBtn} onPress={(e) => { e.stopPropagation(); onLike(post.id); }} hitSlop={12}>
             <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={13} color={post.isLiked ? '#f43f5e' : 'rgba(255,255,255,0.8)'} />
-            <ThemedText style={gridStyles.likeCount}>{post.likes + (post.isLiked ? 1 : 0)}</ThemedText>
+            <ThemedText style={gridStyles.likeCount}>{post.likes}</ThemedText>
           </Pressable>
         </View>
       </View>
@@ -676,7 +676,7 @@ function PostDetailModal({
             <View style={detailStyles.actionsRow}>
               <Pressable style={detailStyles.actionBtn} onPress={() => onLike(post.id)}>
                 <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={20} color={post.isLiked ? '#f43f5e' : '#6b7280'} />
-                <ThemedText style={detailStyles.actionTxt}>{post.likes + (post.isLiked ? 1 : 0)} j'aimes</ThemedText>
+                <ThemedText style={detailStyles.actionTxt}>{post.likes} j'aimes</ThemedText>
               </Pressable>
               <Pressable style={detailStyles.actionBtn} onPress={() => { onClose(); onComment(post); }}>
                 <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />
@@ -1043,7 +1043,19 @@ export default function ExploreScreen() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleLike = useCallback((id: string) => {
-    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, isLiked: !p.isLiked } : p)));
+    // Optimiste : on ajuste aussi le compteur (le serveur renvoie un compteur
+    // qui inclut déjà notre like — ne jamais additionner les deux).
+    // Les reels boutique sont ajustés par leur contexte : on ne touche que isLiked.
+    const isBoutique = id.startsWith('boutique-');
+    setPosts((prev) => prev.map((p) => (
+      p.id === id
+        ? {
+            ...p,
+            isLiked: !p.isLiked,
+            likes: isBoutique ? p.likes : Math.max(0, p.likes + (p.isLiked ? -1 : 1)),
+          }
+        : p
+    )));
     if (id.startsWith('boutique-')) {
       toggleReelLike(id.replace('boutique-', ''));
     } else if (id.startsWith('feed-') && user?.accessToken) {

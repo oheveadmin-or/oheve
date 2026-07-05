@@ -96,6 +96,10 @@ export class ConnexionInscriptionRepository {
     return r.rows[0] ?? null;
   }
 
+  async touchRefreshToken(token: string, expiresAt: Date) {
+    await pool.query(`UPDATE refresh_tokens SET expires_at=$2 WHERE token=$1`, [token, expiresAt]);
+  }
+
   async deleteRefreshToken(token: string) {
     await pool.query(`DELETE FROM refresh_tokens WHERE token=$1`, [token]);
   }
@@ -150,31 +154,156 @@ export class ConnexionInscriptionRepository {
     );
   }
 
+  // ── Méthodes de connexion (user_auth_providers) ─────────────────────────────
+
+  /** Retrouve l'utilisateur possédant ce provider (google/apple) + ID. */
+  async findByProvider(provider: string, providerId: string): Promise<UserRow | null> {
+    const r = await pool.query(
+      `SELECT u.id FROM user_auth_providers p
+       JOIN users u ON u.id = p.user_id
+       WHERE p.provider=$1 AND p.provider_user_id=$2`,
+      [provider, providerId]
+    );
+    if (!r.rows[0]) return null;
+    return this.findById(r.rows[0].id);
+  }
+
+  /** À quel compte ce provider est-il déjà lié ? (null si à personne) */
+  async findProviderOwner(provider: string, providerId: string): Promise<number | null> {
+    const r = await pool.query(
+      `SELECT user_id FROM user_auth_providers WHERE provider=$1 AND provider_user_id=$2`,
+      [provider, providerId]
+    );
+    return r.rows[0]?.user_id ?? null;
+  }
+
+  /** Lie un provider à un compte (idempotent pour le même couple user/provider). */
+  async linkProvider(userId: number, provider: string, providerId: string, email?: string | null) {
+    await pool.query(
+      `INSERT INTO user_auth_providers (user_id, provider, provider_user_id, email)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (user_id, provider)
+       DO UPDATE SET provider_user_id=EXCLUDED.provider_user_id, email=EXCLUDED.email`,
+      [userId, provider, providerId, email ?? null]
+    );
+    // Colonnes legacy conservées pour compat (affichage admin, anciens builds)
+    await pool.query(
+      `UPDATE users SET social_provider=$1, social_provider_id=$2
+       WHERE id=$3 AND social_provider IS NULL`,
+      [provider, providerId, userId]
+    );
+  }
+
+  async unlinkProvider(userId: number, provider: string): Promise<boolean> {
+    const r = await pool.query(
+      `DELETE FROM user_auth_providers WHERE user_id=$1 AND provider=$2`,
+      [userId, provider]
+    );
+    if ((r.rowCount ?? 0) > 0) {
+      await pool.query(
+        `UPDATE users SET social_provider=NULL, social_provider_id=NULL
+         WHERE id=$1 AND social_provider=$2`,
+        [userId, provider]
+      );
+      return true;
+    }
+    return false;
+  }
+
+  /** Méthodes de connexion d'un compte : mot de passe + providers liés. */
+  async getAuthMethods(userId: number): Promise<{
+    hasPassword: boolean;
+    providers: { provider: string; email: string | null; created_at: string }[];
+  }> {
+    const [pwd, providers] = await Promise.all([
+      pool.query(`SELECT (mot_de_passe IS NOT NULL) AS has_password FROM users WHERE id=$1`, [userId]),
+      pool.query(
+        `SELECT provider, email, created_at FROM user_auth_providers WHERE user_id=$1 ORDER BY created_at`,
+        [userId]
+      ),
+    ]);
+    return {
+      hasPassword: Boolean(pwd.rows[0]?.has_password),
+      providers: providers.rows,
+    };
+  }
+
+  async setPasswordById(userId: number, hash: string) {
+    await pool.query(`UPDATE users SET mot_de_passe=$1 WHERE id=$2`, [hash, userId]);
+  }
+
+  /**
+   * Connexion sociale — garantit un compte unique par personne :
+   * 1. Le provider (google/apple + ID) est déjà lié → on renvoie ce compte.
+   *    (Indispensable pour Apple : l'email n'est fourni qu'à la 1ère connexion.)
+   * 2. Un compte existe avec le même email → on lui lie le provider (cas 4/5).
+   * 3. Sinon → création d'un nouveau compte (cas 3, et cas 6 "Masquer mon email" :
+   *    l'email relay ne matche personne, on ne fusionne jamais automatiquement).
+   */
   async findOrCreateSocialUser(data: {
-    email: string;
+    email: string | null;
     nom: string;
     prenom: string;
     provider: string;
     providerId: string;
     avatarUrl?: string;
   }): Promise<UserRow & { isNew: boolean }> {
-    const existing = await this.findByEmail(data.email);
-    if (existing) {
-      if (!existing.social_provider) {
-        await pool.query(
-          'UPDATE users SET social_provider=$1, social_provider_id=$2 WHERE id=$3',
-          [data.provider, data.providerId, existing.id]
-        );
+    // 1. Lookup par provider ID — fonctionne même sans email (Apple, connexions suivantes)
+    const byProvider = await this.findByProvider(data.provider, data.providerId);
+    if (byProvider) return { ...byProvider, isNew: false };
+
+    // 2. Lookup par email → liaison au compte existant
+    if (data.email) {
+      const existing = await this.findByEmail(data.email);
+      if (existing) {
+        await this.linkProvider(existing.id, data.provider, data.providerId, data.email);
+        return { ...existing, isNew: false };
       }
-      return { ...existing, isNew: false };
     }
-    const r = await pool.query(
-      `INSERT INTO users (email, nom, prenom, role, social_provider, social_provider_id, avatar_url)
-       VALUES ($1, $2, $3, 'client', $4, $5, $6)
-       RETURNING id, email, nom, prenom, role, is_active, avatar_url, created_at`,
-      [data.email, data.nom || data.email.split('@')[0], data.prenom || '', data.provider, data.providerId, data.avatarUrl ?? null]
-    );
-    return { ...r.rows[0] as UserRow, isNew: true };
+
+    if (!data.email) {
+      throw Object.assign(new Error('Email requis pour créer un compte'), { code: 'NO_EMAIL' });
+    }
+
+    // 3. Création atomique (compte + provider) — un échec partiel est annulé
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const r = await client.query(
+        `INSERT INTO users (email, nom, prenom, role, social_provider, social_provider_id, avatar_url)
+         VALUES ($1, $2, $3, 'client', $4, $5, $6)
+         RETURNING id, email, nom, prenom, role, is_active, avatar_url, created_at`,
+        // Jamais la partie locale d'un email relay Apple comme nom : c'est un
+        // identifiant opaque ("000416.fd0b…") qui s'affichait comme nom de profil.
+        [
+          data.email,
+          data.nom || (data.email.endsWith('@privaterelay.appleid.com') ? '' : data.email.split('@')[0]),
+          data.prenom || '',
+          data.provider,
+          data.providerId,
+          data.avatarUrl ?? null,
+        ]
+      );
+      const user = r.rows[0] as UserRow;
+      await client.query(
+        `INSERT INTO user_auth_providers (user_id, provider, provider_user_id, email)
+         VALUES ($1,$2,$3,$4)`,
+        [user.id, data.provider, data.providerId, data.email]
+      );
+      await client.query('COMMIT');
+      return { ...user, isNew: true };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      // Course : le compte vient d'être créé par une requête concurrente → on le récupère
+      if ((err as { code?: string }).code === '23505') {
+        const raced = (await this.findByProvider(data.provider, data.providerId))
+          ?? (await this.findByEmail(data.email));
+        if (raced) return { ...raced, isNew: false };
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ── OTP ─────────────────────────────────────────────────────────────────────

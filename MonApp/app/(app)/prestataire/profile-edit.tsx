@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   },
   coverPlaceholderText: { fontSize: 14, color: '#9ca3af', fontWeight: '500' },
   coverOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center',
     justifyContent: 'center',

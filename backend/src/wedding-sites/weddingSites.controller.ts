@@ -44,6 +44,20 @@ export async function getWeddingSiteBySlug(req: Request, res: Response): Promise
     if (!slug) { res.status(404).json({ success: false }); return; }
     const row = await weddingSitesRepo.findBySlug(slug);
     if (!row) { res.status(404).json({ success: false, message: 'Non trouvé' }); return; }
+
+    // Abonnement impayé → site public bloqué. Le propriétaire authentifié
+    // (et l'admin) gardent l'accès pour continuer à éditer dans le builder.
+    const isOwner = !!req.auth && (req.auth.sub === row.user_id || req.auth.role === 'admin');
+    const premiumOk = isOwner || await weddingSitesRepo.isOwnerPremium(row);
+    if (!premiumOk) {
+      res.status(403).json({
+        success: false,
+        code: 'PREMIUM_REQUIRED',
+        message: 'Ce site de mariage est momentanément indisponible. Les mariés doivent activer Oheve Premium pour le publier.',
+      });
+      return;
+    }
+
     res.json({ success: true, data: rowToSite(row) });
   } catch (err) {
     console.error('getWeddingSiteBySlug:', err);

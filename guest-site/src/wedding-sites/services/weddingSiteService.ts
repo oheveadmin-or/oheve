@@ -69,7 +69,9 @@ export async function getWeddingSiteBySlug(slug: string): Promise<WeddingSite | 
 
   const url = apiUrl(`/api/wedding-sites/${encodeURIComponent(s)}`);
   if (url !== null) {
-    const res = await fetch(url);
+    // Le token (builder ouvert depuis l'app) permet au propriétaire de charger
+    // son site même si l'accès public est bloqué (premium impayé).
+    const res = await fetch(url, { headers: authHeaders() });
     if (res.ok) {
       const json = (await res.json()) as { success: boolean; data?: WeddingSite };
       if (json.success && json.data) return json.data;

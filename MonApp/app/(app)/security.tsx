@@ -55,8 +55,6 @@ export default function SecurityScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const hasSocialAccount = !user?.phone && !current; // indicateur approximatif
-
   const handleChange = async () => {
     if (!current || !newPwd || !confirm) {
       Alert.alert('Champs requis', 'Remplis tous les champs');
@@ -135,6 +133,16 @@ export default function SecurityScreen() {
               <ThemedText style={styles.safeBadgeTxt}>Compte actif</ThemedText>
             </View>
           </View>
+
+          {/* Méthodes de connexion (email / Google / Apple) */}
+          <Pressable style={styles.methodsRow} onPress={() => router.push('/(app)/login-methods' as never)}>
+            <Ionicons name="link-outline" size={18} color="#A7AD9A" />
+            <View style={{ flex: 1 }}>
+              <ThemedText style={styles.methodsTitle}>Méthodes de connexion</ThemedText>
+              <ThemedText style={styles.methodsSub}>Email, Google, Apple — lier ou délier</ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#A09890" />
+          </Pressable>
 
           {/* Changer mot de passe */}
           <View style={styles.section}>
@@ -248,6 +256,14 @@ const styles = StyleSheet.create({
   infoCardEmail: { fontSize: 13, color: '#6B6058', marginTop: 2 },
   safeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 99 },
   safeBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#10b981' },
+
+  methodsRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderWidth: 1, borderColor: '#ececf2', borderRadius: 16,
+    padding: 16, backgroundColor: '#fff',
+  },
+  methodsTitle: { fontSize: 15, fontWeight: '700', color: '#3D3530' },
+  methodsSub: { fontSize: 12, color: '#A09890', marginTop: 2 },
 
   section: {
     borderWidth: 1, borderColor: '#ececf2', borderRadius: 16,

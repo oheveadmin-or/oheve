@@ -47,6 +47,23 @@ export default function LoginScreen() {
       const result = await authApi.connexion({ email: email.trim(), mot_de_passe: password });
 
       if (!result.success || !result.data) {
+        // Cas 2 : email inconnu → proposer la création de compte
+        if (result.code === 'EMAIL_NOT_FOUND') {
+          Alert.alert(
+            'Compte introuvable',
+            'Aucun compte n\'existe avec cet email. Veux-tu en créer un ?',
+            [
+              { text: 'Annuler', style: 'cancel' },
+              { text: 'Créer un compte', onPress: () => router.push('/(auth)/register') },
+            ],
+          );
+          return;
+        }
+        // Compte créé via Google/Apple sans mot de passe
+        if (result.code === 'SOCIAL_ONLY') {
+          Alert.alert('Connexion sociale', result.message ?? 'Ce compte utilise Google ou Apple.');
+          return;
+        }
         Alert.alert('Erreur', result.message ?? 'Email ou mot de passe incorrect');
         return;
       }

@@ -285,8 +285,7 @@ function PrestataireInstaProfile() {
               { icon: 'person-outline', label: 'Informations personnelles', route: '/(app)/personal-info' },
               { icon: 'shield-outline', label: 'Sécurité & mot de passe', route: '/(app)/security' },
               { icon: 'card-outline', label: 'Recevoir des paiements (Stripe)', route: '/(app)/stripe-connect' },
-              { icon: 'wallet-outline', label: 'Cartes bancaires', route: '/(app)/payment-methods' },
-              { icon: 'notifications-outline', label: 'Notifications', route: null },
+              { icon: 'notifications-outline', label: 'Notifications', route: '/(app)/notifications' },
             ].map((item) => (
               <Pressable
                 key={item.label}
@@ -314,7 +313,8 @@ function PrestataireInstaProfile() {
 
 // ── Generic client profile ───────────────────────────────────────────────────
 function ClientProfile() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateUser } = useAuth();
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const role = user?.role ?? 'client';
   const roleColor = ROLE_COLORS[role] ?? C.textLight;
   const coupleName = getCoupleDisplayName(user);
@@ -329,6 +329,33 @@ function ClientProfile() {
     );
   };
 
+  const pickAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Autorise l\'accès à la galerie dans les réglages');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setUploadingAvatar(true);
+    try {
+      const res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri);
+      if (res?.success && res.data?.avatar_url) {
+        await updateUser({ avatar_url: res.data.avatar_url as string });
+      } else {
+        Alert.alert('Erreur', res?.message ?? 'Impossible de mettre à jour la photo');
+      }
+    } catch {
+      Alert.alert('Erreur', 'Impossible de mettre à jour la photo');
+    }
+    setUploadingAvatar(false);
+  };
+
   return (
     <ScreenLayout edges={['top', 'left', 'right']} style={{ backgroundColor: C.ivoire }}>
       <View style={styles.headerRow}>
@@ -340,7 +367,7 @@ function ClientProfile() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
-          <View style={styles.avatarWrap}>
+          <Pressable style={styles.avatarWrap} onPress={pickAvatar} disabled={uploadingAvatar}>
             {user?.avatar_url ? (
               <Image source={{ uri: user.avatar_url }} style={styles.avatarImg} contentFit="cover" />
             ) : (
@@ -350,7 +377,10 @@ function ClientProfile() {
                 </ThemedText>
               </View>
             )}
-          </View>
+            <View style={styles.avatarCameraBadge}>
+              <Ionicons name={uploadingAvatar ? 'hourglass-outline' : 'camera'} size={12} color="#fff" />
+            </View>
+          </Pressable>
           <View style={styles.profileInfo}>
             <ThemedText style={styles.name}>{displayName}</ThemedText>
             {coupleName && (
@@ -398,25 +428,11 @@ function ClientProfile() {
           <ThemedText style={styles.itemText}>Sécurité & mot de passe</ThemedText>
           <Ionicons name="chevron-forward" size={16} color={C.textLight} />
         </Pressable>
-        <Pressable style={styles.itemCard} onPress={() => router.push('/(app)/payment-methods' as never)}>
-          <Ionicons name="wallet-outline" size={18} color={C.moka} />
-          <ThemedText style={styles.itemText}>Cartes bancaires</ThemedText>
-          <Ionicons name="chevron-forward" size={16} color={C.textLight} />
-        </Pressable>
-        <View style={styles.itemCard}>
+        <Pressable style={styles.itemCard} onPress={() => router.push('/(app)/notifications' as never)}>
           <Ionicons name="notifications-outline" size={18} color={C.moka} />
           <ThemedText style={styles.itemText}>Notifications</ThemedText>
           <Ionicons name="chevron-forward" size={16} color={C.textLight} />
-        </View>
-
-        <View style={styles.mottosRow}>
-          {['Élégance', 'Douceur', 'Authenticité', 'Harmonie', 'Intemporel'].map((m, i, arr) => (
-            <View key={m} style={styles.mottosItem}>
-              <ThemedText style={styles.motto}>{m}</ThemedText>
-              {i < arr.length - 1 && <ThemedText style={styles.mottoDot}> · </ThemedText>}
-            </View>
-          ))}
-        </View>
+        </Pressable>
 
         <View style={styles.divider} />
 
@@ -555,8 +571,14 @@ const styles = StyleSheet.create({
     padding: 18, backgroundColor: C.card,
     flexDirection: 'row', alignItems: 'center', gap: 14,
   },
-  avatarWrap: { width: 60, height: 60 },
+  avatarWrap: { width: 60, height: 60, position: 'relative' },
   avatarImg: { width: 60, height: 60, borderRadius: 30 },
+  avatarCameraBadge: {
+    position: 'absolute', bottom: -2, right: -2,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: C.sauge, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#fff',
+  },
   avatar: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { fontSize: 24, fontWeight: '800' },
   profileInfo: { flex: 1, gap: 3 },
@@ -581,10 +603,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   itemText: { flex: 1, fontSize: 15, fontWeight: '500', color: C.textDark },
-  mottosRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingVertical: 16 },
-  mottosItem: { flexDirection: 'row', alignItems: 'center' },
-  motto: { fontSize: 11, color: C.textLight, letterSpacing: 0.8 },
-  mottoDot: { fontSize: 11, color: C.taupe },
   divider: { height: 1, backgroundColor: C.border, marginVertical: 4 },
   logoutCard: {
     borderRadius: RADIUS.md, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: C.card,

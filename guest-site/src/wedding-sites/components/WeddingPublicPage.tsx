@@ -82,10 +82,14 @@ export function WeddingPublicPage() {
         setSite(mapLegacyPublicSiteToWeddingSite(d as LegacyPublicPayload));
       } catch (e) {
         if ((e as Error).name === 'AbortError') return;
+        // Affiche le message serveur s'il existe (ex : site bloqué premium)
+        const msg = (e as Error).message;
         setErr(
-          import.meta.env.DEV
-            ? "Impossible de charger le site (réseau ou API)."
-            : "Impossible de joindre l'API."
+          msg && !/^Erreur serveur/.test(msg)
+            ? msg
+            : import.meta.env.DEV
+              ? "Impossible de charger le site (réseau ou API)."
+              : "Impossible de joindre l'API."
         );
       } finally {
         setLoading(false);

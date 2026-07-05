@@ -33,7 +33,10 @@ export const weddingSitesRoutes = Router();
 
 weddingSitesRoutes.get('/check-slug', checkSlugAvailable);
 weddingSitesRoutes.get('/me', requireAuth, getMySites);
-weddingSitesRoutes.post('/upload-photo', optionalAuth, upload.single('photo'), uploadGalleryPhoto);
-weddingSitesRoutes.get('/:slug', getWeddingSiteBySlug);
-weddingSitesRoutes.post('/', optionalAuth, createWeddingSite);
-weddingSitesRoutes.patch('/:id', optionalAuth, updateWeddingSite);
+// Sécurité : création, modification et upload exigent un compte authentifié.
+// Le builder web reçoit le token via ?token= depuis l'app — plus aucune
+// écriture anonyme possible (avant : n'importe qui pouvait modifier un site par id).
+weddingSitesRoutes.post('/upload-photo', requireAuth, upload.single('photo'), uploadGalleryPhoto);
+weddingSitesRoutes.get('/:slug', optionalAuth, getWeddingSiteBySlug);
+weddingSitesRoutes.post('/', requireAuth, createWeddingSite);
+weddingSitesRoutes.patch('/:id', requireAuth, updateWeddingSite);

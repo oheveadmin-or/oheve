@@ -113,6 +113,24 @@ if (typeof Sentry.expressErrorHandler === 'function') {
   app.use(Sentry.expressErrorHandler() as any);
 }
 
+// Toujours répondre en JSON : sans ce handler, une erreur multer (type de
+// fichier refusé, fichier trop lourd…) renvoie une page HTML que l'app mobile
+// ne sait pas parser → « Impossible d'envoyer le fichier ».
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: Error & { code?: string }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (res.headersSent) return;
+  logger.error({ err }, 'Unhandled error');
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    res.status(400).json({ success: false, message: 'Fichier trop volumineux (15 Mo max)' });
+    return;
+  }
+  const isClientError = err.message?.startsWith('Type de fichier');
+  res.status(isClientError ? 400 : 500).json({
+    success: false,
+    message: isClientError ? err.message : 'Erreur interne du serveur',
+  });
+});
+
 const server = app.listen(PORT, () => {
   logger.info(`API Wedding Planner démarrée sur le port ${PORT}`);
 });

@@ -276,8 +276,8 @@ export default function AdminDashboard() {
         <ThemedText style={styles.cardTitle}>{s.bride_name as string} & {s.groom_name as string}</ThemedText>
         <ThemedText style={styles.cardSub}>{s.slug as string} · {s.owner_email as string}</ThemedText>
         <View style={styles.badgeRow}>
-          {s.is_published && <View style={[styles.badge, { backgroundColor: '#d1fae5' }]}><ThemedText style={[styles.badgeTxt, { color: '#10b981' }]}>publié</ThemedText></View>}
-          {s.is_hidden && <View style={[styles.badge, { backgroundColor: '#fecaca' }]}><ThemedText style={[styles.badgeTxt, { color: '#dc2626' }]}>masqué</ThemedText></View>}
+          {!!s.is_published && <View style={[styles.badge, { backgroundColor: '#d1fae5' }]}><ThemedText style={[styles.badgeTxt, { color: '#10b981' }]}>publié</ThemedText></View>}
+          {!!s.is_hidden && <View style={[styles.badge, { backgroundColor: '#fecaca' }]}><ThemedText style={[styles.badgeTxt, { color: '#dc2626' }]}>masqué</ThemedText></View>}
         </View>
       </View>
       <View style={styles.cardActions}>

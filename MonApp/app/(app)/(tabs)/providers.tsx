@@ -13,7 +13,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
@@ -66,10 +65,10 @@ let nextProviderId = 200;
 
 export default function ProvidersScreen() {
   const { horizontalPadding } = useResponsive();
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const tabBarHeight = 56;
-  const fabBottom = 16 + insets.bottom + tabBarHeight;
+  // La zone de contenu s'arrête déjà au-dessus de la tab bar : un petit
+  // décalage suffit, sinon le bouton flotte au milieu de l'écran.
+  const fabBottom = 16;
 
   const [apiProviders, setApiProviders] = useState<ProviderContact[]>([]);
   const [search, setSearch] = useState('');
@@ -156,7 +155,7 @@ export default function ProvidersScreen() {
     <ScreenLayout constrainWidth={false} edges={['top', 'left', 'right']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: fabBottom + 56 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: fabBottom + 88 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -203,7 +202,6 @@ export default function ProvidersScreen() {
             >
               <Ionicons name={cat.icon} size={32} color={C.saugeDark} style={styles.categoryIcon} />
               <ThemedText style={styles.categoryLabel} numberOfLines={2}>{cat.label}</ThemedText>
-              <ThemedText style={styles.categoryCount}>{cat.count} prestataires</ThemedText>
             </Pressable>
           ))}
         </View>

@@ -48,7 +48,6 @@ export function VintageThemePreview({
     >
       {/* ── HERO : carte d'invitation ovale (identique au site publié) ── */}
       <VintageHero
-        kicker="Invitation au mariage"
         name1={hasTwoNames ? brideName : title || brideName}
         name2={hasTwoNames ? `& ${groomName}` : undefined}
         description="Nous vous convions à célébrer notre union"

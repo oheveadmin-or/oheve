@@ -10,7 +10,7 @@ import {
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
-import { useAuth, UserRole } from '@/contexts/auth-context';
+import { UserRole } from '@/contexts/auth-context';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useSocialAuth } from '@/hooks/use-social-auth';
 import { useAppleAuthAvailable } from '@/hooks/use-apple-auth-available';
@@ -22,7 +22,6 @@ const ROLES: { key: UserRole; label: string; icon: string; desc: string }[] = [
 ];
 
 export default function RegisterScreen() {
-  const { signIn } = useAuth();
   const [role, setRole] = useState<UserRole>('client');
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
@@ -68,6 +67,18 @@ export default function RegisterScreen() {
       });
       const json = await res.json();
       if (!json.success) {
+        // Cas 1 : email déjà inscrit → proposer la connexion au lieu d'un 2e compte
+        if (res.status === 409) {
+          Alert.alert(
+            'Compte existant',
+            'Un compte existe déjà avec cet email.',
+            [
+              { text: 'Annuler', style: 'cancel' },
+              { text: 'Se connecter', onPress: () => router.push('/(auth)/login') },
+            ],
+          );
+          return;
+        }
         Alert.alert('Erreur', json.message ?? "Erreur lors de l'envoi du code");
         return;
       }

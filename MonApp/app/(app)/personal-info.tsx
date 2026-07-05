@@ -10,12 +10,15 @@ import {
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { useAuth } from '@/contexts/auth-context';
 import { API_ENDPOINTS } from '@/constants/config';
 
 function parseDateMariage(dateStr?: string | null) {
   if (!dateStr) return { day: '', month: '', year: '' };
-  const parts = dateStr.split('-');
+  // Le backend peut renvoyer "2026-07-17T00:00:00.000Z" : on ne garde que la
+  // partie date, sinon le champ Jour affiche "17T00:...".
+  const parts = dateStr.slice(0, 10).split('-');
   return { day: parts[2] ?? '', month: parts[1] ?? '', year: parts[0] ?? '' };
 }
 
@@ -282,6 +285,7 @@ export default function PersonalInfoScreen() {
                     keyboardType="number-pad"
                     maxLength={2}
                     textAlign="center"
+                    {...keyboardDoneProps}
                   />
                   <ThemedText style={styles.dateLabel}>Jour</ThemedText>
                 </View>
@@ -301,6 +305,7 @@ export default function PersonalInfoScreen() {
                     keyboardType="number-pad"
                     maxLength={2}
                     textAlign="center"
+                    {...keyboardDoneProps}
                   />
                   <ThemedText style={styles.dateLabel}>Mois</ThemedText>
                 </View>
@@ -321,6 +326,7 @@ export default function PersonalInfoScreen() {
                     textAlign="center"
                     returnKeyType="done"
                     onSubmitEditing={handleSave}
+                    {...keyboardDoneProps}
                   />
                   <ThemedText style={styles.dateLabel}>Année</ThemedText>
                 </View>
@@ -338,6 +344,7 @@ export default function PersonalInfoScreen() {
             </ThemedText>
           </Pressable>
         </ScrollView>
+        <KeyboardDoneBar />
       </KeyboardAvoidingView>
     </ScreenLayout>
   );

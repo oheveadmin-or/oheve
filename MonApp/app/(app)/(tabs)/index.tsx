@@ -14,13 +14,10 @@ import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { calendarApi, prestatairesApi, type CalendarEvent } from '@/services/auth/api';
-import {
-  COUPLE_INSIGHTS,
-  DAILY_TIPS,
-  INSPIRATIONS,
-} from '@/data/home-dashboard-mock';
+import { INSPIRATIONS } from '@/data/home-dashboard-mock';
 import { useAuth } from '@/contexts/auth-context';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
+import { getGuests, loadGuests, subscribeGuests } from '@/lib/guests-store';
 import { getTodoTasks, loadTodoTasks, setTodoTasks } from '@/lib/todo-store';
 import { getHomeProviders, loadHomeProviders, type ProviderContact } from '@/lib/providers-store';
 import { useHomeDashboardStore } from '@/stores/use-home-dashboard-store';
@@ -38,12 +35,11 @@ type HomeSection =
   | 'suggestions'
   | 'inspirations'
   | 'weather'
-  | 'insights'
   | 'countdown';
 
 const HOME_SECTIONS: HomeSection[] = [
   'venue', 'hero', 'appointments', 'priorities', 'budgetGuests', 'vendors', 'jewishServices', 'providerPhotos',
-  'suggestions', 'inspirations', 'weather', 'insights', 'countdown',
+  'suggestions', 'inspirations', 'weather', 'countdown',
 ];
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -64,8 +60,12 @@ const AnimatedPlaceholder = () => {
 };
 
 function getWeddingCountdownDays(dateString: string) {
+  // Le backend peut renvoyer "2026-07-17" ou "2026-07-17T00:00:00.000Z" :
+  // on ne garde que la partie date pour éviter un Invalid Date (J-NaN).
+  const dateOnly = dateString.slice(0, 10);
   const now = new Date();
-  const target = new Date(`${dateString}T00:00:00`);
+  const target = new Date(`${dateOnly}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
   const diff = target.getTime() - now.getTime();
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
@@ -113,6 +113,20 @@ export default function DashboardScreen() {
   const [weatherData, setWeatherData] = useState<{ temp: number; code: number; desc: string } | null>(null);
   const [upcomingAppointments, setUpcomingAppointments] = useState<CalendarEvent[]>([]);
   const [homeProviders, setHomeProviders] = useState<ProviderContact[]>([]);
+  const [guestStats, setGuestStats] = useState({ invitations: 0, people: 0, confirmed: 0 });
+
+  useEffect(() => {
+    const computeGuestStats = () => {
+      const gs = getGuests();
+      setGuestStats({
+        invitations: gs.length,
+        people: gs.reduce((s, g) => s + g.guestCount, 0),
+        confirmed: gs.filter((g) => g.status === 'confirmed').reduce((s, g) => s + g.guestCount, 0),
+      });
+    };
+    loadGuests().then(computeGuestStats);
+    return subscribeGuests(computeGuestStats);
+  }, []);
 
   const loading = useHomeDashboardStore((state) => state.loading);
   const taskDone = useHomeDashboardStore((state) => state.taskDone);
@@ -441,10 +455,16 @@ export default function DashboardScreen() {
             <Pressable style={styles.half} onPress={() => router.push('/(app)/(tabs)/guests')}>
               <PremiumCard style={styles.stretch}>
                 <SectionHeader title="Invités" subtitle="RSVP en direct" />
-                <ThemedText style={styles.miniKpi}>0 invité</ThemedText>
-                <ThemedText style={styles.miniHint}>Ajoutez vos premiers invités</ThemedText>
+                <ThemedText style={styles.miniKpi}>
+                  {guestStats.people > 0 ? `${guestStats.people} personne${guestStats.people > 1 ? 's' : ''}` : '0 invité'}
+                </ThemedText>
+                <ThemedText style={styles.miniHint}>
+                  {guestStats.people > 0
+                    ? `${guestStats.confirmed} confirmée${guestStats.confirmed > 1 ? 's' : ''} · ${guestStats.invitations} invitation${guestStats.invitations > 1 ? 's' : ''}`
+                    : 'Ajoutez vos premiers invités'}
+                </ThemedText>
                 <View style={styles.progressTrackLight}>
-                  <View style={[styles.progressFillLight, { width: '0%' }]} />
+                  <View style={[styles.progressFillLight, { width: `${guestStats.people > 0 ? Math.round((guestStats.confirmed / guestStats.people) * 100) : 0}%` }]} />
                 </View>
                 <View style={styles.avatarRow}>
                   <View style={[styles.miniAvatar, { backgroundColor: C.saugePale }]}>
@@ -546,7 +566,7 @@ export default function DashboardScreen() {
                   <View style={{ flex: 1 }}>
                     <ThemedText style={styles.jewishRowTitle}>Rabbins & Madrichot Kala</ThemedText>
                     <ThemedText style={styles.jewishRowSub}>
-                      16 rabbins · 8 madrichot · Toute la France
+                      Annuaire en préparation
                     </ThemedText>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={C.sauge} />
@@ -689,28 +709,6 @@ export default function DashboardScreen() {
         );
       }
 
-      if (section === 'insights') {
-        return (
-          <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
-            <PremiumCard>
-              <SectionHeader title="Couple insights" subtitle="Assistant" />
-              {COUPLE_INSIGHTS.map((insight) => (
-                <View key={insight} style={styles.insightRow}>
-                  <Ionicons name="leaf-outline" size={14} color={C.sauge} />
-                  <ThemedText style={styles.insightText}>{insight}</ThemedText>
-                </View>
-              ))}
-              <View style={styles.tipCard}>
-                <ThemedText style={styles.tipTitle}>Conseils du jour</ThemedText>
-                {DAILY_TIPS.map((tip) => (
-                  <ThemedText key={tip} style={styles.tipItem}>• {tip}</ThemedText>
-                ))}
-              </View>
-            </PremiumCard>
-          </AnimatedView>
-        );
-      }
-
       return (
         <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
           <PremiumCard style={styles.countdownCard}>
@@ -741,9 +739,13 @@ export default function DashboardScreen() {
         <AnimatedView style={[styles.header, headerStyle]}>
           <View style={styles.profileCardRow}>
             <Pressable onPress={() => router.push('/(app)/(tabs)/profile' as never)}>
-              <View style={styles.headerAvatar}>
-                <ThemedText style={styles.headerAvatarTxt}>{coupleInitials}</ThemedText>
-              </View>
+              {user?.avatar_url ? (
+                <Image source={{ uri: user.avatar_url }} style={styles.headerAvatar} contentFit="cover" />
+              ) : (
+                <View style={styles.headerAvatar}>
+                  <ThemedText style={styles.headerAvatarTxt}>{coupleInitials}</ThemedText>
+                </View>
+              )}
             </Pressable>
             <View style={{ flex: 1, gap: 1 }}>
               <ThemedText style={styles.hello}>
@@ -757,7 +759,7 @@ export default function DashboardScreen() {
               </ThemedText>
             </View>
             <View style={styles.headerActions}>
-              <Pressable style={styles.headerIcon}>
+              <Pressable style={styles.headerIcon} onPress={() => router.push('/(app)/notifications' as never)} hitSlop={8}>
                 <Ionicons name="notifications-outline" size={18} color={C.saugeDark} />
               </Pressable>
             </View>

@@ -13,7 +13,6 @@ import type {
   AccommodationItem,
   CardStyle,
   FAQItem,
-  GiftRegistry,
   HeroStyle,
   InviteLink,
   JewishWeddingEvent,
@@ -151,10 +150,6 @@ const DEFAULT_JEWISH_EVENTS: { type: JewishWeddingEvent['type']; label: string; 
   { type: 'pool-party', label: 'Pool Party', emoji: '🏊', optional: true },
   { type: 'depart', label: 'Au revoir des invités', emoji: '👋', optional: true },
 ];
-
-function defaultGiftRegistry(): GiftRegistry {
-  return { introText: '', externalUrl: '', cagnotteUrl: '', cagnotteLabel: '', bankTransferInfo: '' };
-}
 
 const initialDate = (): { date: string; time: string } => ({ date: '', time: '' });
 
@@ -1951,8 +1946,6 @@ const submitBtn: CSSProperties = {
   color: '#fff',
   background: 'linear-gradient(120deg, #8F947F, #757B68)',
 };
-
-const footnote: CSSProperties = { fontSize: '0.8rem', opacity: 0.85, lineHeight: 1.45 };
 
 const ghostInlineBtn: CSSProperties = {
   padding: '0.42rem 0.66rem',

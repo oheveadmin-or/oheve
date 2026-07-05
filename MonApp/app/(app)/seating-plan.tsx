@@ -5,6 +5,11 @@ import { PremiumGate } from '@/components/premium-gate';
 import { SeatingPlanExportModal } from '@/components/seating-plan/ExportModal';
 import { useAuth } from '@/contexts/auth-context';
 import { usePremiumAccess } from '@/hooks/use-premium-access';
+import {
+  getGuests as getSharedGuests,
+  loadGuests as loadSharedGuests,
+  subscribeGuests as subscribeSharedGuests,
+} from '@/lib/guests-store';
 import type { SeatingPlanData, WeddingMeta } from '@/lib/seating-plan/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -25,6 +30,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -324,6 +330,10 @@ function SeatingPlanContent() {
   const [loaded, setLoaded] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Room dimensions (déclarées avant les effets qui les lisent)
+  const [roomWidth, setRoomWidth] = useState('');
+  const [roomHeight, setRoomHeight] = useState('');
+
   // Load on mount
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
@@ -351,6 +361,26 @@ function SeatingPlanContent() {
       setLoaded(true);
     });
   }, []);
+
+  // Synchronisation avec la liste d'invités de l'app : tous les invités
+  // (saisis, RSVP du site, import Excel) sont proposés pour l'assignation
+  // aux tables — dédoublonnés par nom.
+  useEffect(() => {
+    if (!loaded) return;
+    const mergeSharedGuests = () => {
+      const shared = getSharedGuests();
+      if (shared.length === 0) return;
+      setGuests((prev) => {
+        const names = new Set(prev.map((g) => g.name.trim().toLowerCase()));
+        const additions = shared
+          .filter((sg) => sg.name.trim() && !names.has(sg.name.trim().toLowerCase()))
+          .map((sg) => ({ id: `sync-${sg.id}`, name: sg.name, guestCount: sg.guestCount }));
+        return additions.length > 0 ? [...prev, ...additions] : prev;
+      });
+    };
+    loadSharedGuests().then(mergeSharedGuests);
+    return subscribeSharedGuests(mergeSharedGuests);
+  }, [loaded]);
 
   // Auto-save (debounced 800ms) after load
   useEffect(() => {
@@ -387,9 +417,6 @@ function SeatingPlanContent() {
   const [editNameModal, setEditNameModal] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
 
-  // Room dimensions
-  const [roomWidth, setRoomWidth] = useState('');
-  const [roomHeight, setRoomHeight] = useState('');
   const [showRoomModal, setShowRoomModal] = useState(false);
 
   // Paywall PDF
@@ -739,6 +766,7 @@ function SeatingPlanContent() {
                     placeholder="150"
                     placeholderTextColor="#9ca3af"
                     keyboardType="decimal-pad"
+                    {...keyboardDoneProps}
                   />
                 </View>
                 {newShape !== 'round' && (
@@ -751,6 +779,7 @@ function SeatingPlanContent() {
                       placeholder="120"
                       placeholderTextColor="#9ca3af"
                       keyboardType="decimal-pad"
+                      {...keyboardDoneProps}
                     />
                   </View>
                 )}
@@ -778,6 +807,7 @@ function SeatingPlanContent() {
             </View>
           </KeyboardAvoidingView>
         </View>
+        <KeyboardDoneBar />
       </Modal>
 
       {/* ══════════════════════════════════════════════
@@ -919,6 +949,7 @@ function SeatingPlanContent() {
                 placeholder="Ex: 20"
                 placeholderTextColor="#9ca3af"
                 keyboardType="decimal-pad"
+                {...keyboardDoneProps}
               />
               <ThemedText style={styles.sheetLabel}>Longueur (en mètres)</ThemedText>
               <TextInput
@@ -928,6 +959,7 @@ function SeatingPlanContent() {
                 placeholder="Ex: 30"
                 placeholderTextColor="#9ca3af"
                 keyboardType="decimal-pad"
+                {...keyboardDoneProps}
               />
               {roomWidth && roomHeight && (() => {
                 const rw = parseFloat(roomWidth);
@@ -965,6 +997,7 @@ function SeatingPlanContent() {
             </View>
           </KeyboardAvoidingView>
         </View>
+        <KeyboardDoneBar />
       </Modal>
 
       {/* ══════════════════════════════════════════════
