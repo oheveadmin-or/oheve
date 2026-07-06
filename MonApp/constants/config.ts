@@ -171,6 +171,10 @@ export const API_ENDPOINTS = {
   rsvpPushToken: (slug: string) => `${API_BASE_URL}/api/rsvp/${encodeURIComponent(slug)}/push-token`,
   // Wedding site config
   siteConfig: (slug: string) => `${API_BASE_URL}/api/public-sites/${encodeURIComponent(slug)}/config`,
+  // Invités (synchro serveur entre appareils d'un même compte)
+  guests: `${API_BASE_URL}/api/guests`,
+  guestsBulk: `${API_BASE_URL}/api/guests/bulk`,
+  guest: (id: string) => `${API_BASE_URL}/api/guests/${id}`,
   // Calendrier
   calendarEvents: `${API_BASE_URL}/api/calendar/events`,
   calendarEvent: (id: number) => `${API_BASE_URL}/api/calendar/events/${id}`,

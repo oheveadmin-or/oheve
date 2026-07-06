@@ -6,6 +6,7 @@ import { SeatingPlanExportModal } from '@/components/seating-plan/ExportModal';
 import { useAuth } from '@/contexts/auth-context';
 import { usePremiumAccess } from '@/hooks/use-premium-access';
 import {
+  configureGuestsSync as configureSharedGuests,
   getGuests as getSharedGuests,
   loadGuests as loadSharedGuests,
   subscribeGuests as subscribeSharedGuests,
@@ -378,9 +379,10 @@ function SeatingPlanContent() {
         return additions.length > 0 ? [...prev, ...additions] : prev;
       });
     };
+    configureSharedGuests(user?.accessToken ?? null, user?.id ?? null);
     loadSharedGuests().then(mergeSharedGuests);
     return subscribeSharedGuests(mergeSharedGuests);
-  }, [loaded]);
+  }, [loaded, user?.accessToken, user?.id]);
 
   // Auto-save (debounced 800ms) after load
   useEffect(() => {

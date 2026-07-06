@@ -486,6 +486,28 @@ export async function runMigrations(): Promise<void> {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_wedding_sites_slug ON wedding_sites(slug)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_wedding_sites_user ON wedding_sites(user_id)`);
 
+    // ── Invités (synchro serveur : partagés entre appareils d'un même compte) ──
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wedding_guests (
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name            TEXT NOT NULL,
+        guest_count     INTEGER NOT NULL DEFAULT 1,
+        status          VARCHAR(20) NOT NULL DEFAULT 'confirmed',
+        guest_group     TEXT NOT NULL DEFAULT '',
+        table_name      TEXT,
+        email           TEXT,
+        phone           TEXT,
+        from_rsvp       BOOLEAN NOT NULL DEFAULT false,
+        rsvp_ref        TEXT,
+        events          JSONB,
+        manual_event_id TEXT,
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_wedding_guests_user ON wedding_guests(user_id)`);
+
     console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp, payments, stripe_connect, devis, reservations, calendar, admin, photo_likes, photo_comments)');
   } catch (err) {
     console.error('❌ Migration DB:', (err as Error).message);

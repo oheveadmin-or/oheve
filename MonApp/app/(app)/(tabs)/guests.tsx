@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   addGuest as storeAddGuest,
   addGuests as storeAddGuests,
+  configureGuestsSync,
   getGuests,
   loadGuests,
   removeGuest as storeRemoveGuest,
@@ -47,13 +48,15 @@ export default function GuestsScreen() {
   const { user } = useAuth();
   const [guests, setGuestsState] = useState<Guest[]>([]);
 
-  // Le store est la source de vérité : chargé au montage, mis à jour par abonnement.
+  // Le store est la source de vérité : synchronisé avec le serveur (partagé
+  // entre les appareils d'un même compte), chargé au montage puis par abonnement.
   useEffect(() => {
     let alive = true;
+    configureGuestsSync(user?.accessToken ?? null, user?.id ?? null);
     loadGuests().then(() => { if (alive) setGuestsState(getGuests()); });
     const unsub = subscribeGuests(() => setGuestsState(getGuests()));
     return () => { alive = false; unsub(); };
-  }, []);
+  }, [user?.accessToken, user?.id]);
   const [statusFilter, setStatusFilter] = useState<GuestFilter>('all');
   const [eventFilter, setEventFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,8 +128,10 @@ export default function GuestsScreen() {
       : [];
     const totalPpl = attending.length > 0 ? Math.max(...attending.map((e) => e.guestCount ?? 1)) : 1;
 
-    storeAddGuest({
-      id: answer.id,
+    // Via bulk pour que le serveur dédoublonne par rsvpRef : une même réponse
+    // RSVP reçue plusieurs fois (sync initiale + SSE) ne crée pas de doublon.
+    storeAddGuests([{
+      id: `rsvp-${answer.id}`,
       name: `${answer.firstname} ${answer.lastname}`,
       guestCount: totalPpl,
       status: attending.length > 0 ? 'confirmed' : 'declined',
@@ -134,8 +139,9 @@ export default function GuestsScreen() {
       email: answer.email,
       phone: answer.phone,
       fromRSVP: true,
+      rsvpRef: answer.id,
       events: answer.events,
-    });
+    }]);
   }, []);
 
   const connectSSE = useCallback((slug: string) => {
@@ -367,7 +373,7 @@ export default function GuestsScreen() {
         })
         .filter((g): g is Guest => g !== null);
 
-      const added = storeAddGuests(imported);
+      const added = await storeAddGuests(imported);
       Alert.alert(
         'Import Excel',
         added > 0
