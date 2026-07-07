@@ -193,9 +193,8 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
     </div>
   );
 
-  // La musique ne s'affiche jamais sur la carte : lecture auto au 1er geste de
-  // l'invité. Désactivée dans l'aperçu du builder (site fictif « preview-draft »).
-  const isPreview = site.id === 'preview-draft';
+  // La musique ne s'affiche jamais sur la carte : lecture auto au 1er geste,
+  // aperçu du builder compris (le couple entend sa musique en composant).
 
   /* Base commune Maps / Waze : même box-model → hauteur, marges et centrage
      rigoureusement identiques. Chaque bouton a une bordure 1px (transparente
@@ -682,7 +681,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
 
       {/* Musique : aucun élément visuel sur la carte — lecture auto au 1er geste
           de l'invité (désactivée dans l'aperçu du builder). */}
-      <HiddenAutoMusic url={site.content?.musicUrl} enabled={!isPreview} />
+      <HiddenAutoMusic url={site.content?.musicUrl} />
     </div>
   );
 }

@@ -491,7 +491,7 @@ export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
     >
       <PublicStickyNav site={site} />
       {/* ♫ Musique — lecture automatique, sans bouton (démarre au 1er geste) */}
-      <HiddenAutoMusic url={site.content?.musicUrl} enabled={site.id !== 'preview-draft'} />
+      <HiddenAutoMusic url={site.content?.musicUrl} />
 
       {site.sections.hero ? (
         <HeroCard

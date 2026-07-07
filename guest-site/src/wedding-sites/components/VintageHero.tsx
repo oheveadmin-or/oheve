@@ -61,6 +61,8 @@ export type VintageHeroProps = {
 export type VintageFamiliesProps = {
   /** Colonnes familles libres (source unique partagée : getFamilyColumns) */
   columns: ResolvedFamilyColumn[];
+  /** Masque le titre de chaque colonne (comme Éditorial Rayures) — seuls les noms restent visibles */
+  hideTitles?: boolean;
 };
 
 /**
@@ -413,7 +415,7 @@ export function VintageHero({
  * VintageFamilies — bloc « familles » affiché SOUS le décompte.
  * Colonnes libres (titre + lignes) — même structure que tous les thèmes.
  */
-export function VintageFamilies({ columns }: VintageFamiliesProps) {
+export function VintageFamilies({ columns, hideTitles }: VintageFamiliesProps) {
   if (!columns.length) return null;
 
   return (
@@ -445,7 +447,7 @@ export function VintageFamilies({ columns }: VintageFamiliesProps) {
               <div style={{ width: 1, background: V.colors.line, opacity: 0.7, flex: '0 0 auto' }} aria-hidden />
             ) : null}
             <div style={{ flex: '1 1 0', minWidth: 120, textAlign: 'center' }}>
-              {col.title ? (
+              {col.title && !hideTitles ? (
                 <div
                   style={{
                     fontFamily: V.fonts.body,

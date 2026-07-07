@@ -96,7 +96,6 @@ function VoileHebrewArc({ tk, text }: { tk: VoileTokens; text: string }) {
         aria-label={text}
       >
         <defs>
-          {/* Tracé gauche→droite : les glyphes hébreux restent à l'endroit sur l'arc. */}
           <path id="voile-hq-arc" d="M 24,86 Q 250,8 476,86" fill="none" />
         </defs>
         <circle cx="24" cy="86" r="2.5" fill={tk.colors.accent} opacity="0.6" />
@@ -106,7 +105,12 @@ function VoileHebrewArc({ tk, text }: { tk: VoileTokens; text: string }) {
           fontSize={fontSize}
           fill={tk.colors.text}
           textAnchor="middle"
+          direction="rtl"
         >
+          {/* Sans direction="rtl", SVG pose les caractères dans l'ordre logique (de
+              gauche à droite) le long du tracé — pour de l'hébreu (RTL) le verset
+              apparaît alors inversé. `direction="rtl"` fait poser les glyphes du
+              dernier au premier, donc dans le bon sens visuel sur l'arc. */}
           <textPath href="#voile-hq-arc" startOffset="50%">
             {clean}
           </textPath>
@@ -403,6 +407,8 @@ function FamiliesCard({
   return (
     <Card tk={tk}>
       <SectionTitle tk={tk} label={title} />
+      {/* Deux colonnes conservées pour la mise en page, mais les NOMS
+          de famille ne sont jamais affichés sur la carte (comme Rayures). */}
       <FamilyColumnsRow
         columns={columns}
         accent={tk.colors.accent}
@@ -411,6 +417,7 @@ function FamiliesCard({
         bodyFontFamily={tk.fonts.body}
         titleVariant="script"
         lineSize="1rem"
+        hideTitles
       />
     </Card>
   );
@@ -499,7 +506,7 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
       <div style={{ position: 'relative', zIndex: 1, paddingTop: tk.cardGap * 2 }}>
       <PublicStickyNav site={site} />
       {/* ♫ Musique — lecture automatique, sans bouton (démarre au 1er geste) */}
-      <HiddenAutoMusic url={site.content?.musicUrl} enabled={site.id !== 'preview-draft'} />
+      <HiddenAutoMusic url={site.content?.musicUrl} />
 
       {site.sections.hero ? (
         <HeroCard

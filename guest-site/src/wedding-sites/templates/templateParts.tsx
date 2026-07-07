@@ -381,22 +381,45 @@ function useMusicPlayer(url: string | undefined) {
   const trimmed = url?.trim() || '';
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [src, setSrc] = useState<string | null>(null);
   const ref = useRef<HTMLAudioElement | null>(null);
+  // `src` en RÉF (et pas seulement en state) : les écouteurs de geste capturent
+  // une closure figée au montage (src encore nul). En lisant `srcRef.current`,
+  // `startPlayback` voit TOUJOURS l'extrait à jour → la lecture démarre même si
+  // l'extrait Deezer a été résolu APRÈS l'attache de l'écouteur (c'est le bug
+  // « je sélectionne la musique mais je n'entends rien »).
+  const srcRef = useRef<string | null>(null);
+  // Intention d'autoplay : posée au 1er geste de l'invité. Si l'extrait n'est pas
+  // encore résolu, on la retient et la lecture démarre dès qu'il l'est.
+  const wantPlayRef = useRef(false);
+
+  const startPlayback = () => {
+    const s = srcRef.current;
+    if (!s) return;
+    if (!ref.current) {
+      const audio = new Audio(s);
+      audio.loop = true;
+      ref.current = audio;
+    }
+    ref.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+  };
 
   useEffect(() => {
     ref.current?.pause();
     ref.current = null;
     setPlaying(false);
-    if (!trimmed) { setSrc(null); return; }
+    wantPlayRef.current = false;
+    srcRef.current = null;
+    if (!trimmed) { setLoading(false); return; }
     const id = deezerTrackId(trimmed);
-    if (id == null) { setSrc(trimmed); return; }
+    if (id == null) { srcRef.current = trimmed; return; }
     let cancelled = false;
     setLoading(true);
     resolveDeezerPreview(id).then((resolved) => {
       if (cancelled) return;
-      setSrc(resolved);
+      srcRef.current = resolved;
       setLoading(false);
+      // Un geste a déjà demandé la lecture avant la résolution → on démarre.
+      if (wantPlayRef.current && resolved) startPlayback();
     });
     return () => {
       cancelled = true;
@@ -409,19 +432,21 @@ function useMusicPlayer(url: string | undefined) {
     if (playing && ref.current) {
       ref.current.pause();
       setPlaying(false);
+      wantPlayRef.current = false;
       return;
     }
-    if (!src) return;
-    if (!ref.current) {
-      const audio = new Audio(src);
-      audio.loop = true;
-      ref.current = audio;
-    }
-    ref.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
-    setPlaying(true);
+    wantPlayRef.current = true;
+    startPlayback();
   };
 
-  return { hasMusic: !!trimmed, loading, playing, toggle };
+  /** Demande la lecture (autoplay) : joue maintenant si prêt, sinon dès que résolu. */
+  const requestPlay = () => {
+    if (playing) return;
+    wantPlayRef.current = true;
+    startPlayback();
+  };
+
+  return { hasMusic: !!trimmed, loading, playing, toggle, requestPlay };
 }
 
 /**
@@ -477,21 +502,19 @@ export function InlineMusicPlayer({
 /**
  * Musique SANS aucun élément visuel : la lecture démarre au premier geste de
  * l'invité (tap / scroll / clic), car les navigateurs interdisent l'autoplay
- * sans interaction. Ne rend rien. À n'utiliser que sur le site publié :
- * `enabled` doit être faux dans l'aperçu du builder (sinon la musique se
- * lancerait pendant l'édition).
+ * sans interaction. Ne rend rien. Actif AUSSI dans l'aperçu du builder pour que
+ * le couple entende sa musique sur la carte pendant qu'il compose.
  */
 export function HiddenAutoMusic({ url, enabled = true }: { url?: string; enabled?: boolean }) {
-  const { hasMusic, playing, toggle } = useMusicPlayer(url);
+  const { hasMusic, playing, requestPlay } = useMusicPlayer(url);
 
   useEffect(() => {
     // Rien à faire tant que la lecture n'a pas démarré. Dès que `playing`
     // devient vrai, l'effet est ré-exécuté et retire les écouteurs.
     if (!enabled || !hasMusic || playing) return;
-    // `toggle()` ne démarre la lecture que si la source est prête ; sinon il ne
-    // fait rien et `playing` reste faux → un geste suivant réessaiera (utile
-    // pour les extraits Deezer résolus de façon asynchrone).
-    const start = () => toggle();
+    // `requestPlay()` pose l'intention d'autoplay : la lecture démarre dès que
+    // l'extrait Deezer est résolu, sans exiger un 2e geste de l'invité.
+    const start = () => requestPlay();
     window.addEventListener('pointerdown', start);
     window.addEventListener('touchstart', start, { passive: true });
     window.addEventListener('keydown', start);
@@ -510,13 +533,12 @@ export function HiddenAutoMusic({ url, enabled = true }: { url?: string; enabled
 }
 
 /**
- * Musique du site : lecture AUTOMATIQUE, sans aucun bouton visible. On ne
- * démarre pas dans l'aperçu du builder (`preview-draft`) pour ne pas jouer la
- * musique pendant l'édition. Conserve le nom `PublicAudioToggle` pour les
- * anciens templates qui l'importent déjà.
+ * Musique du site : lecture AUTOMATIQUE, sans aucun bouton visible. Active aussi
+ * dans l'aperçu du builder (le couple entend sa musique sur la carte). Conserve
+ * le nom `PublicAudioToggle` pour les anciens templates qui l'importent déjà.
  */
 export function PublicAudioToggle({ site }: { site: WeddingSite }) {
-  return <HiddenAutoMusic url={site.content?.musicUrl} enabled={site.id !== 'preview-draft'} />;
+  return <HiddenAutoMusic url={site.content?.musicUrl} />;
 }
 
 function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeof cardStyleSurface }) {
@@ -862,9 +884,19 @@ function lightboxBtn(pos: CSSProperties): CSSProperties {
   };
 }
 
+type TimelineItem = { id: string; label: string; time?: string; place?: string; date?: string; description?: string };
+
 function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVintage?: boolean }) {
-  const events = (site.rsvpForm?.events ?? []).filter((e) => e.enabled);
-  const days = Array.from(new Set(events.map((e) => e.dayLabel?.trim() || '').filter(Boolean)));
+  // Source du programme : jewishEvents en priorité (la date qu'on y saisit est
+  // affichée telle quelle, sans passer par le `dayLabel` dérivé des rsvpEvents
+  // qui ne se mettait jamais à jour visuellement) — même logique que Stripes.
+  const jewishEvts = (site.content?.jewishEvents ?? []).filter((e) => e.enabled);
+  const events: TimelineItem[] = jewishEvts.length
+    ? jewishEvts.map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.date, description: e.description }))
+    : (site.rsvpForm?.events ?? [])
+        .filter((e) => e.enabled)
+        .map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.dayLabel, description: e.shortDescription }));
+  const days = Array.from(new Set(events.map((e) => e.date?.trim() || '').filter(Boolean)));
   const [activeDay, setActiveDay] = useState(days[0] ?? '');
 
   useEffect(() => {
@@ -874,7 +906,7 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
 
   const visible = useMemo(() => {
     if (!days.length || !activeDay) return events;
-    return events.filter((e) => (e.dayLabel?.trim() || '') === activeDay);
+    return events.filter((e) => (e.date?.trim() || '') === activeDay);
   }, [activeDay, days, events]);
 
   // Couleurs adaptées au fond bleu vintage
@@ -922,8 +954,8 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
             </div>
             <div>
               <p style={{ margin: '0 0 0.2rem', fontWeight: 700, color: textColor }}>{ev.label}</p>
-              <p style={{ margin: '0 0 0.2rem', fontSize: '0.9rem', color: mutedColor }}>{[ev.time, ev.place].filter(Boolean).join(' · ') || 'Horaire a confirmer'}</p>
-              {ev.shortDescription ? <p style={{ margin: 0, fontSize: '0.9rem', color: mutedColor }}>{ev.shortDescription}</p> : null}
+              <p style={{ margin: '0 0 0.2rem', fontSize: '0.9rem', color: mutedColor }}>{[ev.date, ev.time, ev.place].filter(Boolean).join(' · ') || 'Horaire a confirmer'}</p>
+              {ev.description ? <p style={{ margin: 0, fontSize: '0.9rem', color: mutedColor }}>{ev.description}</p> : null}
             </div>
           </article>
         ))}

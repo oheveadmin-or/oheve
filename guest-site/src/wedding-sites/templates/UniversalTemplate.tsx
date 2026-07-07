@@ -82,7 +82,6 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
 
   const heroStyle = t.heroStyle ?? 'editorial';
   const isVintage = t.style === 'vintage-blue';
-  const isPreview = site.id === 'preview-draft';
 
   // Carte d'invitation ovale + décompte dédiés au thème Vintage
   const hasTwoNames = !!(site.brideName?.trim() && site.groomName?.trim());
@@ -102,7 +101,7 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
       />
       <VintageCountdown targetDate={site.date} language={site.language} />
       {/* Familles — affichées juste sous le décompte */}
-      <VintageFamilies columns={getFamilyColumns(site)} />
+      <VintageFamilies columns={getFamilyColumns(site)} hideTitles />
     </>
   );
 
@@ -159,7 +158,7 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
 
       <PublicStickyNav site={enrichedSite} />
       {/* ♫ Musique — lecture automatique, sans bouton (démarre au 1er geste) */}
-      <HiddenAutoMusic url={site.content?.musicUrl} enabled={!isPreview} />
+      <HiddenAutoMusic url={site.content?.musicUrl} />
 
       {/* Verset hébraïque en arc — affiché ici sauf pour vintage (intégré dans la carte) */}
       {site.content?.hebrewQuote && !isVintage ? (
@@ -221,6 +220,27 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
                 boxShadow: `0 22px 60px -30px ${t.primaryColor}88`,
               }}
             />
+          </section>
+        ) : isVintage ? (
+          <section className="wedding-fade-in" style={{ margin: '1.5rem auto 2rem', maxWidth: 620, textAlign: 'center' }}>
+            <div
+              style={{
+                width: '100%',
+                aspectRatio: '4 / 3',
+                borderRadius: Math.max(6, t.borderRadius),
+                border: `1px dashed ${V.colors.line}`,
+                background: 'rgba(0,0,0,0.02)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: V.colors.inkMuted,
+                fontFamily: V.fonts.body,
+                fontSize: '0.78rem',
+                letterSpacing: '0.06em',
+              }}
+            >
+              Votre photo apparaîtra ici
+            </div>
           </section>
         ) : null}
 

@@ -8,7 +8,7 @@ import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
 import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
-import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId, resolveDeezerPreview } from '../data/musicSuggestions';
+import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId } from '../data/musicSuggestions';
 import { createWeddingSite, updateWeddingSite, setAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, adaptPhotoToTheme } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
@@ -37,7 +37,6 @@ import { generateSlugFromDisplayName, slugify } from '../utils/slug';
 import { applyThemePreset } from '../templates/themePresets';
 
 import { WeddingSitePreview } from './WeddingSitePreview';
-import { VintageThemePreview } from './VintageThemePreview';
 import { ThemePicker } from './ThemePicker';
 
 // ─── Design Studio options ────────────────────────────────────────────────────
@@ -1113,19 +1112,6 @@ export function WeddingSiteBuilder() {
               </select>
             </label>
 
-            {/* Aperçu visuel immédiat du thème sélectionné (avant la mise en page) */}
-            {theme.style === 'vintage-blue' ? (
-              <div style={{ marginTop: '1rem' }}>
-                <p style={studioSectionLabel}>Aperçu du thème</p>
-                <VintageThemePreview
-                  groomName={groomName || 'David'}
-                  brideName={brideName || 'Sarah'}
-                  targetDate={date ? mergeDateAndTimeToIso(date, time) : undefined}
-                  title={coupleName || 'Notre Mariage'}
-                />
-              </div>
-            ) : null}
-
             {/* ── Studio de Design ─────────────────────────────────────────── */}
             <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'linear-gradient(135deg, #F6F4EF 0%, #EDE8E0 100%)', borderRadius: 12, border: '1px solid #C7B7A5' }}>
               <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', fontWeight: 800, color: '#8F947F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -1163,8 +1149,8 @@ export function WeddingSiteBuilder() {
                 </div>
               )}
 
-              {/* Hero Style — sans effet sur les templates autonomes (hero sur-mesure) */}
-              {['stripes-editorial', 'editorial-cards'].includes(theme.style) ? (
+              {/* Hero Style — sans effet sur les templates autonomes (hero sur-mesure). Voile Ivoire et Vintage Bleu n'ont même pas de bandeau d'info : section masquée entièrement. */}
+              {theme.style === 'voile-ivoire' || theme.style === 'vintage-blue' ? null : ['stripes-editorial', 'editorial-cards'].includes(theme.style) ? (
                 <p style={{ margin: '0 0 1.25rem', padding: '0.6rem 0.75rem', background: '#fffdf5', border: '1px solid #e7dfc9', borderRadius: 10, fontSize: '0.74rem', color: '#8a8060', lineHeight: 1.5 }}>
                   ℹ️ Ce thème a un haut de page sur-mesure : le « style du hero » ne s'applique pas.
                   Les motifs, séparateurs, cartes et couleurs ci-dessous restent actifs.
@@ -1203,7 +1189,9 @@ export function WeddingSiteBuilder() {
               </>
               )}
 
-              {/* Pattern de fond */}
+              {/* Pattern de fond — Voile Ivoire et Vintage Bleu ont leur propre fond, section masquée. */}
+              {theme.style !== 'voile-ivoire' && theme.style !== 'vintage-blue' && (
+              <>
               <p style={studioSectionLabel}>Motif de fond</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 5, marginBottom: '0.75rem' }}>
                 {PATTERN_OPTIONS.map((p) => {
@@ -1260,6 +1248,8 @@ export function WeddingSiteBuilder() {
                     onChange={(e) => setTheme({ ...theme, patternOpacity: Number(e.target.value) / 100 })}
                   />
                 </label>
+              )}
+              </>
               )}
 
               {/* Séparateurs */}
@@ -1426,16 +1416,18 @@ export function WeddingSiteBuilder() {
               sampleSize="0.98rem"
             />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-              <label style={lab}>
-                Taille du titre
-                <select style={inp} value={theme.titleSize} onChange={(e) => setTheme({ ...theme, titleSize: e.target.value as TitleSize })}>
-                  <option value="small">Petit</option>
-                  <option value="medium">Moyen</option>
-                  <option value="large">Grand</option>
-                  <option value="huge">Très grand</option>
-                </select>
-              </label>
+            <div style={{ display: 'grid', gridTemplateColumns: theme.style === 'vintage-blue' ? '1fr' : '1fr 1fr', gap: '0.85rem' }}>
+              {theme.style !== 'vintage-blue' && (
+                <label style={lab}>
+                  Taille du titre
+                  <select style={inp} value={theme.titleSize} onChange={(e) => setTheme({ ...theme, titleSize: e.target.value as TitleSize })}>
+                    <option value="small">Petit</option>
+                    <option value="medium">Moyen</option>
+                    <option value="large">Grand</option>
+                    <option value="huge">Très grand</option>
+                  </select>
+                </label>
+              )}
               <label style={lab}>
                 Taille des prénoms
                 <select style={inp} value={theme.nameSize ?? 'medium'} onChange={(e) => setTheme({ ...theme, nameSize: e.target.value as TitleSize })}>
@@ -1447,27 +1439,29 @@ export function WeddingSiteBuilder() {
               </label>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-              <label style={lab}>
-                Ambiance
-                <select style={inp} value={theme.ambiance} onChange={(e) => setTheme({ ...theme, ambiance: e.target.value as ThemeAmbiance })}>
-                  <option value="sobre">Sobre</option>
-                  <option value="chic">Chic</option>
-                  <option value="festif">Festif</option>
-                  <option value="religieux">Religieux</option>
-                  <option value="moderne">Moderne</option>
-                </select>
-              </label>
-              <label style={lab}>
-                Mise en page
-                <select style={inp} value={theme.layout} onChange={(e) => setTheme({ ...theme, layout: e.target.value as ThemeLayout })}>
-                  <option value="centered">Centered</option>
-                  <option value="split">Split</option>
-                  <option value="hero">Hero</option>
-                  <option value="magazine">Magazine</option>
-                </select>
-              </label>
-            </div>
+            {theme.style !== 'vintage-blue' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                <label style={lab}>
+                  Ambiance
+                  <select style={inp} value={theme.ambiance} onChange={(e) => setTheme({ ...theme, ambiance: e.target.value as ThemeAmbiance })}>
+                    <option value="sobre">Sobre</option>
+                    <option value="chic">Chic</option>
+                    <option value="festif">Festif</option>
+                    <option value="religieux">Religieux</option>
+                    <option value="moderne">Moderne</option>
+                  </select>
+                </label>
+                <label style={lab}>
+                  Mise en page
+                  <select style={inp} value={theme.layout} onChange={(e) => setTheme({ ...theme, layout: e.target.value as ThemeLayout })}>
+                    <option value="centered">Centered</option>
+                    <option value="split">Split</option>
+                    <option value="hero">Hero</option>
+                    <option value="magazine">Magazine</option>
+                  </select>
+                </label>
+              </div>
+            )}
 
             <label style={lab}>
               Rayon des angles
@@ -1687,7 +1681,9 @@ export function WeddingSiteBuilder() {
                   : ''}
               </span>
             </label>
-            <MusicPreviewButton url={content.musicUrl} />
+            <span style={{ fontSize: '0.72rem', color: '#8a8378', fontWeight: 400 }}>
+              🔊 La musique se lance automatiquement sur la carte (aperçu compris) dès que vous cliquez. Choisissez « — Choisir une chanson — » pour la couper.
+            </span>
             <label style={lab}>
               …ou votre propre URL .mp3
               <input
@@ -2163,81 +2159,6 @@ const inp: CSSProperties = {
   border: '1px solid #C7B7A5',
   fontSize: '0.95rem',
 };
-
-/**
- * Bouton ▶ Écouter : joue l'extrait 30 s de la musique choisie directement
- * dans le builder (résout `deezer:<id>` à la volée, ou lit une URL directe).
- */
-function MusicPreviewButton({ url }: { url: string | undefined }) {
-  const [playing, setPlaying] = useState(false);
-  const [loading, setLoading] = useState(false);
-  // URL MP3 pré-résolue dès la sélection : sur iOS, `play()` doit être appelé
-  // DANS le geste utilisateur — résoudre le JSONP au moment du clic faisait
-  // rejeter la lecture par Safari (bouton qui « ne marche pas »).
-  const [src, setSrc] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    audioRef.current?.pause();
-    audioRef.current = null;
-    setPlaying(false);
-    const trimmed = url?.trim();
-    if (!trimmed) { setSrc(null); return; }
-    const id = deezerTrackId(trimmed);
-    if (id == null) { setSrc(trimmed); return; }
-    let cancelled = false;
-    setLoading(true);
-    resolveDeezerPreview(id).then((resolved) => {
-      if (cancelled) return;
-      setSrc(resolved);
-      setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-      audioRef.current?.pause();
-      audioRef.current = null;
-    };
-  }, [url]);
-
-  const trimmed = url?.trim();
-  if (!trimmed) return null;
-
-  const toggle = () => {
-    if (playing && audioRef.current) {
-      audioRef.current.pause();
-      setPlaying(false);
-      return;
-    }
-    if (!src) return;
-    if (!audioRef.current) {
-      const audio = new Audio(src);
-      audio.onended = () => setPlaying(false);
-      audioRef.current = audio;
-    }
-    audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
-    setPlaying(true);
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      style={{
-        marginTop: 6,
-        padding: '0.45rem 0.9rem',
-        borderRadius: 999,
-        border: '1px solid #C7B7A5',
-        background: playing ? '#8F947F' : '#F6F2EA',
-        color: playing ? '#fff' : '#4C463C',
-        fontWeight: 700,
-        fontSize: '0.82rem',
-        cursor: 'pointer',
-      }}
-    >
-      {loading ? '… chargement' : playing ? '■ Arrêter' : '▶ Écouter l\'extrait'}
-    </button>
-  );
-}
 
 /**
  * Sélecteur de police par rôle (Titres / Prénoms / Texte), façon planche de
