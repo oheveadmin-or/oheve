@@ -39,10 +39,12 @@ export function ClassicElegantTemplate({ site }: WeddingTemplateProps) {
             </p>
             <h1
               style={{
-                fontSize: titleFontSize(t.titleSize),
+                fontFamily: t.scriptFontFamily || t.titleFontFamily || t.fontFamily,
+                fontSize: titleFontSize(t.nameSize ?? t.titleSize),
                 fontWeight: 700,
                 margin: '0 0 0.5rem',
                 lineHeight: 1.12,
+                overflowWrap: 'anywhere',
               }}
             >
               {site.brideName}{' '}

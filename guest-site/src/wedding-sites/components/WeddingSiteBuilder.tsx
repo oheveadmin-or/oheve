@@ -7,11 +7,13 @@ import { RSVPBuilder } from '@guest/rsvp/RSVPBuilder';
 import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
-import { FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
-import { createWeddingSite, updateWeddingSite, setAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto } from '../services/weddingSiteService';
+import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
+import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId, resolveDeezerPreview } from '../data/musicSuggestions';
+import { createWeddingSite, updateWeddingSite, setAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, adaptPhotoToTheme } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
   CardStyle,
+  FamilyColumn,
   FAQItem,
   HeroStyle,
   InviteLink,
@@ -29,6 +31,7 @@ import type {
 } from '../types';
 import { defaultWeddingSections, defaultWeddingTheme } from '../types';
 import { getPatternStyle } from '../templates/PatternOverlay';
+import { getFamilyColumns } from '../templates/templateParts';
 import { mergeDateAndTimeToIso } from '../utils/date';
 import { generateSlugFromDisplayName, slugify } from '../utils/slug';
 import { applyThemePreset } from '../templates/themePresets';
@@ -53,14 +56,12 @@ const HERO_STYLE_OPTIONS: { id: HeroStyle; label: string; icon: string; desc: st
 
 const PATTERN_OPTIONS: { id: PatternId; label: string }[] = [
   { id: 'none',               label: 'Aucun' },
-  { id: 'grid',               label: 'Grille' },
-  { id: 'thick-grid',         label: 'Grille épais' },
+  { id: 'ornament-star',      label: 'Étoile ornement' },
+  { id: 'quatrefoil',         label: 'Croix perlée' },
   { id: 'hexagonal',          label: 'Hexagone' },
   { id: 'small-squares',      label: 'Carreaux' },
   { id: 'deco-geo',           label: 'Géo déco' },
   { id: 'horizontal-stripes', label: 'Rayures H' },
-  { id: 'linen',              label: 'Lin' },
-  { id: 'canvas-texture',     label: 'Toile' },
   { id: 'marble',             label: 'Marbre' },
   { id: 'olive-branch',       label: 'Olivier' },
   { id: 'art-nouveau',        label: 'Art Nouveau' },
@@ -142,7 +143,7 @@ const JEWISH_META: Record<JewishWeddingEvent['type'], { emoji: string; label: st
 
 const DEFAULT_JEWISH_EVENTS: { type: JewishWeddingEvent['type']; label: string; emoji: string; optional?: boolean }[] = [
   { type: 'henne', label: 'Henné', emoji: '🌸' },
-  { type: 'mairie', label: 'Mairie (cérémonie civile)', emoji: '🏛️' },
+  { type: 'mairie', label: 'Mairie', emoji: '🏛️' },
   { type: 'chabbat-hatan', label: 'Chabbat Hatan', emoji: '🕌' },
   { type: 'houppa', label: 'Houppa & Cérémonie', emoji: '💍' },
   { type: 'brunch', label: 'Brunch', emoji: '☕', optional: true },
@@ -158,6 +159,7 @@ export function WeddingSiteBuilder() {
   const [namesLocked, setNamesLocked] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [submitErrors, setSubmitErrors] = useState<string[]>([]);
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
   const [publishedId, setPublishedId] = useState<string | null>(null);
   const [slugCustom, setSlugCustom] = useState('');
@@ -171,10 +173,10 @@ export function WeddingSiteBuilder() {
   const [brideName, setBrideName] = useState('');
   const [coupleName, setCoupleName] = useState('');
   const [city, setCity] = useState('');
-  const [venue, setVenue] = useState('');
   const [welcomeText, setWelcomeText] = useState('');
   const [mainText, setMainText] = useState('');
-  const [language, setLanguage] = useState<SiteLanguage>('fr');
+  // Site uniquement en français — le sélecteur de langue a été retiré.
+  const language: SiteLanguage = 'fr';
   const [theme, setTheme] = useState<WeddingTheme>(() => applyThemePreset(defaultWeddingTheme()));
   const [sections, setSections] = useState<WeddingSections>(() => defaultWeddingSections());
   const [content, setContent] = useState<WeddingSiteContent>({
@@ -209,8 +211,19 @@ export function WeddingSiteBuilder() {
   const [galleryUploading, setGalleryUploading] = useState(0);
   const [galleryError, setGalleryError] = useState<string | null>(null);
 
-  async function handleGalleryUpload(files: File[]) {
+  async function handleGalleryUpload(allFiles: File[]) {
     setGalleryError(null);
+    // Rejette d'emblée les formats non-image (PDF, vidéo, HEIC non supporté…)
+    const files = allFiles.filter((f) => f.type.startsWith('image/'));
+    const invalid = allFiles.filter((f) => !f.type.startsWith('image/'));
+    if (invalid.length) {
+      setGalleryError(
+        `Format invalide — seules les images (JPG, PNG, WebP…) sont acceptées : ${invalid
+          .map((f) => f.name)
+          .join(', ')}`,
+      );
+      if (!files.length) return;
+    }
     setGalleryUploading(files.length);
     const failed: string[] = [];
     for (const file of files) {
@@ -224,7 +237,38 @@ export function WeddingSiteBuilder() {
         setGalleryUploading((n) => Math.max(0, n - 1));
       }
     }
-    if (failed.length) setGalleryError(`Échec de l'envoi : ${failed.join(', ')}`);
+    if (failed.length)
+      setGalleryError((prev) =>
+        [prev, `Échec de l'envoi : ${failed.join(', ')}`].filter(Boolean).join(' · '),
+      );
+  }
+
+  // ── Galerie : ré-adaptation IA au thème ─────────────────────────────────────
+  const [adaptingIdx, setAdaptingIdx] = useState<number | null>(null);
+
+  async function adaptGalleryPhoto(idx: number) {
+    const src = (content.galleryPhotos ?? [])[idx];
+    if (!src || adaptingIdx !== null) return;
+    setGalleryError(null);
+    setAdaptingIdx(idx);
+    try {
+      const adapted = await adaptPhotoToTheme(src, theme.style, {
+        background: theme.backgroundColor,
+        text: theme.textColor,
+        accent: theme.primaryColor,
+      });
+      setContent((c) => {
+        const arr = [...(c.galleryPhotos ?? [])];
+        if (arr[idx] === src) arr[idx] = adapted; // ne pas écraser si l'ordre a changé
+        return { ...c, galleryPhotos: arr };
+      });
+    } catch (err) {
+      setGalleryError(
+        `Adaptation IA impossible${err instanceof Error && err.message ? ` — ${err.message}` : ''}`,
+      );
+    } finally {
+      setAdaptingIdx(null);
+    }
   }
 
   function moveGalleryPhoto(idx: number, dir: -1 | 1) {
@@ -259,7 +303,8 @@ export function WeddingSiteBuilder() {
       date: isoDate,
       time,
       city,
-      venue,
+      // Source unique : le lieu vient de « Lieu principal » (content.venue)
+      venue: content.venue?.name ?? '',
       welcomeText,
       mainText,
       language,
@@ -277,7 +322,6 @@ export function WeddingSiteBuilder() {
       groomName,
       brideName,
       city,
-      venue,
       welcomeText,
       mainText,
       language,
@@ -296,6 +340,9 @@ export function WeddingSiteBuilder() {
 
     if (!routeSlug) return;
 
+    // Jusqu'à 3 tentatives : un échec réseau ponctuel (WebView iPad, 4G…)
+    // laissait le builder « vide » avec les prénoms déverrouillés.
+    const load = (attempt: number) => {
     getWeddingSiteBySlug(routeSlug).then((site) => {
       if (!site) {
         setLoadError('Site introuvable. Vérifiez que vous avez bien publié votre site depuis l\'application.');
@@ -306,13 +353,24 @@ export function WeddingSiteBuilder() {
       setBrideName(site.brideName || '');
       setCoupleName(site.coupleName || '');
       setCity(site.city || '');
-      setVenue(site.venue || '');
       setWelcomeText(site.welcomeText || '');
       setMainText(site.mainText || '');
-      setLanguage((site.language as SiteLanguage) || 'fr');
       if (site.theme && typeof site.theme === 'object') setTheme(applyThemePreset({ ...defaultWeddingTheme(), ...(site.theme as WeddingTheme) }));
       if (site.sections && typeof site.sections === 'object') setSections({ ...defaultWeddingSections(), ...(site.sections as WeddingSections) });
       if (site.content && typeof site.content === 'object') setContent((prev) => ({ ...prev, ...(site.content as WeddingSiteContent) }));
+      // Source unique du lieu : récupère l'ancien champ « Lieu précis » des
+      // sites publiés avant la fusion dans « Lieu principal ».
+      if (site.venue) {
+        setContent((prev) => prev.venue?.name?.trim()
+          ? prev
+          : ({
+              ...prev,
+              venue: {
+                ...(prev.venue ?? { name: '', address: '', googleMapsUrl: '', wazeUrl: '', photoUrl: '', description: '' }),
+                name: site.venue,
+              },
+            }));
+      }
       if (site.rsvpForm) setRsvpForm(site.rsvpForm);
       if (site.inviteLinks?.length) setInviteLinks(site.inviteLinks);
       if (site.date) {
@@ -328,8 +386,14 @@ export function WeddingSiteBuilder() {
       setNamesLocked(true);
     }).catch((err: unknown) => {
       console.error('[WeddingSiteBuilder] Erreur chargement site:', err);
+      if (attempt < 2) {
+        setTimeout(() => load(attempt + 1), 1200);
+        return;
+      }
       setLoadError('Impossible de charger le site. Vérifiez votre connexion et réessayez.');
     });
+    };
+    load(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeSlug]);
 
@@ -387,8 +451,64 @@ export function WeddingSiteBuilder() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** URL vide OK (champ optionnel) ; sinon exige http(s)://… */
+  function isValidUrl(v?: string) {
+    return !v || !v.trim() || /^https?:\/\/\S+\.\S+/.test(v.trim());
+  }
+
+  /** Musique : vide OK, schéma `deezer:<id>` OK, sinon URL http(s) valide. */
+  function isValidMusicUrl(v?: string) {
+    if (!v || !v.trim()) return true;
+    if (deezerTrackId(v) != null) return true; // piste Deezer choisie dans la liste
+    return isValidUrl(v);
+  }
+
+  /** Contrôle du format de tous les champs avant publication. */
+  function validateFormats(): string[] {
+    const errors: string[] = [];
+
+    if (!date) errors.push('Date du mariage manquante.');
+    else if (!isoDate) errors.push('Date ou heure du mariage invalide.');
+    if (time && !/^\d{2}:\d{2}$/.test(time)) errors.push('Heure invalide (format attendu : HH:MM).');
+
+    if (slugCustom.trim() && !/^[a-z0-9à-ÿ\s-]+$/i.test(slugCustom.trim()))
+      errors.push('Slug personnalisé invalide : lettres, chiffres et tirets uniquement.');
+
+    const urlChecks: Array<[string, string | undefined]> = [
+      ['Lien Google Maps du lieu', content.venue?.googleMapsUrl],
+      ['Lien Waze du lieu', content.venue?.wazeUrl],
+      ['Photo du lieu (URL)', content.venue?.photoUrl],
+      ...(content.accommodations ?? []).flatMap((h, i): Array<[string, string | undefined]> => [
+        [`Hôtel ${i + 1} — Google Maps`, h.googleMapsUrl],
+        [`Hôtel ${i + 1} — Waze`, h.wazeUrl],
+        [`Hôtel ${i + 1} — réservation`, h.bookingUrl],
+      ]),
+      ...(content.jewishEvents ?? []).flatMap((ev): Array<[string, string | undefined]> => [
+        [`${ev.label || ev.type} — Google Maps`, ev.googleMapsUrl],
+        [`${ev.label || ev.type} — Waze`, ev.wazeUrl],
+      ]),
+    ];
+    for (const [label, value] of urlChecks) {
+      if (!isValidUrl(value)) errors.push(`${label} : URL invalide (doit commencer par https://).`);
+    }
+
+    // Musique : accepte une piste Deezer (liste) OU une URL .mp3 https://
+    if (!isValidMusicUrl(content.musicUrl))
+      errors.push('Lien musique : choisissez une chanson dans la liste ou collez une URL .mp3 (https://).');
+
+    (content.galleryPhotos ?? []).forEach((u, i) => {
+      if (!/^https?:\/\/\S+/.test(u) && !u.startsWith('data:image/'))
+        errors.push(`Galerie — photo ${i + 1} : URL invalide (doit commencer par https://).`);
+    });
+
+    return errors;
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    const errors = validateFormats();
+    setSubmitErrors(errors);
+    if (errors.length) return;
     setSaving(true);
     try {
       const custom = slugCustom.trim() ? slugify(slugCustom) : undefined;
@@ -404,7 +524,7 @@ export function WeddingSiteBuilder() {
         date: isoDate,
         time,
         city,
-        venue,
+        venue: content.venue?.name ?? '',
         welcomeText,
         mainText,
         language,
@@ -423,13 +543,98 @@ export function WeddingSiteBuilder() {
       setPublishedId(row.id);
       setPublishedSlug(row.slug);
       setInviteLinks(row.inviteLinks ?? finalInviteLinks);
+      // Comme avant : une fois le site publié, les prénoms sont verrouillés
+      // (ils définissent le site et son slug).
+      setNamesLocked(true);
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : 'Erreur à la création.');
+      // « Load failed » / « Failed to fetch » = erreur réseau Safari/Chrome :
+      // afficher un message compréhensible plutôt que le texte brut du navigateur.
+      const raw = err instanceof Error ? err.message : '';
+      const isNetwork = /load failed|failed to fetch|networkerror|network request failed/i.test(raw);
+      alert(isNetwork
+        ? 'Connexion au serveur impossible — vérifiez votre connexion internet et réessayez. Vos saisies ne sont pas perdues.'
+        : raw || 'Erreur à la création.');
     } finally {
       setSaving(false);
     }
   }
+
+  // ── Familles : colonnes libres (titre + lignes) ─────────────────────────────
+  function updateFamilyColumn(idx: number, partial: Partial<FamilyColumn>) {
+    setContent((c) => {
+      const cols = [...(c.familyColumns ?? [])];
+      if (!cols[idx]) return c;
+      cols[idx] = { ...cols[idx], ...partial };
+      return { ...c, familyColumns: cols };
+    });
+  }
+
+  function addFamilyColumn() {
+    setContent((c) => {
+      const cols = [...(c.familyColumns ?? [])];
+      if (cols.length >= 4) return c;
+      cols.push({ id: crypto.randomUUID(), title: '', lines: [''] });
+      return { ...c, familyColumns: cols };
+    });
+  }
+
+  function removeFamilyColumn(id: string) {
+    setContent((c) => ({ ...c, familyColumns: (c.familyColumns ?? []).filter((col) => col.id !== id) }));
+  }
+
+  function updateFamilyLine(colIdx: number, lineIdx: number, value: string) {
+    setContent((c) => {
+      const cols = [...(c.familyColumns ?? [])];
+      const col = cols[colIdx];
+      if (!col) return c;
+      const lines = [...col.lines];
+      lines[lineIdx] = value;
+      cols[colIdx] = { ...col, lines };
+      return { ...c, familyColumns: cols };
+    });
+  }
+
+  function addFamilyLine(colIdx: number) {
+    setContent((c) => {
+      const cols = [...(c.familyColumns ?? [])];
+      const col = cols[colIdx];
+      if (!col) return c;
+      cols[colIdx] = { ...col, lines: [...col.lines, ''] };
+      return { ...c, familyColumns: cols };
+    });
+  }
+
+  function removeFamilyLine(colIdx: number, lineIdx: number) {
+    setContent((c) => {
+      const cols = [...(c.familyColumns ?? [])];
+      const col = cols[colIdx];
+      if (!col) return c;
+      cols[colIdx] = { ...col, lines: col.lines.filter((_, i) => i !== lineIdx) };
+      return { ...c, familyColumns: cols };
+    });
+  }
+
+  // Migration : matérialise les colonnes familles depuis les anciens champs
+  // parents/grands-parents (sites déjà publiés), sinon 2 colonnes vides.
+  // Pour un site EXISTANT (routeSlug présent) on attend la fin du chargement
+  // (publishedId défini) — sinon on créait 2 colonnes vides AVANT que les
+  // données legacy arrivent, et les vraies familles n'étaient jamais reprises.
+  useEffect(() => {
+    if (routeSlug && !publishedId) return;
+    setContent((c) => {
+      if (c.familyColumns?.length) return c;
+      const legacy = getFamilyColumns({ ...draft, content: c });
+      const cols: FamilyColumn[] = legacy.length
+        ? legacy.map((col) => ({ id: crypto.randomUUID(), title: col.title, lines: col.lines.length ? col.lines : [''] }))
+        : [
+            { id: crypto.randomUUID(), title: '', lines: [''] },
+            { id: crypto.randomUUID(), title: '', lines: [''] },
+          ];
+      return { ...c, familyColumns: cols };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publishedId, routeSlug]);
 
   function updateVenueField(key: keyof NonNullable<WeddingSiteContent['venue']>, value: string) {
     setContent((prev) => ({
@@ -735,10 +940,10 @@ export function WeddingSiteBuilder() {
               Ville
               <input style={inp} value={city} onChange={(e) => setCity(e.target.value)} />
             </label>
-            <label style={lab}>
-              Lieu précis
-              <input style={inp} value={venue} onChange={(e) => setVenue(e.target.value)} />
-            </label>
+            <p style={{ fontSize: '0.78rem', color: '#8a8378', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
+              📍 Le lieu se renseigne une seule fois dans la section « Lieu principal » ci-dessous —
+              il est repris automatiquement en haut du site.
+            </p>
             <label style={lab}>
               Phrase d'accueil
               <input style={inp} value={welcomeText} onChange={(e) => setWelcomeText(e.target.value)} />
@@ -747,15 +952,6 @@ export function WeddingSiteBuilder() {
               Texte principal
               <textarea style={{ ...inp, minHeight: 88, resize: 'vertical' }} value={mainText} onChange={(e) => setMainText(e.target.value)} />
             </label>
-            <label style={lab}>
-              Langue du site
-              <select style={inp} value={language} onChange={(e) => setLanguage(e.target.value as SiteLanguage)}>
-                <option value="fr">Français</option>
-                <option value="he">Hébreu (RTL)</option>
-                <option value="en">English</option>
-              </select>
-            </label>
-
             {/* ── Verset hébraïque en arc ── */}
             <div style={{ marginTop: '1.2rem' }}>
               <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', letterSpacing: '0.04em', display: 'block', marginBottom: '0.6rem' }}>
@@ -807,132 +1003,60 @@ export function WeddingSiteBuilder() {
             </div>
           </section>
 
-          {/* ── Parents du couple ──────────────────────────────────────────── */}
+          {/* ── Familles : colonnes libres ─────────────────────────────────── */}
           <section style={block}>
             <h2 style={h2}>👨‍👩‍👧 Familles (affiché sur le site)</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Ces noms apparaissent dans la section d'honneur sur le site.
+              Une colonne par famille, affichée élégamment sur le site. Ajoutez des lignes et
+              écrivez-les librement (« M. et Mme Attia », « Mamie Simone »…) — aucun intitulé imposé.
             </p>
-            <div style={grid2}>
-              <label style={lab}>
-                Nom de famille de la mariée
-                <input style={inp} placeholder="ex. Benitah"
-                  value={content.brideFamilyName ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, brideFamilyName: e.target.value }))} />
-              </label>
-              <label style={lab}>
-                Nom de famille du marié
-                <input style={inp} placeholder="ex. Cohen"
-                  value={content.groomFamilyName ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, groomFamilyName: e.target.value }))} />
-              </label>
-            </div>
-
-            {/* Côté mariée */}
-            <p style={{ fontSize: '0.83rem', color: '#64748b', margin: '1rem 0 0.5rem', fontWeight: 600 }}>Côté mariée</p>
-            <div style={grid2}>
-              <label style={lab}>
-                Père de la mariée
-                <input style={inp} placeholder="ex. Michel Benitah"
-                  value={content.parentsBride?.father ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), father: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Mère de la mariée
-                <input style={inp} placeholder="ex. Véronique Benitah"
-                  value={content.parentsBride?.mother ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), mother: e.target.value } }))} />
-              </label>
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
-              <input
-                type="checkbox"
-                checked={content.parentsBride?.isDivorced ?? false}
-                onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), isDivorced: e.target.checked } }))}
-              />
-              Parents divorcés (affichés séparément sur le site)
-            </label>
-            {!content.parentsBride?.isDivorced && (
-              <label style={{ ...lab, marginBottom: '0.75rem' }}>
-                Formule affichée
-                <select
-                  style={inp}
-                  value={content.parentsBride?.titleStyle ?? 'couple'}
-                  onChange={(e) => setContent((c) => ({ ...c, parentsBride: { ...(c.parentsBride ?? {}), titleStyle: e.target.value as 'couple' | 'mr' | 'mme' } }))}
-                >
-                  <option value="couple">M. et Mme</option>
-                  <option value="mr">M. seul</option>
-                  <option value="mme">Mme seule</option>
-                </select>
-              </label>
-            )}
-            <div style={grid2}>
-              <label style={lab}>
-                Grand-père de la mariée
-                <input style={inp} placeholder="ex. Albert Benitah"
-                  value={content.grandparentsBride?.grandfather ?? content.grandparentsBride?.paternalGrandfather ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), grandfather: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Grand-mère de la mariée
-                <input style={inp} placeholder="ex. Simone Benitah"
-                  value={content.grandparentsBride?.grandmother ?? content.grandparentsBride?.paternalGrandmother ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsBride: { ...(c.grandparentsBride ?? {}), grandmother: e.target.value } }))} />
-              </label>
-            </div>
-
-            {/* Côté marié */}
-            <p style={{ fontSize: '0.83rem', color: '#64748b', margin: '0.75rem 0 0.5rem', fontWeight: 600 }}>Côté marié</p>
-            <div style={grid2}>
-              <label style={lab}>
-                Père du marié
-                <input style={inp} placeholder="ex. Patrick Cohen"
-                  value={content.parentsGroom?.father ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), father: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Mère du marié
-                <input style={inp} placeholder="ex. Isabelle Cohen"
-                  value={content.parentsGroom?.mother ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), mother: e.target.value } }))} />
-              </label>
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
-              <input
-                type="checkbox"
-                checked={content.parentsGroom?.isDivorced ?? false}
-                onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), isDivorced: e.target.checked } }))}
-              />
-              Parents divorcés (affichés séparément sur le site)
-            </label>
-            {!content.parentsGroom?.isDivorced && (
-              <label style={{ ...lab, marginBottom: '0.75rem' }}>
-                Formule affichée
-                <select
-                  style={inp}
-                  value={content.parentsGroom?.titleStyle ?? 'couple'}
-                  onChange={(e) => setContent((c) => ({ ...c, parentsGroom: { ...(c.parentsGroom ?? {}), titleStyle: e.target.value as 'couple' | 'mr' | 'mme' } }))}
-                >
-                  <option value="couple">M. et Mme</option>
-                  <option value="mr">M. seul</option>
-                  <option value="mme">Mme seule</option>
-                </select>
-              </label>
-            )}
-            <div style={grid2}>
-              <label style={lab}>
-                Grand-père du marié
-                <input style={inp} placeholder="ex. Roger Cohen"
-                  value={content.grandparentsGroom?.grandfather ?? content.grandparentsGroom?.paternalGrandfather ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), grandfather: e.target.value } }))} />
-              </label>
-              <label style={lab}>
-                Grand-mère du marié
-                <input style={inp} placeholder="ex. Rachel Cohen"
-                  value={content.grandparentsGroom?.grandmother ?? content.grandparentsGroom?.paternalGrandmother ?? ''}
-                  onChange={(e) => setContent((c) => ({ ...c, grandparentsGroom: { ...(c.grandparentsGroom ?? {}), grandmother: e.target.value } }))} />
-              </label>
-            </div>
+            {(content.familyColumns ?? []).map((col, ci) => (
+              <div key={col.id} style={{ border: '1px solid #E4E7DC', borderRadius: 12, padding: '0.75rem', marginBottom: 10, background: '#FBFBF9' }}>
+                <label style={lab}>
+                  Titre de la colonne
+                  <input
+                    style={inp}
+                    placeholder={ci === 0 ? 'ex. Famille Benitah' : 'ex. Famille Cohen'}
+                    value={col.title}
+                    onChange={(e) => updateFamilyColumn(ci, { title: e.target.value })}
+                  />
+                </label>
+                {col.lines.map((line, li) => (
+                  <div key={li} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                    <input
+                      style={{ ...inp, marginTop: 0, flex: 1 }}
+                      placeholder={li === 0 ? 'ex. M. et Mme Benitah' : 'ligne libre…'}
+                      value={line}
+                      onChange={(e) => updateFamilyLine(ci, li, e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      title="Supprimer la ligne"
+                      onClick={() => removeFamilyLine(ci, li)}
+                      style={{ ...dangerInlineBtn, padding: '0 0.6rem' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <button type="button" style={ghostInlineBtn} onClick={() => addFamilyLine(ci)}>
+                    + Ajouter une ligne
+                  </button>
+                  <button type="button" style={dangerInlineBtn} onClick={() => removeFamilyColumn(col.id)}>
+                    Supprimer la famille
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              style={ghostInlineBtn}
+              onClick={addFamilyColumn}
+              disabled={(content.familyColumns ?? []).length >= 4}
+            >
+              + Ajouter une famille
+            </button>
           </section>
 
           {/* ── Logo monogramme ─────────────────────────────────────────────── */}
@@ -952,59 +1076,11 @@ export function WeddingSiteBuilder() {
             />
             {content.monogramSvg ? (
               <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {/* Position du logo — masqué pour Vintage (monogramme intégré dans la carte ovale) */}
-                {theme.style !== 'vintage-blue' ? (
-                <div style={{ padding: '0.75rem', background: '#fafaf8', borderRadius: 10, border: '1px solid #e2e0da' }}>
-                  <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', fontWeight: 700, color: '#555' }}>📍 Position du logo dans le hero</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
-                    {([
-                      { id: 'top-center',    icon: '⬆', label: 'Haut' },
-                      { id: 'center',        icon: '⊕', label: 'Centre' },
-                      { id: 'bottom-left',   icon: '↙', label: 'Bas G' },
-                      { id: 'bottom-center', icon: '⬇', label: 'Bas' },
-                      { id: 'bottom-right',  icon: '↘', label: 'Bas D' },
-                    ] as const).map((opt) => {
-                      const active = (content.monogramPosition ?? 'top-center') === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setContent((c) => ({ ...c, monogramPosition: opt.id }))}
-                          style={{
-                            padding: '0.4rem 0.2rem',
-                            border: `2px solid ${active ? '#8F947F' : '#ddd'}`,
-                            borderRadius: 8,
-                            background: active ? '#E4E7DC' : '#fff',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 2,
-                          }}
-                        >
-                          <span style={{ fontSize: '1rem' }}>{opt.icon}</span>
-                          <span style={{ fontSize: '0.58rem', color: active ? '#8F947F' : '#666', fontWeight: 600 }}>{opt.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {theme.heroStyle === 'monogram' && (
-                    <p style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: '#999', fontStyle: 'italic' }}>
-                      En style « Monogramme », le logo est toujours affiché au centre.
-                    </p>
-                  )}
-                </div>
-                ) : (
-                  <p style={{ margin: 0, padding: '0.6rem 0.75rem', background: '#fafaf8', borderRadius: 10, border: '1px solid #e2e0da', fontSize: '0.74rem', color: '#999', fontStyle: 'italic' }}>
-                    Le monogramme est intégré automatiquement en haut de la carte ovale Vintage.
-                  </p>
-                )}
-
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.5rem 0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px solid #86efac', fontSize: '0.83rem', color: '#166534' }}>
                   ✅ Monogramme enregistré
                   <button
                     type="button"
-                    onClick={() => setContent((c) => ({ ...c, monogramSvg: undefined, monogramStyle: undefined, monogramPosition: undefined }))}
+                    onClick={() => setContent((c) => ({ ...c, monogramSvg: undefined, monogramStyle: undefined }))}
                     style={{ marginLeft: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: '0.8rem' }}
                   >
                     Supprimer
@@ -1055,6 +1131,37 @@ export function WeddingSiteBuilder() {
               <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', fontWeight: 800, color: '#8F947F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Studio de design
               </p>
+
+              {/* Réglages exclusifs à l'Éditorial Rayures : largeur & opacité des rayures du hero */}
+              {theme.style === 'stripes-editorial' && (
+                <div style={{ margin: '0 0 1.25rem', padding: '0.85rem', background: '#fff', border: '1px solid #e2e0da', borderRadius: 10 }}>
+                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.78rem', fontWeight: 800, color: '#555', letterSpacing: '0.04em' }}>▚ Rayures du hero</p>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#555', fontWeight: 600, marginBottom: 12 }}>
+                    Largeur des rayures — {Math.round(theme.stripeWidth ?? 8)} px
+                    <input
+                      type="range"
+                      min={2}
+                      max={20}
+                      step={1}
+                      value={theme.stripeWidth ?? 8}
+                      onChange={(e) => setTheme((t) => ({ ...t, stripeWidth: Number(e.target.value) }))}
+                      style={{ width: '100%', marginTop: 6, accentColor: '#8F947F' }}
+                    />
+                  </label>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#555', fontWeight: 600 }}>
+                    Opacité des rayures — {Math.round((theme.stripeOpacity ?? 1) * 100)} %
+                    <input
+                      type="range"
+                      min={10}
+                      max={100}
+                      step={5}
+                      value={Math.round((theme.stripeOpacity ?? 1) * 100)}
+                      onChange={(e) => setTheme((t) => ({ ...t, stripeOpacity: Number(e.target.value) / 100 }))}
+                      style={{ width: '100%', marginTop: 6, accentColor: '#8F947F' }}
+                    />
+                  </label>
+                </div>
+              )}
 
               {/* Hero Style — sans effet sur les templates autonomes (hero sur-mesure) */}
               {['stripes-editorial', 'editorial-cards'].includes(theme.style) ? (
@@ -1124,7 +1231,10 @@ export function WeddingSiteBuilder() {
                           width: 36,
                           height: 26,
                           borderRadius: 5,
-                          background: theme.backgroundColor || '#faf7f2',
+                          // backgroundColor (longhand) : ne pas mélanger le
+                          // shorthand `background` avec backgroundImage/Repeat
+                          // (React warning « conflicting style properties »)
+                          backgroundColor: theme.backgroundColor || '#faf7f2',
                           ...patBg,
                           backgroundRepeat: 'repeat',
                           border: `1px solid ${active ? '#a5b4fc' : '#e8e4f5'}`,
@@ -1219,22 +1329,35 @@ export function WeddingSiteBuilder() {
             {/* ── Couleurs ─────────────────────────────────────────────────── */}
             <p style={{ ...studioSectionLabel, marginTop: '1.25rem' }}>Combinaisons de couleurs</p>
             {(() => {
+              // Couleurs de base du MODÈLE sélectionné — toujours proposées en premier
+              const presetTheme = ALL_STYLE_PRESETS.find((s) => s.id === theme.style)?.theme;
+              const modelPalette = presetTheme?.primaryColor
+                ? [{
+                    name: '✦ Couleurs du modèle',
+                    colors: [presetTheme.primaryColor, presetTheme.secondaryColor ?? presetTheme.primaryColor, presetTheme.backgroundColor ?? '#FFFFFF', presetTheme.textColor ?? '#111111'],
+                    primary: presetTheme.primaryColor,
+                    secondary: presetTheme.secondaryColor ?? presetTheme.primaryColor,
+                    bg: presetTheme.backgroundColor ?? '#FFFFFF',
+                    text: presetTheme.textColor ?? '#111111',
+                  }]
+                : [];
               const palettes = [
-                { name: 'Noir & Or', colors: ['#0B0B0B', '#D4AF37', '#EBFD2', '#FFFFFF'], primary: '#D4AF37', secondary: '#0B0B0B', bg: '#FDFBF5', text: '#0B0B0B' },
-                { name: 'Émeraude & Champagne', colors: ['#0F5132', '#D4AF37', '#E9DFC9', '#FFFFFF'], primary: '#0F5132', secondary: '#D4AF37', bg: '#F5F2EA', text: '#0F5132' },
-                { name: 'Bleu Nuit & Cuivré', colors: ['#0E2248', '#C97C5D', '#B7A69A', '#F5EFE6'], primary: '#0E2248', secondary: '#C97C5D', bg: '#F5EFE6', text: '#0E2248' },
-                { name: 'Bordeaux & Or Vieilli', colors: ['#580D1E', '#D4AF37', '#EEC7B7', '#F7F3EE'], primary: '#580D1E', secondary: '#D4AF37', bg: '#FAF6F1', text: '#3D0A14' },
-                { name: 'Vert Sauge & Bronze', colors: ['#8BBF7A', '#7A5A3A', '#DCD2BE', '#FAF7F2'], primary: '#8BBF7A', secondary: '#7A5A3A', bg: '#FAF7F2', text: '#3D3020' },
-                { name: 'Terracotta & Crème', colors: ['#C65A2E', '#F3EFE6', '#6B6F3C', '#D8BEBC'], primary: '#C65A2E', secondary: '#6B6F3C', bg: '#FAF5EE', text: '#3A2010' },
-                { name: 'Lavande & Gris', colors: ['#B9ABC9', '#BFC2C7', '#E8E0D2', '#FFFFFF'], primary: '#9B8BB0', secondary: '#BFC2C7', bg: '#F4F0F8', text: '#3D3550' },
-                { name: 'Noir & Blanc Marbre', colors: ['#000000', '#FFFFFF', '#E6E6E6', '#D4AF37'], primary: '#000000', secondary: '#D4AF37', bg: '#FAFAFA', text: '#111111' },
-                { name: 'Pétrole & Or', colors: ['#00AF57', '#D4AF37', '#EDED56', '#F6F2EA'], primary: '#005F67', secondary: '#D4AF37', bg: '#F2F8F8', text: '#003840' },
-                { name: 'Pêche & Or Rose', colors: ['#F2B9A7', '#F5DBCC', '#EBC9B7', '#E7A98D'], primary: '#D4856A', secondary: '#C9956A', bg: '#FDF5F0', text: '#6B3A2A' },
-                { name: 'Olive & Beige', colors: ['#4B5332', '#F4F1E8', '#D4C9B6', '#9B9E1D2'], primary: '#4B5332', secondary: '#C9B87A', bg: '#F4F1E8', text: '#2E3320' },
-                { name: 'Chocolat & Doré', colors: ['#4B2E1E', '#E7DFD2', '#B8A97B', '#D4AF37'], primary: '#5A3824', secondary: '#D4AF37', bg: '#FAF5EE', text: '#2E1A0E' },
-                { name: 'Bleu Grisé & Argent', colors: ['#8FA1B3', '#C0C6CC', '#FFFFFF', '#E0E3E6'], primary: '#5A7A96', secondary: '#A0A8B0', bg: '#F5F7FA', text: '#2A3A4A' },
-                { name: 'Fuchsia & Prune', colors: ['#BF1860', '#6A0038', '#D4AF37', '#F1C6D2'], primary: '#8B1050', secondary: '#D4AF37', bg: '#FDF0F5', text: '#3A0020' },
-                { name: 'Sable & Bleu Ciel', colors: ['#E6D8C2', '#B7D6E6', '#FFFFFF', '#E6E8BF0'], primary: '#7AAECC', secondary: '#C9B080', bg: '#F5F8FB', text: '#2A4A5A' },
+                ...modelPalette,
+                { name: 'Noir & Or', colors: ['#0B0B0B', '#D4AF37', '#F7F1DE', '#FFFFFF'], primary: '#D4AF37', secondary: '#0B0B0B', bg: '#F7F1DE', text: '#1A1206' },
+                { name: 'Émeraude & Champagne', colors: ['#0F5132', '#D4AF37', '#E3EDE4', '#FFFFFF'], primary: '#0F5132', secondary: '#D4AF37', bg: '#E6F0E7', text: '#0F3D2A' },
+                { name: 'Bleu Nuit & Cuivré', colors: ['#0E2248', '#C97C5D', '#DEE7F2', '#F5EFE6'], primary: '#0E2248', secondary: '#C97C5D', bg: '#E4EBF5', text: '#0E2248' },
+                { name: 'Bordeaux & Or Vieilli', colors: ['#580D1E', '#D4AF37', '#EEC7B7', '#F7F3EE'], primary: '#580D1E', secondary: '#D4AF37', bg: '#F4E4E1', text: '#3D0A14' },
+                { name: 'Vert Sauge & Bronze', colors: ['#8BBF7A', '#7A5A3A', '#DCD2BE', '#FAF7F2'], primary: '#8BBF7A', secondary: '#7A5A3A', bg: '#E7EEE1', text: '#2E3D24' },
+                { name: 'Terracotta & Crème', colors: ['#C65A2E', '#6B6F3C', '#F8E4D8', '#D8BEBC'], primary: '#C65A2E', secondary: '#6B6F3C', bg: '#FAE6DA', text: '#3A2010' },
+                { name: 'Lavande & Gris', colors: ['#9B8BB0', '#BFC2C7', '#EBE5F4', '#FFFFFF'], primary: '#9B8BB0', secondary: '#BFC2C7', bg: '#ECE6F5', text: '#3D3550' },
+                { name: 'Noir & Blanc Marbre', colors: ['#000000', '#D4AF37', '#ECECEC', '#FFFFFF'], primary: '#000000', secondary: '#D4AF37', bg: '#EFEFEF', text: '#111111' },
+                { name: 'Pétrole & Or', colors: ['#005F67', '#D4AF37', '#DFEDED', '#F6F2EA'], primary: '#005F67', secondary: '#D4AF37', bg: '#E0EEEE', text: '#003840' },
+                { name: 'Pêche & Or Rose', colors: ['#D4856A', '#C9956A', '#FBE7DC', '#E7A98D'], primary: '#D4856A', secondary: '#C9956A', bg: '#FCE8DE', text: '#6B3A2A' },
+                { name: 'Olive & Beige', colors: ['#4B5332', '#C9B87A', '#ECEDDF', '#D4C9B6'], primary: '#4B5332', secondary: '#C9B87A', bg: '#EDEEE0', text: '#2E3320' },
+                { name: 'Chocolat & Doré', colors: ['#5A3824', '#D4AF37', '#F0E7DA', '#B8A97B'], primary: '#5A3824', secondary: '#D4AF37', bg: '#F1E8DB', text: '#2E1A0E' },
+                { name: 'Bleu Grisé & Argent', colors: ['#5A7A96', '#A0A8B0', '#E4EBF2', '#FFFFFF'], primary: '#5A7A96', secondary: '#A0A8B0', bg: '#E6EDF4', text: '#2A3A4A' },
+                { name: 'Fuchsia & Prune', colors: ['#8B1050', '#6A0038', '#FADCEA', '#F1C6D2'], primary: '#8B1050', secondary: '#D4AF37', bg: '#FBE1EC', text: '#3A0020' },
+                { name: 'Sable & Bleu Ciel', colors: ['#7AAECC', '#C9B080', '#E4EFF6', '#FFFFFF'], primary: '#7AAECC', secondary: '#C9B080', bg: '#E5F0F7', text: '#2A4A5A' },
               ];
               return (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -1276,26 +1399,55 @@ export function WeddingSiteBuilder() {
               </label>
             </div>
 
-            {/* ── Typographie & réglages ────────────────────────────────────── */}
-            <label style={lab}>
-              Police
-              <select style={inp} value={theme.fontFamily} onChange={(e) => setTheme({ ...theme, fontFamily: e.target.value })}>
-                {FONT_OPTIONS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
-            </label>
+            {/* ── Typographie : trois rôles (Titres / Prénoms / Texte) ───────── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+              <FontRoleSelect
+                label="Police des titres"
+                value={theme.titleFontFamily ?? ''}
+                onChange={(v) => setTheme({ ...theme, titleFontFamily: v || undefined })}
+                allowAuto
+                sample="Le Programme"
+                sampleSize="1.2rem"
+              />
+              <FontRoleSelect
+                label="Police des prénoms (calligraphie)"
+                value={theme.scriptFontFamily ?? ''}
+                onChange={(v) => setTheme({ ...theme, scriptFontFamily: v || undefined })}
+                allowAuto
+                sample={`${brideName || 'Myriam'} & ${groomName || 'Eden'}`}
+                sampleSize="1.5rem"
+              />
+            </div>
+            <FontRoleSelect
+              label="Police du texte"
+              value={theme.fontFamily}
+              onChange={(v) => setTheme({ ...theme, fontFamily: v })}
+              sample="Nous serons heureux de vous compter parmi nous."
+              sampleSize="0.98rem"
+            />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.85rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
               <label style={lab}>
                 Taille du titre
                 <select style={inp} value={theme.titleSize} onChange={(e) => setTheme({ ...theme, titleSize: e.target.value as TitleSize })}>
-                  <option value="small">Small</option>
-                  <option value="medium">Medium</option>
-                  <option value="large">Large</option>
-                  <option value="huge">Huge</option>
+                  <option value="small">Petit</option>
+                  <option value="medium">Moyen</option>
+                  <option value="large">Grand</option>
+                  <option value="huge">Très grand</option>
                 </select>
               </label>
+              <label style={lab}>
+                Taille des prénoms
+                <select style={inp} value={theme.nameSize ?? 'medium'} onChange={(e) => setTheme({ ...theme, nameSize: e.target.value as TitleSize })}>
+                  <option value="small">Petit</option>
+                  <option value="medium">Moyen</option>
+                  <option value="large">Grand</option>
+                  <option value="huge">Très grand</option>
+                </select>
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
               <label style={lab}>
                 Ambiance
                 <select style={inp} value={theme.ambiance} onChange={(e) => setTheme({ ...theme, ambiance: e.target.value as ThemeAmbiance })}>
@@ -1516,8 +1668,34 @@ export function WeddingSiteBuilder() {
               />
             </label>
             <label style={lab}>
-              Musique de fond (.mp3 URL)
-              <input style={inp} value={content.musicUrl ?? ''} onChange={(e) => setContent((c) => ({ ...c, musicUrl: e.target.value }))} />
+              Musique de fond — playlist mariage
+              <select
+                style={inp}
+                value={deezerTrackId(content.musicUrl) != null ? content.musicUrl : ''}
+                onChange={(e) => setContent((c) => ({ ...c, musicUrl: e.target.value }))}
+              >
+                <option value="">— Choisir une chanson —</option>
+                {MUSIC_SUGGESTIONS.map((m) => (
+                  <option key={m.id} value={`${DEEZER_SCHEME}${m.id}`}>
+                    {m.title} — {m.artist}
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontSize: '0.72rem', color: '#8a8378', fontWeight: 400, marginTop: 2 }}>
+                Extrait 30 s joué en boucle sur le site. {musicLabelForUrl(content.musicUrl)
+                  ? `Sélection : ${musicLabelForUrl(content.musicUrl)}.`
+                  : ''}
+              </span>
+            </label>
+            <MusicPreviewButton url={content.musicUrl} />
+            <label style={lab}>
+              …ou votre propre URL .mp3
+              <input
+                style={inp}
+                placeholder="https://…/musique.mp3"
+                value={deezerTrackId(content.musicUrl) != null ? '' : (content.musicUrl ?? '')}
+                onChange={(e) => setContent((c) => ({ ...c, musicUrl: e.target.value }))}
+              />
             </label>
           </section>
 
@@ -1564,7 +1742,8 @@ export function WeddingSiteBuilder() {
             <h2 style={h2}>🖼️ Galerie photos</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
               Ajoutez vos photos directement depuis votre appareil — elles sont optimisées et hébergées automatiquement.
-              La première photo sert d'image vedette sur le site.
+              La première photo sert d'image vedette sur le site. Touchez <strong>✨ IA</strong> sur une photo pour la
+              ré-adapter à l'ambiance du thème choisi.
             </p>
 
             {/* Vignettes avec réordonnancement et suppression */}
@@ -1575,6 +1754,32 @@ export function WeddingSiteBuilder() {
                     <img src={url} alt={`Photo ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     {idx === 0 && (
                       <span style={{ position: 'absolute', top: 4, left: 4, background: '#8F947F', color: '#fff', fontSize: '0.55rem', fontWeight: 700, padding: '2px 6px', borderRadius: 6 }}>★ Vedette</span>
+                    )}
+                    <button
+                      type="button"
+                      title={`Adapter au thème « ${theme.style} » avec l'IA`}
+                      disabled={adaptingIdx !== null}
+                      onClick={() => void adaptGalleryPhoto(idx)}
+                      style={{
+                        position: 'absolute',
+                        top: 4,
+                        right: 4,
+                        background: 'rgba(143,148,127,0.92)',
+                        color: '#fff',
+                        border: 'none',
+                        fontSize: '0.6rem',
+                        fontWeight: 700,
+                        padding: '3px 7px',
+                        borderRadius: 7,
+                        cursor: adaptingIdx !== null ? 'wait' : 'pointer',
+                      }}
+                    >
+                      ✨ IA
+                    </button>
+                    {adaptingIdx === idx && (
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(61,50,41,0.62)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.66rem', fontWeight: 700, textAlign: 'center', padding: 6, lineHeight: 1.4 }}>
+                        ✨ Adaptation<br />au thème…
+                      </div>
                     )}
                     <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', background: 'linear-gradient(transparent, rgba(0,0,0,0.55))', padding: '10px 4px 4px' }}>
                       <button type="button" title="Reculer" disabled={idx === 0} onClick={() => moveGalleryPhoto(idx, -1)} style={galleryMiniBtn(idx === 0)}>←</button>
@@ -1633,6 +1838,13 @@ export function WeddingSiteBuilder() {
                   }))
                 }
               />
+              {(content.galleryPhotos ?? []).some(
+                (u) => !/^https?:\/\/\S+/.test(u) && !u.startsWith('data:image/'),
+              ) && (
+                <p style={{ margin: '0.4rem 0 0', fontSize: '0.78rem', color: '#dc2626' }}>
+                  ⚠️ Format invalide — chaque ligne doit être une URL complète commençant par https://
+                </p>
+              )}
             </details>
           </section>
 
@@ -1806,6 +2018,28 @@ export function WeddingSiteBuilder() {
             </label>
           </section>
 
+          {submitErrors.length > 0 && (
+            <div
+              role="alert"
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: 12,
+                padding: '0.85rem 1rem',
+                marginBottom: '0.85rem',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#b91c1c' }}>
+                ⚠️ Formats invalides — corrigez avant de publier :
+              </p>
+              <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.2rem', fontSize: '0.82rem', color: '#dc2626' }}>
+                {submitErrors.map((err) => (
+                  <li key={err}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <button type="submit" style={submitBtn} disabled={saving}>
             {saving ? 'Enregistrement…' : namesLocked ? 'Sauvegarder les modifications' : 'Publier le mini-site'}
           </button>
@@ -1929,6 +2163,142 @@ const inp: CSSProperties = {
   border: '1px solid #C7B7A5',
   fontSize: '0.95rem',
 };
+
+/**
+ * Bouton ▶ Écouter : joue l'extrait 30 s de la musique choisie directement
+ * dans le builder (résout `deezer:<id>` à la volée, ou lit une URL directe).
+ */
+function MusicPreviewButton({ url }: { url: string | undefined }) {
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  // URL MP3 pré-résolue dès la sélection : sur iOS, `play()` doit être appelé
+  // DANS le geste utilisateur — résoudre le JSONP au moment du clic faisait
+  // rejeter la lecture par Safari (bouton qui « ne marche pas »).
+  const [src, setSrc] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setPlaying(false);
+    const trimmed = url?.trim();
+    if (!trimmed) { setSrc(null); return; }
+    const id = deezerTrackId(trimmed);
+    if (id == null) { setSrc(trimmed); return; }
+    let cancelled = false;
+    setLoading(true);
+    resolveDeezerPreview(id).then((resolved) => {
+      if (cancelled) return;
+      setSrc(resolved);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, [url]);
+
+  const trimmed = url?.trim();
+  if (!trimmed) return null;
+
+  const toggle = () => {
+    if (playing && audioRef.current) {
+      audioRef.current.pause();
+      setPlaying(false);
+      return;
+    }
+    if (!src) return;
+    if (!audioRef.current) {
+      const audio = new Audio(src);
+      audio.onended = () => setPlaying(false);
+      audioRef.current = audio;
+    }
+    audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    setPlaying(true);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      style={{
+        marginTop: 6,
+        padding: '0.45rem 0.9rem',
+        borderRadius: 999,
+        border: '1px solid #C7B7A5',
+        background: playing ? '#8F947F' : '#F6F2EA',
+        color: playing ? '#fff' : '#4C463C',
+        fontWeight: 700,
+        fontSize: '0.82rem',
+        cursor: 'pointer',
+      }}
+    >
+      {loading ? '… chargement' : playing ? '■ Arrêter' : '▶ Écouter l\'extrait'}
+    </button>
+  );
+}
+
+/**
+ * Sélecteur de police par rôle (Titres / Prénoms / Texte), façon planche de
+ * papeterie : chaque option est rendue dans SA police et un aperçu « Aa »
+ * en direct s'affiche sous le menu dans la police choisie.
+ */
+function FontRoleSelect({
+  label,
+  value,
+  onChange,
+  allowAuto,
+  sample,
+  sampleSize = '1.35rem',
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  /** Ajoute l'option « Auto » (police par défaut du thème) */
+  allowAuto?: boolean;
+  /** Texte d'aperçu rendu dans la police choisie */
+  sample: string;
+  sampleSize?: string;
+}) {
+  const groups = Array.from(new Set(FONT_OPTIONS.map((f) => f.group)));
+  return (
+    <label style={lab}>
+      {label}
+      <select style={inp} value={value} onChange={(e) => onChange(e.target.value)}>
+        {allowAuto ? <option value="">Auto (police du thème)</option> : null}
+        {groups.map((group) => (
+          <optgroup key={group} label={group}>
+            {FONT_OPTIONS.filter((f) => f.group === group).map((f) => (
+              <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                {f.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {value ? (
+        <span
+          aria-hidden
+          style={{
+            display: 'block',
+            marginTop: 4,
+            fontFamily: value,
+            fontSize: sampleSize,
+            fontWeight: 400,
+            lineHeight: 1.25,
+            color: '#4C463C',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {sample}
+        </span>
+      ) : null}
+    </label>
+  );
+}
 
 const checks: CSSProperties = { display: 'grid', gap: '0.45rem' };
 

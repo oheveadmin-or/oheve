@@ -22,17 +22,33 @@ export default function SiteWebViewScreen() {
 
   useEffect(() => {
     async function resolveUrl() {
-      const token = user?.accessToken;
-      const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+      const access = user?.accessToken;
 
-      if (!token) {
+      if (!access) {
         setUri(`${WEB_BUILDER_BASE}/build`);
         return;
       }
 
+      // Jeton longue durée (30 j) pour la WebView : la conception du site peut
+      // durer plus d'une heure (upload photos, réglages) — un access token d'1 h
+      // expirait en pleine session → 401 « Session expirée ». On retombe sur
+      // l'access token si l'endpoint échoue (rétro-compat).
+      let builderToken = access;
+      try {
+        const tokRes = await fetch(API_ENDPOINTS.weddingBuilderToken, {
+          headers: { Authorization: `Bearer ${access}` },
+        });
+        if (tokRes.ok) {
+          const tokJson = (await tokRes.json()) as { token?: string };
+          if (tokJson.token) builderToken = tokJson.token;
+        }
+      } catch { /* garde l'access token */ }
+
+      const tokenParam = `?token=${encodeURIComponent(builderToken)}`;
+
       try {
         const res = await fetch(`${API_ENDPOINTS.weddingSites}/me`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${access}` },
         });
         if (res.ok) {
           const json = await res.json() as { data?: { slug: string }[] };

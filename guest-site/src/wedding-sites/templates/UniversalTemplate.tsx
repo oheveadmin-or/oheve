@@ -6,10 +6,9 @@
  * All existing templates (ClassicElegant, LuxuryDark, etc.) remain for
  * backwards compatibility. New sites created via the builder use this template.
  */
-import type { CSSProperties } from 'react';
 import type { WeddingTemplateProps } from '../types';
 import { cardStyleSurface } from './templateCardStyles';
-import { PublicAudioToggle, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
 import { SectionSeparator } from './SectionSeparator';
 import { PatternOverlay } from './PatternOverlay';
 import {
@@ -83,6 +82,7 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
 
   const heroStyle = t.heroStyle ?? 'editorial';
   const isVintage = t.style === 'vintage-blue';
+  const isPreview = site.id === 'preview-draft';
 
   // Carte d'invitation ovale + décompte dédiés au thème Vintage
   const hasTwoNames = !!(site.brideName?.trim() && site.groomName?.trim());
@@ -98,17 +98,11 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         monogramSvg={site.content?.monogramSvg}
         monogramSizePx={site.content?.monogramSizePx}
         hebrewQuote={site.content?.hebrewQuote}
+        theme={t}
       />
       <VintageCountdown targetDate={site.date} language={site.language} />
       {/* Familles — affichées juste sous le décompte */}
-      <VintageFamilies
-        parentsBride={site.content?.parentsBride}
-        parentsGroom={site.content?.parentsGroom}
-        brideFamilyName={site.content?.brideFamilyName}
-        groomFamilyName={site.content?.groomFamilyName}
-        grandparentsBride={site.content?.grandparentsBride}
-        grandparentsGroom={site.content?.grandparentsGroom}
-      />
+      <VintageFamilies columns={getFamilyColumns(site)} />
     </>
   );
 
@@ -129,6 +123,14 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
 
   const sep = t.separatorStyle ?? 'none';
   const sepColor = t.primaryColor;
+
+  // Photo vedette : même comportement que les thèmes autonomes (Rayures,
+  // Voile Ivoire, Cartes) — la 1re photo s'affiche aussi quand la galerie
+  // est masquée, pour un rendu identique sur tous les thèmes.
+  const universalPhotos = (site.content?.galleryPhotos ?? []).filter(Boolean);
+  const featuredPhoto = !site.sections.gallery
+    ? universalPhotos[0] || site.content?.venue?.photoUrl || undefined
+    : undefined;
 
   return (
     <div
@@ -156,6 +158,8 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
       )}
 
       <PublicStickyNav site={enrichedSite} />
+      {/* ♫ Musique — lecture automatique, sans bouton (démarre au 1er geste) */}
+      <HiddenAutoMusic url={site.content?.musicUrl} enabled={!isPreview} />
 
       {/* Verset hébraïque en arc — affiché ici sauf pour vintage (intégré dans la carte) */}
       {site.content?.hebrewQuote && !isVintage ? (
@@ -173,24 +177,11 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
           {/* Monogram overlay — shown on all hero styles except 'monogram' (already inline there)
               and except Vintage (le monogramme est déjà intégré dans la carte ovale) */}
           {!isVintage && enrichedSite.content?.monogramSvg && heroStyle !== 'monogram' && (() => {
-            const pos = enrichedSite.content?.monogramPosition ?? 'top-center';
-            const base: CSSProperties = {
-              position: 'absolute',
-              zIndex: 10,
-              pointerEvents: 'none',
-            };
-            const posStyles: Record<string, CSSProperties> = {
-              'top-center':    { top: '1.5rem',    left: '50%',   transform: 'translateX(-50%)' },
-              'center':        { top: '50%',        left: '50%',   transform: 'translate(-50%, -50%)' },
-              'bottom-center': { bottom: '1.5rem',  left: '50%',   transform: 'translateX(-50%)' },
-              'bottom-left':   { bottom: '1.5rem',  left: '1.5rem' },
-              'bottom-right':  { bottom: '1.5rem',  right: '1.5rem' },
-            };
             const svgAdapted = enrichedSite.content!.monogramSvg!
               .replace(/width="[^"]*"/, 'width="100%"')
               .replace(/height="[^"]*"/, 'height="100%"');
             return (
-              <div style={{ ...base, ...posStyles[pos] }}>
+              <div style={{ position: 'absolute', zIndex: 10, pointerEvents: 'none', top: '1.5rem', left: '50%', transform: 'translateX(-50%)' }}>
                 <div
                   style={{ width: 100, height: 100 }}
                   dangerouslySetInnerHTML={{ __html: svgAdapted }}
@@ -213,6 +204,25 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         }}
       >
         <SectionSeparator style={sep} color={sepColor} />
+
+        {/* Photo vedette (1re photo de la galerie ou photo du lieu) */}
+        {featuredPhoto ? (
+          <section className="wedding-fade-in" style={{ margin: '1.5rem auto 2rem', maxWidth: 620, textAlign: 'center' }}>
+            <img
+              src={featuredPhoto}
+              alt=""
+              loading="lazy"
+              style={{
+                width: '100%',
+                aspectRatio: '4 / 3',
+                objectFit: 'cover',
+                display: 'block',
+                borderRadius: Math.max(6, t.borderRadius),
+                boxShadow: `0 22px 60px -30px ${t.primaryColor}88`,
+              }}
+            />
+          </section>
+        ) : null}
 
         {/* Main text (guestMessage section) */}
         {site.mainText ? (
@@ -290,8 +300,6 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
           {renderOptionalSections(enrichedSite, cardStyleSurface)}
         </div>
       </main>
-
-      <PublicAudioToggle site={enrichedSite} />
     </div>
   );
 }

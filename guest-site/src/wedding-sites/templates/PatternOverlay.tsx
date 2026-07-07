@@ -98,6 +98,18 @@ function getPatternBackground(patternId: PatternId, color: string): string | nul
         `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="88"><path d="M22,2 C32,22 12,44 22,66 C32,88 12,88 22,88" fill="none" stroke="${color}" stroke-width="1.2"/><path d="M22,22 C12,17 6,27 12,33 C18,39 28,37 22,22" fill="${color}" opacity="0.45"/><path d="M22,50 C32,45 38,55 32,61 C26,67 16,65 22,50" fill="${color}" opacity="0.45"/><circle cx="22" cy="2" r="2" fill="${color}" opacity="0.6"/></svg>`
       );
 
+    case 'ornament-star':
+      // Étoile ornementale 8 branches façon papeterie (motif du faire-part de référence)
+      return buildSvgDataUri(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="84" height="84"><g transform="translate(42,42)" fill="none" stroke="${color}" stroke-width="0.9"><path d="M0,-30 L5,-5 L30,0 L5,5 L0,30 L-5,5 L-30,0 L-5,-5 Z"/><path d="M0,-16 L3,-3 L16,0 L3,3 L0,16 L-3,3 L-16,0 L-3,-3 Z" opacity="0.55"/><path d="M-19,-19 L-6,-6 M19,-19 L6,-6 M19,19 L6,6 M-19,19 L-6,6" opacity="0.5"/><circle r="1.8" fill="${color}" stroke="none" opacity="0.7"/></g></svg>`
+      );
+
+    case 'quatrefoil':
+      // Petites croix perlées délicates (motif rose du faire-part de référence)
+      return buildSvgDataUri(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g transform="translate(23,23)" fill="${color}"><circle cx="0" cy="0" r="1.5"/><circle cx="0" cy="-6.5" r="2.3" opacity="0.85"/><circle cx="0" cy="6.5" r="2.3" opacity="0.85"/><circle cx="-6.5" cy="0" r="2.3" opacity="0.85"/><circle cx="6.5" cy="0" r="2.3" opacity="0.85"/><circle cx="0" cy="-11.5" r="1" opacity="0.5"/><circle cx="0" cy="11.5" r="1" opacity="0.5"/><circle cx="-11.5" cy="0" r="1" opacity="0.5"/><circle cx="11.5" cy="0" r="1" opacity="0.5"/></g></svg>`
+      );
+
     case 'vertical-stripes':
       return buildSvgDataUri(
         `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><line x1="7" y1="0" x2="7" y2="14" stroke="${color}" stroke-width="0.8"/></svg>`

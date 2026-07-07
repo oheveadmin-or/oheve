@@ -70,9 +70,9 @@ export const EDITORIAL_TOKENS = {
   },
 
   titleSizes: {
-    names: 'clamp(2.2rem, 6vw, 3.2rem)',
-    section: 'clamp(1.5rem, 4vw, 2.1rem)',
-    countdown: 'clamp(2rem, 7vw, 2.8rem)',
+    names: 'clamp(2.2rem, 6cqw, 3.2rem)',
+    section: 'clamp(1.5rem, 4cqw, 2.1rem)',
+    countdown: 'clamp(2rem, 7cqw, 2.8rem)',
   },
 
   letterSpacing: {
@@ -110,9 +110,13 @@ export function editorialTokens(theme: WeddingTheme) {
       hairline: `${accent}33`,
       hairlineStrong: `${accent}66`,
     },
-    fonts: theme.fontFamily
-      ? { ...EDITORIAL_TOKENS.fonts, body: theme.fontFamily }
-      : EDITORIAL_TOKENS.fonts,
+    // Trois rôles pilotés par le builder : Prénoms (display), Texte (body),
+    // Titres/labels (label). Chaque rôle retombe sur le défaut du preset.
+    fonts: {
+      display: theme.scriptFontFamily || theme.titleFontFamily || EDITORIAL_TOKENS.fonts.display,
+      body: theme.fontFamily || EDITORIAL_TOKENS.fonts.body,
+      label: theme.titleFontFamily || EDITORIAL_TOKENS.fonts.label,
+    },
     radius: {
       card: theme.borderRadius ?? EDITORIAL_TOKENS.cardRadius,
       image: EDITORIAL_TOKENS.imageRadius,

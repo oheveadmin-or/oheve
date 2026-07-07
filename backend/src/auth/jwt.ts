@@ -20,6 +20,16 @@ export function signAccessToken(userId: number, email: string, role: UserRole): 
   return jwt.sign({ sub: userId, email, role }, getSecret(), { expiresIn: 60 * 60 });
 }
 
+/** Builder token : 30 jours. Le builder web (WebView du site de mariage) reste
+ *  ouvert longtemps pendant la conception (upload photos, enregistrements
+ *  successifs) : un access token d'1 h expirait EN PLEINE session → chaque
+ *  requête retombait en 401 « Session expirée ». Ce jeton dédié, à durée de vie
+ *  longue, est vérifié par le même `verifyAccessToken` (même secret, même
+ *  charge utile) — aucune vérification supplémentaire nécessaire. */
+export function signBuilderToken(userId: number, email: string, role: UserRole): string {
+  return jwt.sign({ sub: userId, email, role }, getSecret(), { expiresIn: 60 * 60 * 24 * 30 });
+}
+
 export function verifyAccessToken(token: string): { sub: number; email: string; role: UserRole } {
   const d = jwt.verify(token, getSecret()) as jwt.JwtPayload & {
     sub: number | string;

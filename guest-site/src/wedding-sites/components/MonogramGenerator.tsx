@@ -824,6 +824,7 @@ export function MonogramGenerator({
   const [group, setGroup] = useState<string>('Tous');
   const [copied, setCopied] = useState(false);
   const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = group === 'Tous' ? STYLES : STYLES.filter((s) => s.group === group);
@@ -848,9 +849,24 @@ export function MonogramGenerator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, px, p, customLogoUrl]);
 
+  const LOGO_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+  const LOGO_MAX_BYTES = 2 * 1024 * 1024; // 2 Mo
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    setUploadError(null);
+    if (!LOGO_ACCEPTED_TYPES.includes(file.type)) {
+      setUploadError(
+        `Format invalide (${file.type || file.name.split('.').pop() || 'inconnu'}) — importez un PNG, JPG, SVG ou WebP.`,
+      );
+      return;
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      setUploadError(`Fichier trop lourd (${(file.size / 1024 / 1024).toFixed(1)} Mo) — 2 Mo maximum.`);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const url = ev.target?.result as string;
@@ -858,8 +874,8 @@ export function MonogramGenerator({
       setSelectedId(CUSTOM_ID);
       if (onSelect) onSelect(url, CUSTOM_ID, px);
     };
+    reader.onerror = () => setUploadError('Impossible de lire le fichier — réessayez avec un autre.');
     reader.readAsDataURL(file);
-    e.target.value = '';
   }
 
   function handleCopy() {
@@ -924,6 +940,12 @@ export function MonogramGenerator({
           </button>
         ))}
       </div>
+
+      {uploadError && (
+        <p role="alert" style={{ margin: '0 0 0.6rem', fontSize: '0.8rem', color: '#dc2626' }}>
+          ⚠️ {uploadError}
+        </p>
+      )}
 
       {/* Grid of mini previews */}
       <div style={grid}>

@@ -3,7 +3,9 @@
  * 100 % piloté par VintageTheme — aucune couleur en dur.
  */
 import { useEffect, useState } from 'react';
-import type { ParentTitleStyle } from '../types';
+import type { WeddingTheme } from '../types';
+import { TITLE_SIZE_SCALE } from '../types';
+import type { ResolvedFamilyColumn } from '../templates/templateParts';
 import { VintageTheme as V } from '../themes/VintageTheme';
 import { VintageRibbon, VintageDamaskField } from './ornaments/VintageOrnaments';
 
@@ -40,8 +42,6 @@ function useFloralBgUrl(): string | null {
   return url;
 }
 
-type ParentsBlock = { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: ParentTitleStyle };
-
 export type VintageHeroProps = {
   name1: string;
   name2?: string;
@@ -54,15 +54,13 @@ export type VintageHeroProps = {
   monogramSvg?: string;
   monogramSizePx?: number;
   hebrewQuote?: string;
+  /** Thème live du builder — polices Titres/Prénoms/Texte + taille des prénoms */
+  theme?: WeddingTheme;
 };
 
 export type VintageFamiliesProps = {
-  parentsBride?: ParentsBlock;
-  parentsGroom?: ParentsBlock;
-  brideFamilyName?: string;
-  groomFamilyName?: string;
-  grandparentsBride?: { grandfather?: string; grandmother?: string };
-  grandparentsGroom?: { grandfather?: string; grandmother?: string };
+  /** Colonnes familles libres (source unique partagée : getFamilyColumns) */
+  columns: ResolvedFamilyColumn[];
 };
 
 /**
@@ -138,42 +136,6 @@ function HebrewVerse({ text }: { text: string }) {
 }
 
 /** Formate un bloc parents selon la formule choisie (couple / M. / Mme) */
-function formatParentLine(parents: ParentsBlock | undefined, familyName: string | undefined): string[] {
-  if (!parents) return [];
-  const { father, mother, isDivorced, titleStyle = 'couple' } = parents;
-  if (!father && !mother && !familyName) return [];
-
-  const lastName = (full?: string) => (full ? full.trim().split(/\s+/).slice(-1)[0] : '');
-  const name = familyName || lastName(father) || lastName(mother);
-
-  // Divorcés : toujours une ligne par parent
-  if (isDivorced) {
-    const lines: string[] = [];
-    if (father) lines.push(`M. ${father}`);
-    if (mother) lines.push(`Mme ${mother}`);
-    return lines;
-  }
-
-  // Formule explicite choisie dans le générateur
-  if (titleStyle === 'mr') return name ? [`M. ${name}`] : [];
-  if (titleStyle === 'mme') return name ? [`Mme ${name}`] : [];
-  return name ? [`M. et Mme ${name}`] : [];
-}
-
-/** Formate un bloc grands-parents "M. et Mme NOM" */
-function formatGrandparentLine(
-  gp: { grandfather?: string; grandmother?: string } | undefined,
-): string[] {
-  if (!gp) return [];
-  const { grandfather, grandmother } = gp;
-  if (!grandfather && !grandmother) return [];
-  // Utilise le nom de famille du grand-père, sinon de la grand-mère
-  const name =
-    (grandfather ? grandfather.trim().split(/\s+/).slice(-1)[0] : '') ||
-    (grandmother ? grandmother.trim().split(/\s+/).slice(-1)[0] : '');
-  return name ? [`M. et Mme ${name}`] : [];
-}
-
 export function VintageHero({
   name1,
   name2,
@@ -184,8 +146,22 @@ export function VintageHero({
   monogramSvg,
   monogramSizePx,
   hebrewQuote,
+  theme,
 }: VintageHeroProps) {
-  const logoSize = monogramSizePx ? Math.round(Math.min(monogramSizePx * 0.375, 110)) : 52;
+  // Plafond relevé à 140 : L (250 px) et XL (320 px) restent distincts
+  const logoSize = monogramSizePx ? Math.round(Math.min(monogramSizePx * 0.44, 140)) : 52;
+
+  // Polices pilotées par le builder (Titres / Prénoms), défauts vintage.
+  // Le corps garde les petites capitales Cinzel : elles font partie de
+  // l'identité du faire-part vintage (le texte des sections suit, lui,
+  // la « Police du texte » via la racine du template).
+  const F = {
+    script: theme?.scriptFontFamily || V.fonts.script,
+    display: theme?.titleFontFamily || V.fonts.display,
+    body: V.fonts.body,
+  };
+  const nameScale = TITLE_SIZE_SCALE[theme?.nameSize ?? 'medium'];
+  const nameSize = nameScale === 1 ? V.titleSizes.script : `calc(${V.titleSizes.script} * ${nameScale})`;
   const floralBg = useFloralBgUrl();
 
   return (
@@ -318,8 +294,8 @@ export function VintageHero({
         {/* ── Titre 1 — même police script que le titre 2 ── */}
         <div
           style={{
-            fontFamily: V.fonts.script,
-            fontSize: V.titleSizes.script,
+            fontFamily: F.script,
+            fontSize: nameSize,
             color: V.colors.ink,
             lineHeight: 1.05,
             wordBreak: 'break-word',
@@ -334,8 +310,8 @@ export function VintageHero({
         {name2 ? (
           <div
             style={{
-              fontFamily: V.fonts.script,
-              fontSize: V.titleSizes.script,
+              fontFamily: F.script,
+              fontSize: nameSize,
               color: V.colors.primary,
               lineHeight: 1.05,
               marginTop: '-0.2rem',
@@ -352,7 +328,7 @@ export function VintageHero({
         {description ? (
           <p
             style={{
-              fontFamily: V.fonts.body,
+              fontFamily: F.body,
               fontSize: '0.68rem',
               lineHeight: 1.85,
               letterSpacing: '0.12em',
@@ -371,7 +347,7 @@ export function VintageHero({
         {dateLabel ? (
           <div
             style={{
-              fontFamily: V.fonts.display,
+              fontFamily: F.display,
               fontSize: '1.6rem',
               fontWeight: 700,
               letterSpacing: '0.08em',
@@ -389,7 +365,7 @@ export function VintageHero({
             {venue?.trim() ? (
               <div
                 style={{
-                  fontFamily: V.fonts.body,
+                  fontFamily: F.body,
                   fontSize: '0.78rem',
                   letterSpacing: '0.14em',
                   textTransform: 'uppercase',
@@ -403,7 +379,7 @@ export function VintageHero({
             {city?.trim() ? (
               <div
                 style={{
-                  fontFamily: V.fonts.body,
+                  fontFamily: F.body,
                   fontSize: '0.66rem',
                   letterSpacing: '0.2em',
                   textTransform: 'uppercase',
@@ -433,87 +409,12 @@ export function VintageHero({
   );
 }
 
-/** Déduit le nom de famille à afficher en en-tête de colonne */
-function deriveFamilyName(
-  explicit: string | undefined,
-  parents: ParentsBlock | undefined,
-): string {
-  if (explicit?.trim()) return explicit.trim();
-  const last = (full?: string) => (full ? full.trim().split(/\s+/).slice(-1)[0] : '');
-  return last(parents?.father) || last(parents?.mother) || '';
-}
-
-/** Une colonne « famille » (en-tête + parents + grands-parents) */
-function FamilyColumn({
-  familyName,
-  parentLines,
-  grandparentLines,
-}: {
-  familyName: string;
-  parentLines: string[];
-  grandparentLines: string[];
-}) {
-  if (parentLines.length === 0 && grandparentLines.length === 0) return null;
-  return (
-    <div style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center' }}>
-      {familyName ? (
-        <div
-          style={{
-            fontFamily: V.fonts.body,
-            fontSize: '0.82rem',
-            fontWeight: 600,
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            color: V.colors.primary,
-            marginBottom: '0.45rem',
-          }}
-        >
-          Famille {familyName}
-        </div>
-      ) : null}
-      <div
-        style={{
-          fontFamily: V.fonts.body,
-          fontSize: '0.74rem',
-          letterSpacing: '0.08em',
-          color: V.colors.inkMuted,
-          lineHeight: 1.7,
-        }}
-      >
-        {parentLines.map((l, i) => <div key={`p${i}`}>{l}</div>)}
-        {grandparentLines.length > 0 ? (
-          <div style={{ opacity: 0.78, fontSize: '0.68rem', marginTop: '0.3rem' }}>
-            {grandparentLines.map((l, i) => <div key={`g${i}`}>{l}</div>)}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 /**
  * VintageFamilies — bloc « familles » affiché SOUS le décompte.
- * Deux colonnes : côté mariée (gauche) · côté marié (droite).
+ * Colonnes libres (titre + lignes) — même structure que tous les thèmes.
  */
-export function VintageFamilies({
-  parentsBride,
-  parentsGroom,
-  brideFamilyName,
-  groomFamilyName,
-  grandparentsBride,
-  grandparentsGroom,
-}: VintageFamiliesProps) {
-  const brideLines = formatParentLine(parentsBride, brideFamilyName);
-  const groomLines = formatParentLine(parentsGroom, groomFamilyName);
-  const gpBrideLines = formatGrandparentLine(grandparentsBride);
-  const gpGroomLines = formatGrandparentLine(grandparentsGroom);
-
-  const brideHas = brideLines.length > 0 || gpBrideLines.length > 0;
-  const groomHas = groomLines.length > 0 || gpGroomLines.length > 0;
-  if (!brideHas && !groomHas) return null;
-
-  const brideFam = deriveFamilyName(brideFamilyName, parentsBride);
-  const groomFam = deriveFamilyName(groomFamilyName, parentsGroom);
+export function VintageFamilies({ columns }: VintageFamiliesProps) {
+  if (!columns.length) return null;
 
   return (
     <div
@@ -530,23 +431,49 @@ export function VintageFamilies({
       <div
         style={{
           display: 'flex',
-          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          alignItems: 'stretch',
           justifyContent: 'center',
           gap: '1.4rem',
           maxWidth: 460,
           margin: '0 auto',
         }}
       >
-        {/* Côté mariée (gauche) */}
-        <FamilyColumn familyName={brideFam} parentLines={brideLines} grandparentLines={gpBrideLines} />
-
-        {/* Filet vertical de séparation si les deux côtés sont présents */}
-        {brideHas && groomHas ? (
-          <div style={{ alignSelf: 'stretch', width: 1, background: V.colors.line, opacity: 0.7, flex: '0 0 auto' }} />
-        ) : null}
-
-        {/* Côté marié (droite) */}
-        <FamilyColumn familyName={groomFam} parentLines={groomLines} grandparentLines={gpGroomLines} />
+        {columns.map((col, i) => (
+          <div key={i} style={{ display: 'contents' }}>
+            {i > 0 ? (
+              <div style={{ width: 1, background: V.colors.line, opacity: 0.7, flex: '0 0 auto' }} aria-hidden />
+            ) : null}
+            <div style={{ flex: '1 1 0', minWidth: 120, textAlign: 'center' }}>
+              {col.title ? (
+                <div
+                  style={{
+                    fontFamily: V.fonts.body,
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.16em',
+                    textTransform: 'uppercase',
+                    color: V.colors.primary,
+                    marginBottom: '0.45rem',
+                  }}
+                >
+                  {col.title}
+                </div>
+              ) : null}
+              <div
+                style={{
+                  fontFamily: V.fonts.body,
+                  fontSize: '0.74rem',
+                  letterSpacing: '0.08em',
+                  color: V.colors.inkMuted,
+                  lineHeight: 1.7,
+                }}
+              >
+                {col.lines.map((l, j) => <div key={j}>{l}</div>)}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

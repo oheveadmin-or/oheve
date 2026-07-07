@@ -372,6 +372,18 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cornerDecor: false,
     fontFamily: "'Playfair Display', 'Cormorant Garamond', Georgia, serif",
   },
+
+  // ─── VOILE IVOIRE (faire-part romantique, rideau ivoire) ──────────────────
+  // Modèle autonome : routé directement vers VoileIvoireTemplate
+  // (cf. template-selector). Le preset reste défini pour la cohérence du type.
+  'voile-ivoire': {
+    heroStyle: 'faire-part',
+    patternId: 'none',
+    separatorStyle: 'ornate',
+    cardStyle: 'shadow',
+    cornerDecor: true,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+  },
 };
 
 /** Merge preset overrides into the theme, preserving explicit user values */

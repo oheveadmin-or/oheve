@@ -67,9 +67,9 @@ export const VintageTheme = {
 
   /** Tailles de titres (clamp pour le responsive) */
   titleSizes: {
-    hero: 'clamp(2.6rem, 6vw, 3.9rem)',     // « BIRTHDAY » / prénoms
-    script: 'clamp(2.4rem, 6.5vw, 3.4rem)', // « Party »
-    section: 'clamp(1.5rem, 3.4vw, 2.1rem)',// titres de section bleus
+    hero: 'clamp(2.6rem, 6cqw, 3.9rem)',     // « BIRTHDAY » / prénoms
+    script: 'clamp(2.4rem, 6.5cqw, 3.4rem)', // « Party »
+    section: 'clamp(1.5rem, 3.4cqw, 2.1rem)',// titres de section bleus
     card: '1.15rem',
     eyebrow: '0.78rem',                      // sur-titre « ПРИГЛАШЕНИЕ »
   },
@@ -209,7 +209,7 @@ export const VintageTheme = {
   countdown: {
     /** Disposition : chiffres séparés par des filets verticaux */
     numberFont: "'Cormorant Garamond', Georgia, serif",
-    numberSize: 'clamp(1.9rem, 5vw, 2.6rem)',
+    numberSize: 'clamp(1.9rem, 5cqw, 2.6rem)',
     numberWeight: 500,
     numberColor: '#F5F0E4',
     labelFont: "'EB Garamond', Georgia, serif",
@@ -219,7 +219,7 @@ export const VintageTheme = {
     labelColor: '#C7C2B4',
     separatorColor: '#9FAFC4',
     separatorWidth: '1px',
-    cellGap: 'clamp(0.9rem, 4vw, 1.8rem)',
+    cellGap: 'clamp(0.9rem, 4cqw, 1.8rem)',
     /** Animation discrète au changement de seconde */
     tickAnimation: 'vintageTick 0.5s ease',
   },

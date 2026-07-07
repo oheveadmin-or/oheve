@@ -119,15 +119,36 @@ premiumRoutes.post('/activate/:userId', requireAdmin, async (req: Request, res: 
 /** Filet de secours : si la BDD ne connaît pas le premium mais que le client a
  *  bel et bien payé (webhook Stripe jamais reçu), on demande à Stripe s'il
  *  existe un paiement premium `succeeded` pour cet utilisateur et on répare la
- *  BDD. Rend le premium auto-réparant à la prochaine ouverture de l'app. */
-async function reconcilePremiumFromStripe(userId: number): Promise<boolean> {
+ *  BDD. Rend le premium auto-réparant à la prochaine ouverture de l'app OU à la
+ *  1re visite du site publié.
+ *
+ *  On cherche par `user_id` PUIS par email du compte : avec la liaison
+ *  multi-méthodes (Apple/Google/e-mail), le site peut avoir été créé sous un id
+ *  et le paiement rattaché à un autre id partageant le MÊME e-mail. Sans la
+ *  recherche par e-mail, le premium restait bloqué sur le compte propriétaire. */
+export async function reconcilePremiumFromStripe(userId: number): Promise<boolean> {
   try {
-    const search = await stripe.paymentIntents.search({
-      query: `status:'succeeded' AND metadata['product']:'oheve_premium' AND metadata['user_id']:'${userId}'`,
-      limit: 1,
-    });
-    const pi = search.data[0];
+    // Email du compte propriétaire, pour la recherche de secours.
+    const uRes = await pool.query(`SELECT email FROM users WHERE id=$1`, [userId]);
+    const email = String(uRes.rows[0]?.email ?? '').trim().toLowerCase();
+
+    const escape = (v: string) => v.replace(/['\\]/g, '\\$&');
+    const queries = [
+      `status:'succeeded' AND metadata['product']:'oheve_premium' AND metadata['user_id']:'${escape(String(userId))}'`,
+    ];
+    if (email) {
+      queries.push(
+        `status:'succeeded' AND metadata['product']:'oheve_premium' AND metadata['user_email']:'${escape(email)}'`
+      );
+    }
+
+    let pi: Awaited<ReturnType<typeof stripe.paymentIntents.search>>['data'][number] | undefined;
+    for (const query of queries) {
+      const search = await stripe.paymentIntents.search({ query, limit: 1 });
+      if (search.data[0]) { pi = search.data[0]; break; }
+    }
     if (!pi) return false;
+
     await pool.query(
       `UPDATE users SET
          premium = true,

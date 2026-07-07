@@ -10,15 +10,50 @@ import { generateSlugFromDisplayName, ensureUniqueSlug } from '../utils/slug';
 
 // ─── Auth token (optionnel — injecté via ?token= depuis l'app mobile) ─────────
 
-let _authToken: string | null = null;
+const TOKEN_STORAGE_KEY = 'oheve_builder_token';
+
+/** Le token d'auth arrive via `?token=` depuis l'app mobile. On le persiste en
+ *  sessionStorage pour qu'il survive aux rechargements / navigations internes du
+ *  builder (sinon un reload de la WebView perdait la session → upload en 401). */
+let _authToken: string | null = (() => {
+  try {
+    return typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(TOKEN_STORAGE_KEY) : null;
+  } catch {
+    return null;
+  }
+})();
 
 export function setAuthToken(token: string | null) {
   _authToken = token;
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    if (token) sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+    else sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    /* sessionStorage indisponible (navigation privée) — token gardé en mémoire */
+  }
 }
 
 function authHeaders(): Record<string, string> {
   return _authToken ? { Authorization: `Bearer ${_authToken}` } : {};
 }
+
+export function hasAuthToken(): boolean {
+  return !!_authToken;
+}
+
+/** Message d'auth clair : 401/403 signifient toujours « reconnecte-toi », quelle
+ *  que soit la lisibilité du corps de la réponse (le body peut être masqué par
+ *  CORS → readApiError retombe alors sur un « Erreur serveur (401) » cryptique). */
+const AUTH_REQUIRED_MSG =
+  'Session expirée ou non connectée — rouvre le site depuis l\'application Oheve pour envoyer des photos.';
+
+/** Même cause pour tout enregistrement (couleurs, textes, réglages…) : un 401/403
+ *  signifie que la session a expiré. Rouvrir le site depuis l'app régénère un
+ *  jeton frais (longue durée). Message actionnable plutôt que le « reconnecte-toi »
+ *  brut du serveur, inutilisable dans la WebView. */
+const SESSION_EXPIRED_SAVE_MSG =
+  'Session expirée — rouvre le site de mariage depuis l\'application Oheve pour continuer à enregistrer tes modifications (couleurs, textes, photos).';
 
 // ─── Helpers API ─────────────────────────────────────────────────────────────
 
@@ -147,6 +182,7 @@ export async function createWeddingSite(data: CreateWeddingSiteInput): Promise<W
         const json = (await res.json()) as { success: boolean; data?: WeddingSite };
         if (json.success && json.data) return json.data;
       }
+      if (res.status === 401 || res.status === 403) throw new Error(SESSION_EXPIRED_SAVE_MSG);
       lastError = await readApiError(res);
       if (res.status !== 409) break;
     }
@@ -201,6 +237,7 @@ export async function updateWeddingSite(id: string, data: Partial<WeddingSite>):
       if (json.success && json.data) return json.data;
     }
     if (res.status === 404) return null;
+    if (res.status === 401 || res.status === 403) throw new Error(SESSION_EXPIRED_SAVE_MSG);
     throw new Error(await readApiError(res));
   }
 
@@ -276,6 +313,11 @@ export async function uploadGalleryPhoto(file: File): Promise<string> {
 
   const url = apiUrl('/api/wedding-sites/upload-photo');
   if (url !== null) {
+    // Sans jeton d'auth, l'upload renverra un 401 → autant prévenir clairement
+    // et tout de suite (sauf en dev où le fallback data-URL prend le relais).
+    if (!import.meta.env.DEV && !_authToken) {
+      throw new Error(AUTH_REQUIRED_MSG);
+    }
     const form = new FormData();
     const name = file.name.replace(/\.[^.]*$/, '') || 'photo';
     form.append('photo', compressed, compressed.type === 'image/jpeg' ? `${name}.jpg` : file.name);
@@ -286,10 +328,48 @@ export async function uploadGalleryPhoto(file: File): Promise<string> {
     }
     // En dev le proxy peut être présent sans backend → on tente le fallback local
     if (!import.meta.env.DEV) {
+      if (res && (res.status === 401 || res.status === 403)) throw new Error(AUTH_REQUIRED_MSG);
       throw new Error(res ? await readApiError(res) : 'Connexion au serveur impossible');
     }
   }
 
   // Fallback dev : data URL compressée (aperçu local uniquement)
   return blobToDataUrl(await compressImage(file, 1280, 0.8));
+}
+
+export type AdaptPalette = { background?: string; text?: string; accent?: string };
+
+/**
+ * Ré-adapte une photo existante à l'ambiance d'un thème via l'IA (Gemini côté
+ * serveur). On récupère le blob de la photo (URL /uploads ou data-URL), on
+ * l'envoie au backend avec le style + la palette du thème, et on retourne l'URL
+ * de la nouvelle photo adaptée. Nécessite une session authentifiée.
+ */
+export async function adaptPhotoToTheme(
+  imageUrl: string,
+  style: string,
+  palette?: AdaptPalette,
+): Promise<string> {
+  const url = apiUrl('/api/wedding-sites/adapt-photo');
+  if (url === null) {
+    throw new Error("Adaptation IA disponible uniquement sur le site publié (pas en dev local).");
+  }
+  if (!_authToken) throw new Error(AUTH_REQUIRED_MSG);
+
+  // Récupère les octets de la photo (URL hébergée ou data-URL de secours).
+  const blob = await fetch(imageUrl).then((r) => (r.ok ? r.blob() : null)).catch(() => null);
+  if (!blob) throw new Error("Impossible de charger la photo à adapter.");
+
+  const form = new FormData();
+  form.append('photo', blob, 'source.jpg');
+  form.append('style', style);
+  if (palette) form.append('palette', JSON.stringify(palette));
+
+  const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: form }).catch(() => null);
+  if (res?.ok) {
+    const json = (await res.json()) as { success: boolean; data?: { url: string } };
+    if (json.success && json.data?.url) return json.data.url;
+  }
+  if (res && (res.status === 401 || res.status === 403)) throw new Error(AUTH_REQUIRED_MSG);
+  throw new Error(res ? await readApiError(res) : 'Connexion au serveur impossible');
 }

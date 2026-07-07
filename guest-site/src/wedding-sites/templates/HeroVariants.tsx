@@ -90,7 +90,7 @@ export function HeroEditorial({ site }: HeroProps) {
             <p style={{ margin: 0, fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: t.primaryColor, opacity: 0.65, marginBottom: '0.4rem' }}>
               {site.language === 'he' ? 'כלה' : 'Mariée'}
             </p>
-            <h1 style={{ fontSize: `clamp(2.2rem, 7vw, 4.5rem)`, fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
+            <h1 style={{ fontSize: `clamp(2.2rem, 7cqw, 4.5rem)`, fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
               {site.brideName}
             </h1>
           </div>
@@ -107,7 +107,7 @@ export function HeroEditorial({ site }: HeroProps) {
             <p style={{ margin: 0, fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: t.primaryColor, opacity: 0.65, marginBottom: '0.4rem' }}>
               {site.language === 'he' ? 'חתן' : 'Marié'}
             </p>
-            <h1 style={{ fontSize: `clamp(2.2rem, 7vw, 4.5rem)`, fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
+            <h1 style={{ fontSize: `clamp(2.2rem, 7cqw, 4.5rem)`, fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
               {site.groomName}
             </h1>
           </div>
@@ -165,7 +165,7 @@ export function HeroSplit({ site }: HeroProps) {
         </p>
         <h1
           style={{
-            fontSize: `clamp(2rem, 5vw, 4rem)`,
+            fontSize: `clamp(2rem, 5cqw, 4rem)`,
             fontWeight: 700,
             lineHeight: 1.1,
             margin: '0 0 1.5rem',
@@ -637,7 +637,7 @@ export function HeroMagazine({ site }: HeroProps) {
         </p>
         <h1
           style={{
-            fontSize: `clamp(3rem, 8vw, 5.5rem)`,
+            fontSize: `clamp(3rem, 8cqw, 5.5rem)`,
             fontWeight: 800,
             lineHeight: 0.95,
             margin: '0 0 1.5rem',
@@ -680,7 +680,7 @@ export function HeroMinimal({ site }: HeroProps) {
       </p>
       <h1
         style={{
-          fontSize: `clamp(1.8rem, 5vw, 3rem)`,
+          fontSize: `clamp(1.8rem, 5cqw, 3rem)`,
           fontWeight: 300,
           lineHeight: 1.3,
           margin: 0,
@@ -1001,7 +1001,7 @@ export function HeroCinematic({ site }: HeroProps) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
           <h1
             style={{
-              fontSize: `clamp(3rem, 11vw, 7rem)`,
+              fontSize: `clamp(3rem, 11cqw, 7rem)`,
               fontWeight: 800,
               lineHeight: 0.9,
               margin: 0,
@@ -1012,12 +1012,12 @@ export function HeroCinematic({ site }: HeroProps) {
           >
             {site.brideName}
           </h1>
-          <span style={{ fontSize: `clamp(1.5rem, 4vw, 3rem)`, color: t.primaryColor, fontStyle: 'italic', fontWeight: 300, opacity: 0.8 }}>
+          <span style={{ fontSize: `clamp(1.5rem, 4cqw, 3rem)`, color: t.primaryColor, fontStyle: 'italic', fontWeight: 300, opacity: 0.8 }}>
             &
           </span>
           <h1
             style={{
-              fontSize: `clamp(3rem, 11vw, 7rem)`,
+              fontSize: `clamp(3rem, 11cqw, 7rem)`,
               fontWeight: 800,
               lineHeight: 0.9,
               margin: 0,

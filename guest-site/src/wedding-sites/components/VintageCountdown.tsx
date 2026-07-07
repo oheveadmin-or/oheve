@@ -59,7 +59,7 @@ export function VintageCountdown({ targetDate, language = 'fr' }: Props) {
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
         {cells.map((cell, i) => (
           <div key={cell.l} style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{ minWidth: 'clamp(56px, 16vw, 72px)', padding: '0 0.2rem' }}>
+            <div style={{ minWidth: 'clamp(56px, 16cqw, 72px)', padding: '0 0.2rem' }}>
               <div
                 key={cell.v}
                 style={{
@@ -90,7 +90,7 @@ export function VintageCountdown({ targetDate, language = 'fr' }: Props) {
               <div
                 style={{
                   width: V.countdown.separatorWidth,
-                  height: 'clamp(34px, 9vw, 46px)',
+                  height: 'clamp(34px, 9cqw, 46px)',
                   background: V.colors.line,
                 }}
               />

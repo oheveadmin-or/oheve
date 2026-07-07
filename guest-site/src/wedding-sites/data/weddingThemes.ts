@@ -2,8 +2,12 @@ import type { ThemeStyle, WeddingTheme } from '../types';
 
 export type ThemePreset = { id: ThemeStyle; label: string; description: string; theme: Partial<WeddingTheme> };
 
-/** Presets éditables dans le formulaire — les couleurs peuvent être surchargées */
-export const STYLE_PRESETS: ThemePreset[] = [
+/**
+ * Catalogue complet de tous les presets (conservé pour la compatibilité des
+ * sites déjà créés). Le sélecteur visible côté client est `STYLE_PRESETS`,
+ * défini plus bas et volontairement limité à quelques univers phares.
+ */
+export const ALL_STYLE_PRESETS: ThemePreset[] = [
   {
     id: 'stripes-editorial',
     label: '✦ Éditorial Rayures',
@@ -18,6 +22,8 @@ export const STYLE_PRESETS: ThemePreset[] = [
       cardStyle: 'shadow',
       layout: 'centered',
       borderRadius: 0,
+      stripeWidth: 8,
+      stripeOpacity: 1,
     },
   },
   {
@@ -50,6 +56,22 @@ export const STYLE_PRESETS: ThemePreset[] = [
       cardStyle: 'double-border',
       layout: 'centered',
       borderRadius: 18,
+    },
+  },
+  {
+    id: 'voile-ivoire',
+    label: '✦ Voile Ivoire',
+    description: 'Faire-part romantique : rideau ivoire, calligraphie charbon, ornements argentés',
+    theme: {
+      style: 'voile-ivoire',
+      backgroundColor: '#FBF9F4',
+      textColor: '#44413C',
+      primaryColor: '#A9A49A',
+      secondaryColor: '#8F8A80',
+      fontFamily: "'Cormorant Garamond', Georgia, serif",
+      cardStyle: 'shadow',
+      layout: 'centered',
+      borderRadius: 20,
     },
   },
   {
@@ -571,17 +593,54 @@ export const STYLE_PRESETS: ThemePreset[] = [
   },
 ];
 
-export const FONT_OPTIONS: { value: string; label: string }[] = [
-  { value: "'Cormorant Garamond', Georgia, serif", label: 'Cormorant Garamond' },
-  { value: "'Playfair Display', Georgia, serif", label: 'Playfair Display' },
-  { value: "'Inter', system-ui, sans-serif", label: 'Inter' },
-  { value: "'Heebo', system-ui, sans-serif", label: 'Heebo (hébreu)' },
-  { value: "'Great Vibes', cursive", label: 'Great Vibes (script)' },
-  { value: "'Lora', Georgia, serif", label: 'Lora' },
-  { value: "'Raleway', system-ui, sans-serif", label: 'Raleway' },
-  { value: "'Libre Baskerville', Georgia, serif", label: 'Libre Baskerville' },
-  { value: "'Josefin Sans', system-ui, sans-serif", label: 'Josefin Sans' },
-  { value: "'Cinzel', Georgia, serif", label: 'Cinzel (romain)' },
-  { value: "'Dancing Script', cursive", label: 'Dancing Script' },
-  { value: "'Montserrat', system-ui, sans-serif", label: 'Montserrat' },
+/**
+ * Univers proposés au client dans le sélecteur (ThemePicker) et le dropdown
+ * du builder. Volontairement restreint aux quatre thèmes phares, dans cet
+ * ordre. Les autres presets restent dans `ALL_STYLE_PRESETS` pour les sites
+ * existants, mais ne sont plus proposés à la création.
+ */
+const VISIBLE_STYLE_IDS: ThemeStyle[] = [
+  'stripes-editorial',
+  'vintage-blue',
+  'voile-ivoire',
+  'classic',
+];
+
+export const STYLE_PRESETS: ThemePreset[] = VISIBLE_STYLE_IDS
+  .map((id) => ALL_STYLE_PRESETS.find((p) => p.id === id))
+  .filter((p): p is ThemePreset => Boolean(p));
+
+/**
+ * Catalogue de polices proposé dans le builder, organisé comme une sélection de
+ * papeterie de mariage : Serif (titres) · Script / Calligraphie · Sans-serif
+ * (texte). Toutes ces familles sont préchargées dans `index.html`.
+ */
+export const FONT_OPTIONS: { value: string; label: string; group: string }[] = [
+  // ── Serif (titres) ──────────────────────────────────────────────
+  { value: "'Cormorant Garamond', Georgia, serif", label: 'Cormorant Garamond', group: 'Serif (titres)' },
+  { value: "'Playfair Display', Georgia, serif", label: 'Playfair Display', group: 'Serif (titres)' },
+  { value: "'Bodoni Moda', Georgia, serif", label: 'Bodoni Moda', group: 'Serif (titres)' },
+  { value: "'GFS Didot', Georgia, serif", label: 'GFS Didot', group: 'Serif (titres)' },
+  { value: "'Libre Baskerville', Georgia, serif", label: 'Baskerville', group: 'Serif (titres)' },
+  { value: "'EB Garamond', Georgia, serif", label: 'EB Garamond', group: 'Serif (titres)' },
+  { value: "'Lora', Georgia, serif", label: 'Lora', group: 'Serif (titres)' },
+  { value: "'Marcellus', Georgia, serif", label: 'Marcellus', group: 'Serif (titres)' },
+  { value: "'Cinzel', Georgia, serif", label: 'Cinzel (romain)', group: 'Serif (titres)' },
+  // ── Script / Calligraphie ───────────────────────────────────────
+  { value: "'Great Vibes', cursive", label: 'Great Vibes', group: 'Script / Calligraphie' },
+  { value: "'Allura', cursive", label: 'Allura', group: 'Script / Calligraphie' },
+  { value: "'Pinyon Script', cursive", label: 'Pinyon Script', group: 'Script / Calligraphie' },
+  { value: "'Parisienne', cursive", label: 'Parisienne', group: 'Script / Calligraphie' },
+  { value: "'Dancing Script', cursive", label: 'Dancing Script', group: 'Script / Calligraphie' },
+  { value: "'Sacramento', cursive", label: 'Sacramento', group: 'Script / Calligraphie' },
+  { value: "'Tangerine', cursive", label: 'Tangerine', group: 'Script / Calligraphie' },
+  // ── Sans-serif (texte) ──────────────────────────────────────────
+  { value: "'Montserrat', system-ui, sans-serif", label: 'Montserrat', group: 'Sans-serif (texte)' },
+  { value: "'Inter', system-ui, sans-serif", label: 'Inter', group: 'Sans-serif (texte)' },
+  { value: "'Raleway', system-ui, sans-serif", label: 'Raleway', group: 'Sans-serif (texte)' },
+  { value: "'Poppins', system-ui, sans-serif", label: 'Poppins', group: 'Sans-serif (texte)' },
+  { value: "'DM Sans', system-ui, sans-serif", label: 'DM Sans', group: 'Sans-serif (texte)' },
+  { value: "'Jost', system-ui, sans-serif", label: 'Jost (Futura)', group: 'Sans-serif (texte)' },
+  { value: "'Josefin Sans', system-ui, sans-serif", label: 'Josefin Sans', group: 'Sans-serif (texte)' },
+  { value: "'Heebo', system-ui, sans-serif", label: 'Heebo (hébreu)', group: 'Sans-serif (texte)' },
 ];

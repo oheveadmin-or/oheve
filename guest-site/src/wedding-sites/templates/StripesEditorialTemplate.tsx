@@ -16,9 +16,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { WeddingTemplateProps } from '../types';
+import { TITLE_SIZE_SCALE } from '../types';
 import { sectionLabels } from '../i18n';
 import { formatWeddingDate } from '../utils/date';
-import { PublicAudioToggle, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
 import { PatternOverlay } from './PatternOverlay';
 import { SectionSeparator } from './SectionSeparator';
 import { cardStyleSurface } from './templateCardStyles';
@@ -45,6 +46,20 @@ function useCountdown(iso: string) {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+/**
+ * Retire les signes diacritiques hébraïques (נקודות + טעמים) d'un texte pour
+ * l'AFFICHAGE uniquement : les points-voyelles et cantillations parasites
+ * disparaissent sans altérer les lettres ni la donnée saisie. Plage Unicode
+ * U+0591–U+05C7 des marques combinantes, en conservant le maqaf (U+05BE) et le
+ * texte lui-même. */
+const HEBREW_MARKS = /[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7]/g;
+const stripHebrewMarks = (s: string) => s.replace(HEBREW_MARKS, '');
+
+/** Retire la mention \u00AB (c\u00E9r\u00E9monie civile) \u00BB d'un libell\u00E9 sans toucher au reste
+ *  (affichage seul \u2014 la donn\u00E9e et l'ic\u00F4ne Mairie restent inchang\u00E9es). */
+const stripCeremonieCivile = (label: string) =>
+  label.replace(/\s*\(\s*c\u00E9r\u00E9monie civile\s*\)/i, '').trim();
+
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Template                                                                   */
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -59,15 +74,16 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
   const ink       = t.textColor       || '#111111';
   const stripe    = t.primaryColor    || '#111111';  // couleur des rayures
   const buttonBg  = t.secondaryColor  || '#3D2B1A';
-  const font      = t.fontFamily      || "'Playfair Display', Georgia, serif";
+  const font      = t.titleFontFamily || t.fontFamily || "'Playfair Display', Georgia, serif";
   const fontSerif = "'Cormorant Garamond', Georgia, serif";
-  const fontScript = "'Great Vibes', 'Dancing Script', cursive";
 
   /* ── Tokens spécifiques au Programme « faire-part de luxe » ──
         Tous dérivés du thème du builder : changer les couleurs du studio
         recolore l'intégralité des écritures, filets et fonds. ── */
-  const fontTitle  = "'Cormorant Garamond', Georgia, serif"; // titres
-  const fontBody   = "'Libre Baskerville', Georgia, serif";  // textes
+  const fontTitle  = t.titleFontFamily || "'Cormorant Garamond', Georgia, serif"; // titres
+  // Police du texte : pilotée par le builder (« Police du texte »), défaut Baskerville
+  const fontBody   = t.fontFamily || "'Libre Baskerville', Georgia, serif";
+  const nameScale  = TITLE_SIZE_SCALE[t.nameSize ?? 'medium'];                    // taille des prénoms
   const pageBg     = bg;                                          // fond général
   const cardBg     = `color-mix(in srgb, ${bg} 45%, #FFFFFF)`;    // panneau du faire-part (fond éclairci)
   const inkProg    = ink;                                         // texte principal (couleur Texte du thème)
@@ -79,32 +95,21 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
   const separatorStyle = t.separatorStyle ?? 'none';
   const sep = <SectionSeparator style={separatorStyle} color={stripe} />;
 
-  /* Logo monogramme (généré ou importé) affiché en haut de la carte */
+  /* Logo monogramme (généré ou importé) affiché en haut de la carte.
+     La largeur est PROPORTIONNELLE à la taille choisie (XS→XL) : un plafond
+     fixe en % rendait L et XL identiques dans l'aperçu iPhone. */
   const monogramSvg = site.content?.monogramSvg;
   const monogramIsImg = !!monogramSvg && monogramSvg.startsWith('data:');
   const monogramSize = site.content?.monogramSizePx ?? 150;
+  const monogramPct = Math.min(85, Math.round((monogramSize / 320) * 85)); // 320px (XL) → 85 %
+  const monogramWidth = `min(${monogramSize}px, ${monogramPct}%)`;
 
   /* Textes du site + familles + pasuk (affichés sous la carte) */
   const memorialText = site.content?.texts?.memorialText?.trim();
   const familyText = site.content?.texts?.familyText?.trim();
   const hebrewQuote = site.content?.hebrewQuote?.trim();
-  const pB = site.content?.parentsBride;
-  const pG = site.content?.parentsGroom;
-  const gpB = site.content?.grandparentsBride;
-  const gpG = site.content?.grandparentsGroom;
-  const famLine = (p?: { father?: string; mother?: string }, name?: string) =>
-    [p?.father?.trim(), p?.mother?.trim()].filter(Boolean).join(' & ') +
-    (name?.trim() ? ` ${name.trim()}` : '');
-  const gpLine = (gp?: typeof gpB) =>
-    [gp?.grandfather, gp?.grandmother, gp?.paternalGrandfather, gp?.paternalGrandmother, gp?.maternalGrandfather, gp?.maternalGrandmother]
-      .map((s) => s?.trim())
-      .filter(Boolean)
-      .join(' · ');
-  const brideFam = famLine(pB, site.content?.brideFamilyName);
-  const groomFam = famLine(pG, site.content?.groomFamilyName);
-  const brideGp = gpLine(gpB);
-  const groomGp = gpLine(gpG);
-  const hasFamilies = !!(brideFam || groomFam || brideGp || groomGp);
+  const familyColumns = getFamilyColumns(site);
+  const hasFamilies = familyColumns.length > 0;
   const hasSiteTexts = !!(memorialText || familyText || hasFamilies);
 
   /* ── Données ── */
@@ -129,7 +134,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
     jewishEvts.length > 0
       ? jewishEvts.map((e) => ({
           id: e.id,
-          label: e.label,
+          label: stripCeremonieCivile(e.label),
           time: e.time,
           day: e.date,
           place: e.place,
@@ -139,7 +144,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
         }))
       : events.map((e) => ({
           id: e.id,
-          label: e.label,
+          label: stripCeremonieCivile(e.label),
           time: e.time,
           day: e.dayLabel,
           place: e.place,
@@ -157,23 +162,61 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
 
   /* ── Labels i18n étendus ── */
   const XLBL = {
-    fr: { cd1: 'Le grand jour', cd2: 'approche !', prog1: 'Le', prog2: 'Programme', itinerary: "Voir l'itinéraire", waze: 'Waze', days: 'Jours', hours: 'Heures', min: 'Min', sec: 'Sec', grandparents: 'Grands-parents' },
-    en: { cd1: 'D Day is',      cd2: 'coming !',   prog1: 'The', prog2: 'Schedule',  itinerary: 'Get directions',   waze: 'Waze', days: 'Days',  hours: 'Hours',  min: 'Min', sec: 'Sec', grandparents: 'Grandparents' },
-    he: { cd1: 'היום הגדול',    cd2: 'מתקרב !',     prog1: 'ה',  prog2: 'תוכנית',   itinerary: 'הוראות הגעה',       waze: 'Waze', days: 'ימים', hours: 'שעות',  min: 'דקות', sec: 'שניות', grandparents: 'סבים וסבתות' },
+    fr: { prog1: 'Le', prog2: 'Programme', itinerary: "Voir l'itinéraire", waze: 'Waze', days: 'Jours', hours: 'Heures', min: 'Min', sec: 'Sec', grandparents: 'Grands-parents' },
+    en: { prog1: 'The', prog2: 'Schedule',  itinerary: 'Get directions',   waze: 'Waze', days: 'Days',  hours: 'Hours',  min: 'Min', sec: 'Sec', grandparents: 'Grandparents' },
+    he: { prog1: 'ה',  prog2: 'תוכנית',   itinerary: 'הוראות הגעה',       waze: 'Waze', days: 'ימים', hours: 'שעות',  min: 'דקות', sec: 'שניות', grandparents: 'סבים וסבתות' },
   } as const;
   const xl = XLBL[site.language] ?? XLBL.fr;
 
-  /* ── Rayures « faire-part de luxe » : tuile PALINDROMIQUE (gap·barre·gap·barre·gap)
-        + background centré → le motif est parfaitement symétrique gauche/droite,
-        quelle que soit la largeur de la carte. ── */
-  const frameStripes = `repeating-linear-gradient(
-    to right,
-    ${cardBg} 0px, ${cardBg} 7px,
-    ${stripe} 7px, ${stripe} 15px,
-    ${cardBg} 15px, ${cardBg} 22px,
-    ${stripe} 22px, ${stripe} 30px,
-    ${cardBg} 30px, ${cardBg} 37px
-  )`;
+  /* ── Rayures du hero — BANDES de rayures verticales fines en HAUT et en BAS ──
+        Milieu propre (prénoms au centre), une bande de rayures en haut et sa
+        symétrique en bas. La tuile est PALINDROMIQUE (gap · barre · gap) et le
+        fond est centré → les deux bords de la bande sont rigoureusement
+        symétriques quelle que soit la largeur de la carte (aucune barre coupée
+        d'un seul côté). Largeur des barres et opacité pilotées par le builder. ── */
+  const stripeW = Math.max(1, Math.round(t.stripeWidth ?? 8));           // largeur d'une barre (px)
+  const stripeAlpha = Math.min(1, Math.max(0, t.stripeOpacity ?? 1));    // opacité 0–1
+  const stripeCol = `color-mix(in srgb, ${stripe} ${Math.round(stripeAlpha * 100)}%, transparent)`;
+  // Tuile palindromique : demi-gap · barre · demi-gap (période = 2·gap + barre).
+  const stripeBandBg = `repeating-linear-gradient(to right, transparent 0, transparent ${stripeW}px, ${stripeCol} ${stripeW}px, ${stripeCol} ${stripeW * 2}px, transparent ${stripeW * 2}px, transparent ${stripeW * 3}px)`;
+  // Colonnes latérales : EXACTEMENT 2 longues barres verticales (pleine hauteur).
+  // Barres rendues en <div> explicites (largeur fixe) et NON en dégradé répété :
+  // un repeating-linear-gradient ajoute une frange d'anti-aliasing à la frontière
+  // de période → la 2ᵉ barre paraissait plus épaisse que la 1ʳᵉ. Des div de
+  // largeur `stripeW` garantissent 2 barres rigoureusement identiques.
+  const stripeGroupW = stripeW * 3;
+  const SideStripes = () => (
+    <div aria-hidden style={{ flex: `0 0 ${stripeGroupW}px`, display: 'flex' }}>
+      <div style={{ width: stripeW, background: stripeCol }} />
+      <div style={{ width: stripeW }} />
+      <div style={{ width: stripeW, background: stripeCol }} />
+    </div>
+  );
+
+  // La musique ne s'affiche jamais sur la carte : lecture auto au 1er geste de
+  // l'invité. Désactivée dans l'aperçu du builder (site fictif « preview-draft »).
+  const isPreview = site.id === 'preview-draft';
+
+  /* Base commune Maps / Waze : même box-model → hauteur, marges et centrage
+     rigoureusement identiques. Chaque bouton a une bordure 1px (transparente
+     côté Maps) pour que le total de hauteur soit strictement égal. */
+  const itineraryBtnBase = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxSizing: 'border-box',
+    minHeight: 44,
+    padding: '0 26px',
+    borderRadius: 6,
+    border: '1px solid transparent',
+    fontFamily: fontBody,
+    fontSize: '0.68rem',
+    lineHeight: 1,
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    textDecoration: 'none',
+    whiteSpace: 'nowrap',
+  } as const;
 
   return (
     <div
@@ -181,7 +224,18 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
       dir={dir}
       lang={site.language}
       className="wedding-template-root wedding-fade-in"
-      style={{ fontFamily: font, background: bg, color: ink, minHeight: '100vh', position: 'relative' }}
+      style={{
+        fontFamily: font,
+        background: bg,
+        color: ink,
+        minHeight: '100vh',
+        position: 'relative',
+        // Conteneur de requête : toutes les tailles en `cqw` du template
+        // s'échelonnent sur la largeur RÉELLE du site (393 px dans l'aperçu
+        // iPhone) et non sur la fenêtre du navigateur — sans ça, la carte
+        // débordait du téléphone dans l'aperçu mis à l'échelle.
+        containerType: 'inline-size',
+      }}
     >
       {/* Motif de fond du Studio de design */}
       <PatternOverlay patternId={t.patternId ?? 'none'} color={stripe} opacity={t.patternOpacity ?? 0.07} />
@@ -190,72 +244,104 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
       <style>{'.stripes-monogram svg{width:100%;height:auto;display:block;}'}</style>
       <PublicStickyNav site={site} />
 
-      {/* ── 1. Hero : carte carrée dont TOUT le fond est rayé (panneau ivoire central) ── */}
+      {/* ── 1. Hero : bande de rayures en HAUT, prénoms au centre, bande en BAS ── */}
       {site.sections.hero && (
-        <header style={{ background: pageBg, padding: 'clamp(1.8rem,5vw,4rem) clamp(0.9rem,4vw,2rem)' }}>
-          {/* Carte carrée : rayures sur tout le fond */}
+        <header style={{ background: pageBg, padding: 'clamp(1.8rem,5cqw,4rem) clamp(0.9rem,4cqw,2rem)' }}>
+          {/* Carte : bande rayée · panneau central propre · bande rayée (miroir).
+              minHeight (et non aspect-ratio fixe) → la carte GRANDIT avec le
+              contenu au lieu de le rogner en haut/bas. overflow:hidden pour que
+              les rayures affleurent proprement les bords de la carte. */}
           <div
             style={{
               width: 'clamp(300px, 80%, 640px)',
-              aspectRatio: '1 / 1',
+              minHeight: 'clamp(280px, 78cqw, 620px)',
               margin: '0 auto',
-              backgroundImage: frameStripes,
-              backgroundColor: cardBg,
-              backgroundPosition: 'center',
+              background: cardBg,
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 'clamp(30px,6vw,62px)',
+              alignItems: 'stretch',
+              // Espace entre les colonnes latérales et les bandes du centre :
+              // sans lui, une barre de bande venait se coller à la barre
+              // intérieure d'une colonne → elles fusionnaient en une barre 2×
+              // plus épaisse (« la 2ᵉ rayure de gauche est plus épaisse »).
+              gap: `${stripeW}px`,
               boxSizing: 'border-box',
             }}
           >
-            {/* Panneau ivoire central — date, prénoms, lieu, phrase, pasuk */}
+            {/* Colonne de 2 longues rayures — bord GAUCHE (pleine hauteur).
+                Le clip est porté par la colonne centrale (bandes), PAS par la
+                carte : ainsi les colonnes latérales ne sont jamais rognées d'un
+                sous-pixel (bug : la barre extérieure droite paraissait coupée). */}
+            <SideStripes />
+
+            {/* Colonne centrale : bande haut · contenu · bande bas */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Bande de rayures — HAUT (fond centré → bords symétriques) */}
+            <div
+              aria-hidden
+              style={{
+                flex: '0 0 auto',
+                height: 'clamp(44px, 15cqw, 82px)',
+                backgroundImage: stripeBandBg,
+                backgroundPosition: 'center',
+              }}
+            />
+
+            {/* Panneau central propre — date, prénoms, lieu, phrase, pasuk */}
             <div
               style={{
-                background: cardBg,
+                flex: 1,
+                minWidth: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 boxSizing: 'border-box',
-                padding: 'clamp(26px,5vw,54px) clamp(22px,5vw,48px)',
+                padding: 'clamp(20px,5cqw,48px)',
+              }}
+            >
+            <div
+              style={{
                 textAlign: 'center',
                 maxWidth: '100%',
               }}
             >
-              {/* פסוק — tout en haut de la carte, comme sur un faire-part classique */}
+              {/* פסוק — tout en haut de la carte (nikoud retiré à l'affichage) */}
               {hebrewQuote && (
-                <p dir="rtl" style={{ fontFamily: fontTitle, fontSize: 'clamp(0.95rem,2.4vw,1.2rem)', lineHeight: 1.6, margin: '0 auto clamp(0.9rem,2.2vw,1.5rem)', color: inkProg }}>
-                  {hebrewQuote}
+                <p dir="rtl" style={{ fontFamily: fontTitle, fontSize: 'clamp(0.95rem,2.4cqw,1.2rem)', lineHeight: 1.6, margin: '0 auto clamp(0.9rem,2.2cqw,1.5rem)', color: inkProg }}>
+                  {stripHebrewMarks(hebrewQuote)}
                 </p>
               )}
               {monogramSvg && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'clamp(0.8rem,2vw,1.4rem)' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'clamp(0.8rem,2cqw,1.4rem)' }}>
                   {monogramIsImg ? (
                     <img
                       src={monogramSvg}
                       alt="Monogramme"
-                      style={{ width: 'min(' + Math.min(monogramSize, 240) + 'px, 55%)', height: 'auto', objectFit: 'contain' }}
+                      style={{ width: monogramWidth, height: 'auto', objectFit: 'contain' }}
                     />
                   ) : (
                     <div
                       className="stripes-monogram"
-                      style={{ width: 'min(' + Math.min(monogramSize, 240) + 'px, 55%)' }}
+                      style={{ width: monogramWidth }}
                       dangerouslySetInnerHTML={{ __html: monogramSvg }}
                     />
                   )}
                 </div>
               )}
               {site.date && (
-                <p style={{ fontFamily: fontBody, fontSize: 'clamp(0.6rem,1.6vw,0.74rem)', letterSpacing: '0.26em', textTransform: 'uppercase', color: mutedProg, margin: '0 0 clamp(0.8rem,2vw,1.4rem)' }}>
+                <p style={{ fontFamily: fontBody, fontSize: 'clamp(0.6rem,1.6cqw,0.74rem)', letterSpacing: '0.26em', textTransform: 'uppercase', color: mutedProg, margin: '0 0 clamp(0.8rem,2cqw,1.4rem)' }}>
                   {formatWeddingDate(site.date, site.language)}
                 </p>
               )}
               <h1
                 style={{
                   fontFamily: font,
-                  fontSize: 'clamp(1.8rem, 6vw, 3.4rem)',
+                  fontSize: `calc(clamp(1.8rem, 6cqw, 3.4rem) * ${nameScale})`,
                   fontWeight: 400,
                   lineHeight: 1.08,
                   margin: 0,
                   letterSpacing: '0.01em',
                   color: inkProg,
+                  overflowWrap: 'anywhere',
                 }}
               >
                 {site.brideName && site.groomName
@@ -263,16 +349,32 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                   : site.coupleName || site.brideName || site.groomName || ''}
               </h1>
               {(site.venue?.trim() || site.city?.trim()) && (
-                <p style={{ fontFamily: fontBody, fontSize: 'clamp(0.6rem,1.6vw,0.74rem)', letterSpacing: '0.18em', textTransform: 'uppercase', color: mutedProg, margin: 'clamp(0.9rem,2.2vw,1.4rem) 0 0' }}>
+                <p style={{ fontFamily: fontBody, fontSize: 'clamp(0.6rem,1.6cqw,0.74rem)', letterSpacing: '0.18em', textTransform: 'uppercase', color: mutedProg, margin: 'clamp(0.9rem,2.2cqw,1.4rem) 0 0' }}>
                   {[site.venue, site.city].filter(Boolean).join(' · ')}
                 </p>
               )}
               {site.welcomeText?.trim() && (
-                <p style={{ fontFamily: fontTitle, fontStyle: 'italic', fontSize: 'clamp(0.95rem,2.4vw,1.25rem)', lineHeight: 1.6, maxWidth: 360, margin: 'clamp(1rem,2.5vw,1.6rem) auto 0', color: mutedProg }}>
+                <p style={{ fontFamily: fontTitle, fontStyle: 'italic', fontSize: 'clamp(0.95rem,2.4cqw,1.25rem)', lineHeight: 1.6, maxWidth: 360, margin: 'clamp(1rem,2.5cqw,1.6rem) auto 0', color: mutedProg }}>
                   {site.welcomeText}
                 </p>
               )}
             </div>
+            </div>
+
+            {/* Bande de rayures — BAS (miroir du haut, mêmes bords symétriques) */}
+            <div
+              aria-hidden
+              style={{
+                flex: '0 0 auto',
+                height: 'clamp(44px, 15cqw, 82px)',
+                backgroundImage: stripeBandBg,
+                backgroundPosition: 'center',
+              }}
+            />
+            </div>
+
+            {/* Colonne de 2 longues rayures — bord DROIT (miroir du gauche) */}
+            <SideStripes />
           </div>
         </header>
       )}
@@ -280,10 +382,10 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
       {/* ── 1b. Familles + grands-parents + textes — juste sous le faire-part,
               comme sur une invitation papier (« avec leurs parents… ») ── */}
       {hasSiteTexts && (
-        <section style={{ background: 'transparent', padding: '0 clamp(1.2rem,5vw,2rem) clamp(1.5rem,4vw,2.5rem)', textAlign: 'center' }}>
+        <section style={{ background: 'transparent', padding: '0 clamp(1.2rem,5cqw,2rem) clamp(1.5rem,4cqw,2.5rem)', textAlign: 'center' }}>
           <div style={{ maxWidth: 620, margin: '0 auto' }}>
             {memorialText && (
-              <p style={{ fontFamily: fontTitle, fontStyle: 'italic', fontSize: 'clamp(0.95rem,2.4vw,1.15rem)', lineHeight: 1.7, color: mutedProg, margin: '0 0 1.4rem' }}>
+              <p style={{ fontFamily: fontTitle, fontStyle: 'italic', fontSize: 'clamp(0.95rem,2.4cqw,1.15rem)', lineHeight: 1.7, color: mutedProg, margin: '0 0 1.4rem' }}>
                 {memorialText}
               </p>
             )}
@@ -293,29 +395,17 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
               </p>
             )}
             {hasFamilies && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 'clamp(1.5rem,5vw,3.5rem)', marginTop: '0.25rem' }}>
-                {(brideFam || brideGp) && (
-                  <div style={{ minWidth: 180, maxWidth: 280 }}>
-                    {brideFam && <p style={{ fontFamily: fontBody, fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.03em', color: inkProg, margin: 0, lineHeight: 1.6 }}>{brideFam}</p>}
-                    {brideGp && (
-                      <>
-                        <p style={{ fontFamily: fontBody, fontSize: '0.6rem', letterSpacing: '0.24em', textTransform: 'uppercase', color: mutedProg, margin: '0.65rem 0 0.2rem' }}>{xl.grandparents}</p>
-                        <p style={{ fontFamily: fontTitle, fontStyle: 'italic', fontSize: '0.92rem', color: mutedProg, margin: 0, lineHeight: 1.6 }}>{brideGp}</p>
-                      </>
-                    )}
-                  </div>
-                )}
-                {(groomFam || groomGp) && (
-                  <div style={{ minWidth: 180, maxWidth: 280 }}>
-                    {groomFam && <p style={{ fontFamily: fontBody, fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.03em', color: inkProg, margin: 0, lineHeight: 1.6 }}>{groomFam}</p>}
-                    {groomGp && (
-                      <>
-                        <p style={{ fontFamily: fontBody, fontSize: '0.6rem', letterSpacing: '0.24em', textTransform: 'uppercase', color: mutedProg, margin: '0.65rem 0 0.2rem' }}>{xl.grandparents}</p>
-                        <p style={{ fontFamily: fontTitle, fontStyle: 'italic', fontSize: '0.92rem', color: mutedProg, margin: 0, lineHeight: 1.6 }}>{groomGp}</p>
-                      </>
-                    )}
-                  </div>
-                )}
+              <div style={{ marginTop: '0.25rem' }}>
+                {/* Deux colonnes conservées pour la mise en page, mais les NOMS
+                    de famille ne sont jamais affichés sur la carte (hideTitles). */}
+                <FamilyColumnsRow
+                  columns={familyColumns}
+                  accent={stripe}
+                  textColor={inkProg}
+                  titleFontFamily={fontBody}
+                  bodyFontFamily={fontBody}
+                  hideTitles
+                />
               </div>
             )}
           </div>
@@ -330,14 +420,14 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
           id="program"
           style={{
             background: pageBg,
-            padding: 'clamp(2.5rem,6vw,4.5rem) clamp(1.2rem,5vw,2rem)',
+            padding: 'clamp(2.5rem,6cqw,4.5rem) clamp(1.2rem,5cqw,2rem)',
             textAlign: 'center',
             scrollMarginTop: 88,
           }}
         >
           <div style={{ maxWidth: 560, margin: '0 auto' }}>
               {/* Titre : "Le" + "Programme" (italique, très grand) */}
-              <div style={{ marginBottom: 'clamp(8px,2vw,16px)' }}>
+              <div style={{ marginBottom: 'clamp(8px,2cqw,16px)' }}>
                 <div
                   style={{
                     fontFamily: fontBody,
@@ -355,7 +445,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                     fontFamily: fontTitle,
                     fontStyle: 'italic',
                     fontWeight: 500,
-                    fontSize: 'clamp(2.6rem, 7vw, 4rem)',
+                    fontSize: 'clamp(2.6rem, 7cqw, 4rem)',
                     lineHeight: 1,
                     color: inkProg,
                   }}
@@ -367,13 +457,13 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
               {/* Timeline verticale */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 {/* Filet entre le titre et le premier événement */}
-                <div style={{ width: 1, height: 'clamp(48px,6vw,70px)', background: lineProg }} aria-hidden />
+                <div style={{ width: 1, height: 'clamp(48px,6cqw,70px)', background: lineProg }} aria-hidden />
 
                 {scheduleItems.map((evt, i) => (
                   <div key={evt.id} style={{ display: 'contents' }}>
                     {/* Filet vertical (1px, #D8D3CA) entre deux événements */}
                     {i > 0 && (
-                      <div style={{ width: 1, height: 'clamp(60px,7vw,90px)', background: lineProg }} aria-hidden />
+                      <div style={{ width: 1, height: 'clamp(60px,7cqw,90px)', background: lineProg }} aria-hidden />
                     )}
 
                     {/* Bloc événement — tout centré, max 520px */}
@@ -384,7 +474,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                           style={{
                             fontFamily: fontTitle,
                             fontStyle: 'italic',
-                            fontSize: 'clamp(1.05rem,2.6vw,1.3rem)',
+                            fontSize: 'clamp(1.05rem,2.6cqw,1.3rem)',
                             color: inkProg,
                             opacity: 0.85,
                           }}
@@ -398,7 +488,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                         style={{
                           fontFamily: fontBody,
                           fontWeight: 700,
-                          fontSize: 'clamp(1rem,2.4vw,1.15rem)',
+                          fontSize: 'clamp(1rem,2.4cqw,1.15rem)',
                           letterSpacing: '0.04em',
                           color: inkProg,
                           marginTop: (evt.day?.trim() || evt.time?.trim()) ? 14 : 0,
@@ -442,6 +532,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                         <div
                           style={{
                             display: 'flex',
+                            alignItems: 'stretch',
                             gap: 12,
                             justifyContent: 'center',
                             flexWrap: 'wrap',
@@ -453,17 +544,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                               href={evt.mapsUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{
-                                fontFamily: fontBody,
-                                fontSize: '0.68rem',
-                                letterSpacing: '0.18em',
-                                textTransform: 'uppercase',
-                                textDecoration: 'none',
-                                color: '#fff',
-                                background: btnProg,
-                                padding: '11px 24px',
-                                borderRadius: 6,
-                              }}
+                              style={{ ...itineraryBtnBase, color: '#fff', background: btnProg, borderColor: btnProg }}
                             >
                               {xl.itinerary}
                             </a>
@@ -473,17 +554,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                               href={evt.wazeUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{
-                                fontFamily: fontBody,
-                                fontSize: '0.68rem',
-                                letterSpacing: '0.18em',
-                                textTransform: 'uppercase',
-                                textDecoration: 'none',
-                                color: inkProg,
-                                border: `1px solid ${lineProg}`,
-                                padding: '10px 24px',
-                                borderRadius: 6,
-                              }}
+                              style={{ ...itineraryBtnBase, color: inkProg, borderColor: lineProg }}
                             >
                               {xl.waze}
                             </a>
@@ -495,7 +566,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                 ))}
 
                 {/* Filet de clôture */}
-                <div style={{ width: 1, height: 'clamp(48px,6vw,70px)', background: lineProg }} aria-hidden />
+                <div style={{ width: 1, height: 'clamp(48px,6cqw,70px)', background: lineProg }} aria-hidden />
               </div>
           </div>
         </section>
@@ -505,26 +576,16 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
 
       {/* ── 3. Countdown horizontal ── */}
       {site.date && (
-        <div style={{ textAlign: 'center', padding: 'clamp(2rem,6vw,3.5rem) 1.5rem' }}>
-          {/* « D Day is coming ! » */}
-          <div style={{ marginBottom: '0.4rem', lineHeight: 1.3 }}>
-            <span style={{ fontFamily: fontSerif, fontSize: 'clamp(1rem, 3vw, 1.25rem)', fontStyle: 'italic', opacity: 0.85 }}>
-              {xl.cd1}{' '}
-            </span>
-            <span style={{ fontFamily: fontScript, fontSize: 'clamp(1.4rem, 4.5vw, 1.9rem)', color: ink }}>
-              {xl.cd2}
-            </span>
-          </div>
-
+        <div style={{ textAlign: 'center', padding: 'clamp(2rem,6cqw,3.5rem) 1.5rem' }}>
           {/* Grands chiffres avec séparateurs « : » */}
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', lineHeight: 1, margin: '0.2rem 0 0.45rem', flexWrap: 'nowrap' }}>
             {[String(c.d), pad(c.h), pad(c.m), pad(c.s)].map((val, i) => (
               <span key={i} style={{ display: 'inline-flex', alignItems: 'baseline' }}>
-                <span style={{ fontFamily: font, fontSize: 'clamp(3rem, 11vw, 5.5rem)', fontWeight: 400, letterSpacing: '-0.02em', color: ink }}>
+                <span style={{ fontFamily: font, fontSize: 'clamp(3rem, 11cqw, 5.5rem)', fontWeight: 400, letterSpacing: '-0.02em', color: ink }}>
                   {val}
                 </span>
                 {i < 3 && (
-                  <span style={{ fontFamily: font, fontSize: 'clamp(2rem, 8vw, 4rem)', fontWeight: 300, opacity: 0.6, margin: '0 1px', color: ink }}>:</span>
+                  <span style={{ fontFamily: font, fontSize: 'clamp(2rem, 8cqw, 4rem)', fontWeight: 300, opacity: 0.6, margin: '0 1px', color: ink }}>:</span>
                 )}
               </span>
             ))}
@@ -567,7 +628,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
 
       {/* ── 4c. Sections fonctionnelles (Lieux, Hébergements, Événements, FAQ, Galerie…)
               déléguées au moteur partagé. Programme & RSVP sont rendus sur-mesure ci-dessus/dessous. ── */}
-      <section style={{ background: 'transparent', padding: '0 clamp(1.2rem,5vw,2rem)' }}>
+      <section style={{ background: 'transparent', padding: '0 clamp(1.2rem,5cqw,2rem)' }}>
         <div style={{ maxWidth: 620, margin: '0 auto' }}>
           {renderOptionalSections(
             { ...site, sections: { ...site.sections, program: false, rsvp: false } },
@@ -580,11 +641,11 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
 
       {/* ── 5. RSVP ── */}
       {site.sections.rsvp && (
-        <div id="rsvp" style={{ textAlign: 'center', padding: 'clamp(2.5rem,7vw,4rem) 1.5rem clamp(3rem,8vw,5rem)', background: bg, scrollMarginTop: 88 }}>
+        <div id="rsvp" style={{ textAlign: 'center', padding: 'clamp(2.5rem,7cqw,4rem) 1.5rem clamp(3rem,8cqw,5rem)', background: bg, scrollMarginTop: 88 }}>
           <div
             style={{
               fontFamily: font,
-              fontSize: 'clamp(2.2rem, 7vw, 3rem)',
+              fontSize: 'clamp(2.2rem, 7cqw, 3rem)',
               fontWeight: 400,
               letterSpacing: '0.06em',
               marginBottom: '0.9rem',
@@ -619,7 +680,9 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
         </div>
       )}
 
-      <PublicAudioToggle site={site} />
+      {/* Musique : aucun élément visuel sur la carte — lecture auto au 1er geste
+          de l'invité (désactivée dans l'aperçu du builder). */}
+      <HiddenAutoMusic url={site.content?.musicUrl} enabled={!isPreview} />
     </div>
   );
 }

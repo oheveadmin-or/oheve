@@ -4,10 +4,10 @@ import type { WeddingSite } from '../types';
 
 export function titleFontSize(titleSize: WeddingSite['theme']['titleSize']): string {
   const map = {
-    small: 'clamp(1.75rem, 4vw, 2.25rem)',
-    medium: 'clamp(2rem, 5vw, 2.75rem)',
-    large: 'clamp(2.25rem, 6vw, 3.25rem)',
-    huge: 'clamp(2.5rem, 7vw, 3.75rem)',
+    small: 'clamp(1.75rem, 4cqw, 2.25rem)',
+    medium: 'clamp(2rem, 5cqw, 2.75rem)',
+    large: 'clamp(2.25rem, 6cqw, 3.25rem)',
+    huge: 'clamp(2.5rem, 7cqw, 3.75rem)',
   };
   return map[titleSize];
 }

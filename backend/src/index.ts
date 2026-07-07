@@ -31,7 +31,11 @@ const app = express();
 const PORT = process.env.PORT || 3003;
 
 // ── Security headers ──────────────────────────────────────────────────────────
-app.use(helmet());
+// crossOriginResourcePolicy: 'cross-origin' — sans ça, helmet ajoute
+// Cross-Origin-Resource-Policy: same-origin sur /uploads et les photos
+// hébergées ici sont BLOQUÉES quand elles sont affichées depuis
+// oheve.pages.dev / ohevewedding.com (images cassées + « Load failed »).
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // ── CORS : autoriser uniquement les origines connues ─────────────────────────
 const BUILTIN_ORIGINS = [

@@ -7,6 +7,7 @@ import type { WeddingSite } from '../types';
 
 import { formatWeddingDate } from '../utils/date';
 import { sectionLabels } from '../i18n';
+import { deezerTrackId, resolveDeezerPreview } from '../data/musicSuggestions';
 
 import { cardStyleSurface } from './templateCardStyles';
 
@@ -19,23 +20,114 @@ type GrandparentsData = {
   maternalGrandmother?: string;
 };
 
-function GrandparentsBlock({ gp, color }: { gp?: GrandparentsData; color: string }) {
-  if (!gp) return null;
-  const names = [
-    gp.grandfather || gp.paternalGrandfather,
-    gp.grandmother || gp.paternalGrandmother,
-    gp.maternalGrandfather,
-    gp.maternalGrandmother,
-  ].filter(Boolean);
-  if (names.length === 0) return null;
+// ─── Familles : colonnes libres, rendu partagé par tous les thèmes ───────────
+
+export type ResolvedFamilyColumn = { title: string; lines: string[] };
+
+const familyLastName = (full?: string) => (full ? full.trim().split(/\s+/).slice(-1)[0] : '');
+
+function legacyFamilyColumn(
+  parents: { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: 'couple' | 'mr' | 'mme' } | undefined,
+  gp: GrandparentsData | undefined,
+  familyName: string | undefined,
+  fallbackName: string,
+): ResolvedFamilyColumn | null {
+  const name = familyName?.trim() || familyLastName(parents?.father) || familyLastName(parents?.mother) || familyLastName(fallbackName);
+  const lines: string[] = [];
+  if (parents?.isDivorced) {
+    if (parents.father) lines.push(`M. ${parents.father}`);
+    if (parents.mother) lines.push(`Mme ${parents.mother}`);
+  } else if (parents?.father || parents?.mother) {
+    const style = parents?.titleStyle ?? 'couple';
+    if (style === 'mr') lines.push(`M. ${name}`);
+    else if (style === 'mme') lines.push(`Mme ${name}`);
+    else if (name) lines.push(`M. et Mme ${name}`);
+  }
+  const gpNames = [
+    gp?.grandfather || gp?.paternalGrandfather,
+    gp?.grandmother || gp?.paternalGrandmother,
+    gp?.maternalGrandfather,
+    gp?.maternalGrandmother,
+  ].filter(Boolean) as string[];
+  lines.push(...gpNames);
+  if (!lines.length) return null;
+  return { title: name ? `Famille ${name}` : '', lines };
+}
+
+/**
+ * Source unique des colonnes familles pour TOUS les templates :
+ * `content.familyColumns` (colonnes libres du builder) en priorité, sinon
+ * conversion des anciens champs parents/grands-parents des sites existants.
+ */
+export function getFamilyColumns(site: WeddingSite): ResolvedFamilyColumn[] {
+  const c = site.content;
+  if (!c) return [];
+  const explicit = (c.familyColumns ?? [])
+    .map((col) => ({
+      title: col.title?.trim() ?? '',
+      lines: (col.lines ?? []).map((l) => (l ?? '').trim()).filter(Boolean),
+    }))
+    .filter((col) => col.title || col.lines.length);
+  if (explicit.length) return explicit;
+
+  return [
+    legacyFamilyColumn(c.parentsBride, c.grandparentsBride, c.brideFamilyName, site.brideName),
+    legacyFamilyColumn(c.parentsGroom, c.grandparentsGroom, c.groomFamilyName, site.groomName),
+  ].filter(Boolean) as ResolvedFamilyColumn[];
+}
+
+/**
+ * Rendu commun : colonnes élégantes côte à côte, filet vertical entre elles.
+ * Chaque thème passe ses polices/couleurs — la STRUCTURE est identique partout.
+ */
+export function FamilyColumnsRow({
+  columns,
+  accent,
+  textColor,
+  titleFontFamily,
+  bodyFontFamily,
+  titleVariant = 'caps',
+  titleSize,
+  lineSize = '0.95rem',
+  hideTitles = false,
+}: {
+  columns: ResolvedFamilyColumn[];
+  accent: string;
+  textColor?: string;
+  titleFontFamily?: string;
+  bodyFontFamily?: string;
+  /** caps : petites capitales espacées · script : calligraphie */
+  titleVariant?: 'caps' | 'script';
+  titleSize?: string;
+  lineSize?: string;
+  /** Masque les noms de famille (titres) tout en gardant la mise en page en colonnes */
+  hideTitles?: boolean;
+}) {
+  if (!columns.length) return null;
+  const titleStyle: CSSProperties =
+    titleVariant === 'script'
+      ? { fontFamily: titleFontFamily, fontSize: titleSize ?? '1.55rem', lineHeight: 1.15, margin: 0, color: textColor }
+      : { fontFamily: titleFontFamily, fontSize: titleSize ?? '0.72rem', letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.65, margin: 0, color: textColor };
   return (
-    <div style={{ marginTop: '0.6rem', paddingTop: '0.5rem', borderTop: `1px solid ${color}30` }}>
-      <p style={{ margin: '0 0 0.25rem', fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', opacity: 0.5 }}>
-        Grands-parents
-      </p>
-      {names.map((n, i) => (
-        <p key={i} style={{ margin: '0.1rem 0', fontSize: '0.82rem', opacity: 0.75 }}>{n}</p>
-      ))}
+    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'stretch', gap: 'clamp(1.2rem, 4cqw, 2.5rem)' }}>
+      {columns.map((col, i) => {
+        const showTitle = !hideTitles && !!col.title;
+        return (
+          <div key={i} style={{ display: 'contents' }}>
+            {i > 0 ? <div style={{ width: 1, background: `${accent}40`, flexShrink: 0 }} aria-hidden /> : null}
+            <div style={{ textAlign: 'center', minWidth: 130, maxWidth: 280, flex: '1 1 0' }}>
+              {showTitle ? <p style={titleStyle}>{col.title}</p> : null}
+              <div style={{ marginTop: showTitle ? '0.45rem' : 0 }}>
+                {col.lines.map((line, j) => (
+                  <p key={j} style={{ margin: '0.18rem 0', fontFamily: bodyFontFamily, fontSize: lineSize, fontWeight: 500, lineHeight: 1.55, color: textColor }}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -82,8 +174,7 @@ export function HeroMeta({ site }: { site: WeddingSite }) {
   const line = [formatWeddingDate(site.date, site.language), site.city, site.venue].filter(Boolean).join(' · ');
   const countdown = useCountdown(site.date);
 
-  const hasBrideFamily = !!(site.content?.parentsBride?.father || site.content?.parentsBride?.mother);
-  const hasGroomFamily = !!(site.content?.parentsGroom?.father || site.content?.parentsGroom?.mother);
+  const familyColumns = getFamilyColumns(site);
   const hasMemorial = !!site.content?.texts?.memorialText?.trim();
   const hasFamilyText = !!site.content?.texts?.familyText?.trim();
 
@@ -116,39 +207,15 @@ export function HeroMeta({ site }: { site: WeddingSite }) {
           {site.content!.texts!.familyText}
         </p>
       ) : null}
-      {(hasBrideFamily || hasGroomFamily) ? (
-        <div style={{ marginTop: '1.5rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2rem' }}>
-          {hasBrideFamily ? (
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase', opacity: 0.6 }}>
-                Famille {site.content?.brideFamilyName?.trim() || site.brideName.split(' ').pop()}
-              </p>
-              {site.content!.parentsBride!.father ? (
-                <p style={{ margin: '0.3rem 0 0', fontSize: '0.95rem', fontWeight: 600 }}>{site.content!.parentsBride!.father}</p>
-              ) : null}
-              {site.content!.parentsBride!.mother ? (
-                <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', fontWeight: 600 }}>{site.content!.parentsBride!.mother}</p>
-              ) : null}
-              <GrandparentsBlock gp={site.content?.grandparentsBride} color={site.theme.primaryColor} />
-            </div>
-          ) : null}
-          {hasBrideFamily && hasGroomFamily ? (
-            <div style={{ width: 1, background: `${site.theme.primaryColor}40`, flexShrink: 0 }} />
-          ) : null}
-          {hasGroomFamily ? (
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase', opacity: 0.6 }}>
-                Famille {site.content?.groomFamilyName?.trim() || site.groomName.split(' ').pop()}
-              </p>
-              {site.content!.parentsGroom!.father ? (
-                <p style={{ margin: '0.3rem 0 0', fontSize: '0.95rem', fontWeight: 600 }}>{site.content!.parentsGroom!.father}</p>
-              ) : null}
-              {site.content!.parentsGroom!.mother ? (
-                <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', fontWeight: 600 }}>{site.content!.parentsGroom!.mother}</p>
-              ) : null}
-              <GrandparentsBlock gp={site.content?.grandparentsGroom} color={site.theme.primaryColor} />
-            </div>
-          ) : null}
+      {familyColumns.length ? (
+        <div style={{ marginTop: '1.5rem' }}>
+          <FamilyColumnsRow
+            columns={familyColumns}
+            accent={site.theme.primaryColor}
+            textColor={site.theme.textColor}
+            titleFontFamily={site.theme.titleFontFamily || site.theme.fontFamily}
+            bodyFontFamily={site.theme.fontFamily}
+          />
         </div>
       ) : null}
     </>
@@ -259,7 +326,21 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   return (
     <nav style={navBase}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0.72rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <a href="#top" style={{ textDecoration: 'none', color: t.textColor, fontWeight: 700, letterSpacing: '0.05em' }}>
+        <a
+          href="#top"
+          style={{
+            textDecoration: 'none',
+            color: t.textColor,
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            // Nom du couple long : tronqué avec … au lieu de passer sous les liens
+            flex: '0 1 auto',
+            minWidth: 0,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
           {coupleLabel}
         </a>
         <button
@@ -270,7 +351,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
         >
           ☰
         </button>
-        <div className="wedding-nav-links" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="wedding-nav-links" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end', flex: '0 0 auto' }}>
           {anchors.map((a) => (
             <a key={a.id} href={`#${a.id}`} style={{ color: t.textColor, textDecoration: 'none', fontSize: '0.87rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {a.label}
@@ -291,61 +372,151 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   );
 }
 
-export function PublicAudioToggle({ site }: { site: WeddingSite }) {
-  const url = site.content?.musicUrl?.trim();
+/**
+ * Hook lecteur musique partagé. L'URL MP3 est pré-résolue au chargement :
+ * iOS n'autorise `play()` que DANS le geste utilisateur — résoudre Deezer au
+ * moment du clic faisait échouer la lecture en silence sur iPhone/iPad.
+ */
+function useMusicPlayer(url: string | undefined) {
+  const trimmed = url?.trim() || '';
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [src, setSrc] = useState<string | null>(null);
   const ref = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (!url) return;
-    const audio = new Audio(url);
-    audio.loop = true;
-    ref.current = audio;
+    ref.current?.pause();
+    ref.current = null;
+    setPlaying(false);
+    if (!trimmed) { setSrc(null); return; }
+    const id = deezerTrackId(trimmed);
+    if (id == null) { setSrc(trimmed); return; }
+    let cancelled = false;
+    setLoading(true);
+    resolveDeezerPreview(id).then((resolved) => {
+      if (cancelled) return;
+      setSrc(resolved);
+      setLoading(false);
+    });
     return () => {
-      audio.pause();
+      cancelled = true;
+      ref.current?.pause();
       ref.current = null;
     };
-  }, [url]);
+  }, [trimmed]);
 
-  if (!url) return null;
-
-  const toggle = async () => {
-    const audio = ref.current;
-    if (!audio) return;
-    if (playing) {
-      audio.pause();
+  const toggle = () => {
+    if (playing && ref.current) {
+      ref.current.pause();
       setPlaying(false);
       return;
     }
-    try {
-      await audio.play();
-      setPlaying(true);
-    } catch {
-      setPlaying(false);
+    if (!src) return;
+    if (!ref.current) {
+      const audio = new Audio(src);
+      audio.loop = true;
+      ref.current = audio;
     }
+    ref.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    setPlaying(true);
   };
+
+  return { hasMusic: !!trimmed, loading, playing, toggle };
+}
+
+/**
+ * Lecteur musique INTÉGRÉ à la carte d'invitation (remplace l'ancien bouton
+ * flottant qui sortait de l'écran) : pilule élégante ♫ aux couleurs du thème.
+ */
+export function InlineMusicPlayer({
+  url,
+  accent,
+  textColor,
+  fontFamily,
+  style,
+}: {
+  url?: string;
+  accent: string;
+  textColor?: string;
+  fontFamily?: string;
+  style?: CSSProperties;
+}) {
+  const { hasMusic, loading, playing, toggle } = useMusicPlayer(url);
+  if (!hasMusic) return null;
 
   return (
     <button
       type="button"
       onClick={toggle}
       style={{
-        position: 'fixed',
-        right: 16,
-        bottom: 16,
-        zIndex: 80,
-        border: `1px solid ${site.theme.primaryColor}66`,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        border: `1px solid ${accent}66`,
         borderRadius: 999,
-        padding: '0.55rem 0.8rem',
-        background: `${site.theme.backgroundColor}ee`,
-        color: site.theme.textColor,
+        padding: '0.45rem 1.1rem',
+        background: playing ? `${accent}1e` : 'transparent',
+        color: textColor ?? accent,
+        fontFamily,
+        fontSize: '0.74rem',
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        fontWeight: 600,
         cursor: 'pointer',
-        fontWeight: 700,
+        // Reste cliquable dans l'aperçu du builder (template en pointerEvents: none)
+        pointerEvents: 'auto',
+        ...style,
       }}
     >
-      {playing ? '🔇' : '🔊'}
+      <span aria-hidden style={{ fontSize: '0.95rem', lineHeight: 1 }}>{playing ? '❚❚' : '♫'}</span>
+      {loading ? '…' : playing ? 'Pause' : 'Notre musique'}
     </button>
   );
+}
+
+/**
+ * Musique SANS aucun élément visuel : la lecture démarre au premier geste de
+ * l'invité (tap / scroll / clic), car les navigateurs interdisent l'autoplay
+ * sans interaction. Ne rend rien. À n'utiliser que sur le site publié :
+ * `enabled` doit être faux dans l'aperçu du builder (sinon la musique se
+ * lancerait pendant l'édition).
+ */
+export function HiddenAutoMusic({ url, enabled = true }: { url?: string; enabled?: boolean }) {
+  const { hasMusic, playing, toggle } = useMusicPlayer(url);
+
+  useEffect(() => {
+    // Rien à faire tant que la lecture n'a pas démarré. Dès que `playing`
+    // devient vrai, l'effet est ré-exécuté et retire les écouteurs.
+    if (!enabled || !hasMusic || playing) return;
+    // `toggle()` ne démarre la lecture que si la source est prête ; sinon il ne
+    // fait rien et `playing` reste faux → un geste suivant réessaiera (utile
+    // pour les extraits Deezer résolus de façon asynchrone).
+    const start = () => toggle();
+    window.addEventListener('pointerdown', start);
+    window.addEventListener('touchstart', start, { passive: true });
+    window.addEventListener('keydown', start);
+    window.addEventListener('scroll', start, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('touchstart', start);
+      window.removeEventListener('keydown', start);
+      window.removeEventListener('scroll', start);
+    };
+    // toggle est recréé à chaque rendu ; les autres deps suffisent à ré-armer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, hasMusic, playing, url]);
+
+  return null;
+}
+
+/**
+ * Musique du site : lecture AUTOMATIQUE, sans aucun bouton visible. On ne
+ * démarre pas dans l'aperçu du builder (`preview-draft`) pour ne pas jouer la
+ * musique pendant l'édition. Conserve le nom `PublicAudioToggle` pour les
+ * anciens templates qui l'importent déjà.
+ */
+export function PublicAudioToggle({ site }: { site: WeddingSite }) {
+  return <HiddenAutoMusic url={site.content?.musicUrl} enabled={site.id !== 'preview-draft'} />;
 }
 
 function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeof cardStyleSurface }) {
@@ -640,7 +811,7 @@ export function PhotoGallery({ site, photos }: { site: WeddingSite; photos: stri
             src={photos[lightbox]}
             alt={`Photo ${lightbox + 1}`}
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '92vw', maxHeight: '86vh', objectFit: 'contain', borderRadius: 6, boxShadow: '0 30px 90px rgba(0,0,0,0.6)' }}
+            style={{ maxWidth: '92cqw', maxHeight: '86vh', objectFit: 'contain', borderRadius: 6, boxShadow: '0 30px 90px rgba(0,0,0,0.6)' }}
           />
           <button type="button" aria-label="Fermer" onClick={() => setLightbox(null)} style={lightboxBtn({ top: 14, right: 16 })}>✕</button>
           {photos.length > 1 && (

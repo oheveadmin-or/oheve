@@ -52,6 +52,9 @@ export default function SiteMariageScreen() {
   const [groomName, setGroomName] = useState('');
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Jeton longue durée (30 j) pour la WebView du builder — évite l'expiration
+  // « Session expirée » en pleine conception. Fallback : access token.
+  const [builderToken, setBuilderToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.accessToken) { setLoading(false); return; }
@@ -64,10 +67,19 @@ export default function SiteMariageScreen() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    fetch(API_ENDPOINTS.weddingBuilderToken, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: { token?: string } | null) => {
+        if (json?.token) setBuilderToken(json.token);
+      })
+      .catch(() => {});
   }, [user?.accessToken]);
 
   const builderUrl = mySite
-    ? `${API_ENDPOINTS.weddingSitePublicBase}/${mySite.slug}/build?token=${user?.accessToken ?? ''}`
+    ? `${API_ENDPOINTS.weddingSitePublicBase}/${mySite.slug}/build?token=${builderToken ?? user?.accessToken ?? ''}`
     : null;
 
   const publicUrl = mySite

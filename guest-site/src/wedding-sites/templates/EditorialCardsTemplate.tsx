@@ -16,14 +16,15 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 
-import type { ParentTitleStyle, WeddingTemplateProps } from '../types';
+import type { WeddingTemplateProps } from '../types';
 import { sectionLabels } from '../i18n';
 import { formatWeddingDate } from '../utils/date';
 import { editorialTokens } from '../themes/EditorialCardsTheme';
 import type { EditorialTokens } from '../themes/EditorialCardsTheme';
 import { EditorialDivider, EditorialIcon } from './EditorialCardIcons';
 import type { EditorialIconKey } from './EditorialCardIcons';
-import { PublicAudioToggle, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
+import type { ResolvedFamilyColumn } from './templateParts';
 
 /** Icône décorative par défaut du modèle (le client pourra la changer). */
 const DEFAULT_ICON: EditorialIconKey = 'rings';
@@ -60,6 +61,9 @@ function Card({
         overflow: 'hidden',
         scrollMarginTop: 88,
         boxSizing: 'border-box',
+        // Les tailles en `cqw` s'échelonnent sur la largeur de CETTE carte —
+        // jamais de débordement, y compris dans l'aperçu iPhone mis à l'échelle.
+        containerType: 'inline-size',
         ...style,
       }}
     >
@@ -97,6 +101,7 @@ function HeroCard({
   tk,
   bgImage,
   monogramSvg,
+  monogramSizePx,
   name1,
   name2,
   welcomeText,
@@ -108,6 +113,7 @@ function HeroCard({
   tk: EditorialTokens;
   bgImage?: string;
   monogramSvg?: string;
+  monogramSizePx?: number;
   name1: string;
   name2?: string;
   welcomeText?: string;
@@ -115,6 +121,7 @@ function HeroCard({
   venue?: string;
   city?: string;
   icon: EditorialIconKey;
+  musicUrl?: string;
 }) {
   return (
     <Card tk={tk} noPadding>
@@ -160,10 +167,18 @@ function HeroCard({
             }}
           />
 
-          {/* Logo / monogramme (client) ou icône décorative par défaut */}
+          {/* Logo / monogramme (client) ou icône décorative par défaut.
+              Taille choisie par le client (XS→XL), bornée au panneau. */}
           {monogramSvg ? (
             <div
-              style={{ width: 64, height: 64, marginBottom: '0.6rem' }}
+              style={{
+                width: Math.min(monogramSizePx ?? 64, 320),
+                // Plafond proportionnel à la taille choisie : L et XL restent
+                // distincts même quand le panneau est étroit (aperçu iPhone).
+                maxWidth: `${Math.min(84, Math.max(20, Math.round(((monogramSizePx ?? 64) / 320) * 84)))}%`,
+                aspectRatio: '1 / 1',
+                marginBottom: '0.6rem',
+              }}
               dangerouslySetInnerHTML={{
                 __html: monogramSvg
                   .replace(/width="[^"]*"/, 'width="100%"')
@@ -329,7 +344,7 @@ function CountdownCard({
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 'clamp(8px, 2.5vw, 14px)',
+          gap: 'clamp(8px, 2.5cqw, 14px)',
         }}
       >
         {cells.map((cell) => (
@@ -380,93 +395,29 @@ function CountdownCard({
 /*  3. Carte Familles                                                          */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-type ParentsBlock = { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: ParentTitleStyle };
-
-const lastName = (full?: string) => (full ? full.trim().split(/\s+/).slice(-1)[0] : '');
-
-function formatParentLine(parents: ParentsBlock | undefined, familyName: string | undefined): string[] {
-  if (!parents) return [];
-  const { father, mother, isDivorced, titleStyle = 'couple' } = parents;
-  if (!father && !mother && !familyName) return [];
-  const name = familyName || lastName(father) || lastName(mother);
-  if (isDivorced) {
-    const lines: string[] = [];
-    if (father) lines.push(`M. ${father}`);
-    if (mother) lines.push(`Mme ${mother}`);
-    return lines;
-  }
-  if (titleStyle === 'mr') return name ? [`M. ${name}`] : [];
-  if (titleStyle === 'mme') return name ? [`Mme ${name}`] : [];
-  return name ? [`M. et Mme ${name}`] : [];
-}
-
-function deriveFamilyName(explicit: string | undefined, parents: ParentsBlock | undefined): string {
-  if (explicit?.trim()) return explicit.trim();
-  return lastName(parents?.father) || lastName(parents?.mother) || '';
-}
-
-function FamilyColumn({ tk, familyName, lines }: { tk: EditorialTokens; familyName: string; lines: string[] }) {
-  if (!lines.length) return null;
-  return (
-    <div style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center' }}>
-      {familyName ? (
-        <div
-          style={{
-            fontFamily: tk.fonts.label,
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            color: tk.colors.accent,
-            marginBottom: '0.5rem',
-          }}
-        >
-          Famille {familyName}
-        </div>
-      ) : null}
-      <div style={{ fontFamily: tk.fonts.body, fontSize: '1rem', lineHeight: 1.8, color: tk.colors.text }}>
-        {lines.map((l, i) => (
-          <div key={i}>{l}</div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function FamiliesCard({
   tk,
-  parentsBride,
-  parentsGroom,
-  brideFamilyName,
-  groomFamilyName,
+  columns,
   title,
   icon,
 }: {
   tk: EditorialTokens;
-  parentsBride?: ParentsBlock;
-  parentsGroom?: ParentsBlock;
-  brideFamilyName?: string;
-  groomFamilyName?: string;
+  columns: ResolvedFamilyColumn[];
   title: string;
   icon: EditorialIconKey;
 }) {
-  const brideLines = formatParentLine(parentsBride, brideFamilyName);
-  const groomLines = formatParentLine(parentsGroom, groomFamilyName);
-  if (!brideLines.length && !groomLines.length) return null;
-
-  const brideFam = deriveFamilyName(brideFamilyName, parentsBride);
-  const groomFam = deriveFamilyName(groomFamilyName, parentsGroom);
-
+  if (!columns.length) return null;
   return (
     <Card tk={tk}>
       <SectionTitle tk={tk} label={title} icon={icon} />
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '1.4rem' }}>
-        <FamilyColumn tk={tk} familyName={brideFam} lines={brideLines} />
-        {brideLines.length && groomLines.length ? (
-          <div style={{ alignSelf: 'stretch', width: 1, background: tk.colors.hairlineStrong, flex: '0 0 auto' }} />
-        ) : null}
-        <FamilyColumn tk={tk} familyName={groomFam} lines={groomLines} />
-      </div>
+      <FamilyColumnsRow
+        columns={columns}
+        accent={tk.colors.accent}
+        textColor={tk.colors.text}
+        titleFontFamily={tk.fonts.label}
+        bodyFontFamily={tk.fonts.body}
+        lineSize="1rem"
+      />
     </Card>
   );
 }
@@ -539,12 +490,15 @@ export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
       }}
     >
       <PublicStickyNav site={site} />
+      {/* ♫ Musique — lecture automatique, sans bouton (démarre au 1er geste) */}
+      <HiddenAutoMusic url={site.content?.musicUrl} enabled={site.id !== 'preview-draft'} />
 
       {site.sections.hero ? (
         <HeroCard
           tk={tk}
           bgImage={heroBg}
           monogramSvg={site.content?.monogramSvg}
+          monogramSizePx={site.content?.monogramSizePx}
           name1={hasTwoNames ? site.brideName : site.coupleName || site.brideName || site.groomName || ''}
           name2={hasTwoNames ? `& ${site.groomName}` : undefined}
           welcomeText={site.welcomeText || undefined}
@@ -559,15 +513,7 @@ export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
         <CountdownCard tk={tk} targetDate={site.date} language={site.language} title={L.countdownTitle} icon={icon} />
       ) : null}
 
-      <FamiliesCard
-        tk={tk}
-        parentsBride={site.content?.parentsBride}
-        parentsGroom={site.content?.parentsGroom}
-        brideFamilyName={site.content?.brideFamilyName}
-        groomFamilyName={site.content?.groomFamilyName}
-        title={L.families}
-        icon={icon}
-      />
+      <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} icon={icon} />
 
       {featuredPhoto ? <PhotoCard tk={tk} src={featuredPhoto} /> : null}
 
@@ -596,7 +542,6 @@ export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
       </div>
 
       <div style={{ height: tk.cardGap }} />
-      <PublicAudioToggle site={site} />
     </div>
   );
 }

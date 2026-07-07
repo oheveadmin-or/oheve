@@ -40,7 +40,8 @@ export type ThemeStyle =
   | 'midnight-blue'
   | 'vintage-blue'
   | 'editorial-cards'
-  | 'stripes-editorial';
+  | 'stripes-editorial'
+  | 'voile-ivoire';
 
 export type TitleSize = 'small' | 'medium' | 'large' | 'huge';
 
@@ -88,7 +89,9 @@ export type PatternId =
   | 'hexagonal'         // Nid d'abeilles géométrique
   | 'damask'            // Damassé classique
   | 'vine'              // Lierre et vignes sinueuses
-  | 'art-nouveau';      // Courbes organiques art nouveau
+  | 'art-nouveau'       // Courbes organiques art nouveau
+  | 'ornament-star'     // Étoile ornementale 8 branches (papeterie)
+  | 'quatrefoil';       // Croix perlée délicate (petits points)
 
 export type SeparatorStyle =
   | 'none'
@@ -113,7 +116,13 @@ export type WeddingTheme = {
   backgroundColor: string;
   textColor: string;
   fontFamily: string;
+  /** Police des grands titres (hero, titres de section). Défaut : fontFamily */
+  titleFontFamily?: string;
+  /** Police calligraphique des prénoms / signatures. Défaut : script du template */
+  scriptFontFamily?: string;
   titleSize: TitleSize;
+  /** Taille des prénoms calligraphiés (indépendante de titleSize) */
+  nameSize?: TitleSize;
   borderRadius: number;
   cardStyle: CardStyle;
   layout: ThemeLayout;
@@ -129,6 +138,10 @@ export type WeddingTheme = {
   cornerDecor?: boolean;
   /** Navigation style shown to guests on the public site */
   navStyle?: 'horizontal' | 'hamburger' | 'minimal';
+  /** Éditorial Rayures uniquement — largeur d'une rayure du hero, en px (défaut 8) */
+  stripeWidth?: number;
+  /** Éditorial Rayures uniquement — opacité des rayures du hero, 0–1 (défaut 1) */
+  stripeOpacity?: number;
 };
 
 export type WeddingSections = {
@@ -219,6 +232,17 @@ export type GiftRegistry = {
 /** Formule d'honneur pour les parents : couple, monsieur seul, madame seule */
 export type ParentTitleStyle = 'couple' | 'mr' | 'mme';
 
+/**
+ * Colonne « famille » libre : un titre (ex. « Famille Attia ») et des lignes
+ * de texte libres — les mariés écrivent ce qu'ils veulent (parents,
+ * grands-parents, formules…) sans intitulés imposés.
+ */
+export type FamilyColumn = {
+  id: string;
+  title: string;
+  lines: string[];
+};
+
 export type WeddingSiteContent = {
   venue?: VenueInfo;
   accommodationsIntro?: string;
@@ -231,6 +255,8 @@ export type WeddingSiteContent = {
   jewishEvents?: JewishWeddingEvent[];
   galleryPhotos?: string[];
   giftRegistry?: GiftRegistry;
+  /** Colonnes familles libres — remplace les champs parents/grands-parents imposés */
+  familyColumns?: FamilyColumn[];
   parentsGroom?: { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: ParentTitleStyle };
   parentsBride?: { father?: string; mother?: string; isDivorced?: boolean; titleStyle?: ParentTitleStyle };
   grandparentsGroom?: { grandfather?: string; grandmother?: string; paternalGrandfather?: string; paternalGrandmother?: string; maternalGrandfather?: string; maternalGrandmother?: string };
@@ -242,8 +268,6 @@ export type WeddingSiteContent = {
   monogramStyle?: string;
   /** Taille d'affichage du monogramme dans la carte (px) */
   monogramSizePx?: number;
-  /** Position du logo/monogramme dans le hero */
-  monogramPosition?: 'top-center' | 'bottom-center' | 'bottom-left' | 'bottom-right' | 'center';
   practicalInfoText?: string;
   guestMessageText?: string;
   /** Verset hébraïque (פסוק) affiché en arc au sommet du site */
@@ -325,6 +349,14 @@ export const defaultWeddingSections = (): WeddingSections => ({
   dressCode: false,
   qrCode: true,
 });
+
+/** Multiplicateur appliqué aux tailles de titres/prénoms selon TitleSize */
+export const TITLE_SIZE_SCALE: Record<TitleSize, number> = {
+  small: 0.78,
+  medium: 1,
+  large: 1.15,
+  huge: 1.32,
+};
 
 export const defaultWeddingTheme = (): WeddingTheme => ({
   style: 'classic',
