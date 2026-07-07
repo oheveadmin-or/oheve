@@ -72,6 +72,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const refreshingRef = useRef(false);
 
+  /** Aligne le flag premium local sur le serveur (qui se répare depuis Stripe).
+   *  N'écrase jamais un premium local déjà actif ; ne fait que le débloquer. */
+  const syncPremiumFromServer = useCallback(async (current: AuthUser) => {
+    if (current.premium === true) return;
+    try {
+      const res = await fetch(API_ENDPOINTS.premiumStatus, {
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json?.success && json.data?.premium === true) {
+        setUser((u) => {
+          const base = u ?? current;
+          const updated = normalizeUser({ ...base, premium: true, premium_purchased_at: json.data.purchased_at ?? base.premium_purchased_at });
+          AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+          return updated;
+        });
+      }
+    } catch {
+      /* réseau : sans effet, réessaie à la prochaine ouverture */
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -102,6 +125,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const refreshed = { ...stored, accessToken: json.data.accessToken, refreshToken: json.data.refreshToken };
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed));
           setUser(refreshed);
+          // Rafraîchit le premium depuis le serveur (qui se répare depuis Stripe
+          // si le webhook a été manqué) → un client qui a payé mais dont le site
+          // restait bloqué « activer Premium » se débloque à l'ouverture.
+          syncPremiumFromServer(refreshed);
         }
         // 5xx ou réponse invalide : on garde la session stockée.
       } catch {

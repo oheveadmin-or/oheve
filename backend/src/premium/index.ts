@@ -51,6 +51,49 @@ premiumRoutes.post('/purchase', requireAuth, async (req: Request, res: Response)
   }
 });
 
+// POST /api/premium/confirm — active le premium immédiatement après un paiement
+// réussi, sans attendre le webhook Stripe (qui peut ne jamais arriver si mal
+// configuré sur Railway → le site publié restait bloqué « activer Premium »
+// alors que le client avait payé). On vérifie le PaymentIntent auprès de Stripe
+// (source de vérité) : il doit être `succeeded`, appartenir à cet utilisateur et
+// concerner le produit premium. Le webhook reste un filet de sécurité.
+premiumRoutes.post('/confirm', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.auth!.sub;
+  const paymentIntentId = String((req.body as { payment_intent_id?: string })?.payment_intent_id ?? '').trim();
+
+  if (!paymentIntentId) {
+    return res.status(400).json({ success: false, message: 'payment_intent_id requis' });
+  }
+
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (pi.status !== 'succeeded') {
+      return res.status(402).json({ success: false, message: 'Paiement non confirmé.' });
+    }
+    if (pi.metadata?.product !== 'oheve_premium') {
+      return res.status(400).json({ success: false, message: 'Paiement non lié à Oheve Premium.' });
+    }
+    if (String(pi.metadata?.user_id ?? '') !== String(userId)) {
+      return res.status(403).json({ success: false, message: 'Ce paiement ne vous appartient pas.' });
+    }
+
+    await pool.query(
+      `UPDATE users SET
+         premium = true,
+         premium_purchased_at = COALESCE(premium_purchased_at, NOW()),
+         premium_stripe_payment_intent_id = $1
+       WHERE id = $2`,
+      [pi.id, userId]
+    );
+
+    return res.json({ success: true, data: { premium: true } });
+  } catch (err: any) {
+    console.error('premium/confirm error:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // POST /api/premium/activate — réservé à l'admin. Le webhook Stripe active le
 // premium directement (payments/controller). Cette route était ouverte sans
 // auth : n'importe qui pouvait s'activer Premium gratuitement.
@@ -73,14 +116,48 @@ premiumRoutes.post('/activate/:userId', requireAdmin, async (req: Request, res: 
   }
 });
 
+/** Filet de secours : si la BDD ne connaît pas le premium mais que le client a
+ *  bel et bien payé (webhook Stripe jamais reçu), on demande à Stripe s'il
+ *  existe un paiement premium `succeeded` pour cet utilisateur et on répare la
+ *  BDD. Rend le premium auto-réparant à la prochaine ouverture de l'app. */
+async function reconcilePremiumFromStripe(userId: number): Promise<boolean> {
+  try {
+    const search = await stripe.paymentIntents.search({
+      query: `status:'succeeded' AND metadata['product']:'oheve_premium' AND metadata['user_id']:'${userId}'`,
+      limit: 1,
+    });
+    const pi = search.data[0];
+    if (!pi) return false;
+    await pool.query(
+      `UPDATE users SET
+         premium = true,
+         premium_purchased_at = COALESCE(premium_purchased_at, NOW()),
+         premium_stripe_payment_intent_id = COALESCE(premium_stripe_payment_intent_id, $1)
+       WHERE id = $2`,
+      [pi.id, userId]
+    );
+    return true;
+  } catch (err: any) {
+    console.error('reconcilePremiumFromStripe error:', err.message);
+    return false;
+  }
+}
+
 // GET /api/premium/status — vérifie le statut premium de l'utilisateur connecté
 premiumRoutes.get('/status', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.auth!.sub;
-    const r = await pool.query(
+    let r = await pool.query(
       `SELECT premium, premium_purchased_at FROM users WHERE id=$1`,
       [userId]
     );
+    // Non premium en BDD → tenter la réparation depuis Stripe (webhook manqué).
+    if (!r.rows[0]?.premium && await reconcilePremiumFromStripe(userId)) {
+      r = await pool.query(
+        `SELECT premium, premium_purchased_at FROM users WHERE id=$1`,
+        [userId]
+      );
+    }
     const row = r.rows[0];
     return res.json({
       success: true,

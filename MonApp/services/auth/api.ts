@@ -427,6 +427,11 @@ export const premiumApi = {
   purchase: (accessToken: string) =>
     post(API_ENDPOINTS.premiumPurchase, {}, accessToken),
 
+  // Persiste le premium côté serveur juste après un paiement réussi, sans
+  // dépendre du webhook Stripe (source des sites publiés bloqués « activer Premium »).
+  confirm: (accessToken: string, paymentIntentId: string) =>
+    post(API_ENDPOINTS.premiumConfirm, { payment_intent_id: paymentIntentId }, accessToken),
+
   status: (accessToken: string) =>
     get(API_ENDPOINTS.premiumStatus, accessToken),
 };

@@ -124,6 +124,7 @@ export const API_ENDPOINTS = {
   myPublicSite: `${API_BASE_URL}/api/public-sites/me`,
   weddingSites: `${API_BASE_URL}/api/wedding-sites`,
   mySites: `${API_BASE_URL}/api/wedding-sites/me`,
+  weddingBuilderToken: `${API_BASE_URL}/api/wedding-sites/builder-token`,
   weddingSitePublicBase: 'https://oheve.pages.dev/wedding',
   prestataires: `${API_BASE_URL}/api/prestataires`,
   prestataireFeed: `${API_BASE_URL}/api/prestataires/feed/photos`,
@@ -155,6 +156,7 @@ export const API_ENDPOINTS = {
   subscriptionSubscribe: `${API_BASE_URL}/api/subscriptions/subscribe`,
   // Oheve Premium
   premiumPurchase: `${API_BASE_URL}/api/premium/purchase`,
+  premiumConfirm: `${API_BASE_URL}/api/premium/confirm`,
   premiumStatus: `${API_BASE_URL}/api/premium/status`,
   // Payments
   paymentsCreateIntent: `${API_BASE_URL}/api/payments/create-intent`,

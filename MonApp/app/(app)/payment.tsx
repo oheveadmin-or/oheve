@@ -12,6 +12,7 @@ import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
 import { addExpense, resolveCategoryKey } from '@/lib/budget-store';
+import { premiumApi } from '@/services/auth/api';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
@@ -87,11 +88,22 @@ function PaymentForm({
         Alert.alert('Paiement refusé', error.message);
       } else if (paymentIntent) {
         if (isPremium) {
-          // Activer le flag premium localement (le webhook le fera côté BDD)
+          // Persiste le premium côté serveur TOUT DE SUITE (ne pas attendre le
+          // webhook Stripe : s'il n'arrive pas, le site publié reste bloqué
+          // « activer Premium » alors que le client a payé). Le flag local suit.
+          let serverConfirmed = false;
+          try {
+            const confirm = await premiumApi.confirm(user.accessToken, paymentIntent.id);
+            serverConfirmed = !!confirm.success;
+          } catch {
+            /* réseau : le webhook Stripe reste le filet de sécurité */
+          }
           await updateUser({ premium: true, premium_purchased_at: new Date().toISOString() });
           Alert.alert(
             '✅ Bienvenue dans Oheve Premium !',
-            'Toutes les fonctionnalités sont maintenant débloquées.',
+            serverConfirmed
+              ? 'Toutes les fonctionnalités sont maintenant débloquées.'
+              : 'Paiement reçu. L\'activation complète peut prendre un instant — votre site sera publié sous peu.',
             [{ text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') }],
           );
         } else {
