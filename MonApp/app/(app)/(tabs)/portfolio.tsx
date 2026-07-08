@@ -63,35 +63,46 @@ export default function PortfolioScreen() {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.85,
-      selectionLimit: 10,
-    });
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.85,
+        selectionLimit: 0, // 0 = illimité (iOS bloquait à 10)
+      });
+    } catch {
+      Alert.alert('Photo illisible', "Une des photos sélectionnées n'a pas pu être lue (parfois une image iCloud non téléchargée). Réessayez ou choisissez-en d'autres.");
+      return;
+    }
 
     if (result.canceled || !result.assets.length) return;
 
     setUploading(true);
+    let failed = 0;
     try {
       for (const asset of result.assets) {
-        const res = await uploadFile(
-          `${API_ENDPOINTS.prestataires}/me/photos`,
-          user!.accessToken,
-          asset.uri,
-        );
-        if (res?.success && res.data) {
-          setPhotos((prev) => [...prev, res.data as never]);
-        } else if (res?.message) {
-          Alert.alert('Erreur', res.message);
-          break;
+        try {
+          const res = await uploadFile(
+            `${API_ENDPOINTS.prestataires}/me/photos`,
+            user!.accessToken,
+            asset.uri,
+          );
+          if (res?.success && res.data) {
+            setPhotos((prev) => [...prev, res.data as never]);
+          } else if (res?.message) {
+            failed += 1;
+          }
+        } catch {
+          // Une photo illisible/corrompue ne doit pas interrompre les autres
+          failed += 1;
         }
       }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert('Erreur upload', msg);
     } finally {
       setUploading(false);
+    }
+    if (failed > 0) {
+      Alert.alert('Upload partiel', `${failed} photo(s) n'ont pas pu être ajoutées. Les autres ont bien été enregistrées.`);
     }
   };
 

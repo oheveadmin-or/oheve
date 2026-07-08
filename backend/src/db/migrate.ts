@@ -328,6 +328,10 @@ export async function runMigrations(): Promise<void> {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_presta ON payments(prestataire_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_devis_conv ON devis(conversation_id)`);
 
+    // ── Profil prestataire : téléphone + fourchette de prix (texte libre) ─────
+    await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS phone VARCHAR(50)`);
+    await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS price_range TEXT`);
+
     // ── Admin : suspension prestataires, masquage annonces ───────────────────
     await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN NOT NULL DEFAULT false`);
     await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT false`);

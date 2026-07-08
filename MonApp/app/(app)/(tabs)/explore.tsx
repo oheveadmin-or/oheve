@@ -40,7 +40,15 @@ type MainCategory =
   | 'traiteur'
   | 'musique'
   | 'souvenirs'
-  | 'salle';
+  | 'salle'
+  | 'beaute'
+  | 'transport'
+  | 'juif'
+  | 'chabbat-hattan'
+  | 'patisserie'
+  | 'planner'
+  | 'animation'
+  | 'autres';
 
 type SubCategory = 'robes' | 'accessoires' | 'tenue-soiree' | 'salle-mariage' | 'chabat' | 'henne';
 
@@ -128,9 +136,13 @@ const CATEGORIES: {
   subcategories?: { key: SubCategory; label: string; emoji: string }[];
 }[] = [
   { key: 'tout', label: 'Tout', emoji: '✨' },
+  { key: 'salle', label: 'Salle / Lieu', emoji: '💒' },
+  { key: 'traiteur', label: 'Traiteur', emoji: '🍽️' },
+  { key: 'photos', label: 'Photo & Vidéo', emoji: '📸' },
+  { key: 'musique', label: 'Musique', emoji: '🎵' },
   { key: 'décoration', label: 'Déco', emoji: '🕯️' },
   { key: 'fleurs', label: 'Fleurs', emoji: '🌸' },
-  { key: 'photos', label: 'Photos', emoji: '📸' },
+  { key: 'beaute', label: 'Beauté', emoji: '💄' },
   {
     key: 'tenues', label: 'Tenues', emoji: '👗',
     subcategories: [
@@ -139,17 +151,14 @@ const CATEGORIES: {
       { key: 'tenue-soiree', label: 'Tenues de soirée', emoji: '👠' },
     ],
   },
-  { key: 'traiteur', label: 'Traiteur', emoji: '🍽️' },
-  { key: 'musique', label: 'Musique', emoji: '🎵' },
+  { key: 'transport', label: 'Transport', emoji: '🚗' },
+  { key: 'juif', label: 'Mariage Juif', emoji: '✡️' },
+  { key: 'chabbat-hattan', label: 'Chabbat Hattan', emoji: '🕍' },
+  { key: 'patisserie', label: 'Pâtisserie', emoji: '🧁' },
+  { key: 'planner', label: 'Wedding Planner', emoji: '📋' },
+  { key: 'animation', label: 'Animation', emoji: '🎉' },
   { key: 'souvenirs', label: 'Souvenirs', emoji: '💝' },
-  {
-    key: 'salle', label: 'Salle', emoji: '💒',
-    subcategories: [
-      { key: 'salle-mariage', label: 'Mariage', emoji: '💒' },
-      { key: 'chabat', label: 'Chabat Hatan', emoji: '🕍' },
-      { key: 'henne', label: 'Henné / Fiançailles', emoji: '🪬' },
-    ],
-  },
+  { key: 'autres', label: 'Autre', emoji: '🎊' },
 ];
 
 const CAT_COLORS: Record<Exclude<MainCategory, 'tout'>, string> = {
@@ -161,9 +170,28 @@ const CAT_COLORS: Record<Exclude<MainCategory, 'tout'>, string> = {
   musique: '#3b82f6',
   souvenirs: '#f43f5e',
   salle: '#0891b2',
+  beaute: '#d946ef',
+  transport: '#6366f1',
+  juif: '#a855f7',
+  'chabbat-hattan': '#7c3aed',
+  patisserie: '#fb7185',
+  planner: '#14b8a6',
+  animation: '#eab308',
+  autres: '#6b7280',
 };
 
 const FEED_CACHE_KEY = '@oheve:explore_feed_cache';
+
+// Mélange Fisher-Yates — feed « algorithme » : les réels sortent dans un ordre
+// aléatoire (et non l'un après l'autre) à chaque chargement.
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 let nextPostId = 200;
 
@@ -929,10 +957,28 @@ export default function ExploreScreen() {
 
   // ── Catégorie backend → MainCategory ─────────────────────────────────────
   const CAT_MAP: Record<string, Exclude<MainCategory, 'tout'>> = {
-    photographe: 'photos', traiteur: 'traiteur', fleuriste: 'fleurs',
-    'musique': 'musique', 'musique / dj': 'musique', décoration: 'décoration',
-    decoration: 'décoration', 'salle / lieu': 'salle', salle: 'salle',
-    tenues: 'tenues', autres: 'photos',
+    photographe: 'photos', photo: 'photos', 'photo & vidéo': 'photos', traiteur: 'traiteur', traiteurs: 'traiteur',
+    fleuriste: 'fleurs', fleurs: 'fleurs',
+    musique: 'musique', 'musique / dj': 'musique', 'musique & animation': 'musique', musicien: 'musique',
+    décoration: 'décoration', decoration: 'décoration', deco: 'décoration',
+    'salle / lieu': 'salle', 'lieux de réception': 'salle', salle: 'salle', lieu: 'salle',
+    tenues: 'tenues',
+    beaute: 'beaute', 'beauté': 'beaute',
+    transport: 'transport',
+    juif: 'juif', 'mariage juif': 'juif',
+    'chabbat-hattan': 'chabbat-hattan', 'chabbat hattan': 'chabbat-hattan',
+    patisserie: 'patisserie', 'pâtisserie': 'patisserie',
+    planner: 'planner', 'wedding planner': 'planner', organisateur: 'planner',
+    animation: 'animation',
+    autre: 'autres', autres: 'autres',
+  };
+
+  // Emoji de repli quand une photo n'a pas d'image (par catégorie)
+  const CAT_EMOJI: Record<Exclude<MainCategory, 'tout'>, string> = {
+    décoration: '🕯️', fleurs: '🌸', photos: '📸', tenues: '👗',
+    traiteur: '🍽️', musique: '🎵', souvenirs: '💝', salle: '💒',
+    beaute: '💄', transport: '🚗', juif: '✡️', 'chabbat-hattan': '🕍',
+    patisserie: '🧁', planner: '📋', animation: '🎉', autres: '🎊',
   };
 
   // ── Applique les feedPosts en fusionnant avec l'état existant et met en cache ─
@@ -989,16 +1035,16 @@ export default function ExploreScreen() {
           mediaUri: p.url,
           mediaType: 'image' as const,
           caption: p.business_name || `${p.prenom} ${p.nom}`.trim(),
-          category: CAT_MAP[p.category?.toLowerCase()] ?? 'photos',
+          category: CAT_MAP[p.category?.toLowerCase()?.trim()] ?? 'autres',
           author: `${p.prenom} ${p.nom ? p.nom[0] + '.' : ''}`.trim(),
           likes: p.like_count ?? 0,
           isLiked: p.liked_by_me ?? false,
           cardH: 200,
           comments: [],
           bgColor: '#F5EFE8',
-          bgEmoji: '📸',
+          bgEmoji: CAT_EMOJI[CAT_MAP[p.category?.toLowerCase()?.trim()] ?? 'autres'],
         }));
-        applyFeedPosts(feedPosts);
+        applyFeedPosts(shuffle(feedPosts));
       })
       .catch(() => {});
   }, [user?.accessToken, applyFeedPosts]);

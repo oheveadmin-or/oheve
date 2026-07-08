@@ -137,12 +137,24 @@ export class MessagingController {
       const host = req.headers['x-forwarded-host'] ?? req.get('host');
       const fileUrl = `${protocol}://${host}/uploads/chat/${req.file.filename}`;
       const caption = typeof req.body.caption === 'string' ? req.body.caption.trim() : '';
+      // Le type reçu peut être générique (application/octet-stream) selon la
+      // méthode d'upload : on le déduit de l'extension pour garder l'aperçu image.
+      const EXT_MIME: Record<string, string> = {
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+        '.gif': 'image/gif', '.webp': 'image/webp', '.heic': 'image/heic', '.heif': 'image/heif',
+        '.pdf': 'application/pdf', '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      };
+      const ext = path.extname(req.file.originalname || req.file.filename || '').toLowerCase();
+      const fileType = (!req.file.mimetype || req.file.mimetype === 'application/octet-stream')
+        ? (EXT_MIME[ext] ?? 'application/octet-stream')
+        : req.file.mimetype;
       const message = await repo.sendAttachment(
         convId,
         req.auth!.sub,
         fileUrl,
         req.file.originalname,
-        req.file.mimetype,
+        fileType,
         caption,
       );
       const preview = caption || req.file.originalname;

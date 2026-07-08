@@ -187,29 +187,22 @@ export const messagingApi = {
   sendMessage: (accessToken: string, conversationId: number, content: string) =>
     post(`${API_ENDPOINTS.conversations}/${conversationId}/messages`, { content }, accessToken),
 
-  uploadAttachment: async (
+  // ⚠️ On passe par FileSystem.uploadAsync (comme les photos portfolio) : le
+  // couple fetch + FormData échoue sur Expo ("Unsupported FormDataPart"), ce qui
+  // rendait l'envoi de fichiers en message impossible dans les deux sens.
+  uploadAttachment: (
     accessToken: string,
     conversationId: number,
     file: { uri: string; name: string; type: string },
     caption?: string,
-  ) => {
-    const form = new FormData();
-    form.append('file', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
-    if (caption) form.append('caption', caption);
-    const res = await fetch(`${API_ENDPOINTS.conversations}/${conversationId}/attachments`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: form,
-    });
-    // Le serveur peut renvoyer du non-JSON (erreur multer, proxy…) :
-    // on parse défensivement pour afficher un vrai message à l'utilisateur.
-    const text = await res.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      return { success: false, message: `Erreur serveur (${res.status})` };
-    }
-  },
+  ) =>
+    uploadFile(
+      `${API_ENDPOINTS.conversations}/${conversationId}/attachments`,
+      accessToken,
+      file.uri,
+      'file',
+      caption ? { caption } : undefined,
+    ),
 
   registerPushToken: (accessToken: string, token: string, platform: string) =>
     post(API_ENDPOINTS.pushToken, { token, platform }, accessToken),

@@ -704,8 +704,8 @@ export default function ChatScreen() {
     setUploading(true);
     try {
       const json = await messagingApi.uploadAttachment(user.accessToken, convId, { uri, name, type });
-      if (json.success) {
-        setMessages((prev) => [...prev, json.data]);
+      if (json.success && json.data) {
+        setMessages((prev) => [...prev, json.data as unknown as Message]);
         setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 50);
       } else {
         Alert.alert('Erreur', json.message ?? 'Upload échoué');
