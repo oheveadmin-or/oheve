@@ -116,6 +116,10 @@ export default function ProviderDetailScreen() {
   }, [id, user]);
 
   const coverPhoto = photos.find((p) => p.is_cover) ?? photos[0];
+  // Photo de profil ronde : avatar réel du prestataire sinon la photo de
+  // couverture / 1re photo — même logique que le profil vu côté prestataire,
+  // pour que la photo de profil s'affiche toujours côté client.
+  const profilePhoto = avatarUrl ?? coverPhoto?.url ?? null;
 
   const display = useMemo(() => {
     if (!id) return null;
@@ -230,8 +234,8 @@ export default function ProviderDetailScreen() {
             <View style={styles.heroOverlay} />
             <View style={styles.heroTextWrap}>
               {/* Photo de profil du prestataire */}
-              {avatarUrl && (
-                <Image source={{ uri: avatarUrl }} style={styles.heroAvatar} contentFit="cover" />
+              {profilePhoto && (
+                <Image source={{ uri: profilePhoto }} style={styles.heroAvatar} contentFit="cover" />
               )}
               <ThemedText style={styles.heroTitle}>{display?.nom ?? '…'}</ThemedText>
               {display?.adresse && display.adresse !== '-' && (

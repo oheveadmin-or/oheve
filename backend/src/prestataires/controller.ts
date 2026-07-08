@@ -1,8 +1,23 @@
 import { Request, Response } from 'express';
 
-import { PrestatairesRepository } from './repository';
+import { PrestatairesRepository, PrestaProfileRow } from './repository';
 
 const repo = new PrestatairesRepository();
+
+/**
+ * Les photos sont stockées avec seulement leur `filename` (la colonne `url`
+ * en base est vide) : on reconstruit l'URL absolue à partir du host courant,
+ * comme le fait PhotosController, pour que la photo de couverture s'affiche
+ * dans le répertoire et sur la fiche côté client.
+ */
+function withCoverUrl<T extends PrestaProfileRow>(req: Request, row: T): T {
+  if (row.cover_filename) {
+    const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
+    const host = req.headers['x-forwarded-host'] ?? req.get('host');
+    row.cover_url = `${protocol}://${host}/uploads/photos/${row.cover_filename}`;
+  }
+  return row;
+}
 
 export class PrestatairesController {
 
@@ -32,7 +47,7 @@ export class PrestatairesController {
     try {
       const profile = await repo.findByUserId(req.auth!.sub);
       if (!profile) return res.status(404).json({ success: false, message: 'Profil introuvable' });
-      return res.status(200).json({ success: true, data: profile });
+      return res.status(200).json({ success: true, data: withCoverUrl(req, profile) });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Erreur' });
@@ -44,7 +59,7 @@ export class PrestatairesController {
     try {
       const profile = await repo.findByUserId(userId);
       if (!profile) return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
-      return res.status(200).json({ success: true, data: profile });
+      return res.status(200).json({ success: true, data: withCoverUrl(req, profile) });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Erreur' });
@@ -79,7 +94,7 @@ export class PrestatairesController {
         parseInt(limit as string) || 50,
         parseInt(offset as string) || 0
       );
-      return res.status(200).json({ success: true, data: items });
+      return res.status(200).json({ success: true, data: items.map((it) => withCoverUrl(req, it)) });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Erreur' });

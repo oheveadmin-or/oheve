@@ -25,6 +25,7 @@ export interface PrestaProfileRow {
   prenom?: string;
   avatar_url?: string;
   cover_url?: string;
+  cover_filename?: string;
 }
 
 export class PrestatairesRepository {
@@ -72,11 +73,11 @@ export class PrestatairesRepository {
   async findByUserId(userId: number): Promise<PrestaProfileRow | null> {
     const r = await pool.query(
       `SELECT p.*,u.email,u.nom,u.prenom,u.avatar_url,
-              ph.url AS cover_url
+              ph.url AS cover_url, ph.filename AS cover_filename
        FROM prestataire_profiles p
        JOIN users u ON u.id=p.user_id
        LEFT JOIN LATERAL (
-         SELECT url FROM prestataire_photos
+         SELECT url, filename FROM prestataire_photos
          WHERE prestataire_id=p.id
          ORDER BY is_cover DESC, created_at DESC
          LIMIT 1
@@ -106,11 +107,11 @@ export class PrestatairesRepository {
     const r = await pool.query(
       `SELECT p.*,u.email,u.nom,u.prenom,u.avatar_url,
               u.role AS user_role,u.subscription_plan,u.subscription_status,
-              ph.url AS cover_url
+              ph.url AS cover_url, ph.filename AS cover_filename
        FROM prestataire_profiles p
        JOIN users u ON u.id=p.user_id
        LEFT JOIN LATERAL (
-         SELECT url FROM prestataire_photos
+         SELECT url, filename FROM prestataire_photos
          WHERE prestataire_id=p.id
          ORDER BY is_cover DESC, created_at DESC
          LIMIT 1
