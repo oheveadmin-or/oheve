@@ -106,7 +106,9 @@ function PrestataireInstaProfile() {
     if (result.canceled || !result.assets[0]) return;
     setUploadingAvatar(true);
     try {
-      const res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri);
+      // Champ 'avatar' : la route backend attend uploadAvatar.single('avatar').
+      // Sans ce nom, uploadFile envoie sous 'photo' → fichier ignoré, avatar jamais enregistré.
+      const res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri, 'avatar');
       if (res?.success && res.data?.avatar_url) {
         await updateUser({ avatar_url: res.data.avatar_url as string });
       } else {
@@ -372,7 +374,9 @@ function ClientProfile() {
     if (result.canceled || !result.assets[0]) return;
     setUploadingAvatar(true);
     try {
-      const res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri);
+      // Champ 'avatar' : la route backend attend uploadAvatar.single('avatar').
+      // Sans ce nom, uploadFile envoie sous 'photo' → fichier ignoré, avatar jamais enregistré.
+      const res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri, 'avatar');
       if (res?.success && res.data?.avatar_url) {
         await updateUser({ avatar_url: res.data.avatar_url as string });
       } else {

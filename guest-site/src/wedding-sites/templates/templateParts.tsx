@@ -108,22 +108,40 @@ export function FamilyColumnsRow({
     titleVariant === 'script'
       ? { fontFamily: titleFontFamily, fontSize: titleSize ?? '1.55rem', lineHeight: 1.15, margin: 0, color: textColor }
       : { fontFamily: titleFontFamily, fontSize: titleSize ?? '0.72rem', letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.65, margin: 0, color: textColor };
+  // Grille à colonnes fixes (jamais de flex-wrap) : avec 3-4 colonnes, une
+  // colonne courte ne doit jamais retomber seule, centrée, sur sa propre
+  // ligne — toutes les colonnes restent alignées sur une seule rangée et se
+  // partagent l'espace disponible.
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'stretch', gap: 'clamp(1.2rem, 4cqw, 2.5rem)' }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
+        alignItems: 'stretch',
+        gap: 'clamp(0.8rem, 3cqw, 2.5rem)',
+      }}
+    >
       {columns.map((col, i) => {
         const showTitle = !hideTitles && !!col.title;
         return (
-          <div key={i} style={{ display: 'contents' }}>
-            {i > 0 ? <div style={{ width: 1, background: `${accent}40`, flexShrink: 0 }} aria-hidden /> : null}
-            <div style={{ textAlign: 'center', minWidth: 130, maxWidth: 280, flex: '1 1 0' }}>
-              {showTitle ? <p style={titleStyle}>{col.title}</p> : null}
-              <div style={{ marginTop: showTitle ? '0.45rem' : 0 }}>
-                {col.lines.map((line, j) => (
-                  <p key={j} style={{ margin: '0.18rem 0', fontFamily: bodyFontFamily, fontSize: lineSize, fontWeight: 500, lineHeight: 1.55, color: textColor }}>
-                    {line}
-                  </p>
-                ))}
-              </div>
+          <div
+            key={i}
+            style={{
+              textAlign: 'center',
+              borderInlineStart: i > 0 ? `1px solid ${accent}40` : undefined,
+              paddingInlineStart: i > 0 ? 'clamp(0.8rem, 3cqw, 1.25rem)' : undefined,
+            }}
+          >
+            {showTitle ? <p style={titleStyle}>{col.title}</p> : null}
+            <div style={{ marginTop: showTitle ? '0.45rem' : 0 }}>
+              {col.lines.map((line, j) => (
+                <p
+                  key={j}
+                  style={{ margin: '0.18rem 0', fontFamily: bodyFontFamily, fontSize: lineSize, fontWeight: 500, lineHeight: 1.55, color: textColor, overflowWrap: 'anywhere' }}
+                >
+                  {line}
+                </p>
+              ))}
             </div>
           </div>
         );

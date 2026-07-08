@@ -1463,7 +1463,10 @@ const styles = StyleSheet.create({
   modeBtnOn: { backgroundColor: '#A7AD9A' },
   publishBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#A7AD9A', alignItems: 'center', justifyContent: 'center' },
 
-  filtersScroll: { maxHeight: 48 },
+  // flexGrow:0 → la rangée se dimensionne à son contenu (puces + emojis) sans
+  // s'étirer verticalement. Un maxHeight fixe rognait les emojis/labels selon
+  // la police du téléphone.
+  filtersScroll: { flexGrow: 0 },
   filtersRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -1475,7 +1478,7 @@ const styles = StyleSheet.create({
   filterLabel: { fontSize: 12, fontWeight: '600', color: '#4b5563' },
   filterLabelOn: { color: '#fff' },
 
-  subFiltersScroll: { maxHeight: 44 },
+  subFiltersScroll: { flexGrow: 0 },
   subFiltersRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingBottom: 8 },
   subChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,

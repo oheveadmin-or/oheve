@@ -4,6 +4,16 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM = 'Oheve <noreply@ohevewedding.com>';
 const REPLY_TO = 'contact@ohevewedding.com';
+const SUPPORT = 'support@ohevewedding.com';
+
+// En-têtes qui améliorent nettement la délivrabilité chez les fournisseurs
+// stricts (Outlook/Hotmail, Orange, Wanadoo, SFR, La Poste, domaines pro…).
+// Un email transactionnel « propre » = version texte + HTML, List-Unsubscribe,
+// et un sujet sans suite de chiffres (qui déclenche les filtres anti-spam).
+const COMMON_HEADERS = {
+  'List-Unsubscribe': `<mailto:${SUPPORT}?subject=unsubscribe>`,
+  'X-Entity-Ref-ID': 'oheve-transactional',
+};
 
 function codeBlock(code: string) {
   return `
@@ -18,17 +28,40 @@ function emailWrapper(content: string) {
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"/>
     <p style="color:#9ca3af;font-size:12px;text-align:center;">
       Si tu n'as pas fait cette demande, ignore cet email.<br/>
-      Besoin d'aide ? Contacte-nous à <a href="mailto:support@ohevewedding.com" style="color:#7C8C6E;">support@ohevewedding.com</a>
+      Besoin d'aide ? Contacte-nous à <a href="mailto:${SUPPORT}" style="color:#7C8C6E;">${SUPPORT}</a>
     </p>
   </div>`;
 }
 
-export async function sendOtpEmail(to: string, code: string): Promise<void> {
+/**
+ * Envoi centralisé. Toujours une version texte + HTML : les messages HTML-only
+ * sont pénalisés (voire rejetés) par Orange, Wanadoo, Outlook et beaucoup de
+ * serveurs pro. La version texte est aussi le fallback des clients mail sobres.
+ */
+async function send(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<void> {
   await resend.emails.send({
     from: FROM,
     replyTo: REPLY_TO,
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    text: opts.text,
+    headers: COMMON_HEADERS,
+  });
+}
+
+export async function sendOtpEmail(to: string, code: string): Promise<void> {
+  await send({
     to,
-    subject: `${code} — Ton code de vérification Oheve`,
+    // Pas de code brut dans le sujet : une suite de chiffres en objet est un
+    // signal anti-spam fort chez Outlook/Orange. iOS remplit l'OTP depuis le
+    // corps du message, pas depuis l'objet.
+    subject: 'Votre code de vérification Oheve',
     html: emailWrapper(`
       <h2 style="color:#7C8C6E;margin-bottom:8px;">Vérification de ton compte</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6;">
@@ -37,6 +70,17 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
       ${codeBlock(code)}
       <p style="color:#9ca3af;font-size:13px;">Ce code est valable <strong>10 minutes</strong>. Ne le partage avec personne.</p>
     `),
+    text:
+`Vérification de ton compte Oheve
+
+Voici ton code de sécurité pour finaliser ton inscription :
+
+${code}
+
+Ce code est valable 10 minutes. Ne le partage avec personne.
+Si tu n'as pas fait cette demande, ignore cet email.
+
+Besoin d'aide ? ${SUPPORT}`,
   });
 }
 
@@ -47,11 +91,9 @@ export async function sendNewMessageEmail(opts: {
   senderNom: string;
   preview: string;
 }): Promise<void> {
-  await resend.emails.send({
-    from: FROM,
-    replyTo: REPLY_TO,
+  await send({
     to: opts.to,
-    subject: `💬 Nouveau message de ${opts.senderPrenom} ${opts.senderNom}`,
+    subject: `Nouveau message de ${opts.senderPrenom} ${opts.senderNom}`,
     html: emailWrapper(`
       <h2 style="color:#7C8C6E;margin-bottom:8px;">Tu as reçu un nouveau message</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6;">
@@ -63,6 +105,17 @@ export async function sendNewMessageEmail(opts: {
       </div>
       <p style="color:#9ca3af;font-size:13px;">Ouvre l'application pour répondre.</p>
     `),
+    text:
+`Tu as reçu un nouveau message sur Oheve
+
+Bonjour ${opts.recipientPrenom},
+${opts.senderPrenom} ${opts.senderNom} t'a envoyé un message :
+
+"${opts.preview}"
+
+Ouvre l'application pour répondre.
+
+Besoin d'aide ? ${SUPPORT}`,
   });
 }
 
@@ -77,11 +130,9 @@ export async function sendAppointmentReminderEmail(opts: {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
   const timeStr = opts.eventTime?.slice(0, 5);
-  await resend.emails.send({
-    from: FROM,
-    replyTo: REPLY_TO,
+  await send({
     to: opts.to,
-    subject: `📅 Rappel : ${opts.title} — demain`,
+    subject: `Rappel : ${opts.title} — demain`,
     html: emailWrapper(`
       <h2 style="color:#7C8C6E;margin-bottom:8px;">Rappel rendez-vous</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6;">
@@ -95,15 +146,24 @@ export async function sendAppointmentReminderEmail(opts: {
       </div>
       <p style="color:#9ca3af;font-size:13px;">Ouvre l'application pour voir les détails.</p>
     `),
+    text:
+`Rappel rendez-vous — Oheve
+
+Bonjour ${opts.prenom},
+Un rappel pour votre rendez-vous "${opts.title}" prévu demain.
+
+Date : ${dateFr}${timeStr ? `\nHeure : ${timeStr}` : ''}
+
+Ouvre l'application pour voir les détails.
+
+Besoin d'aide ? ${SUPPORT}`,
   });
 }
 
 export async function sendResetEmail(to: string, code: string, prenom: string): Promise<void> {
-  await resend.emails.send({
-    from: FROM,
-    replyTo: REPLY_TO,
+  await send({
     to,
-    subject: `${code} — Réinitialisation de ton mot de passe Oheve`,
+    subject: 'Réinitialisation de ton mot de passe Oheve',
     html: emailWrapper(`
       <h2 style="color:#7C8C6E;margin-bottom:8px;">Réinitialisation du mot de passe</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6;">
@@ -114,6 +174,18 @@ export async function sendResetEmail(to: string, code: string, prenom: string): 
       ${codeBlock(code)}
       <p style="color:#9ca3af;font-size:13px;">Ce code est valable <strong>15 minutes</strong>. Ne le partage avec personne.</p>
     `),
+    text:
+`Réinitialisation du mot de passe Oheve
+
+Bonjour ${prenom},
+Tu as demandé à réinitialiser ton mot de passe. Utilise ce code dans l'application :
+
+${code}
+
+Ce code est valable 15 minutes. Ne le partage avec personne.
+Si tu n'as pas fait cette demande, ignore cet email.
+
+Besoin d'aide ? ${SUPPORT}`,
   });
 }
 
@@ -124,11 +196,9 @@ export async function sendInvitationEmail(opts: {
   weddingDate: string;
   siteUrl: string;
 }): Promise<void> {
-  await resend.emails.send({
-    from: FROM,
-    replyTo: REPLY_TO,
+  await send({
     to: opts.to,
-    subject: `💌 Vous êtes invité(e) au mariage de ${opts.coupleNames}`,
+    subject: `Vous êtes invité(e) au mariage de ${opts.coupleNames}`,
     html: emailWrapper(`
       <h2 style="color:#7C8C6E;margin-bottom:8px;">Vous êtes invité(e) !</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6;">
@@ -143,5 +213,16 @@ export async function sendInvitationEmail(opts: {
       </div>
       <p style="color:#9ca3af;font-size:13px;text-align:center;">Vous pouvez également confirmer votre présence depuis ce lien.</p>
     `),
+    text:
+`Vous êtes invité(e) au mariage de ${opts.coupleNames} !
+
+Bonjour ${opts.guestPrenom},
+${opts.coupleNames} ont le plaisir de vous inviter à célébrer leur mariage le ${opts.weddingDate}.
+
+Voir le site du mariage : ${opts.siteUrl}
+
+Vous pouvez également confirmer votre présence depuis ce lien.
+
+Besoin d'aide ? ${SUPPORT}`,
   });
 }
