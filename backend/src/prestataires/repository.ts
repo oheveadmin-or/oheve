@@ -75,7 +75,12 @@ export class PrestatairesRepository {
               ph.url AS cover_url
        FROM prestataire_profiles p
        JOIN users u ON u.id=p.user_id
-       LEFT JOIN prestataire_photos ph ON ph.prestataire_id=p.id AND ph.is_cover=true
+       LEFT JOIN LATERAL (
+         SELECT url FROM prestataire_photos
+         WHERE prestataire_id=p.id
+         ORDER BY is_cover DESC, created_at DESC
+         LIMIT 1
+       ) ph ON true
        WHERE p.user_id=$1`,
       [userId]
     );
@@ -104,7 +109,12 @@ export class PrestatairesRepository {
               ph.url AS cover_url
        FROM prestataire_profiles p
        JOIN users u ON u.id=p.user_id
-       LEFT JOIN prestataire_photos ph ON ph.prestataire_id=p.id AND ph.is_cover=true
+       LEFT JOIN LATERAL (
+         SELECT url FROM prestataire_photos
+         WHERE prestataire_id=p.id
+         ORDER BY is_cover DESC, created_at DESC
+         LIMIT 1
+       ) ph ON true
        ${where}
        ORDER BY
          CASE WHEN u.subscription_plan='plus' AND u.subscription_status='active' THEN 0
