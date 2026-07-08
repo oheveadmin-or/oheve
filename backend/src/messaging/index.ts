@@ -26,14 +26,22 @@ const ALLOWED_MIME = new Set([
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  // Certains uploads (FileSystem.uploadAsync) envoient un type générique : on
+  // l'accepte, la validation fine se fait via l'extension côté allowedExt.
+  'application/octet-stream',
 ]);
+const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.pdf', '.doc', '.docx']);
 
 const chatUpload = multer({
   storage: chatStorage,
   limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB max
   fileFilter: (_req, file, cb) => {
-    if (ALLOWED_MIME.has(file.mimetype)) cb(null, true);
-    else cb(new Error('Type de fichier non autorisé (images, PDF, Word uniquement)'));
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (file.mimetype.startsWith('image/') || ALLOWED_MIME.has(file.mimetype) || ALLOWED_EXT.has(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Type de fichier non autorisé (images, PDF, Word uniquement)'));
+    }
   },
 });
 

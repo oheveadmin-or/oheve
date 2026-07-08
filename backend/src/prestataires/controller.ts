@@ -12,14 +12,14 @@ export class PrestatairesController {
       return res.status(403).json({ success: false, message: 'Réservé aux prestataires' });
     }
     const { business_name, category, description, location_city, location_country,
-            price_min, price_max, website_url, instagram_url } = req.body;
+            price_min, price_max, price_range, phone, website_url, instagram_url } = req.body;
     if (!business_name || !category) {
       return res.status(400).json({ success: false, message: 'Nom et catégorie requis' });
     }
     try {
       const profile = await repo.upsert(userId, {
         business_name, category, description, location_city,
-        location_country, price_min, price_max, website_url, instagram_url,
+        location_country, price_min, price_max, price_range, phone, website_url, instagram_url,
       });
       return res.status(200).json({ success: true, data: profile });
     } catch (err) {

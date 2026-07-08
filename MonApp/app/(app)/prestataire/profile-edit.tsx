@@ -21,15 +21,22 @@ import { useAuth } from '@/contexts/auth-context';
 import { prestatairesApi, uploadFile } from '@/services/auth/api';
 import { API_ENDPOINTS } from '@/constants/config';
 
+// Taxonomie unifiée avec les catégories côté client (providers.tsx) + reels.
 const CATEGORIES = [
-  { key: 'traiteur', label: 'Traiteur', icon: '🍽️' },
-  { key: 'photographe', label: 'Photographe', icon: '📸' },
-  { key: 'fleuriste', label: 'Fleuriste', icon: '💐' },
-  { key: 'musique', label: 'Musique / DJ', icon: '🎵' },
-  { key: 'decoration', label: 'Décoration', icon: '✨' },
   { key: 'salle', label: 'Salle / Lieu', icon: '🏛️' },
+  { key: 'traiteur', label: 'Traiteur', icon: '🍽️' },
+  { key: 'photo', label: 'Photo & Vidéo', icon: '📸' },
+  { key: 'musique', label: 'Musique / DJ', icon: '🎵' },
+  { key: 'fleuriste', label: 'Déco & Fleurs', icon: '💐' },
+  { key: 'beaute', label: 'Beauté', icon: '💄' },
   { key: 'tenues', label: 'Tenues', icon: '👗' },
-  { key: 'autres', label: 'Autres', icon: '🎊' },
+  { key: 'transport', label: 'Transport', icon: '🚗' },
+  { key: 'juif', label: 'Mariage Juif', icon: '✡️' },
+  { key: 'chabbat-hattan', label: 'Chabbat Hattan', icon: '🕍' },
+  { key: 'patisserie', label: 'Pâtisserie', icon: '🧁' },
+  { key: 'planner', label: 'Wedding Planner', icon: '📋' },
+  { key: 'animation', label: 'Animation', icon: '🎉' },
+  { key: 'autre', label: 'Autre', icon: '🎊' },
 ];
 
 type ProfileData = {
@@ -100,10 +107,16 @@ export default function PrestataireProfileEdit() {
       Alert.alert('Permission requise', 'Autorisez l\'accès à votre galerie dans les Réglages.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.85,
-    });
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.85,
+      });
+    } catch {
+      Alert.alert('Photo illisible', "Cette photo n'a pas pu être lue (image iCloud non téléchargée ?). Choisissez-en une autre.");
+      return;
+    }
     if (result.canceled || !result.assets[0]) return;
 
     setUploadingCover(true);
@@ -142,6 +155,8 @@ export default function PrestataireProfileEdit() {
         description: form.description.trim() || undefined,
         instagram_url: form.instagram.trim() || undefined,
         website_url: form.website.trim() || undefined,
+        price_range: form.price_range.trim() || undefined,
+        phone: form.phone.trim() || undefined,
       });
       if (res.success) {
         Alert.alert('Profil mis à jour', 'Vos informations ont été sauvegardées.', [

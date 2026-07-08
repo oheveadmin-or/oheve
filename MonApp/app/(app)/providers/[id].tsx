@@ -47,6 +47,7 @@ type ApiRow = {
   adresse: string;
   ville: string;
   instagram: string;
+  website: string;
 };
 
 export default function ProviderDetailScreen() {
@@ -80,23 +81,27 @@ export default function ProviderDetailScreen() {
         .then((res: { success?: boolean; data?: {
           business_name?: string; category?: string; description?: string;
           location_city?: string; price_min?: number; price_max?: number;
+          price_range?: string; phone?: string; website_url?: string;
           email?: string; instagram_url?: string;
         } }) => {
           if (res?.success && res.data) {
             const p = res.data;
-            const prix = p.price_min && p.price_max
-              ? `${p.price_min} – ${p.price_max} €`
-              : p.price_min ? `À partir de ${p.price_min} €` : 'Sur devis';
+            const prix = p.price_range?.trim()
+              ? p.price_range.trim()
+              : p.price_min && p.price_max
+                ? `${p.price_min} – ${p.price_max} €`
+                : p.price_min ? `À partir de ${p.price_min} €` : 'Sur devis';
             setApiRow({
               nom: p.business_name ?? '',
               categorie: p.category ?? '',
-              tel: '-',
+              tel: p.phone?.trim() || '-',
               email: p.email ?? '-',
               prix,
               desc: p.description ?? 'Description à venir.',
               adresse: p.location_city ?? '-',
               ville: p.location_city ?? '-',
               instagram: p.instagram_url ?? '-',
+              website: p.website_url?.trim() || '-',
             });
           }
         })
@@ -118,7 +123,8 @@ export default function ProviderDetailScreen() {
         adresse: saved.adresse,
         ville: saved.ville,
         instagram: saved.instagram,
-        prix: '—',
+        website: apiRow?.website ?? '-',
+        prix: apiRow?.prix ?? '—',
         desc: `Catégorie : ${CATEGORIES_LABEL(saved.categorie)} • Note : ${saved.note}/5`,
       };
     }
@@ -130,6 +136,7 @@ export default function ProviderDetailScreen() {
         adresse: apiRow.adresse,
         ville: apiRow.ville,
         instagram: apiRow.instagram,
+        website: apiRow.website,
         prix: apiRow.prix,
         desc: apiRow.desc,
       };
@@ -160,6 +167,12 @@ export default function ProviderDetailScreen() {
   const instagramUrl = (handle: string) => {
     const h = handle.trim().replace(/^@/, '');
     return h ? `https://instagram.com/${h}` : null;
+  };
+
+  const websiteUrl = (raw: string) => {
+    const w = raw.trim();
+    if (!w) return null;
+    return /^https?:\/\//i.test(w) ? w : `https://${w}`;
   };
 
   const goBack = () => {
@@ -292,6 +305,19 @@ export default function ProviderDetailScreen() {
                     <ThemedText style={styles.infoLabel}>Instagram</ThemedText>
                     <Pressable onPress={() => { const url = instagramUrl(display.instagram); if (url) Linking.openURL(url); }}>
                       <ThemedText style={styles.infoLink}>{display.instagram}</ThemedText>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+              {display.website && display.website !== '-' && (
+                <View style={styles.infoRow}>
+                  <View style={styles.infoIconWrap}>
+                    <Ionicons name="globe-outline" size={15} color="#3b82f6" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.infoLabel}>Site web</ThemedText>
+                    <Pressable onPress={() => { const url = websiteUrl(display.website); if (url) Linking.openURL(url); }}>
+                      <ThemedText style={styles.infoLink} numberOfLines={1}>{display.website}</ThemedText>
                     </Pressable>
                   </View>
                 </View>

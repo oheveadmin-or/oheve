@@ -60,14 +60,27 @@ function toIso(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+// Normalise une valeur date en 'YYYY-MM-DD'. Le serveur peut renvoyer soit une
+// date brute ('2026-07-10'), soit un timestamp complet ('2026-07-10T00:00:00.000Z')
+// selon que le parseur DATE backend est déployé ou non : on prend toujours la
+// partie date pour éviter les "Invalid Date".
+function dateOnly(v?: string | null): string {
+  if (!v) return '';
+  return String(v).slice(0, 10);
+}
+
 function formatDateFr(iso?: string | null): string {
-  if (!iso) return 'Date à définir';
-  const d = new Date(`${iso}T12:00:00`);
+  const d0 = dateOnly(iso);
+  if (!d0) return 'Date à définir';
+  const d = new Date(`${d0}T12:00:00`);
+  if (isNaN(d.getTime())) return 'Date à définir';
   return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 function formatDateLong(iso: string): string {
-  const d = new Date(`${iso}T12:00:00`);
+  const d0 = dateOnly(iso);
+  const d = new Date(`${d0}T12:00:00`);
+  if (isNaN(d.getTime())) return 'Date à définir';
   return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
@@ -295,7 +308,9 @@ function ClientCalendar() {
     setLoading(true);
     try {
       const res = await calendarApi.listEvents(user.accessToken);
-      if (res?.success) setEvents(res.data ?? []);
+      if (res?.success) {
+        setEvents((res.data ?? []).map((e: CalendarEvent) => ({ ...e, event_date: dateOnly(e.event_date) || null })));
+      }
     } catch { /* ignoré */ }
     setLoading(false);
   }, [user?.accessToken]);
@@ -651,10 +666,20 @@ function PrestataireAgenda() {
         calendarApi.listAppointments(user.accessToken),
         calendarApi.getMyAvailability(user.accessToken),
       ]);
-      if (apptRes?.success) setRequests(apptRes.data ?? []);
+      if (apptRes?.success) {
+        setRequests((apptRes.data ?? []).map((r: AppointmentRequest) => ({
+          ...r,
+          requested_date: dateOnly(r.requested_date),
+          proposed_date: r.proposed_date ? dateOnly(r.proposed_date) : r.proposed_date,
+        })));
+      }
       if (availRes?.success && availRes.data) {
         setSettings(availRes.data.settings ?? null);
-        setBlocked(availRes.data.blocked ?? []);
+        setBlocked((availRes.data.blocked ?? []).map((b: { id: number; start_date: string; end_date: string; reason?: string }) => ({
+          ...b,
+          start_date: dateOnly(b.start_date),
+          end_date: dateOnly(b.end_date),
+        })));
         if (availRes.data.settings) {
           setWorkStart(availRes.data.settings.work_start);
           setWorkEnd(availRes.data.settings.work_end);
@@ -708,14 +733,24 @@ function PrestataireAgenda() {
 
   const saveSettings = async () => {
     if (!user?.accessToken) return;
-    const res = await calendarApi.updateMyAvailability(user.accessToken, {
-      working_days: workingDays, work_start: workStart, work_end: workEnd,
-      slot_duration_minutes: parseInt(slotDuration, 10) || 60,
-    });
-    if (res?.success) {
-      setSettings(res.data);
-      setShowSettings(false);
-      Alert.alert('Enregistré', 'Vos disponibilités ont été mises à jour.');
+    if (workingDays.length === 0) {
+      Alert.alert('Jours manquants', 'Sélectionnez au moins un jour travaillé.');
+      return;
+    }
+    try {
+      const res = await calendarApi.updateMyAvailability(user.accessToken, {
+        working_days: workingDays, work_start: workStart, work_end: workEnd,
+        slot_duration_minutes: parseInt(slotDuration, 10) || 60,
+      });
+      if (res?.success) {
+        setSettings(res.data);
+        setShowSettings(false);
+        Alert.alert('Enregistré', 'Vos disponibilités ont été mises à jour.');
+      } else {
+        Alert.alert('Erreur', res?.message ?? 'Impossible d\'enregistrer vos disponibilités.');
+      }
+    } catch {
+      Alert.alert('Erreur', 'Vérifiez votre connexion et réessayez.');
     }
   };
 
@@ -930,7 +965,7 @@ function PrestataireAgenda() {
       {/* Modal disponibilités */}
       <Modal visible={showSettings} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.modalHandle} />
             <ThemedText style={styles.modalTitle}>Mes disponibilités</ThemedText>
             <ThemedText style={styles.modalLabel}>Jours travaillés</ThemedText>
@@ -969,7 +1004,7 @@ function PrestataireAgenda() {
       {/* Modal contre-proposition */}
       <Modal visible={!!counterModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.modalHandle} />
             <ThemedText style={styles.modalTitle}>Proposer un autre créneau</ThemedText>
             <ThemedText style={styles.modalLabel}>Date (AAAA-MM-JJ)</ThemedText>
