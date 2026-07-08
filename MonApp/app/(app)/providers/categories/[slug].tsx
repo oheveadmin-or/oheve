@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   retourBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   retourText: { color: C.saugeDark, fontSize: 15, fontWeight: '600' },
   wrap: { flex: 1, paddingHorizontal: 20 },
-  title: { fontSize: 24, fontWeight: '800', color: C.textDark, marginBottom: 2 },
+  title: { fontSize: 24, lineHeight: 31, fontWeight: '800', color: C.textDark, marginBottom: 2 },
   subtitle: { fontSize: 13, color: C.textLight, marginBottom: 14 },
   searchRow: {
     flexDirection: 'row',

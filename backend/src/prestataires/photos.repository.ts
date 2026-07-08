@@ -6,6 +6,7 @@ export interface PhotoRow {
   url: string;
   filename: string;
   is_cover: boolean;
+  caption?: string | null;
   created_at: string;
 }
 
@@ -30,6 +31,14 @@ export class PhotosRepository {
       [prestataireId, url, filename, isCover]
     );
     return r.rows[0] as PhotoRow;
+  }
+
+  async updateCaption(prestataireId: number, photoId: number, caption: string): Promise<PhotoRow | null> {
+    const r = await pool.query(
+      `UPDATE prestataire_photos SET caption=$1 WHERE id=$2 AND prestataire_id=$3 RETURNING *`,
+      [caption.trim() || null, photoId, prestataireId]
+    );
+    return (r.rows[0] as PhotoRow) ?? null;
   }
 
   async setCover(prestataireId: number, photoId: number): Promise<void> {
@@ -61,9 +70,9 @@ export class PhotosRepository {
     return deleted;
   }
 
-  async findFeedPhotos(limit: number, offset: number, viewerUserId?: number): Promise<(PhotoRow & { business_name: string; category: string; prenom: string; nom: string; like_count: number; comment_count: number; liked_by_me: boolean })[]> {
+  async findFeedPhotos(limit: number, offset: number, viewerUserId?: number): Promise<(PhotoRow & { business_name: string; category: string; prenom: string; nom: string; like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null })[]> {
     const r = await pool.query(
-      `SELECT pp.id, pp.filename, pp.is_cover, pp.created_at,
+      `SELECT pp.id, pp.filename, pp.is_cover, pp.caption, pp.created_at,
               p.business_name, p.category,
               u.id AS user_id, u.prenom, u.nom,
               COUNT(DISTINCT pl.id)::int AS like_count,
@@ -76,7 +85,7 @@ export class PhotosRepository {
        LEFT JOIN photo_comments pc ON pc.photo_id = pp.id
        LEFT JOIN photo_likes pl2 ON pl2.photo_id = pp.id AND pl2.user_id = $3
        WHERE COALESCE(p.is_hidden, false) = false AND COALESCE(p.is_suspended, false) = false
-       GROUP BY pp.id, p.business_name, p.category, u.id, u.prenom, u.nom
+       GROUP BY pp.id, pp.caption, p.business_name, p.category, u.id, u.prenom, u.nom
        ORDER BY pp.created_at DESC
        LIMIT $1 OFFSET $2`,
       [limit, offset, viewerUserId ?? 0]

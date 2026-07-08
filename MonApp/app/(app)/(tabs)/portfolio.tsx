@@ -6,9 +6,13 @@ import { useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
   Dimensions,
 } from 'react-native';
@@ -16,6 +20,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { prestatairesApi, uploadFile } from '@/services/auth/api';
 import { API_ENDPOINTS } from '@/constants/config';
@@ -23,7 +28,7 @@ import { API_ENDPOINTS } from '@/constants/config';
 const AnimatedView = Animated.createAnimatedComponent(View);
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const PADDING = 24;
+const PADDING = 20;
 const GAP = 10;
 const PHOTO_SIZE = (SCREEN_WIDTH - PADDING * 2 - GAP * 2) / 3;
 
@@ -31,6 +36,7 @@ type Photo = {
   id: number;
   url: string;
   is_cover: boolean;
+  caption?: string | null;
 };
 
 export default function PortfolioScreen() {
@@ -38,6 +44,35 @@ export default function PortfolioScreen() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [gridW, setGridW] = useState(0);
+  const [captionPhoto, setCaptionPhoto] = useState<Photo | null>(null);
+  const [captionText, setCaptionText] = useState('');
+  const [savingCaption, setSavingCaption] = useState(false);
+
+  const tileSize = gridW > 0 ? (gridW - GAP * 2) / 3 : PHOTO_SIZE;
+
+  const openCaption = (photo: Photo) => {
+    setCaptionPhoto(photo);
+    setCaptionText(photo.caption ?? '');
+  };
+
+  const saveCaption = async () => {
+    if (!captionPhoto || !user?.accessToken) return;
+    setSavingCaption(true);
+    try {
+      const res = await prestatairesApi.updatePhotoCaption(user.accessToken, captionPhoto.id, captionText);
+      if (res?.success) {
+        const newCaption = captionText.trim() || null;
+        setPhotos((prev) => prev.map((p) => (p.id === captionPhoto.id ? { ...p, caption: newCaption } : p)));
+        setCaptionPhoto(null);
+      } else {
+        Alert.alert('Erreur', res?.message || 'Impossible d\'enregistrer la description.');
+      }
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer la description.');
+    }
+    setSavingCaption(false);
+  };
 
   const fetchPhotos = useCallback(async () => {
     if (!user?.accessToken) { setLoading(false); return; }
@@ -182,9 +217,7 @@ export default function PortfolioScreen() {
             {coverPhoto ? (
               <Pressable
                 style={styles.coverCard}
-                onLongPress={() =>
-                  Alert.alert('Photo de couverture', 'Choisir une autre photo dans la grille')
-                }
+                onPress={() => openCaption(coverPhoto)}
               >
                 <Image
                   source={{ uri: coverPhoto.url }}
@@ -201,6 +234,12 @@ export default function PortfolioScreen() {
                 >
                   <Ionicons name="trash-outline" size={16} color="#fff" />
                 </Pressable>
+                <View style={styles.coverCaptionBar}>
+                  <Ionicons name="text-outline" size={13} color="#fff" />
+                  <ThemedText style={styles.coverCaptionTxt} numberOfLines={1}>
+                    {coverPhoto.caption || 'Ajouter une description'}
+                  </ThemedText>
+                </View>
               </Pressable>
             ) : (
               <Pressable style={styles.coverEmpty} onPress={pickAndUpload}>
@@ -228,9 +267,13 @@ export default function PortfolioScreen() {
               )}
             </View>
 
-            <View style={styles.grid}>
+            <ThemedText style={styles.gridSubHint}>
+              Appuyez sur une photo pour ajouter une description
+            </ThemedText>
+
+            <View style={styles.grid} onLayout={(e) => setGridW(e.nativeEvent.layout.width)}>
               {/* Add photo tile */}
-              <Pressable style={styles.addTile} onPress={pickAndUpload}>
+              <Pressable style={[styles.addTile, { width: tileSize, height: tileSize }]} onPress={pickAndUpload}>
                 <Ionicons name="add-circle-outline" size={32} color="#A7AD9A" />
                 <ThemedText style={styles.addTileText}>Ajouter{'\n'}des photos</ThemedText>
               </Pressable>
@@ -239,12 +282,14 @@ export default function PortfolioScreen() {
               {photos.map((photo) => (
                 <Pressable
                   key={photo.id}
-                  style={[styles.photoTile, photo.is_cover && styles.photoTileCover]}
+                  style={[styles.photoTile, { width: tileSize, height: tileSize }, photo.is_cover && styles.photoTileCover]}
+                  onPress={() => openCaption(photo)}
                   onLongPress={() =>
                     Alert.alert(
                       photo.is_cover ? 'Photo de couverture' : 'Photo',
                       'Que voulez-vous faire ?',
                       [
+                        { text: photo.caption ? 'Modifier la description' : 'Ajouter une description', onPress: () => openCaption(photo) },
                         !photo.is_cover
                           ? { text: 'Définir comme couverture', onPress: () => setCover(photo.id) }
                           : { text: 'Annuler', style: 'cancel' },
@@ -266,6 +311,15 @@ export default function PortfolioScreen() {
                   {photo.is_cover && (
                     <View style={styles.photoCoverBadge}>
                       <Ionicons name="star" size={10} color="#fff" />
+                    </View>
+                  )}
+                  {photo.caption ? (
+                    <View style={styles.captionOverlay}>
+                      <ThemedText style={styles.captionOverlayTxt} numberOfLines={2}>{photo.caption}</ThemedText>
+                    </View>
+                  ) : (
+                    <View style={styles.captionAddBadge}>
+                      <Ionicons name="text-outline" size={11} color="#fff" />
                     </View>
                   )}
                 </Pressable>
@@ -310,6 +364,38 @@ export default function PortfolioScreen() {
           </AnimatedView>
         </ScrollView>
       )}
+
+      {/* ── Modal description photo ──────────────────────────────────── */}
+      <Modal visible={!!captionPhoto} transparent animationType="slide" onRequestClose={() => setCaptionPhoto(null)}>
+        <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable style={styles.captionOverlayBg} onPress={() => setCaptionPhoto(null)} />
+          <View style={styles.captionSheet}>
+            <View style={styles.captionHandle} />
+            {captionPhoto && (
+              <Image source={{ uri: captionPhoto.url }} style={styles.captionPreview} contentFit="cover" />
+            )}
+            <ThemedText style={styles.captionSheetTitle}>Description de la photo</ThemedText>
+            <TextInput
+              style={styles.captionInput}
+              placeholder="Décrivez cette réalisation (lieu, style, prestation...)"
+              placeholderTextColor="#A09890"
+              value={captionText}
+              onChangeText={setCaptionText}
+              multiline
+              maxLength={280}
+              autoFocus
+            />
+            <ThemedText style={styles.captionCount}>{captionText.length}/280</ThemedText>
+            <Pressable style={[styles.captionSaveBtn, savingCaption && { opacity: 0.6 }]} onPress={saveCaption} disabled={savingCaption}>
+              {savingCaption ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <ThemedText style={styles.captionSaveTxt}>Enregistrer</ThemedText>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScreenLayout>
   );
 }
@@ -322,7 +408,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   overline: { fontSize: 13, color: '#7a72a1', marginBottom: 2 },
-  title: { fontSize: 34, fontWeight: '800', color: '#1c1535' },
+  title: { fontSize: 30, lineHeight: 38, fontWeight: '800', color: '#1c1535' },
   uploadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -397,6 +483,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   gridHint: { fontSize: 12, color: '#9ca3af' },
+  gridSubHint: { fontSize: 12, color: '#9ca3af', marginBottom: 10, marginTop: -4 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -432,6 +519,46 @@ const styles = StyleSheet.create({
     borderColor: '#A7AD9A',
   },
   photoImage: { width: '100%', height: '100%' },
+  captionOverlay: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: 6, paddingVertical: 4,
+  },
+  captionOverlayTxt: { fontSize: 9, color: '#fff', fontWeight: '600', lineHeight: 12 },
+  captionAddBadge: {
+    position: 'absolute', bottom: 6, left: 6,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  coverCaptionBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: 12, paddingVertical: 8,
+  },
+  coverCaptionTxt: { flex: 1, fontSize: 12, color: '#fff', fontWeight: '600' },
+
+  // Modal description
+  captionOverlayBg: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.4)' },
+  captionSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, paddingBottom: 32, gap: 10,
+  },
+  captionHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 6 },
+  captionPreview: { width: '100%', height: 150, borderRadius: 14, backgroundColor: '#ede9fe' },
+  captionSheetTitle: { fontSize: 16, fontWeight: '800', color: '#1c1535', marginTop: 4 },
+  captionInput: {
+    borderWidth: 1.5, borderColor: C.border, borderRadius: 14,
+    padding: 14, fontSize: 14, minHeight: 90, textAlignVertical: 'top',
+    color: '#1c1535', backgroundColor: '#fafafa',
+  },
+  captionCount: { fontSize: 11, color: '#9ca3af', textAlign: 'right' },
+  captionSaveBtn: {
+    backgroundColor: C.sauge, borderRadius: 14, paddingVertical: 15,
+    alignItems: 'center', marginTop: 4,
+  },
+  captionSaveTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
   photoCoverBadge: {
     position: 'absolute',
     top: 6,

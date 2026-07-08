@@ -159,6 +159,25 @@ export class PhotosController {
     }
   }
 
+  async updateCaption(req: Request, res: Response) {
+    try {
+      const photoId = parseInt(req.params.photoId, 10);
+      const caption = typeof req.body?.caption === 'string' ? req.body.caption : '';
+      const prestataireId = await repo.findPrestataireIdByUserId(req.auth!.sub);
+      if (prestataireId === null) {
+        return res.status(404).json({ success: false, message: 'Profil introuvable' });
+      }
+      const updated = await repo.updateCaption(prestataireId, photoId, caption);
+      if (!updated) {
+        return res.status(404).json({ success: false, message: 'Photo introuvable' });
+      }
+      return res.status(200).json({ success: true, data: { ...updated, url: buildPhotoUrl(req, updated.filename) } });
+    } catch (err) {
+      console.error('updateCaption:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
   async deletePhoto(req: Request, res: Response) {
     try {
       const photoId = parseInt(req.params.photoId, 10);

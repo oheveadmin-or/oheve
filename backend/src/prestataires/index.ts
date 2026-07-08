@@ -38,6 +38,7 @@ prestatairesRoutes.get('/feed/photos', optionalAuth, photos.getFeedPhotos.bind(p
 prestatairesRoutes.get('/me/photos', requireAuth, photos.getMyPhotos.bind(photos));
 prestatairesRoutes.post('/me/photos', requireAuth, upload.single('photo'), photos.uploadPhoto.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/cover', requireAuth, photos.setCover.bind(photos));
+prestatairesRoutes.put('/me/photos/:photoId/caption', requireAuth, photos.updateCaption.bind(photos));
 prestatairesRoutes.delete('/me/photos/:photoId', requireAuth, photos.deletePhoto.bind(photos));
 
 // ── Likes & commentaires ─────────────────────────────────────────────────────
@@ -47,4 +48,5 @@ prestatairesRoutes.post('/photos/:photoId/comments', requireAuth, photos.addComm
 
 // ── Profil & photos par userId ────────────────────────────────────────────────
 prestatairesRoutes.get('/:userId/photos', requireAuth, photos.getPhotos.bind(photos));
+prestatairesRoutes.post('/:userId/view', optionalAuth, ctrl.recordView.bind(ctrl));
 prestatairesRoutes.get('/:userId', optionalAuth, ctrl.getById.bind(ctrl));

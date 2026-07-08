@@ -169,6 +169,22 @@ export const prestatairesApi = {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
     }).then((r) => r.json()),
+
+  updatePhotoCaption: (accessToken: string, photoId: number, caption: string) => {
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
+    return fetch(`${API_ENDPOINTS.prestataires}/me/photos/${photoId}/caption`, {
+      method: 'PUT', headers, body: JSON.stringify({ caption }),
+    }).then((r) => r.json());
+  },
+
+  // Enregistre une vue du profil (appelé quand un client ouvre la fiche)
+  recordView: (userId: number, accessToken?: string) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    return fetch(`${API_ENDPOINTS.prestataires}/${userId}/view`, {
+      method: 'POST', headers,
+    }).then((r) => r.json()).catch(() => null);
+  },
 };
 
 // ── Messagerie ────────────────────────────────────────────────────────────────

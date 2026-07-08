@@ -17,6 +17,7 @@ export interface PrestaProfileRow {
   is_verified: boolean;
   rating: number;
   reviews_count: number;
+  profile_views?: number;
   created_at: string;
   // joined fields
   email?: string;
@@ -100,7 +101,7 @@ export class PrestatairesRepository {
               ph.url AS cover_url
        FROM prestataire_profiles p
        JOIN users u ON u.id=p.user_id
-       LEFT JOIN prestataire_photos ph ON ph.prestataire_id=p.user_id AND ph.is_cover=true
+       LEFT JOIN prestataire_photos ph ON ph.prestataire_id=p.id AND ph.is_cover=true
        ${where}
        ORDER BY
          CASE WHEN u.subscription_plan='plus' AND u.subscription_status='active' THEN 0
@@ -116,5 +117,15 @@ export class PrestatairesRepository {
 
   async setVerified(userId: number, verified: boolean) {
     await pool.query(`UPDATE prestataire_profiles SET is_verified=$1 WHERE user_id=$2`, [verified, userId]);
+  }
+
+  /** Incrémente le compteur de vues du profil et renvoie le nouveau total (null si pas de profil). */
+  async incrementViews(userId: number): Promise<number | null> {
+    const r = await pool.query(
+      `UPDATE prestataire_profiles SET profile_views = COALESCE(profile_views, 0) + 1
+       WHERE user_id=$1 RETURNING profile_views`,
+      [userId]
+    );
+    return r.rows[0]?.profile_views ?? null;
   }
 }

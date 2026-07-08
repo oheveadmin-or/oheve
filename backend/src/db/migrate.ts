@@ -512,6 +512,10 @@ export async function runMigrations(): Promise<void> {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_wedding_guests_user ON wedding_guests(user_id)`);
 
+    // ── Description par photo + compteur de vues du profil prestataire ─────────
+    await pool.query(`ALTER TABLE prestataire_photos ADD COLUMN IF NOT EXISTS caption TEXT`);
+    await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS profile_views INTEGER NOT NULL DEFAULT 0`);
+
     console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp, payments, stripe_connect, devis, reservations, calendar, admin, photo_likes, photo_comments)');
   } catch (err) {
     console.error('❌ Migration DB:', (err as Error).message);

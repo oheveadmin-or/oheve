@@ -1453,10 +1453,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingBottom: 10,
+    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10,
   },
   overline: { fontSize: 13, color: '#A09890', fontWeight: '500' },
-  title: { fontSize: 32, fontWeight: '800', color: '#3D3530', letterSpacing: -0.5 },
+  title: { fontSize: 30, lineHeight: 38, fontWeight: '800', color: '#3D3530', letterSpacing: -0.5 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 4 },
   modeToggle: { flexDirection: 'row', borderRadius: 10, borderWidth: 1.5, borderColor: '#ede9fe', overflow: 'hidden' },
   modeBtn: { padding: 7, backgroundColor: '#fafafa' },

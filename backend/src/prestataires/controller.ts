@@ -51,6 +51,25 @@ export class PrestatairesController {
     }
   }
 
+  /** Enregistre une vue du profil (uniquement quand un autre utilisateur le consulte). */
+  async recordView(req: Request, res: Response) {
+    const userId = parseInt(req.params.userId, 10);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ success: false, message: 'Identifiant invalide' });
+    }
+    try {
+      // On ne compte pas les vues du prestataire sur son propre profil
+      if (req.auth?.sub === userId) {
+        return res.status(200).json({ success: true, data: { counted: false } });
+      }
+      const views = await repo.incrementViews(userId);
+      return res.status(200).json({ success: true, data: { counted: views !== null, profile_views: views } });
+    } catch (err) {
+      console.error('recordView:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
   async list(req: Request, res: Response) {
     const { category, city, limit, offset } = req.query;
     try {

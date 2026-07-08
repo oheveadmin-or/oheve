@@ -35,7 +35,7 @@ import {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const AnimatedView = Animated.createAnimatedComponent(View);
 
-type Photo = { id: number; url: string; is_cover: boolean };
+type Photo = { id: number; url: string; is_cover: boolean; caption?: string | null };
 
 type ApiRow = {
   nom: string;
@@ -59,6 +59,7 @@ export default function ProviderDetailScreen() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [apiRow, setApiRow] = useState<ApiRow | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [paymentModal, setPaymentModal] = useState(false);
   const [bookingModal, setBookingModal] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -67,6 +68,9 @@ export default function ProviderDetailScreen() {
     if (!user?.accessToken || !id) { setLoadingProfile(false); return; }
     const numId = parseInt(id, 10);
     if (isNaN(numId)) { setLoadingProfile(false); return; }
+
+    // Enregistre une vue du profil (non comptée si le prestataire consulte le sien)
+    prestatairesApi.recordView(numId, user.accessToken);
 
     prestatairesApi
       .getPhotos(user.accessToken, numId)
@@ -82,10 +86,11 @@ export default function ProviderDetailScreen() {
           business_name?: string; category?: string; description?: string;
           location_city?: string; price_min?: number; price_max?: number;
           price_range?: string; phone?: string; website_url?: string;
-          email?: string; instagram_url?: string;
+          email?: string; instagram_url?: string; avatar_url?: string;
         } }) => {
           if (res?.success && res.data) {
             const p = res.data;
+            if (p.avatar_url) setAvatarUrl(p.avatar_url);
             const prix = p.price_range?.trim()
               ? p.price_range.trim()
               : p.price_min && p.price_max
@@ -188,6 +193,11 @@ export default function ProviderDetailScreen() {
           {selectedPhoto && (
             <AnimatedView entering={FadeIn.springify()} style={styles.modalImageWrap}>
               <Image source={{ uri: selectedPhoto.url }} style={styles.modalImage} contentFit="contain" />
+              {selectedPhoto.caption ? (
+                <View style={styles.modalCaption}>
+                  <ThemedText style={styles.modalCaptionTxt}>{selectedPhoto.caption}</ThemedText>
+                </View>
+              ) : null}
             </AnimatedView>
           )}
           <Pressable style={styles.modalClose} onPress={() => setSelectedPhoto(null)}>
@@ -214,11 +224,15 @@ export default function ProviderDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* ── Photo de couverture hero ─────────────────────────────── */}
-        {coverPhoto ? (
-          <Pressable style={styles.heroWrap} onPress={() => setSelectedPhoto(coverPhoto)}>
-            <Image source={{ uri: coverPhoto.url }} style={styles.heroImage} contentFit="cover" />
+        {(coverPhoto || avatarUrl) ? (
+          <Pressable style={styles.heroWrap} onPress={() => coverPhoto && setSelectedPhoto(coverPhoto)}>
+            <Image source={{ uri: coverPhoto?.url ?? avatarUrl! }} style={styles.heroImage} contentFit="cover" />
             <View style={styles.heroOverlay} />
             <View style={styles.heroTextWrap}>
+              {/* Photo de profil du prestataire */}
+              {avatarUrl && (
+                <Image source={{ uri: avatarUrl }} style={styles.heroAvatar} contentFit="cover" />
+              )}
               <ThemedText style={styles.heroTitle}>{display?.nom ?? '…'}</ThemedText>
               {display?.adresse && display.adresse !== '-' && (
                 <View style={styles.heroLocation}>
@@ -227,10 +241,12 @@ export default function ProviderDetailScreen() {
                 </View>
               )}
             </View>
-            <View style={styles.heroPhotoCount}>
-              <Ionicons name="images-outline" size={13} color="#fff" />
-              <ThemedText style={styles.heroPhotoCountText}>{photos.length}</ThemedText>
-            </View>
+            {photos.length > 0 && (
+              <View style={styles.heroPhotoCount}>
+                <Ionicons name="images-outline" size={13} color="#fff" />
+                <ThemedText style={styles.heroPhotoCountText}>{photos.length}</ThemedText>
+              </View>
+            )}
           </Pressable>
         ) : (
           <View style={styles.heroPlaceholder}>
@@ -266,6 +282,11 @@ export default function ProviderDetailScreen() {
                         <ThemedText style={styles.galleryBadgeText}>Couverture</ThemedText>
                       </View>
                     )}
+                    {!item.is_cover && item.caption ? (
+                      <View style={styles.galleryCaption}>
+                        <ThemedText style={styles.galleryBadgeText} numberOfLines={1}>{item.caption}</ThemedText>
+                      </View>
+                    ) : null}
                   </Pressable>
                 )}
               />
@@ -718,6 +739,11 @@ const styles = StyleSheet.create({
     left: 20,
     right: 60,
   },
+  heroAvatar: {
+    width: 56, height: 56, borderRadius: 28,
+    borderWidth: 2.5, borderColor: '#fff', marginBottom: 10,
+    backgroundColor: C.beige,
+  },
   heroTitle: { fontSize: 26, fontWeight: '800', color: '#fff', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
   heroTitleDark: { fontSize: 22, fontWeight: '800', color: C.textDark, textAlign: 'center' },
   heroLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
@@ -772,6 +798,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(107,113,80,0.8)',
   },
   galleryBadgeText: { fontSize: 9, color: '#fff', fontWeight: '700' },
+  galleryCaption: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 6, paddingVertical: 4,
+  },
 
   // Info card
   priceRow: {
@@ -895,6 +926,12 @@ const styles = StyleSheet.create({
     height: SCREEN_WIDTH * 1.2,
   },
   modalImage: { width: '100%', height: '100%' },
+  modalCaption: {
+    position: 'absolute', left: 16, right: 16, bottom: 24,
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  modalCaptionTxt: { color: '#fff', fontSize: 14, lineHeight: 20, textAlign: 'center' },
   modalClose: {
     position: 'absolute',
     top: 56,

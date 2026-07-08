@@ -40,7 +40,7 @@ const ROLE_LABELS: Record<string, string> = {
   client: 'Marié(e)',
 };
 
-type Photo = { id: number; url: string; is_cover: boolean };
+type Photo = { id: number; url: string; is_cover: boolean; caption?: string | null };
 
 type PrestProfile = {
   business_name?: string;
@@ -53,6 +53,7 @@ type PrestProfile = {
   instagram_url?: string;
   website?: string;
   website_url?: string;
+  profile_views?: number;
 };
 
 // ── Instagram-style prestataire profile ─────────────────────────────────────
@@ -157,10 +158,10 @@ function PrestataireInstaProfile() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile info */}
         <View style={instaStyles.profileBlock}>
-          {/* Avatar */}
+          {/* Avatar — photo de profil affichée aussi côté client */}
           <Pressable style={instaStyles.avatarWrap} onPress={pickAvatar}>
-            {coverPhoto ? (
-              <Image source={{ uri: coverPhoto.url }} style={instaStyles.avatarImg} contentFit="cover" />
+            {(user?.avatar_url ?? coverPhoto?.url) ? (
+              <Image source={{ uri: user?.avatar_url ?? coverPhoto!.url }} style={instaStyles.avatarImg} contentFit="cover" />
             ) : (
               <View style={instaStyles.avatarFallback}>
                 <ThemedText style={instaStyles.avatarLetter}>{avatarLetter}</ThemedText>
@@ -179,8 +180,8 @@ function PrestataireInstaProfile() {
               <ThemedText style={instaStyles.statLbl}>publications</ThemedText>
             </View>
             <View style={instaStyles.stat}>
-              <ThemedText style={instaStyles.statNum}>142</ThemedText>
-              <ThemedText style={instaStyles.statLbl}>vues/mois</ThemedText>
+              <ThemedText style={instaStyles.statNum}>{profile?.profile_views ?? 0}</ThemedText>
+              <ThemedText style={instaStyles.statLbl}>vues</ThemedText>
             </View>
             <View style={instaStyles.stat}>
               <ThemedText style={instaStyles.statNum}>{msgCount}</ThemedText>
@@ -257,13 +258,18 @@ function PrestataireInstaProfile() {
                 );
               }
               return (
-                <Pressable style={instaStyles.gridPhoto} onPress={() => router.push('/(app)/(tabs)/explore' as never)}>
+                <Pressable style={instaStyles.gridPhoto} onPress={() => router.push('/(app)/(tabs)/portfolio' as never)}>
                   <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                   {item.is_cover && (
                     <View style={instaStyles.coverBadge}>
                       <Ionicons name="star" size={10} color="#fff" />
                     </View>
                   )}
+                  {item.caption ? (
+                    <View style={instaStyles.gridCaption}>
+                      <Ionicons name="text" size={9} color="#fff" />
+                    </View>
+                  ) : null}
                 </Pressable>
               );
             }}
@@ -531,6 +537,11 @@ const instaStyles = StyleSheet.create({
     backgroundColor: C.sauge, borderRadius: 10,
     width: 18, height: 18, alignItems: 'center', justifyContent: 'center',
   },
+  gridCaption: {
+    position: 'absolute', bottom: 4, left: 4,
+    backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 9,
+    width: 18, height: 18, alignItems: 'center', justifyContent: 'center',
+  },
   addPhotoCell: {
     backgroundColor: C.saugePale,
     alignItems: 'center', justifyContent: 'center', gap: 4,
@@ -564,7 +575,7 @@ const instaStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   headerOverline: { fontSize: 12, color: C.textLight, marginBottom: 2, letterSpacing: 0.5 },
-  title: { fontSize: 32, fontWeight: '700', color: C.textDark },
+  title: { fontSize: 30, lineHeight: 38, fontWeight: '700', color: C.textDark },
   content: { gap: 10, paddingBottom: 120 },
   profileCard: {
     borderWidth: 0, borderColor: C.border, borderRadius: RADIUS.lg,
