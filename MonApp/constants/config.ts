@@ -158,6 +158,11 @@ export const API_ENDPOINTS = {
   premiumPurchase: `${API_BASE_URL}/api/premium/purchase`,
   premiumConfirm: `${API_BASE_URL}/api/premium/confirm`,
   premiumStatus: `${API_BASE_URL}/api/premium/status`,
+  // Abonnement Prestataire (39€/mois, 3 mois offerts)
+  prestaSubStart: `${API_BASE_URL}/api/prestataire-subscription/start`,
+  prestaSubConfirm: `${API_BASE_URL}/api/prestataire-subscription/confirm`,
+  prestaSubStatus: `${API_BASE_URL}/api/prestataire-subscription/status`,
+  prestaSubCancel: `${API_BASE_URL}/api/prestataire-subscription/cancel`,
   // Payments
   paymentsCreateIntent: `${API_BASE_URL}/api/payments/create-intent`,
   paymentsHistory: `${API_BASE_URL}/api/payments/history`,

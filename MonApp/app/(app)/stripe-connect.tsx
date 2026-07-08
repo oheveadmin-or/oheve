@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -34,7 +34,9 @@ export default function StripeConnectScreen() {
       });
       const json = await res.json();
       if (json.success) setStatus(json.data);
-    } catch {}
+    } catch {
+      Alert.alert('Chargement impossible', 'Impossible de vérifier votre compte de paiement. Vérifiez votre connexion.');
+    }
     setLoading(false);
   };
 
@@ -54,8 +56,12 @@ export default function StripeConnectScreen() {
         await WebBrowser.openBrowserAsync(json.data.url);
         // Après retour, rafraîchir le statut
         await fetchStatus();
+      } else {
+        Alert.alert('Configuration impossible', json?.message ?? 'Le serveur n\'a pas pu démarrer la configuration Stripe. Réessayez.');
       }
-    } catch {}
+    } catch {
+      Alert.alert('Configuration impossible', 'Vérifiez votre connexion internet et réessayez.');
+    }
     setOnboarding(false);
   };
 

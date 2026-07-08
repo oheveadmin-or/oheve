@@ -2,12 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Modal, Pressable,
+  ActivityIndicator, Alert, FlatList, Modal, Pressable,
   StyleSheet, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { ErrorBanner } from '@/components/ui/error-banner';
 import { useAuth } from '@/contexts/auth-context';
 import { messagingApi, prestatairesApi } from '@/services/auth/api';
 
@@ -52,12 +53,21 @@ export default function MessagesScreen() {
   const [search, setSearch] = useState('');
   const [starting, setStarting] = useState<number | null>(null);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (!user?.accessToken) return;
     try {
       const json = await messagingApi.listConversations(user.accessToken);
-      if (json.success) setConversations(json.data);
-    } catch {}
+      if (json.success) {
+        setConversations(json.data);
+        setLoadError(null);
+      } else {
+        setLoadError(json?.message || 'Impossible de charger les messages. Vérifiez votre connexion.');
+      }
+    } catch {
+      setLoadError('Impossible de charger les messages. Vérifiez votre connexion.');
+    }
     setLoading(false);
   }, [user?.accessToken]);
 
@@ -70,8 +80,14 @@ export default function MessagesScreen() {
     setPrestLoading(true);
     try {
       const json = await prestatairesApi.list(user!.accessToken);
-      if (json.success) setPrestataires(json.data);
-    } catch {}
+      if (json.success) {
+        setPrestataires(json.data);
+      } else {
+        Alert.alert('Chargement impossible', json?.message ?? 'Vérifiez votre connexion et réessayez.');
+      }
+    } catch {
+      Alert.alert('Chargement impossible', 'Vérifiez votre connexion et réessayez.');
+    }
     setPrestLoading(false);
   };
 
@@ -83,8 +99,12 @@ export default function MessagesScreen() {
       if (json.success) {
         setModalVisible(false);
         router.push(`/(app)/messages/${json.data.id}` as never);
+      } else {
+        Alert.alert('Conversation impossible', json?.message ?? 'Vérifiez votre connexion et réessayez.');
       }
-    } catch {}
+    } catch {
+      Alert.alert('Conversation impossible', 'Vérifiez votre connexion et réessayez.');
+    }
     setStarting(null);
   };
 
@@ -134,6 +154,12 @@ export default function MessagesScreen() {
           )}
         </View>
       </View>
+
+      {loadError ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          <ErrorBanner message={loadError} onRetry={() => { setLoading(true); load(); }} />
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color="#A7AD9A" size="large" /></View>

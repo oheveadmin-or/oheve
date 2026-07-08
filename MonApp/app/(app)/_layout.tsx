@@ -1,9 +1,9 @@
 import * as Notifications from 'expo-notifications';
-import { router, Stack } from 'expo-router';
+import { router, Stack, usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
-import { useAuth } from '@/contexts/auth-context';
+import { isPrestaSubActive, useAuth } from '@/contexts/auth-context';
 import { messagingApi } from '@/services/auth/api';
 import { loadPersistedBudget, syncBudgetTotal, BudgetProvider } from '@/lib/budget-store';
 
@@ -56,6 +56,17 @@ export default function AppLayout() {
     }
   }, [user?.id, user?.budget_global, user?.budget_total]);
 
+  // ── Barrière abonnement prestataire ─────────────────────────────────────────
+  // Un prestataire sans abonnement actif/en essai est renvoyé vers l'écran
+  // d'abonnement, quelle que soit la route de l'espace où il tente d'aller.
+  const pathname = usePathname();
+  useEffect(() => {
+    if (user?.role !== 'prestataire') return;
+    if (isPrestaSubActive(user.presta_sub_status)) return;
+    if (pathname?.includes('/prestataire/subscribe')) return;
+    router.replace('/(app)/prestataire/subscribe');
+  }, [user?.role, user?.presta_sub_status, pathname]);
+
   useEffect(() => {
     if (!user?.accessToken) return;
 
@@ -92,6 +103,8 @@ export default function AppLayout() {
       <Stack.Screen name="messages/[id]" />
       <Stack.Screen name="admin" />
       <Stack.Screen name="prestataire/setup" />
+      <Stack.Screen name="prestataire/subscribe" />
+      <Stack.Screen name="prestataire/manage-subscription" />
       <Stack.Screen name="prestataire/profile-edit" />
       <Stack.Screen name="rabbins" />
     </Stack>

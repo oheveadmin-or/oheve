@@ -25,6 +25,7 @@ import { weddingSitesRoutes } from './wedding-sites';
 import { rsvpRoutes } from './rsvp/rsvp.routes';
 import { healthRoutes } from './routes/health.routes';
 import { subscriptionRoutes } from './subscriptions';
+import { prestataireSubscriptionRoutes } from './prestataire-subscription';
 import { premiumRoutes } from './premium';
 
 const app = express();
@@ -107,6 +108,7 @@ app.use('/api/prestataires', prestatairesRoutes);
 app.use('/api/conversations', messagingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/prestataire-subscription', prestataireSubscriptionRoutes);
 app.use('/api/rsvp', rsvpRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/premium', premiumRoutes);

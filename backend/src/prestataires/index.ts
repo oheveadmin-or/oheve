@@ -3,6 +3,7 @@ import { Router } from 'express';
 import multer from 'multer';
 
 import { optionalAuth, requireAuth } from '../middleware/requireAuth';
+import { requirePrestaSub } from '../middleware/requirePrestaSub';
 import { PrestatairesController } from './controller';
 import { PhotosController } from './photos.controller';
 
@@ -29,14 +30,14 @@ const upload = multer({
 // ── Profil ────────────────────────────────────────────────────────────────────
 prestatairesRoutes.get('/', optionalAuth, ctrl.list.bind(ctrl));
 prestatairesRoutes.get('/me', requireAuth, ctrl.getMyProfile.bind(ctrl));
-prestatairesRoutes.put('/me', requireAuth, ctrl.upsertProfile.bind(ctrl));
+prestatairesRoutes.put('/me', requireAuth, requirePrestaSub, ctrl.upsertProfile.bind(ctrl));
 
 // ── Feed photos (toutes les photos publiques) ─────────────────────────────────
 prestatairesRoutes.get('/feed/photos', optionalAuth, photos.getFeedPhotos.bind(photos));
 
 // ── Photos (me) ───────────────────────────────────────────────────────────────
 prestatairesRoutes.get('/me/photos', requireAuth, photos.getMyPhotos.bind(photos));
-prestatairesRoutes.post('/me/photos', requireAuth, upload.single('photo'), photos.uploadPhoto.bind(photos));
+prestatairesRoutes.post('/me/photos', requireAuth, requirePrestaSub, upload.single('photo'), photos.uploadPhoto.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/cover', requireAuth, photos.setCover.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/caption', requireAuth, photos.updateCaption.bind(photos));
 prestatairesRoutes.delete('/me/photos/:photoId', requireAuth, photos.deletePhoto.bind(photos));

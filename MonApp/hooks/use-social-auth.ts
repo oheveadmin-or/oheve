@@ -1,18 +1,31 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
-import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { Alert, Platform } from 'react-native';
 
+// ⚠️ Le module natif @react-native-google-signin n'existe PAS dans Expo Go
+// (il faut un build de dev/EAS). Un import statique fait donc planter TOUTE
+// l'app au démarrage ("RNGoogleSignin could not be found"). On le charge donc
+// paresseusement et sans jamais throw : dans Expo Go, Google est simplement
+// indisponible ; dans le build natif, tout fonctionne normalement.
+let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
+let isErrorWithCode: (error: unknown) => boolean = () => false;
+let statusCodes: Partial<typeof import('@react-native-google-signin/google-signin').statusCodes> = {};
+try {
+  const g = require('@react-native-google-signin/google-signin');
+  GoogleSignin = g.GoogleSignin;
+  isErrorWithCode = g.isErrorWithCode;
+  statusCodes = g.statusCodes;
+} catch {
+  // Module natif absent (Expo Go) — Google Sign-In restera indisponible.
+}
+
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
-import { supabase } from '@/lib/supabase';
-
-WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Identité sociale obtenue côté app, transmise au backend qui la VÉRIFIE
- * (identity_token Apple contre les clés JWKS d'Apple, supabase_access_token
- * contre l'API Supabase) avant de connecter ou lier le compte.
+ * (identity_token Apple contre les clés JWKS d'Apple, google_id_token contre
+ * les clés JWKS de Google) avant de connecter ou lier le compte.
  */
 export interface SocialCredential {
   provider: 'google' | 'apple';
@@ -23,69 +36,68 @@ export interface SocialCredential {
   prenom: string;
   avatar_url?: string;
   identity_token?: string;
-  supabase_access_token?: string;
+  /** id_token Google (JWT signé par Google) vérifié côté serveur */
+  google_id_token?: string;
 }
 
-/** Ouvre le flux OAuth Google (via Supabase) et retourne l'identité, ou null si annulé. */
+// Configuration Google Sign-In native (une seule fois au chargement du module).
+// webClientId sert d'« audience » de l'id_token : c'est LUI que le backend valide.
+// iosClientId identifie l'app iOS auprès de Google.
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
+const isGoogleConfigured = Boolean(GOOGLE_WEB_CLIENT_ID) && GoogleSignin != null;
+
+if (isGoogleConfigured) {
+  GoogleSignin!.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
+    // On veut l'id_token pour le vérifier côté serveur
+    offlineAccess: false,
+  });
+}
+
+/** Ouvre le sélecteur de compte Google natif et retourne l'identité, ou null si annulé. */
 export async function getGoogleCredential(): Promise<SocialCredential | null> {
-  if (!supabase) {
-    Alert.alert('Google indisponible', "La connexion Google n'est pas configurée dans cette version.");
+  if (!isGoogleConfigured || !GoogleSignin) {
+    Alert.alert('Google indisponible', "La connexion Google n'est pas disponible dans cette version. Utilise l'e-mail ou Apple.");
     return null;
   }
-  const redirectTo = 'monapp://';
+  try {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    // Force le sélecteur de compte à chaque connexion (pas de reprise silencieuse)
+    await GoogleSignin.signOut().catch(() => {});
+    const response = await GoogleSignin.signIn();
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo,
-      skipBrowserRedirect: true,
-      queryParams: { prompt: 'select_account' },
-    },
-  });
+    if (response.type === 'cancelled' || !response.data) return null;
 
-  if (error || !data.url) {
-    Alert.alert('Erreur Google', error?.message ?? 'URL OAuth manquante.');
+    const { idToken, user } = response.data;
+    if (!idToken) {
+      Alert.alert('Erreur Google', "Jeton Google manquant. Réessaie.");
+      return null;
+    }
+
+    return {
+      provider: 'google',
+      provider_user_id: user.id,
+      email: user.email?.toLowerCase() ?? null,
+      nom: user.familyName ?? user.name?.split(' ').slice(1).join(' ') ?? '',
+      prenom: user.givenName ?? user.name?.split(' ')[0] ?? '',
+      avatar_url: user.photo ?? undefined,
+      google_id_token: idToken,
+    };
+  } catch (err: unknown) {
+    if (isErrorWithCode(err)) {
+      const code = (err as { code?: string }).code;
+      if (code === statusCodes.SIGN_IN_CANCELLED) return null;
+      if (code === statusCodes.IN_PROGRESS) return null;
+      if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Google indisponible', 'Google Play Services requis.');
+        return null;
+      }
+    }
+    Alert.alert('Erreur Google', 'Connexion Google impossible. Réessaie.');
     return null;
   }
-
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-  if (result.type !== 'success' || !result.url) return null;
-
-  // Extrait access_token / refresh_token du fragment (#) ou query (?)
-  const fragment = result.url.includes('#')
-    ? result.url.split('#')[1]
-    : result.url.split('?')[1] ?? '';
-  const params = new URLSearchParams(fragment);
-  const access_token = params.get('access_token');
-  const refresh_token = params.get('refresh_token');
-
-  if (!access_token || !refresh_token) {
-    Alert.alert('Erreur Google', 'Tokens manquants dans le redirect.');
-    return null;
-  }
-
-  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-    access_token,
-    refresh_token,
-  });
-
-  if (sessionError || !sessionData.session) {
-    Alert.alert('Erreur Google', sessionError?.message ?? 'Session invalide.');
-    return null;
-  }
-
-  const sbUser = sessionData.session.user;
-  const meta = sbUser.user_metadata ?? {};
-
-  return {
-    provider: 'google',
-    provider_user_id: sbUser.id,
-    email: sbUser.email?.toLowerCase() ?? null,
-    nom: meta.family_name ?? meta.last_name ?? meta.full_name?.split(' ').slice(1).join(' ') ?? '',
-    prenom: meta.given_name ?? meta.first_name ?? meta.full_name?.split(' ')[0] ?? '',
-    avatar_url: meta.avatar_url ?? meta.picture,
-    supabase_access_token: sessionData.session.access_token,
-  };
 }
 
 /** Ouvre le dialogue Apple Sign In natif et retourne l'identité, ou null si annulé. */
@@ -119,15 +131,6 @@ export async function getAppleCredential(): Promise<SocialCredential | null> {
   }
 }
 
-/** Ferme la session Supabase temporaire (utilisée seulement pour l'OAuth Google). */
-async function cleanupSupabaseSession() {
-  try {
-    await supabase?.auth.signOut();
-  } catch {
-    // non bloquant
-  }
-}
-
 export function useSocialAuth(onAfterSignIn?: (isNew: boolean, role: string) => void) {
   const { signIn } = useAuth();
 
@@ -138,8 +141,6 @@ export function useSocialAuth(onAfterSignIn?: (isNew: boolean, role: string) => 
       body: JSON.stringify(credential),
     });
     const result = await res.json();
-
-    if (credential.provider === 'google') await cleanupSupabaseSession();
 
     if (!result.success) {
       Alert.alert('Erreur', result.message ?? `Connexion ${credential.provider === 'apple' ? 'Apple' : 'Google'} échouée`);
@@ -193,7 +194,6 @@ export async function linkSocialProvider(
       body: JSON.stringify(credential),
     });
     const result = await res.json();
-    if (credential.provider === 'google') await cleanupSupabaseSession();
     if (!result.success) {
       Alert.alert('Liaison impossible', result.message ?? 'Erreur lors de la liaison');
       return null;

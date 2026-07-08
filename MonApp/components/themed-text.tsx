@@ -17,6 +17,15 @@ export function ThemedText({
 }: ThemedTextProps) {
   const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
 
+  // Si le style appelant définit un fontSize sans lineHeight, le lineHeight
+  // hérité du type (ex: 24) peut rogner les accents/jambages des gros textes.
+  // On recalcule alors un lineHeight proportionnel pour ne jamais couper.
+  const flat = StyleSheet.flatten(style) as { fontSize?: number; lineHeight?: number } | undefined;
+  const lineHeightFix =
+    flat?.fontSize != null && flat?.lineHeight == null
+      ? { lineHeight: Math.round(flat.fontSize * 1.35) }
+      : undefined;
+
   return (
     <Text
       style={[
@@ -27,6 +36,7 @@ export function ThemedText({
         type === 'subtitle' ? styles.subtitle : undefined,
         type === 'link' ? styles.link : undefined,
         style,
+        lineHeightFix,
       ]}
       {...rest}
     />
@@ -46,7 +56,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    lineHeight: 32,
+    lineHeight: 40,
   },
   subtitle: {
     fontSize: 20,

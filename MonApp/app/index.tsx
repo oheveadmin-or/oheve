@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 
-import { useAuth } from '@/contexts/auth-context';
+import { isPrestaSubActive, useAuth } from '@/contexts/auth-context';
 
 /** Point d'entrée "/" : redirige vers la bonne zone selon le rôle */
 export default function IndexRedirect() {
@@ -13,8 +13,16 @@ export default function IndexRedirect() {
   // Boutique : espace dédié
   if (user.role === 'boutique') return <Redirect href="/(boutique)/(tabs)" />;
 
-  // Prestataires et admins n'ont pas de parcours mariage — accès direct à l'app
-  if (user.role === 'prestataire' || user.role === 'admin') {
+  // Prestataire : accès bloqué tant que l'abonnement n'est pas actif/en essai.
+  if (user.role === 'prestataire') {
+    if (!isPrestaSubActive(user.presta_sub_status)) {
+      return <Redirect href="/(app)/prestataire/subscribe" />;
+    }
+    return <Redirect href="/(app)/(tabs)" />;
+  }
+
+  // Admins : accès direct à l'app
+  if (user.role === 'admin') {
     return <Redirect href="/(app)/(tabs)" />;
   }
 

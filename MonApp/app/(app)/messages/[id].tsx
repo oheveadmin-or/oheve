@@ -690,8 +690,15 @@ export default function ChatScreen() {
       if (json.success) {
         setMessages((prev) => [...prev, json.data]);
         setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 50);
+      } else {
+        // Ne jamais perdre le message tapé : on le remet dans le champ.
+        setText(content);
+        Alert.alert('Message non envoyé', json?.message ?? 'Vérifiez votre connexion et réessayez.');
       }
-    } catch {}
+    } catch {
+      setText(content);
+      Alert.alert('Message non envoyé', 'Vérifiez votre connexion et réessayez.');
+    }
     setSending(false);
   };
 

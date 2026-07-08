@@ -1,6 +1,62 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { API_ENDPOINTS } from '@/constants/config';
 
+// ── Requêtes robustes ─────────────────────────────────────────────────────────
+// Toutes les requêtes passent par request() : jamais de throw vers les écrans,
+// toujours un objet { success, message?, data?, status?, networkError? } avec
+// un message en français exploitable directement dans une Alert.
+
+const REQUEST_TIMEOUT_MS = 20000;
+
+function httpMessage(status: number): string {
+  if (status === 401) return 'Votre session a expiré. Reconnectez-vous.';
+  if (status === 403) return 'Accès refusé. Vérifiez votre compte.';
+  if (status === 404) return 'Introuvable sur le serveur.';
+  if (status === 413) return 'Fichier trop volumineux pour être envoyé.';
+  if (status === 429) return 'Trop de tentatives. Patientez un instant.';
+  if (status >= 500) return `Le serveur rencontre un problème (erreur ${status}). Réessayez dans un instant.`;
+  return `Une erreur est survenue (code ${status}).`;
+}
+
+async function request(url: string, options: RequestInit = {}): Promise<any> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, signal: controller.signal });
+  } catch (e) {
+    const aborted = e instanceof Error && e.name === 'AbortError';
+    return {
+      success: false,
+      networkError: true,
+      message: aborted
+        ? 'Le serveur met trop de temps à répondre. Vérifiez votre connexion et réessayez.'
+        : 'Pas de connexion internet. Vérifiez votre réseau et réessayez.',
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+
+  let json: any = null;
+  try {
+    json = await res.json();
+  } catch {
+    // Réponse non-JSON (page d'erreur Railway, proxy…)
+  }
+  if (json && typeof json === 'object' && !Array.isArray(json)) {
+    if (json.success === undefined) json.success = res.ok;
+    if (!res.ok && !json.message) json.message = httpMessage(res.status);
+    json.status = res.status;
+    return json;
+  }
+  return {
+    success: res.ok,
+    status: res.status,
+    data: json ?? undefined,
+    message: res.ok ? undefined : httpMessage(res.status),
+  };
+}
+
 /**
  * Upload multipart via FileSystem.uploadAsync — seule méthode fiable sur Expo
  * pour envoyer un fichier (contourne l'erreur "Unsupported FormDataPart").
@@ -12,18 +68,35 @@ export async function uploadFile(
   fieldName = 'photo',
   extraFields?: Record<string, string>,
 ): Promise<{ success: boolean; data?: Record<string, unknown>; message?: string }> {
-  const result = await FileSystem.uploadAsync(url, fileUri, {
-    httpMethod: 'POST',
-    uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-    fieldName,
-    headers: { Authorization: `Bearer ${accessToken}` },
-    parameters: extraFields,
-  });
+  let result: FileSystem.FileSystemUploadResult;
   try {
-    return JSON.parse(result.body);
+    result = await FileSystem.uploadAsync(url, fileUri, {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName,
+      headers: { Authorization: `Bearer ${accessToken}` },
+      parameters: extraFields,
+    });
   } catch {
-    return { success: false, message: `Erreur serveur (${result.status})` };
+    return {
+      success: false,
+      message: 'Envoi impossible : vérifiez votre connexion internet, puis réessayez.',
+    };
   }
+  try {
+    const json = JSON.parse(result.body);
+    if (json && typeof json === 'object') {
+      if (json.success === undefined) json.success = result.status < 400;
+      if (result.status >= 400 && !json.message) json.message = httpMessage(result.status);
+      return json;
+    }
+  } catch {
+    // corps non-JSON
+  }
+  return {
+    success: result.status < 400,
+    message: result.status >= 400 ? httpMessage(result.status) : undefined,
+  };
 }
 
 export type UserRole = 'client' | 'prestataire' | 'boutique' | 'admin';
@@ -57,20 +130,23 @@ export interface AuthUser {
 async function post(url: string, body: object, token?: string) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-  return res.json();
+  return request(url, { method: 'POST', headers, body: JSON.stringify(body) });
 }
 
 async function get(url: string, token: string) {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  return res.json();
+  return request(url, { headers: { Authorization: `Bearer ${token}` } });
 }
 
 async function patch(url: string, body: object, token?: string) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify(body) });
-  return res.json();
+  return request(url, { method: 'PATCH', headers, body: JSON.stringify(body) });
+}
+
+async function del(url: string, token: string, body?: object) {
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  if (body) headers['Content-Type'] = 'application/json';
+  return request(url, { method: 'DELETE', headers, body: body ? JSON.stringify(body) : undefined });
 }
 
 export const authApi = {
@@ -93,11 +169,11 @@ export const authApi = {
     patch(API_ENDPOINTS.profile, data, accessToken),
 
   uploadAvatar: (accessToken: string, formData: FormData) =>
-    fetch(API_ENDPOINTS.avatar, {
+    request(API_ENDPOINTS.avatar, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
       body: formData,
-    }).then((r) => r.json()),
+    }),
 
   updateRole: (accessToken: string, role: string) =>
     patch(API_ENDPOINTS.profile, { role }, accessToken),
@@ -107,10 +183,7 @@ export const authApi = {
     get(API_ENDPOINTS.authMethods, accessToken),
 
   unlinkProvider: (accessToken: string, provider: 'google' | 'apple') =>
-    fetch(API_ENDPOINTS.unlinkProvider(provider), {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }).then((r) => r.json()),
+    del(API_ENDPOINTS.unlinkProvider(provider), accessToken),
 
   setPassword: (accessToken: string, new_password: string) =>
     post(API_ENDPOINTS.setPassword, { new_password }, accessToken),
@@ -120,8 +193,7 @@ export const authApi = {
 async function getPublic(url: string, token?: string) {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, { headers });
-  return res.json();
+  return request(url, { headers });
 }
 
 export const prestatairesApi = {
@@ -138,9 +210,9 @@ export const prestatairesApi = {
 
   upsertProfile: (accessToken: string, data: object) => {
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
-    return fetch(API_ENDPOINTS.prestataires + '/me', {
+    return request(API_ENDPOINTS.prestataires + '/me', {
       method: 'PUT', headers, body: JSON.stringify(data),
-    }).then((r) => r.json());
+    });
   },
 
   getPhotos: (accessToken: string, userId?: number) => {
@@ -151,39 +223,36 @@ export const prestatairesApi = {
   },
 
   uploadPhoto: (accessToken: string, formData: FormData) =>
-    fetch(`${API_ENDPOINTS.prestataires}/me/photos`, {
+    request(`${API_ENDPOINTS.prestataires}/me/photos`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
       body: formData,
-    }).then((r) => r.json()),
+    }),
 
   setCoverPhoto: (accessToken: string, photoId: number) => {
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
-    return fetch(`${API_ENDPOINTS.prestataires}/me/photos/${photoId}/cover`, {
+    return request(`${API_ENDPOINTS.prestataires}/me/photos/${photoId}/cover`, {
       method: 'PUT', headers,
-    }).then((r) => r.json());
+    });
   },
 
   deletePhoto: (accessToken: string, photoId: number) =>
-    fetch(`${API_ENDPOINTS.prestataires}/me/photos/${photoId}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }).then((r) => r.json()),
+    del(`${API_ENDPOINTS.prestataires}/me/photos/${photoId}`, accessToken),
 
   updatePhotoCaption: (accessToken: string, photoId: number, caption: string) => {
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
-    return fetch(`${API_ENDPOINTS.prestataires}/me/photos/${photoId}/caption`, {
+    return request(`${API_ENDPOINTS.prestataires}/me/photos/${photoId}/caption`, {
       method: 'PUT', headers, body: JSON.stringify({ caption }),
-    }).then((r) => r.json());
+    });
   },
 
   // Enregistre une vue du profil (appelé quand un client ouvre la fiche)
   recordView: (userId: number, accessToken?: string) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    return fetch(`${API_ENDPOINTS.prestataires}/${userId}/view`, {
+    return request(`${API_ENDPOINTS.prestataires}/${userId}/view`, {
       method: 'POST', headers,
-    }).then((r) => r.json()).catch(() => null);
+    });
   },
 };
 
@@ -223,21 +292,19 @@ export const messagingApi = {
   registerPushToken: (accessToken: string, token: string, platform: string) =>
     post(API_ENDPOINTS.pushToken, { token, platform }, accessToken),
 
-  deletePushToken: (accessToken: string, token: string) => {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
-    return fetch(API_ENDPOINTS.pushToken, { method: 'DELETE', headers, body: JSON.stringify({ token }) }).then((r) => r.json());
-  },
+  deletePushToken: (accessToken: string, token: string) =>
+    del(API_ENDPOINTS.pushToken, accessToken, { token }),
 };
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 function adminFetch(accessToken: string, url: string, method: string, body?: object) {
   const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
   if (body) headers['Content-Type'] = 'application/json';
-  return fetch(url, {
+  return request(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-  }).then((r) => r.json());
+  });
 }
 
 export const adminApi = {
@@ -315,12 +382,8 @@ export const adminApi = {
   listPayments: (accessToken: string) =>
     get(API_ENDPOINTS.adminPayments, accessToken),
 
-  setSubscription: (accessToken: string, userId: number, data: { plan?: string | null; status?: string }) => {
-    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
-    return fetch(`${API_ENDPOINTS.subscriptionPlans.replace('/plans', '')}/${userId}`, {
-      method: 'PATCH', headers, body: JSON.stringify(data),
-    }).then((r) => r.json());
-  },
+  setSubscription: (accessToken: string, userId: number, data: { plan?: string | null; status?: string }) =>
+    patch(`${API_ENDPOINTS.subscriptionPlans.replace('/plans', '')}/${userId}`, data, accessToken),
 
   listSubscriptions: (accessToken: string) =>
     get(API_ENDPOINTS.adminSubscriptions, accessToken),
@@ -373,10 +436,7 @@ export const calendarApi = {
     patch(API_ENDPOINTS.calendarEvent(id), data, accessToken),
 
   deleteEvent: (accessToken: string, id: number) =>
-    fetch(API_ENDPOINTS.calendarEvent(id), {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }).then((r) => r.json()),
+    del(API_ENDPOINTS.calendarEvent(id), accessToken),
 
   getUpcoming: (accessToken: string) =>
     get(API_ENDPOINTS.calendarUpcoming, accessToken),
@@ -391,19 +451,16 @@ export const calendarApi = {
     slot_duration_minutes?: number;
   }) => {
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
-    return fetch(API_ENDPOINTS.calendarAvailabilityMe, {
+    return request(API_ENDPOINTS.calendarAvailabilityMe, {
       method: 'PUT', headers, body: JSON.stringify(data),
-    }).then((r) => r.json());
+    });
   },
 
   addBlockedPeriod: (accessToken: string, data: { start_date: string; end_date: string; reason?: string }) =>
     post(API_ENDPOINTS.calendarAvailabilityBlocks, data, accessToken),
 
   deleteBlockedPeriod: (accessToken: string, id: number) =>
-    fetch(API_ENDPOINTS.calendarAvailabilityBlock(id), {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }).then((r) => r.json()),
+    del(API_ENDPOINTS.calendarAvailabilityBlock(id), accessToken),
 
   getProviderSlots: (accessToken: string, prestataireId: number, from?: string, to?: string) => {
     const q = new URLSearchParams();
@@ -445,10 +502,27 @@ export const premiumApi = {
     get(API_ENDPOINTS.premiumStatus, accessToken),
 };
 
+// ── Abonnement Prestataire (39€/mois, 3 mois offerts) ─────────────────────────
+export const prestataireSubApi = {
+  // Démarre l'abonnement (essai 90 j) et renvoie le SetupIntent pour saisir la CB.
+  start: (accessToken: string) =>
+    post(API_ENDPOINTS.prestaSubStart, {}, accessToken),
+
+  // Débloque l'accès après confirmSetupIntent réussi côté app.
+  confirm: (accessToken: string, subscriptionId: string) =>
+    post(API_ENDPOINTS.prestaSubConfirm, { subscription_id: subscriptionId }, accessToken),
+
+  status: (accessToken: string) =>
+    get(API_ENDPOINTS.prestaSubStatus, accessToken),
+
+  cancel: (accessToken: string) =>
+    post(API_ENDPOINTS.prestaSubCancel, {}, accessToken),
+};
+
 // ── Abonnements (boutiques prestataires) ──────────────────────────────────────
 export const subscriptionApi = {
   getPlans: () =>
-    fetch(API_ENDPOINTS.subscriptionPlans).then((r) => r.json()),
+    request(API_ENDPOINTS.subscriptionPlans),
 
   getMySubscription: (accessToken: string) =>
     get(API_ENDPOINTS.subscriptionMe, accessToken),
@@ -457,8 +531,5 @@ export const subscriptionApi = {
     post(API_ENDPOINTS.subscriptionSubscribe, { plan }, accessToken),
 
   cancel: (accessToken: string) =>
-    fetch(API_ENDPOINTS.subscriptionMe, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }).then((r) => r.json()),
+    del(API_ENDPOINTS.subscriptionMe, accessToken),
 };

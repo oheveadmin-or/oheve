@@ -64,7 +64,8 @@ export default function RoleSelectScreen() {
       if (selected === 'boutique') {
         router.replace('/(boutique)/(tabs)');
       } else if (selected === 'prestataire') {
-        router.replace('/(app)/(tabs)');
+        // Abonnement obligatoire (39€/mois, 3 mois offerts) avant l'accès à l'espace.
+        router.replace('/(app)/prestataire/subscribe');
       } else {
         router.replace('/(onboarding)/setup');
       }

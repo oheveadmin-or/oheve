@@ -89,6 +89,10 @@ export default function LoginScreen() {
         wedding_city: data.wedding_city,
         wedding_country: data.wedding_country,
         wedding_address: data.wedding_address,
+        premium: data.premium,
+        presta_sub_status: data.presta_sub_status,
+        presta_trial_end: data.presta_trial_end,
+        presta_current_period_end: data.presta_current_period_end,
       });
 
       if (data.role === 'admin') { router.replace('/(app)/(tabs)'); return; }

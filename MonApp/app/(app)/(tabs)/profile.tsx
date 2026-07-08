@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { ErrorBanner } from '@/components/ui/error-banner';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { prestatairesApi, messagingApi, authApi, uploadFile } from '@/services/auth/api';
@@ -67,6 +68,8 @@ function PrestataireInstaProfile() {
   const [msgCount, setMsgCount] = useState(0);
   const [settingsModal, setSettingsModal] = useState(false);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (!user?.accessToken) { setLoading(false); return; }
     try {
@@ -78,7 +81,18 @@ function PrestataireInstaProfile() {
       if (profRes.status === 'fulfilled' && profRes.value?.success) setProfile(profRes.value.data);
       if (photoRes.status === 'fulfilled' && photoRes.value?.success) setPhotos(photoRes.value.data ?? []);
       if (msgRes.status === 'fulfilled' && msgRes.value?.success) setMsgCount(msgRes.value.data?.length ?? 0);
-    } catch {}
+      const allFailed = [profRes, photoRes, msgRes].every(
+        (r) => r.status !== 'fulfilled' || !r.value?.success,
+      );
+      if (allFailed) {
+        const msg = profRes.status === 'fulfilled' ? profRes.value?.message : null;
+        setLoadError(msg || 'Impossible de charger votre profil. Vérifiez votre connexion.');
+      } else {
+        setLoadError(null);
+      }
+    } catch {
+      setLoadError('Impossible de charger votre profil. Vérifiez votre connexion.');
+    }
     setLoading(false);
   }, [user]);
 
@@ -95,9 +109,13 @@ function PrestataireInstaProfile() {
       const res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri);
       if (res?.success && res.data?.avatar_url) {
         await updateUser({ avatar_url: res.data.avatar_url as string });
+      } else {
+        Alert.alert('Photo non enregistrée', res?.message ?? 'Vérifiez votre connexion et réessayez.');
       }
       load();
-    } catch {}
+    } catch {
+      Alert.alert('Photo non enregistrée', 'Vérifiez votre connexion et réessayez.');
+    }
     setUploadingAvatar(false);
   };
 
@@ -143,7 +161,7 @@ function PrestataireInstaProfile() {
     <View style={{ flex: 1, backgroundColor: '#fff', paddingTop: insets.top }}>
       {/* Header bar */}
       <View style={instaStyles.headerBar}>
-        <ThemedText style={instaStyles.headerName}>{businessName}</ThemedText>
+        <ThemedText style={instaStyles.headerName} numberOfLines={1}>{businessName}</ThemedText>
         <View style={instaStyles.headerRight}>
           <Pressable hitSlop={12} onPress={() => router.push('/(app)/(tabs)/messages' as never)}>
             <Ionicons name="chatbubble-outline" size={22} color={C.textDark} />
@@ -156,6 +174,9 @@ function PrestataireInstaProfile() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={{ paddingHorizontal: 16, paddingTop: loadError ? 12 : 0 }}>
+          <ErrorBanner message={loadError} onRetry={load} />
+        </View>
         {/* Profile info */}
         <View style={instaStyles.profileBlock}>
           {/* Avatar — photo de profil affichée aussi côté client */}
@@ -283,12 +304,13 @@ function PrestataireInstaProfile() {
       {/* Settings modal */}
       <Modal visible={settingsModal} transparent animationType="slide" onRequestClose={() => setSettingsModal(false)}>
         <Pressable style={instaStyles.modalOverlay} onPress={() => setSettingsModal(false)}>
-          <Pressable style={instaStyles.modalSheet} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={[instaStyles.modalSheet, { paddingBottom: insets.bottom + 24 }]} onPress={(e) => e.stopPropagation()}>
             <View style={instaStyles.modalHandle} />
             <ThemedText style={instaStyles.modalTitle}>Paramètres</ThemedText>
 
             {[
               { icon: 'person-outline', label: 'Informations personnelles', route: '/(app)/personal-info' },
+              { icon: 'star-outline', label: 'Mon abonnement Oheve', route: '/(app)/prestataire/manage-subscription' },
               { icon: 'shield-outline', label: 'Sécurité & mot de passe', route: '/(app)/security' },
               { icon: 'card-outline', label: 'Recevoir des paiements (Stripe)', route: '/(app)/stripe-connect' },
               { icon: 'notifications-outline', label: 'Notifications', route: '/(app)/notifications' },
@@ -469,7 +491,7 @@ const instaStyles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: 0.5, borderBottomColor: C.border,
   },
-  headerName: { fontSize: 18, fontWeight: '800', color: C.textDark },
+  headerName: { flex: 1, marginRight: 12, fontSize: 18, fontWeight: '800', color: C.textDark },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   msgBadge: {
     position: 'absolute', top: -4, right: -4,

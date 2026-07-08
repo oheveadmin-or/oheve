@@ -50,7 +50,18 @@
       "expo-sharing",
       "expo-status-bar",
       "expo-web-browser",
-      ["@stripe/stripe-react-native", { "merchantIdentifier": "merchant.com.oheve.app" }]
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.oheve.app"
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REMPLACER_PAR_TON_CLIENT_ID_IOS_INVERSE"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -22,6 +22,7 @@ import Animated, {
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { ErrorBanner } from '@/components/ui/error-banner';
 import { useAuth } from '@/contexts/auth-context';
 import { messagingApi, prestatairesApi } from '@/services/auth/api';
 
@@ -118,6 +119,7 @@ export function PrestataireHome() {
   const [portfolioPhotos, setPortfolioPhotos] = useState<{ id: number; url: string; is_cover: boolean }[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const headerStyle = useAnimatedStyle(() => ({ opacity: 1 }));
 
@@ -131,6 +133,16 @@ export function PrestataireHome() {
       if (profRes.status === 'fulfilled' && profRes.value?.success) setProfile(profRes.value.data);
       if (photoRes.status === 'fulfilled' && photoRes.value?.success && Array.isArray(photoRes.value.data)) setPortfolioPhotos(photoRes.value.data);
       if (convRes.status === 'fulfilled' && convRes.value?.success && Array.isArray(convRes.value.data)) setConversations(convRes.value.data);
+      // Si rien n'a pu être chargé, on l'affiche au lieu d'échouer en silence.
+      const allFailed = [profRes, photoRes, convRes].every(
+        (r) => r.status !== 'fulfilled' || !r.value?.success,
+      );
+      if (allFailed) {
+        const msg = profRes.status === 'fulfilled' ? profRes.value?.message : null;
+        setLoadError(msg || 'Impossible de charger vos données. Vérifiez votre connexion.');
+      } else {
+        setLoadError(null);
+      }
     }).finally(() => setLoading(false));
   }, [user]);
 
@@ -164,8 +176,8 @@ export function PrestataireHome() {
     <ScreenLayout edges={['top', 'left', 'right']} contentStyle={styles.layout}>
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <AnimatedView style={[styles.header, headerStyle]}>
-        <View>
-          <ThemedText style={styles.hello}>Bonjour {user?.prenom} 👋</ThemedText>
+        <View style={styles.headerTextWrap}>
+          <ThemedText style={styles.hello} numberOfLines={1} adjustsFontSizeToFit>Bonjour {user?.prenom} 👋</ThemedText>
           <ThemedText style={styles.subHello}>
             {unreadCount > 0 ? `${unreadCount} message${unreadCount > 1 ? 's' : ''} non lu${unreadCount > 1 ? 's' : ''}` : 'Aucun nouveau message'} · {portfolioPhotos.length} photo{portfolioPhotos.length !== 1 ? 's' : ''}
           </ThemedText>
@@ -189,6 +201,8 @@ export function PrestataireHome() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <ErrorBanner message={loadError} onRetry={loadData} />
+
         {/* ── Hero : Profil prestataire ──────────────────────────────── */}
         <AnimatedView entering={FadeInDown.delay(60).springify()} style={styles.heroCard}>
           <View style={styles.heroTop}>
@@ -269,7 +283,7 @@ export function PrestataireHome() {
         {/* ── Dernières demandes ────────────────────────────────────── */}
         <AnimatedView entering={FadeInDown.delay(220).springify()} style={styles.card}>
           <View style={styles.cardHeader}>
-            <View>
+            <View style={styles.cardHeaderText}>
               <ThemedText style={styles.cardTitle}>Dernières conversations</ThemedText>
               <ThemedText style={styles.cardSub}>
                 {conversations.length > 0
@@ -299,7 +313,7 @@ export function PrestataireHome() {
                   </View>
                   <View style={styles.inquiryBody}>
                     <View style={styles.inquiryTop}>
-                      <ThemedText style={styles.inquiryCouple}>
+                      <ThemedText style={styles.inquiryCouple} numberOfLines={1}>
                         {conv.other_prenom} {conv.other_nom}
                       </ThemedText>
                       <ThemedText style={styles.inquiryDate}>{formatDate(conv.last_message_at)}</ThemedText>
@@ -318,7 +332,7 @@ export function PrestataireHome() {
         {/* ── Portfolio preview ─────────────────────────────────────── */}
         <AnimatedView entering={FadeInDown.delay(280).springify()} style={styles.card}>
           <View style={styles.cardHeader}>
-            <View>
+            <View style={styles.cardHeaderText}>
               <ThemedText style={styles.cardTitle}>Mon portfolio</ThemedText>
               <ThemedText style={styles.cardSub}>
                 {portfolioPhotos.length > 0
@@ -434,7 +448,7 @@ export function PrestataireHome() {
         <AnimatedView entering={FadeInDown.delay(400).springify()} style={[styles.card, styles.tipsCard]}>
           <View style={styles.tipHeader}>
             <Ionicons name="bulb-outline" size={16} color={C.warning} />
-            <ThemedText style={styles.tipTitle}>Conseils pour booster votre profil</ThemedText>
+            <ThemedText style={[styles.tipTitle, { flex: 1 }]}>Conseils pour booster votre profil</ThemedText>
           </View>
           {TIPS.map((tip) => (
             <View key={tip} style={styles.tipRow}>
@@ -472,6 +486,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerTextWrap: { flex: 1, paddingRight: 10 },
   hello: { fontSize: 24, fontWeight: '800', color: C.textDark },
   subHello: { marginTop: 4, fontSize: 13, color: C.textLight },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -596,7 +611,8 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  cardHeaderText: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: C.textDark },
   cardSub: { fontSize: 12, color: C.textLight, marginTop: 2 },
   cardAction: { fontSize: 13, color: C.sauge, fontWeight: '700' },
@@ -623,8 +639,8 @@ const styles = StyleSheet.create({
   inquiryAvatarUnread: { backgroundColor: C.beige },
   inquiryAvatarText: { fontSize: 12, fontWeight: '700', color: C.saugeDark },
   inquiryBody: { flex: 1, gap: 3 },
-  inquiryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  inquiryCouple: { fontSize: 14, fontWeight: '700', color: C.textDark },
+  inquiryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  inquiryCouple: { flex: 1, fontSize: 14, fontWeight: '700', color: C.textDark },
   inquiryDate: { fontSize: 11, color: C.textLight },
   inquiryExcerpt: { fontSize: 12, color: C.textLight },
   unreadDot: {

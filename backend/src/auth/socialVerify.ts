@@ -10,8 +10,11 @@ import jwt from 'jsonwebtoken';
  *
  * - Apple  : le `identityToken` (JWT RS256 signé par Apple) est vérifié contre
  *   les clés publiques JWKS d'Apple (iss + aud = bundle id de l'app).
- * - Google : le flux passe par Supabase Auth côté app ; le backend valide le
- *   `supabase_access_token` en appelant GET {SUPABASE_URL}/auth/v1/user.
+ * - Google : connexion native côté app (@react-native-google-signin) ; le backend
+ *   valide le `google_id_token` (JWT RS256 signé par Google) contre les clés
+ *   publiques JWKS de Google (iss = accounts.google.com, aud = Web Client ID).
+ * - Google (legacy) : anciens builds passaient par Supabase Auth ; le backend
+ *   validait alors le `supabase_access_token` via GET {SUPABASE_URL}/auth/v1/user.
  */
 
 export interface VerifiedSocialIdentity {
@@ -65,6 +68,68 @@ export async function verifyAppleIdentityToken(identityToken: string): Promise<V
     email: payload.email ? String(payload.email).toLowerCase() : null,
     emailVerified: payload.email_verified === true || payload.email_verified === 'true',
   };
+}
+
+// ── Google ───────────────────────────────────────────────────────────────────
+const GOOGLE_ISSUERS: [string, ...string[]] = ['https://accounts.google.com', 'accounts.google.com'];
+const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+
+// Audiences acceptées = Web Client ID (audience de l'id_token natif) + iOS Client ID
+// par sécurité. Renseigne au moins GOOGLE_WEB_CLIENT_ID sur le serveur.
+function googleAudiences(): string[] {
+  return [process.env.GOOGLE_WEB_CLIENT_ID, process.env.GOOGLE_IOS_CLIENT_ID]
+    .map((v) => v?.trim())
+    .filter((v): v is string => Boolean(v));
+}
+
+let googleKeysCache: { keys: { kid: string; [k: string]: unknown }[]; fetchedAt: number } | null = null;
+
+async function getGoogleKey(kid: string): Promise<crypto.KeyObject | null> {
+  const fresh = googleKeysCache && Date.now() - googleKeysCache.fetchedAt < 10 * 60 * 1000;
+  if (!fresh) {
+    const res = await fetch(GOOGLE_JWKS_URL);
+    if (!res.ok) throw new Error(`Google JWKS: HTTP ${res.status}`);
+    const body = (await res.json()) as { keys: { kid: string }[] };
+    googleKeysCache = { keys: body.keys, fetchedAt: Date.now() };
+  }
+  const jwk = googleKeysCache!.keys.find((k) => k.kid === kid);
+  if (!jwk) return null;
+  return crypto.createPublicKey({ key: jwk as crypto.JsonWebKey, format: 'jwk' });
+}
+
+export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedSocialIdentity> {
+  const audiences = googleAudiences();
+  if (audiences.length === 0) {
+    throw new Error('GOOGLE_WEB_CLIENT_ID non configuré sur le serveur');
+  }
+  const decoded = jwt.decode(idToken, { complete: true });
+  if (!decoded || typeof decoded === 'string' || !decoded.header.kid) {
+    throw new Error('Token Google illisible');
+  }
+  let key = await getGoogleKey(decoded.header.kid);
+  if (!key) {
+    // kid inconnu : Google a peut-être tourné ses clés — on force un re-fetch
+    googleKeysCache = null;
+    key = await getGoogleKey(decoded.header.kid);
+  }
+  if (!key) throw new Error('Clé publique Google introuvable (kid inconnu)');
+
+  const payload = jwt.verify(idToken, key, {
+    algorithms: ['RS256'],
+    issuer: GOOGLE_ISSUERS,
+    audience: audiences as [string, ...string[]],
+  }) as jwt.JwtPayload & { email?: string; email_verified?: boolean | string };
+
+  if (!payload.sub) throw new Error('Token Google sans sub');
+  return {
+    providerUserId: String(payload.sub),
+    email: payload.email ? String(payload.email).toLowerCase() : null,
+    emailVerified: payload.email_verified === true || payload.email_verified === 'true',
+  };
+}
+
+export function isGoogleVerifyConfigured(): boolean {
+  return googleAudiences().length > 0;
 }
 
 export async function verifySupabaseAccessToken(accessToken: string): Promise<VerifiedSocialIdentity> {

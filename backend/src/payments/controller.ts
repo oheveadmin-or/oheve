@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import type { Request, Response } from 'express';
 import { pool } from '../config/database';
+import { syncPrestaSubscription } from '../prestataire-subscription';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
@@ -233,6 +234,19 @@ export class PaymentsController {
          WHERE stripe_payment_intent_id=$1`,
         [pi.id]
       );
+    }
+
+    // Abonnement prestataire (39€/mois) — garder le statut en base à jour.
+    if (
+      event.type === 'customer.subscription.updated' ||
+      event.type === 'customer.subscription.deleted' ||
+      event.type === 'customer.subscription.created'
+    ) {
+      const sub = event.data.object;
+      if (sub.metadata?.product === 'prestataire_subscription') {
+        try { await syncPrestaSubscription(sub); }
+        catch (e: any) { console.error('syncPrestaSubscription webhook error:', e.message); }
+      }
     }
 
     if (event.type === 'account.updated') {

@@ -73,7 +73,8 @@ export default function VerifyOtpScreen() {
       }
       await signIn(json.data);
       if (params.role === 'prestataire') {
-        router.replace('/(app)/prestataire/setup' as never);
+        // Abonnement obligatoire (39€/mois, 3 mois offerts) avant l'accès à l'espace.
+        router.replace('/(app)/prestataire/subscribe' as never);
       } else {
         router.replace('/(onboarding)/setup');
       }

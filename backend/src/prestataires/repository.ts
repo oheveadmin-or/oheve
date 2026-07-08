@@ -90,6 +90,9 @@ export class PrestatairesRepository {
       conditions.push(`COALESCE(p.is_hidden, false)=false`);
       conditions.push(`COALESCE(p.is_suspended, false)=false`);
       conditions.push(`u.is_active=true`);
+      // Visible dans le répertoire uniquement si l'abonnement est actif/en essai
+      // (les admins restent visibles quoi qu'il arrive).
+      conditions.push(`(u.role='admin' OR u.presta_sub_status IN ('trialing','active'))`);
     }
     if (category) { conditions.push(`p.category=$${i++}`); vals.push(category); }
     if (city) { conditions.push(`p.location_city ILIKE $${i++}`); vals.push(`%${city}%`); }

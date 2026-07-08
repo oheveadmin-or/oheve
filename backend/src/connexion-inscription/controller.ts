@@ -14,8 +14,10 @@ import {
   verifyAccessToken,
 } from '../auth/jwt';
 import {
+  isGoogleVerifyConfigured,
   isSupabaseVerifyConfigured,
   verifyAppleIdentityToken,
+  verifyGoogleIdToken,
   verifySupabaseAccessToken,
 } from '../auth/socialVerify';
 import { ConnexionInscriptionRepository } from './repository';
@@ -389,12 +391,18 @@ export class ConnexionInscriptionController {
     | { ok: true; identity: { providerUserId: string; email: string | null } | null }
     | { ok: false; status: number; message: string }
   > {
-    const { provider, identity_token, supabase_access_token } = req.body;
+    const { provider, identity_token, google_id_token, supabase_access_token } = req.body;
     try {
       if (provider === 'apple' && identity_token) {
         const v = await verifyAppleIdentityToken(String(identity_token));
         return { ok: true, identity: v };
       }
+      // Google natif (builds actuels) : id_token vérifié contre les clés Google
+      if (provider === 'google' && google_id_token && isGoogleVerifyConfigured()) {
+        const v = await verifyGoogleIdToken(String(google_id_token));
+        return { ok: true, identity: v };
+      }
+      // Google legacy (anciens builds via Supabase OAuth)
       if (provider === 'google' && supabase_access_token && isSupabaseVerifyConfigured()) {
         const v = await verifySupabaseAccessToken(String(supabase_access_token));
         return { ok: true, identity: v };

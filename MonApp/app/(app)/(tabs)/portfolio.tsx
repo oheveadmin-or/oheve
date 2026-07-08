@@ -17,9 +17,11 @@ import {
   Dimensions,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { ErrorBanner } from '@/components/ui/error-banner';
 import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { prestatairesApi, uploadFile } from '@/services/auth/api';
@@ -41,6 +43,7 @@ type Photo = {
 
 export default function PortfolioScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -74,15 +77,20 @@ export default function PortfolioScreen() {
     setSavingCaption(false);
   };
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const fetchPhotos = useCallback(async () => {
     if (!user?.accessToken) { setLoading(false); return; }
     try {
       const res = await prestatairesApi.getPhotos(user.accessToken);
       if (res?.success && Array.isArray(res.data)) {
         setPhotos(res.data);
+        setLoadError(null);
+      } else {
+        setLoadError(res?.message || 'Impossible de charger le portfolio. Vérifiez votre connexion.');
       }
     } catch {
-      // réseau non disponible — mode hors-ligne
+      setLoadError('Impossible de charger le portfolio. Vérifiez votre connexion.');
     } finally {
       setLoading(false);
     }
@@ -210,6 +218,7 @@ export default function PortfolioScreen() {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+          <ErrorBanner message={loadError} onRetry={fetchPhotos} />
 
           {/* ── Photo de couverture ─────────────────────────────────── */}
           <AnimatedView entering={FadeInDown.delay(60).springify()}>
@@ -257,7 +266,7 @@ export default function PortfolioScreen() {
           {/* ── Grille photos ────────────────────────────────────────── */}
           <AnimatedView entering={FadeInDown.delay(120).springify()}>
             <View style={styles.gridHeader}>
-              <ThemedText style={styles.sectionLabel}>
+              <ThemedText style={[styles.sectionLabel, { flex: 1, marginBottom: 0 }]} numberOfLines={1}>
                 Toutes les photos ({photos.length})
               </ThemedText>
               {photos.length > 0 && (
@@ -369,7 +378,7 @@ export default function PortfolioScreen() {
       <Modal visible={!!captionPhoto} transparent animationType="slide" onRequestClose={() => setCaptionPhoto(null)}>
         <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <Pressable style={styles.captionOverlayBg} onPress={() => setCaptionPhoto(null)} />
-          <View style={styles.captionSheet}>
+          <View style={[styles.captionSheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.captionHandle} />
             {captionPhoto && (
               <Image source={{ uri: captionPhoto.url }} style={styles.captionPreview} contentFit="cover" />

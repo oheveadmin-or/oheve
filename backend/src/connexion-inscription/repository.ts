@@ -57,6 +57,7 @@ export class ConnexionInscriptionRepository {
               wedding_location_type,wedding_city,wedding_country,
               wedding_lat,wedding_lng,wedding_address,
               subscription_plan,subscription_status,subscription_started_at,subscription_expires_at,
+              presta_sub_status,presta_trial_end,presta_current_period_end,
               bride_name,groom_name,premium,premium_purchased_at,created_at
        FROM users WHERE email=$1`,
       [email]
@@ -71,6 +72,7 @@ export class ConnexionInscriptionRepository {
               wedding_location_type,wedding_city,wedding_country,
               wedding_lat,wedding_lng,wedding_address,
               subscription_plan,subscription_status,subscription_started_at,subscription_expires_at,
+              presta_sub_status,presta_trial_end,presta_current_period_end,
               bride_name,groom_name,premium,premium_purchased_at,created_at
        FROM users WHERE id=$1`,
       [id]

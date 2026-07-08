@@ -17,7 +17,7 @@ import { useAppleAuthAvailable } from '@/hooks/use-apple-auth-available';
 
 const ROLES: { key: UserRole; label: string; icon: string; desc: string }[] = [
   { key: 'client', label: 'Futur(e) marié(e)', icon: '💍', desc: 'Organise ton mariage' },
-  { key: 'prestataire', label: 'Prestataire', icon: '🏢', desc: 'Propose tes services' },
+  { key: 'prestataire', label: 'Prestataire', icon: '🏢', desc: '3 mois offerts puis 39€/mois' },
   { key: 'boutique', label: 'Boutique', icon: '🛍️', desc: 'À partir de 7€/mois' },
 ];
 

@@ -35,6 +35,16 @@ export interface AuthUser {
   groom_name?: string;
   premium?: boolean;
   premium_purchased_at?: string;
+  // Abonnement prestataire (39€/mois, 3 mois offerts). Statut Stripe :
+  // 'incomplete' (CB pas encore validée) | 'trialing' | 'active' | 'past_due' | 'canceled'…
+  presta_sub_status?: string;
+  presta_trial_end?: string;
+  presta_current_period_end?: string;
+}
+
+/** Un prestataire a accès à son espace si son abonnement est en essai ou actif. */
+export function isPrestaSubActive(status?: string | null): boolean {
+  return status === 'trialing' || status === 'active';
 }
 
 const STORAGE_KEY = '@wedding_auth_v2';
@@ -62,6 +72,8 @@ interface AuthContextValue {
   signOut: (allDevices?: boolean) => Promise<void>;
   updateUser: (updates: Partial<AuthUser>) => Promise<void>;
   refreshAccessToken: () => Promise<string | null>;
+  /** Rafraîchit le statut d'abonnement prestataire depuis le serveur. */
+  refreshPrestaSub: () => Promise<string | null>;
   onboardingComplete: boolean;
 }
 
@@ -92,6 +104,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {
       /* réseau : sans effet, réessaie à la prochaine ouverture */
+    }
+  }, []);
+
+  /** Aligne le statut d'abonnement prestataire local sur le serveur (source de
+   *  vérité = Stripe). Renvoie le statut à jour, ou null si indisponible. */
+  const syncPrestaSubFromServer = useCallback(async (current: AuthUser): Promise<string | null> => {
+    if (current.role !== 'prestataire') return null;
+    try {
+      const res = await fetch(API_ENDPOINTS.prestaSubStatus, {
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      if (!json?.success) return null;
+      const status: string | null = json.data?.status ?? null;
+      setUser((u) => {
+        const base = u ?? current;
+        const updated = normalizeUser({
+          ...base,
+          presta_sub_status: status ?? undefined,
+          presta_trial_end: json.data?.trial_end ?? base.presta_trial_end,
+          presta_current_period_end: json.data?.current_period_end ?? base.presta_current_period_end,
+        });
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+        return updated;
+      });
+      return status;
+    } catch {
+      return null;
     }
   }, []);
 
@@ -129,6 +170,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // si le webhook a été manqué) → un client qui a payé mais dont le site
           // restait bloqué « activer Premium » se débloque à l'ouverture.
           syncPremiumFromServer(refreshed);
+          // Idem pour l'abonnement prestataire : le gate de routage se met à jour
+          // dès l'ouverture (déblocage si l'essai/l'abonnement est actif).
+          syncPrestaSubFromServer(refreshed);
         }
         // 5xx ou réponse invalide : on garde la session stockée.
       } catch {
@@ -193,12 +237,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updated);
   }, [user]);
 
+  const refreshPrestaSub = useCallback(async (): Promise<string | null> => {
+    if (!user) return null;
+    return syncPrestaSubFromServer(user);
+  }, [user, syncPrestaSubFromServer]);
+
   const onboardingComplete = Boolean(
     user?.wedding_location_type && user?.date_mariage && user?.budget_total != null
   );
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, updateUser, refreshAccessToken, onboardingComplete }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, updateUser, refreshAccessToken, refreshPrestaSub, onboardingComplete }}>
       {children}
     </AuthContext.Provider>
   );

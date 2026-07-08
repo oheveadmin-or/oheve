@@ -59,6 +59,15 @@ const USERS_ADD_COLS = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_purchased_at TIMESTAMP WITH TIME ZONE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_stripe_payment_intent_id TEXT`,
+  // ── Abonnement Prestataire (39€/mois, 3 mois offerts) ──────────────────────
+  // stripe_customer_id est partagé (client Stripe du user). presta_sub_* décrit
+  // l'abonnement récurrent : status 'incomplete' = démarré sans CB validée,
+  // 'trialing'/'active' = accès autorisé, 'past_due'/'canceled'/'unpaid' = bloqué.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_sub_id TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_sub_status VARCHAR(30)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_trial_end TIMESTAMP WITH TIME ZONE`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_current_period_end TIMESTAMP WITH TIME ZONE`,
   // ── Réparation : comptes Apple créés avec l'id du relay comme nom ──────────
   // ("000416.fd0b…" affiché comme nom de profil). On vide pour laisser la place
   // aux prénoms des mariés saisis dans l'app.

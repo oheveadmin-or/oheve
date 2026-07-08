@@ -109,8 +109,12 @@ export default function SubscriptionScreen() {
               if (res.success) {
                 await updateUser({ subscription_status: 'cancelled' });
                 await load();
+              } else {
+                Alert.alert('Annulation impossible', res?.message ?? 'Vérifiez votre connexion et réessayez.');
               }
-            } catch {}
+            } catch {
+              Alert.alert('Annulation impossible', 'Vérifiez votre connexion et réessayez.');
+            }
           },
         },
       ]
