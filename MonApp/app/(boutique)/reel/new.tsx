@@ -22,7 +22,7 @@ export default function NewReelScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ['videos'],
       allowsEditing: true,
       videoMaxDuration: 90,
       quality: 0.8,

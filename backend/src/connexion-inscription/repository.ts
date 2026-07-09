@@ -59,8 +59,8 @@ export class ConnexionInscriptionRepository {
               subscription_plan,subscription_status,subscription_started_at,subscription_expires_at,
               presta_sub_status,presta_trial_end,presta_current_period_end,
               bride_name,groom_name,premium,premium_purchased_at,created_at
-       FROM users WHERE email=$1`,
-      [email]
+       FROM users WHERE LOWER(email)=LOWER($1)`,
+      [email.trim()]
     );
     return r.rows[0] ?? null;
   }

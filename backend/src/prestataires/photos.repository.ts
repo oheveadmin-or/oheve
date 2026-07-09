@@ -139,9 +139,9 @@ export class PhotosRepository {
     return r.rows[0]?.cnt ?? 0;
   }
 
-  async getUserSubscription(userId: number): Promise<{ role: string; subscription_plan: string | null; subscription_status: string | null } | null> {
+  async getUserSubscription(userId: number): Promise<{ role: string; subscription_plan: string | null; subscription_status: string | null; presta_sub_status: string | null } | null> {
     const r = await pool.query(
-      `SELECT role, subscription_plan, subscription_status FROM users WHERE id=$1`,
+      `SELECT role, subscription_plan, subscription_status, presta_sub_status FROM users WHERE id=$1`,
       [userId]
     );
     return r.rows[0] ?? null;

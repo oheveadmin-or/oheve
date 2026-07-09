@@ -81,8 +81,6 @@ export default function AppLayout() {
       <Stack.Screen name="providers" />
       <Stack.Screen name="wedding-card/index" />
       <Stack.Screen name="site-webview" />
-      <Stack.Screen name="wedding-card/editor" />
-      <Stack.Screen name="wedding-card/templates" />
       <Stack.Screen name="planning-day" />
       <Stack.Screen name="acte-mariage" />
       <Stack.Screen name="public-site/create" />

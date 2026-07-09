@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { Request, Response } from 'express';
 import { PhotosRepository } from './photos.repository';
+import { isPrestaSubActive } from '../prestataire-subscription';
 
 const repo = new PhotosRepository();
 
@@ -119,6 +120,8 @@ export class PhotosController {
           } else {
             photoLimit = 5; // boutique sans abonnement actif
           }
+        } else if (userSub.role === 'prestataire' && isPrestaSubActive(userSub.presta_sub_status)) {
+          photoLimit = Infinity;
         }
         if (photoLimit !== Infinity) {
           const count = await repo.countByPrestataire(prestataireId);

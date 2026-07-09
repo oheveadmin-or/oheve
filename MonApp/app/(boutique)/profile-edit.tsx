@@ -30,7 +30,7 @@ export default function BoutiqueProfileEditScreen() {
   const pickCover = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
-    await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+    await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
   };
 
   const handleSave = async () => {

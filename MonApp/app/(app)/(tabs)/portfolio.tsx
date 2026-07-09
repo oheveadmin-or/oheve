@@ -109,10 +109,13 @@ export default function PortfolioScreen() {
     let result: ImagePicker.ImagePickerResult;
     try {
       result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsMultipleSelection: true,
         quality: 0.85,
-        selectionLimit: 0, // 0 = illimité (iOS bloquait à 10)
+        // ⚠️ selectionLimit: 0 (illimité) masque le bouton « Ajouter » du sélecteur
+        // iOS sur certaines versions → l'utilisateur ne peut plus valider sa sélection.
+        // Une limite finie restaure le bouton. 30 photos par lot (répétable).
+        selectionLimit: 30,
       });
     } catch {
       Alert.alert('Photo illisible', "Une des photos sélectionnées n'a pas pu être lue (parfois une image iCloud non téléchargée). Réessayez ou choisissez-en d'autres.");
