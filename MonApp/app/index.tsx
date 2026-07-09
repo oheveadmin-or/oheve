@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 
-import { isPrestaSubActive, useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/contexts/auth-context';
 
 /** Point d'entrée "/" : redirige vers la bonne zone selon le rôle */
 export default function IndexRedirect() {
@@ -13,11 +13,9 @@ export default function IndexRedirect() {
   // Boutique : espace dédié
   if (user.role === 'boutique') return <Redirect href="/(boutique)/(tabs)" />;
 
-  // Prestataire : accès bloqué tant que l'abonnement n'est pas actif/en essai.
+  // Prestataire : accès direct — l'abonnement n'est proposé qu'à l'inscription
+  // (et via un rappel non-bloquant sur l'accueil s'il n'est pas actif).
   if (user.role === 'prestataire') {
-    if (!isPrestaSubActive(user.presta_sub_status)) {
-      return <Redirect href="/(app)/prestataire/subscribe" />;
-    }
     return <Redirect href="/(app)/(tabs)" />;
   }
 

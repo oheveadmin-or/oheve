@@ -23,7 +23,7 @@ import Animated, {
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorBanner } from '@/components/ui/error-banner';
-import { useAuth } from '@/contexts/auth-context';
+import { isPrestaSubActive, useAuth } from '@/contexts/auth-context';
 import { messagingApi, prestatairesApi } from '@/services/auth/api';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -202,6 +202,27 @@ export function PrestataireHome() {
         contentContainerStyle={styles.scrollContent}
       >
         <ErrorBanner message={loadError} onRetry={loadData} />
+
+        {/* ── Rappel abonnement (non-bloquant) ───────────────────────── */}
+        {user?.role === 'prestataire' && !isPrestaSubActive(user.presta_sub_status) && (
+          <AnimatedView entering={FadeInDown.springify()} style={styles.subBanner}>
+            <View style={styles.subBannerIcon}>
+              <Ionicons name="eye-off-outline" size={18} color="#b45309" />
+            </View>
+            <View style={styles.subBannerTextWrap}>
+              <ThemedText style={styles.subBannerTitle}>Profil non visible</ThemedText>
+              <ThemedText style={styles.subBannerSub}>
+                Activez votre espace pour apparaître dans le répertoire — 3 mois offerts.
+              </ThemedText>
+            </View>
+            <Pressable
+              style={styles.subBannerBtn}
+              onPress={() => router.push('/(app)/prestataire/subscribe' as never)}
+            >
+              <ThemedText style={styles.subBannerBtnTxt}>Activer</ThemedText>
+            </Pressable>
+          </AnimatedView>
+        )}
 
         {/* ── Hero : Profil prestataire ──────────────────────────────── */}
         <AnimatedView entering={FadeInDown.delay(60).springify()} style={styles.heroCard}>
@@ -463,6 +484,26 @@ export function PrestataireHome() {
 }
 
 const styles = StyleSheet.create({
+  // Rappel abonnement (non-bloquant)
+  subBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#fef3c7', borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: '#fcd34d',
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 14,
+  },
+  subBannerIcon: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#fde68a',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  subBannerTextWrap: { flex: 1 },
+  subBannerTitle: { fontSize: 13, fontWeight: '800', color: '#92400e' },
+  subBannerSub: { fontSize: 11.5, color: '#a16207', lineHeight: 15, marginTop: 1 },
+  subBannerBtn: {
+    backgroundColor: '#b45309', borderRadius: RADIUS.pill,
+    paddingHorizontal: 14, paddingVertical: 8,
+  },
+  subBannerBtnTxt: { color: '#fff', fontSize: 12.5, fontWeight: '700' },
+
   layout: { gap: 0 },
   loadingWrap: { gap: 12, paddingTop: 8 },
   skeletonCard: {

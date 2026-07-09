@@ -64,8 +64,9 @@ export default function RoleSelectScreen() {
       if (selected === 'boutique') {
         router.replace('/(boutique)/(tabs)');
       } else if (selected === 'prestataire') {
-        // Abonnement obligatoire (39€/mois, 3 mois offerts) avant l'accès à l'espace.
-        router.replace('/(app)/prestataire/subscribe');
+        // Inscription prestataire : d'abord la fiche complète (infos visibles
+        // par les mariés), puis l'abonnement (39€/mois, 3 mois offerts).
+        router.replace('/(app)/prestataire/setup');
       } else {
         router.replace('/(onboarding)/setup');
       }
