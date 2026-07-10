@@ -19,16 +19,16 @@ export class PhotosRepository {
     return r.rows as PhotoRow[];
   }
 
-  async insert(prestataireId: number, url: string, filename: string): Promise<PhotoRow> {
+  async insert(prestataireId: number, url: string, filename: string, caption?: string | null): Promise<PhotoRow> {
     const hasCover = await pool.query(
       `SELECT 1 FROM prestataire_photos WHERE prestataire_id=$1 AND is_cover=true LIMIT 1`,
       [prestataireId]
     );
     const isCover = hasCover.rowCount === 0;
     const r = await pool.query(
-      `INSERT INTO prestataire_photos (prestataire_id, url, filename, is_cover)
-       VALUES ($1,$2,$3,$4) RETURNING *`,
-      [prestataireId, url, filename, isCover]
+      `INSERT INTO prestataire_photos (prestataire_id, url, filename, is_cover, caption)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [prestataireId, url, filename, isCover, caption?.trim() || null]
     );
     return r.rows[0] as PhotoRow;
   }

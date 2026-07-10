@@ -78,9 +78,15 @@ async function ensureCustomer(userId: number): Promise<string> {
 export async function syncPrestaSubscription(sub: StripeSub): Promise<number | null> {
   const userId = sub.metadata?.user_id ? parseInt(sub.metadata.user_id, 10) : null;
   const trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000) : null;
-  const periodEnd = (sub as any).current_period_end
-    ? new Date((sub as any).current_period_end * 1000)
-    : null;
+  // Depuis l'API 2026, `current_period_end` a migré de l'abonnement vers ses
+  // items : on lit d'abord la racine (anciennes versions) puis l'item, et en
+  // dernier recours la fin d'essai (période courante d'un abonnement en essai).
+  const periodEndTs =
+    (sub as any).current_period_end
+    ?? (sub as any).items?.data?.[0]?.current_period_end
+    ?? sub.trial_end
+    ?? null;
+  const periodEnd = periodEndTs ? new Date(periodEndTs * 1000) : null;
 
   // Une CB doit être enregistrée pour débloquer l'accès : Stripe crée déjà
   // l'abonnement en 'trialing' AVANT toute saisie de carte (default_incomplete +

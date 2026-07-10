@@ -117,6 +117,9 @@ function SubscribeForm() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+        keyboardShouldPersistTaps="handled"
+        // Remonte le champ carte / bouton au-dessus du clavier (iOS)
+        automaticallyAdjustKeyboardInsets
       >
         {/* Hero */}
         <View style={styles.hero}>

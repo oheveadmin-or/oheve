@@ -3,7 +3,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert, KeyboardAvoidingView, Platform, Pressable,
+  Alert, Pressable,
   ScrollView, StyleSheet, TextInput, View,
 } from 'react-native';
 
@@ -103,8 +103,13 @@ export default function RegisterScreen() {
 
   return (
     <ScreenLayout style={{ backgroundColor: C.ivoire }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          // Remonte automatiquement le champ actif au-dessus du clavier (iOS)
+          automaticallyAdjustKeyboardInsets
+        >
 
           {/* Header */}
           <View style={styles.headerRow}>
@@ -249,7 +254,6 @@ export default function RegisterScreen() {
           </Pressable>
 
         </ScrollView>
-      </KeyboardAvoidingView>
     </ScreenLayout>
   );
 }

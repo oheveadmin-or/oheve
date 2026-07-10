@@ -9,7 +9,9 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -122,19 +124,34 @@ function PrestataireInstaProfile() {
   };
 
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // On demande la description AVANT d'ajouter la photo : on choisit d'abord
+  // l'image, puis une petite fenêtre invite à saisir la légende (facultative)
+  // qui s'affichera ensuite dans les reels de l'Explore.
+  const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null);
+  const [captionDraft, setCaptionDraft] = useState('');
 
   const pickAndUploadPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
     if (result.canceled || !result.assets[0]) return;
+    setCaptionDraft('');
+    setPendingPhotoUri(result.assets[0].uri);
+  };
+
+  const confirmUploadPhoto = async () => {
+    if (!pendingPhotoUri) return;
+    const uri = pendingPhotoUri;
+    const caption = captionDraft.trim();
+    setPendingPhotoUri(null);
     setUploadingPhoto(true);
     try {
       const res = await uploadFile(
         `${API_ENDPOINTS.prestataires}/me/photos`,
         user!.accessToken!,
-        result.assets[0].uri,
-        'photo'
+        uri,
+        'photo',
+        caption ? { caption } : undefined,
       );
       if (res?.success) {
         load();
@@ -302,6 +319,53 @@ function PrestataireInstaProfile() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Description de la photo — demandée avant l'ajout */}
+      <Modal
+        visible={!!pendingPhotoUri}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPendingPhotoUri(null)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={instaStyles.captionOverlay}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPendingPhotoUri(null)} />
+          <View style={[instaStyles.captionSheet, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={instaStyles.modalHandle} />
+            <ThemedText style={instaStyles.captionTitle}>Ajouter une description</ThemedText>
+            <ThemedText style={instaStyles.captionSub}>
+              Elle s'affichera avec votre photo dans l'Explore et les reels.
+            </ThemedText>
+
+            {pendingPhotoUri && (
+              <Image source={{ uri: pendingPhotoUri }} style={instaStyles.captionPreview} contentFit="cover" />
+            )}
+
+            <TextInput
+              style={instaStyles.captionInput}
+              value={captionDraft}
+              onChangeText={setCaptionDraft}
+              placeholder="Décrivez cette réalisation (facultatif)…"
+              placeholderTextColor={C.textLight}
+              multiline
+              maxLength={280}
+              autoFocus
+            />
+
+            <View style={instaStyles.captionActions}>
+              <Pressable style={instaStyles.captionCancelBtn} onPress={() => setPendingPhotoUri(null)}>
+                <ThemedText style={instaStyles.captionCancelTxt}>Annuler</ThemedText>
+              </Pressable>
+              <Pressable style={instaStyles.captionPublishBtn} onPress={confirmUploadPhoto}>
+                <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
+                <ThemedText style={instaStyles.captionPublishTxt}>Publier</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Settings modal */}
       <Modal visible={settingsModal} transparent animationType="slide" onRequestClose={() => setSettingsModal(false)}>
@@ -582,6 +646,32 @@ const instaStyles = StyleSheet.create({
     paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12,
   },
   emptyGridBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  captionOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
+  captionSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 20, paddingTop: 10,
+  },
+  captionTitle: { fontSize: 19, fontWeight: '800', color: C.textDark, marginBottom: 4 },
+  captionSub: { fontSize: 13, color: C.textLight, lineHeight: 18, marginBottom: 14 },
+  captionPreview: { width: '100%', height: 160, borderRadius: 14, marginBottom: 14, backgroundColor: C.saugePale },
+  captionInput: {
+    borderWidth: 1.5, borderColor: C.border, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15,
+    color: C.textDark, backgroundColor: C.card,
+    textAlignVertical: 'top', minHeight: 90, marginBottom: 16,
+  },
+  captionActions: { flexDirection: 'row', gap: 10 },
+  captionCancelBtn: {
+    flex: 1, borderWidth: 1.5, borderColor: C.border, borderRadius: 14,
+    paddingVertical: 14, alignItems: 'center', backgroundColor: C.card,
+  },
+  captionCancelTxt: { color: C.textMid, fontWeight: '700', fontSize: 15 },
+  captionPublishBtn: {
+    flex: 1, backgroundColor: C.sauge, borderRadius: 14, paddingVertical: 14,
+    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
+  },
+  captionPublishTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
   modalSheet: {

@@ -1027,14 +1027,16 @@ export default function ExploreScreen() {
         const feedPosts: Post[] = json.data.map((p: {
           id: number; url: string; is_cover: boolean; created_at: string;
           user_id: number; business_name: string; category: string; prenom: string; nom: string;
-          like_count: number; comment_count: number; liked_by_me: boolean;
+          like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null;
         }) => ({
           id: `feed-${p.id}`,
           photoId: p.id,
           userId: p.user_id,
           mediaUri: p.url,
           mediaType: 'image' as const,
-          caption: p.business_name || `${p.prenom} ${p.nom}`.trim(),
+          // Priorité à la description saisie par le prestataire lors de l'ajout ;
+          // à défaut, on affiche le nom de l'établissement.
+          caption: (p.caption && p.caption.trim()) || p.business_name || `${p.prenom} ${p.nom}`.trim(),
           category: CAT_MAP[p.category?.toLowerCase()?.trim()] ?? 'autres',
           author: `${p.prenom} ${p.nom ? p.nom[0] + '.' : ''}`.trim(),
           likes: p.like_count ?? 0,

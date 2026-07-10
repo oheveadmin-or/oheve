@@ -131,7 +131,9 @@ export default function ManageSubscriptionScreen() {
               </ThemedText>
               <ThemedText style={styles.statusSub}>
                 {alreadyCancelled
-                  ? `Accès maintenu jusqu'au ${formatDate(periodEnd)}, puis résiliation.`
+                  ? (formatDate(periodEnd ?? trialEnd)
+                      ? `Accès maintenu jusqu'au ${formatDate(periodEnd ?? trialEnd)}, puis résiliation.`
+                      : 'Accès maintenu jusqu\'à la fin de la période en cours, puis résiliation.')
                   : isTrial
                     ? `3 mois offerts${trialEnd ? ` — 1er prélèvement le ${formatDate(trialEnd)}` : ''}`
                     : active
