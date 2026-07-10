@@ -27,7 +27,7 @@ export default function MentionsLegalesScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <Block title="Éditeur de l'application">
-          {"Oheve Wedding Planner\nContact : odayaattia@gmail.com\n\nDirecteur de la publication : Odaya Attia"}
+          {"Oheve Wedding Planner\nContact : oheveadmin@gmail.com\n\nDirecteur de la publication : Odaya Attia"}
         </Block>
 
         <Block title="Hébergement">
@@ -43,7 +43,7 @@ export default function MentionsLegalesScreen() {
         </Block>
 
         <Block title="Données personnelles">
-          {"Conformément à la loi Informatique et Libertés du 6 janvier 1978 modifiée et au RGPD, vous disposez d'un droit d'accès, de rectification, de portabilité et d'effacement de vos données.\n\nPour exercer ces droits : odayaattia@gmail.com\n\nDéclaration CNIL : en cours d'enregistrement."}
+          {"Conformément à la loi Informatique et Libertés du 6 janvier 1978 modifiée et au RGPD, vous disposez d'un droit d'accès, de rectification, de portabilité et d'effacement de vos données.\n\nPour exercer ces droits : oheveadmin@gmail.com\n\nDéclaration CNIL : en cours d'enregistrement."}
         </Block>
 
         <Block title="Médiation">

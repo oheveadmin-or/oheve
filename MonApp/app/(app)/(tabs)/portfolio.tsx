@@ -51,6 +51,9 @@ export default function PortfolioScreen() {
   const [captionPhoto, setCaptionPhoto] = useState<Photo | null>(null);
   const [captionText, setCaptionText] = useState('');
   const [savingCaption, setSavingCaption] = useState(false);
+  // Photo choisie mais pas encore envoyée : on demande la description AVANT
+  // l'upload (elle s'affiche ensuite dans l'Explore et les reels).
+  const [pendingUri, setPendingUri] = useState<string | null>(null);
 
   const tileSize = gridW > 0 ? (gridW - GAP * 2) / 3 : PHOTO_SIZE;
 
@@ -124,15 +127,28 @@ export default function PortfolioScreen() {
 
     if (result.canceled || !result.assets.length) return;
 
+    // Une seule photo → on demande d'abord la description (facultative).
+    // Plusieurs photos → upload direct (description ajoutable ensuite par photo).
+    if (result.assets.length === 1) {
+      setCaptionText('');
+      setPendingUri(result.assets[0].uri);
+      return;
+    }
+    await uploadAssets(result.assets.map((a) => a.uri));
+  };
+
+  const uploadAssets = async (uris: string[], caption?: string) => {
     setUploading(true);
     let failed = 0;
     try {
-      for (const asset of result.assets) {
+      for (const uri of uris) {
         try {
           const res = await uploadFile(
             `${API_ENDPOINTS.prestataires}/me/photos`,
             user!.accessToken,
-            asset.uri,
+            uri,
+            'photo',
+            caption ? { caption } : undefined,
           );
           if (res?.success && res.data) {
             setPhotos((prev) => [...prev, res.data as never]);
@@ -150,6 +166,15 @@ export default function PortfolioScreen() {
     if (failed > 0) {
       Alert.alert('Upload partiel', `${failed} photo(s) n'ont pas pu être ajoutées. Les autres ont bien été enregistrées.`);
     }
+  };
+
+  // Publication de la photo en attente avec sa description saisie dans le modal.
+  const confirmPendingUpload = async () => {
+    if (!pendingUri) return;
+    const uri = pendingUri;
+    const caption = captionText.trim();
+    setPendingUri(null);
+    await uploadAssets([uri], caption || undefined);
   };
 
   const setCover = async (photoId: number) => {
@@ -377,16 +402,28 @@ export default function PortfolioScreen() {
         </ScrollView>
       )}
 
-      {/* ── Modal description photo ──────────────────────────────────── */}
-      <Modal visible={!!captionPhoto} transparent animationType="slide" onRequestClose={() => setCaptionPhoto(null)}>
+      {/* ── Modal description photo (avant upload OU édition) ─────────── */}
+      <Modal
+        visible={!!captionPhoto || !!pendingUri}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setCaptionPhoto(null); setPendingUri(null); }}
+      >
         <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <Pressable style={styles.captionOverlayBg} onPress={() => setCaptionPhoto(null)} />
+          <Pressable style={styles.captionOverlayBg} onPress={() => { setCaptionPhoto(null); setPendingUri(null); }} />
           <View style={[styles.captionSheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.captionHandle} />
-            {captionPhoto && (
-              <Image source={{ uri: captionPhoto.url }} style={styles.captionPreview} contentFit="cover" />
+            {(captionPhoto || pendingUri) && (
+              <Image source={{ uri: captionPhoto?.url ?? pendingUri! }} style={styles.captionPreview} contentFit="cover" />
             )}
-            <ThemedText style={styles.captionSheetTitle}>Description de la photo</ThemedText>
+            <ThemedText style={styles.captionSheetTitle}>
+              {pendingUri ? 'Ajouter une description' : 'Description de la photo'}
+            </ThemedText>
+            {pendingUri && (
+              <ThemedText style={styles.captionSheetSub}>
+                Elle s'affichera avec votre photo dans l'Explore et les reels.
+              </ThemedText>
+            )}
             <TextInput
               style={styles.captionInput}
               placeholder="Décrivez cette réalisation (lieu, style, prestation...)"
@@ -398,11 +435,15 @@ export default function PortfolioScreen() {
               autoFocus
             />
             <ThemedText style={styles.captionCount}>{captionText.length}/280</ThemedText>
-            <Pressable style={[styles.captionSaveBtn, savingCaption && { opacity: 0.6 }]} onPress={saveCaption} disabled={savingCaption}>
+            <Pressable
+              style={[styles.captionSaveBtn, savingCaption && { opacity: 0.6 }]}
+              onPress={pendingUri ? confirmPendingUpload : saveCaption}
+              disabled={savingCaption}
+            >
               {savingCaption ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <ThemedText style={styles.captionSaveTxt}>Enregistrer</ThemedText>
+                <ThemedText style={styles.captionSaveTxt}>{pendingUri ? 'Publier la photo' : 'Enregistrer'}</ThemedText>
               )}
             </Pressable>
           </View>
@@ -560,6 +601,7 @@ const styles = StyleSheet.create({
   captionHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 6 },
   captionPreview: { width: '100%', height: 150, borderRadius: 14, backgroundColor: '#ede9fe' },
   captionSheetTitle: { fontSize: 16, fontWeight: '800', color: '#1c1535', marginTop: 4 },
+  captionSheetSub: { fontSize: 12.5, color: '#A09890', lineHeight: 17, marginTop: 2 },
   captionInput: {
     borderWidth: 1.5, borderColor: C.border, borderRadius: 14,
     padding: 14, fontSize: 14, minHeight: 90, textAlignVertical: 'top',

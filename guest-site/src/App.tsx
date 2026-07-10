@@ -7,6 +7,7 @@ import { WeddingSiteBuilder } from '@guest/wedding-sites/components/WeddingSiteB
 import { WeddingRSVPPage } from '@guest/rsvp/WeddingRSVPPage';
 import { CookieBanner } from '@guest/components/CookieBanner';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
+import { PrivacyPage, CguPage, SupportPage } from '@guest/legal/LegalPages';
 
 export default function App() {
   return (
@@ -23,6 +24,10 @@ export default function App() {
       <CookieBanner />
       <Routes>
         <Route path="/" element={<Home />} />
+        {/* Pages légales — URLs publiques exigées par l'App Store (avant le catch-all /:slug) */}
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/cgu" element={<CguPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/wedding" element={<Navigate to="/wedding/build" replace />} />
         <Route path="/wedding/build" element={<WeddingSiteBuilder />} />
         {/* RSVP public — toutes les invitations ou via token */}

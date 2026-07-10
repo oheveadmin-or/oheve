@@ -12,7 +12,11 @@
       "bundleIdentifier": "com.oheve.wedding",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Oheve accède à vos photos pour vous permettre d'ajouter une photo de profil, des photos à votre portfolio et à votre site de mariage.",
+        "NSCameraUsageDescription": "Oheve utilise l'appareil photo pour vous permettre de prendre une photo de profil ou des photos pour votre site de mariage.",
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleDevelopmentRegion": "fr"
       }
     },
     "android": {

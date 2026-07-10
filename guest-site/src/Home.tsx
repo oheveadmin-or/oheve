@@ -249,7 +249,12 @@ export default function Home() {
           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1rem', fontWeight: 600, letterSpacing: '0.08em', color: MOKA_MID }}>
             OHEVE <span style={{ color: SAGE }}>WEDDING</span>
           </span>
-          <span style={{ fontSize: '0.78rem', color: MOKA_MID, opacity: 0.5 }}>www.ohevewedding.com</span>
+          <div style={{ display: 'flex', gap: '1.2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Link to="/privacy" style={{ fontSize: '0.78rem', color: MOKA_MID, opacity: 0.6, textDecoration: 'none' }}>Confidentialité</Link>
+            <Link to="/cgu" style={{ fontSize: '0.78rem', color: MOKA_MID, opacity: 0.6, textDecoration: 'none' }}>CGU</Link>
+            <Link to="/support" style={{ fontSize: '0.78rem', color: MOKA_MID, opacity: 0.6, textDecoration: 'none' }}>Support</Link>
+            <span style={{ fontSize: '0.78rem', color: MOKA_MID, opacity: 0.5 }}>www.ohevewedding.com</span>
+          </div>
         </footer>
       </div>
     </>

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import {
+  Alert,
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
@@ -26,6 +27,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
 import { useBoutique } from '@/contexts/boutique-context';
 import { API_ENDPOINTS } from '@/constants/config';
+import { uploadFile } from '@/services/auth/api';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -192,8 +194,6 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
-
-let nextPostId = 200;
 
 // ── Provider Profile Modal ───────────────────────────────────────────────────
 function ProviderModal({
@@ -759,13 +759,26 @@ function CreatePostModal({
   const [newMediaUri, setNewMediaUri] = useState<string | undefined>();
   const [newMediaType, setNewMediaType] = useState<'image' | 'video' | undefined>();
 
+  // Champs remis à zéro à chaque ouverture — mais conservés si la publication
+  // échoue (le modal reste ouvert, l'utilisateur ne perd pas sa saisie).
+  useEffect(() => {
+    if (visible) {
+      setNewCaption('');
+      setNewCategory('décoration');
+      setNewSubCategory(undefined);
+      setNewMediaUri(undefined);
+      setNewMediaType(undefined);
+    }
+  }, [visible]);
+
   const selectedCatDef = CATEGORIES.find((c) => c.key === newCategory);
 
   const handlePickMedia = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
+    // Photos uniquement : le serveur n'accepte pas encore les vidéos.
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
+      mediaTypes: ['images'],
       quality: 0.8,
       allowsEditing: false,
     });
@@ -778,11 +791,6 @@ function CreatePostModal({
   const handlePublish = () => {
     if (!newCaption.trim()) return;
     onPublish(newCaption.trim(), newCategory, newSubCategory, newMediaUri, newMediaType);
-    setNewCaption('');
-    setNewCategory('décoration');
-    setNewSubCategory(undefined);
-    setNewMediaUri(undefined);
-    setNewMediaType(undefined);
   };
 
   return (
@@ -806,7 +814,7 @@ function CreatePostModal({
               ) : (
                 <View style={createStyles.mediaPickerEmpty}>
                   <Ionicons name="images-outline" size={36} color="#a78bfa" />
-                  <ThemedText style={createStyles.mediaPickerTxt}>Ajouter une photo ou vidéo</ThemedText>
+                  <ThemedText style={createStyles.mediaPickerTxt}>Ajouter une photo</ThemedText>
                   <ThemedText style={createStyles.mediaPickerSub}>Appuie pour choisir depuis ta galerie</ThemedText>
                 </View>
               )}
@@ -1200,33 +1208,43 @@ export default function ExploreScreen() {
     setProviderModal(providerId);
   }, []);
 
-  const handlePublish = useCallback((
+  // Publication réelle : la photo part sur le serveur (portfolio du prestataire)
+  // avec sa description → visible par tous dans l'Explore/reels et persistante.
+  // (Avant : post uniquement local, perdu au rechargement.)
+  const handlePublish = useCallback(async (
     caption: string,
-    cat: Exclude<MainCategory, 'tout'>,
-    subCat?: SubCategory,
+    _cat: Exclude<MainCategory, 'tout'>,
+    _subCat?: SubCategory,
     mediaUri?: string,
     mediaType?: 'image' | 'video'
   ) => {
-    nextPostId += 1;
-    const newPost: Post = {
-      id: String(nextPostId),
-      mediaUri,
-      mediaType,
-      bgColor: ['#fce7f3', '#ede9fe', '#fef3c7', '#d1fae5', '#e0f2fe'][nextPostId % 5],
-      bgEmoji: ['🌸', '💐', '🕯️', '📸', '🎵'][nextPostId % 5],
-      caption,
-      category: cat,
-      subCategory: subCat,
-      author: user ? `${user.prenom} ${user.nom[0]}.` : 'Prestataire',
-      likes: 0,
-      isLiked: false,
-      cardH: 160 + (nextPostId % 4) * 20,
-      comments: [],
-      providerId: user ? String(user.id) : undefined,
-    };
-    setPosts((prev) => [newPost, ...prev]);
-    setCreateModal(false);
-  }, [user]);
+    if (!user?.accessToken) return;
+    if (!mediaUri) {
+      Alert.alert('Photo requise', 'Ajoutez une photo pour publier votre réalisation.');
+      return;
+    }
+    if (mediaType === 'video') {
+      Alert.alert('Vidéo non prise en charge', 'Seules les photos sont acceptées pour le moment.');
+      return;
+    }
+    try {
+      const res = await uploadFile(
+        `${API_ENDPOINTS.prestataires}/me/photos`,
+        user.accessToken,
+        mediaUri,
+        'photo',
+        caption.trim() ? { caption: caption.trim() } : undefined,
+      );
+      if (!res?.success) {
+        Alert.alert('Publication impossible', res?.message ?? 'Vérifiez votre connexion et réessayez.');
+        return;
+      }
+      setCreateModal(false);
+      loadFeed();
+    } catch {
+      Alert.alert('Publication impossible', 'Vérifiez votre connexion et réessayez.');
+    }
+  }, [user, loadFeed]);
 
   const handleCategoryChange = (key: MainCategory) => {
     setCategory(key);

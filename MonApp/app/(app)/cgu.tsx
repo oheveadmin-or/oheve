@@ -61,7 +61,7 @@ export default function CguScreen() {
         </Section>
 
         <Section title="9. Contact">
-          {"Pour toute question : odayaattia@gmail.com"}
+          {"Pour toute question : oheveadmin@gmail.com"}
         </Section>
       </ScrollView>
     </ThemedView>

@@ -30,7 +30,7 @@ export default function PrivacyPolicyScreen() {
         <ThemedText style={styles.date}>Dernière mise à jour : juin 2026</ThemedText>
 
         <Section title="1. Responsable du traitement">
-          {"La société Oheve, responsable de l'application Oheve Wedding Planner, est le responsable du traitement de vos données personnelles au sens du RGPD (Règlement Général sur la Protection des Données).\n\nContact : odayaattia@gmail.com"}
+          {"La société Oheve, responsable de l'application Oheve Wedding Planner, est le responsable du traitement de vos données personnelles au sens du RGPD (Règlement Général sur la Protection des Données).\n\nContact : oheveadmin@gmail.com"}
         </Section>
 
         <Section title="2. Données collectées">
@@ -54,7 +54,7 @@ export default function PrivacyPolicyScreen() {
         </Section>
 
         <Section title="7. Vos droits (RGPD)">
-          {"Conformément au RGPD, vous disposez des droits suivants :\n\n• Droit d'accès : obtenir une copie de vos données (Paramètres > Exporter mes données)\n• Droit de rectification : corriger vos données (Paramètres > Informations personnelles)\n• Droit à l'effacement : supprimer votre compte (Paramètres > Supprimer mon compte)\n• Droit à la portabilité : télécharger vos données en JSON\n• Droit d'opposition et de limitation : nous contacter\n\nPour exercer vos droits : odayaattia@gmail.com\n\nVous pouvez également déposer une réclamation auprès de la CNIL (cnil.fr)."}
+          {"Conformément au RGPD, vous disposez des droits suivants :\n\n• Droit d'accès : obtenir une copie de vos données (Paramètres > Exporter mes données)\n• Droit de rectification : corriger vos données (Paramètres > Informations personnelles)\n• Droit à l'effacement : supprimer votre compte (Paramètres > Supprimer mon compte)\n• Droit à la portabilité : télécharger vos données en JSON\n• Droit d'opposition et de limitation : nous contacter\n\nPour exercer vos droits : oheveadmin@gmail.com\n\nVous pouvez également déposer une réclamation auprès de la CNIL (cnil.fr)."}
         </Section>
 
         <Section title="8. Sécurité">
