@@ -24,3 +24,5 @@ calendarRoutes.get('/availability/:prestataireId', ctrl.getProviderSlots.bind(ct
 calendarRoutes.get('/appointments', ctrl.listAppointments.bind(ctrl));
 calendarRoutes.post('/appointments', ctrl.createAppointmentRequest.bind(ctrl));
 calendarRoutes.patch('/appointments/:id/respond', ctrl.respondToAppointment.bind(ctrl));
+calendarRoutes.patch('/appointments/:id', ctrl.rescheduleAppointment.bind(ctrl));
+calendarRoutes.post('/appointments/:id/cancel', ctrl.cancelAppointment.bind(ctrl));

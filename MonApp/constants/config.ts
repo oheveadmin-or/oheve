@@ -192,4 +192,6 @@ export const API_ENDPOINTS = {
   calendarProviderSlots: (prestataireId: number) => `${API_BASE_URL}/api/calendar/availability/${prestataireId}`,
   calendarAppointments: `${API_BASE_URL}/api/calendar/appointments`,
   calendarAppointmentRespond: (id: number) => `${API_BASE_URL}/api/calendar/appointments/${id}/respond`,
+  calendarAppointment: (id: number) => `${API_BASE_URL}/api/calendar/appointments/${id}`,
+  calendarAppointmentCancel: (id: number) => `${API_BASE_URL}/api/calendar/appointments/${id}/cancel`,
 } as const;

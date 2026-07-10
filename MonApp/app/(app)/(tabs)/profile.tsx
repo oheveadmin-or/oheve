@@ -139,6 +139,49 @@ function PrestataireInstaProfile() {
     setPendingPhotoUri(result.assets[0].uri);
   };
 
+  // Appui long sur une photo de la grille → couverture / suppression.
+  const photoOptions = (photo: Photo) => {
+    Alert.alert(
+      photo.is_cover ? 'Photo de couverture' : 'Photo',
+      'Que voulez-vous faire ?',
+      [
+        ...(!photo.is_cover
+          ? [{
+              text: 'Définir comme couverture',
+              onPress: async () => {
+                try {
+                  const res = await prestatairesApi.setCoverPhoto(user!.accessToken!, photo.id);
+                  if (res?.success) load();
+                  else Alert.alert('Erreur', res?.message ?? 'Action impossible.');
+                } catch { Alert.alert('Erreur', 'Vérifiez votre connexion.'); }
+              },
+            }]
+          : []),
+        {
+          text: 'Supprimer la photo',
+          style: 'destructive' as const,
+          onPress: () => {
+            Alert.alert('Supprimer la photo', 'Cette action est irréversible.', [
+              { text: 'Annuler', style: 'cancel' },
+              {
+                text: 'Supprimer',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    const res = await prestatairesApi.deletePhoto(user!.accessToken!, photo.id);
+                    if (res?.success) setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+                    else Alert.alert('Erreur', res?.message ?? 'Suppression impossible.');
+                  } catch { Alert.alert('Erreur', 'Vérifiez votre connexion.'); }
+                },
+              },
+            ]);
+          },
+        },
+        { text: 'Annuler', style: 'cancel' as const },
+      ],
+    );
+  };
+
   const confirmUploadPhoto = async () => {
     if (!pendingPhotoUri) return;
     const uri = pendingPhotoUri;
@@ -298,7 +341,11 @@ function PrestataireInstaProfile() {
                 );
               }
               return (
-                <Pressable style={instaStyles.gridPhoto} onPress={() => router.push('/(app)/(tabs)/portfolio' as never)}>
+                <Pressable
+                  style={instaStyles.gridPhoto}
+                  onPress={() => router.push('/(app)/(tabs)/portfolio' as never)}
+                  onLongPress={() => photoOptions(item)}
+                >
                   <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                   {item.is_cover && (
                     <View style={instaStyles.coverBadge}>

@@ -1,7 +1,7 @@
 import { pool } from '../config/database';
 
 export type CalendarEventType = 'appointment' | 'task' | 'event';
-export type AppointmentStatus = 'pending' | 'accepted' | 'refused' | 'counter_proposed';
+export type AppointmentStatus = 'pending' | 'accepted' | 'refused' | 'counter_proposed' | 'cancelled';
 
 export interface CalendarEventRow {
   id: number;
@@ -388,6 +388,64 @@ export class CalendarRepository {
         appointment_request_id: id,
       });
     }
+
+    return {
+      ...row,
+      requested_time: String(row.requested_time).slice(0, 5),
+      proposed_time: row.proposed_time ? String(row.proposed_time).slice(0, 5) : null,
+    };
+  }
+
+  /** Déplace un RDV (par le prestataire) : met à jour la demande ET les
+   *  événements calendrier synchronisés des deux parties. */
+  async rescheduleAppointment(
+    id: number,
+    prestataireId: number,
+    newDate: string,
+    newTime: string,
+  ): Promise<AppointmentRequestRow | null> {
+    const r = await pool.query<AppointmentRequestRow>(
+      `UPDATE appointment_requests
+       SET requested_date = $1, requested_time = $2,
+           proposed_date = NULL, proposed_time = NULL,
+           status = 'accepted', updated_at = NOW()
+       WHERE id = $3 AND prestataire_id = $4 AND status NOT IN ('cancelled', 'refused')
+       RETURNING *`,
+      [newDate, newTime, id, prestataireId],
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+
+    // Resynchroniser les événements des deux calendriers (client + prestataire)
+    // et réarmer le rappel 24h (la date a changé).
+    await pool.query(
+      `UPDATE calendar_events
+       SET event_date = $1, event_time = $2, reminder_sent = FALSE, updated_at = NOW()
+       WHERE appointment_request_id = $3`,
+      [newDate, newTime, id],
+    );
+
+    return {
+      ...row,
+      requested_time: String(row.requested_time).slice(0, 5),
+      proposed_time: row.proposed_time ? String(row.proposed_time).slice(0, 5) : null,
+    };
+  }
+
+  /** Annule un RDV (par le prestataire OU le client) : statut 'cancelled' et
+   *  retrait des événements calendrier synchronisés des deux parties. */
+  async cancelAppointment(id: number, userId: number): Promise<AppointmentRequestRow | null> {
+    const r = await pool.query<AppointmentRequestRow>(
+      `UPDATE appointment_requests
+       SET status = 'cancelled', updated_at = NOW()
+       WHERE id = $1 AND (prestataire_id = $2 OR client_id = $2) AND status <> 'cancelled'
+       RETURNING *`,
+      [id, userId],
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+
+    await pool.query(`DELETE FROM calendar_events WHERE appointment_request_id = $1`, [id]);
 
     return {
       ...row,

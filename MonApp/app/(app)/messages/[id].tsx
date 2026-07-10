@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BookingModal, ProposeAppointmentModal } from '@/components/booking-modal';
 import { ThemedText } from '@/components/themed-text';
 import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { C, RADIUS } from '@/constants/OheveTheme';
@@ -651,10 +652,29 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [devisModal, setDevisModal] = useState(false);
+  // Prise de RDV depuis la discussion : besoin des deux participants de la
+  // conversation (client_id / prestataire_id) récupérés via la liste.
+  const [rdvModal, setRdvModal] = useState(false);
+  const [conv, setConv] = useState<{ client_id: number; prestataire_id: number } | null>(null);
   const flatRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const convId = parseInt(id, 10);
+
+  useEffect(() => {
+    if (!user?.accessToken) return;
+    messagingApi.listConversations(user.accessToken)
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data)) {
+          const c = res.data.find((x: { id: number }) => x.id === convId);
+          if (c) {
+            setConv({ client_id: c.client_id, prestataire_id: c.prestataire_id });
+            if (c.other_prenom) setOtherName(`${c.other_prenom} ${c.other_nom ?? ''}`.trim());
+          }
+        }
+      })
+      .catch(() => {});
+  }, [user?.accessToken, convId]);
 
   const load = useCallback(async (silent = false) => {
     if (!user?.accessToken) return;
@@ -754,6 +774,26 @@ export default function ChatScreen() {
 
   const isPrestataire = user?.role === 'prestataire';
 
+  // Message récap envoyé dans la conversation après la prise d'un RDV,
+  // pour que les deux parties gardent une trace écrite du créneau.
+  const sendRdvRecap = async (info: { title: string; date: string; time: string }) => {
+    if (!user?.accessToken) return;
+    const dateFr = new Date(`${info.date}T12:00:00`).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long',
+    });
+    try {
+      const json = await messagingApi.sendMessage(
+        user.accessToken,
+        convId,
+        `📅 Rendez-vous confirmé : ${info.title} — ${dateFr} à ${info.time}`,
+      );
+      if (json?.success) {
+        setMessages((prev) => [...prev, json.data]);
+        setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 50);
+      }
+    } catch { /* le RDV est déjà créé — le récap chat est un bonus */ }
+  };
+
   const showAttachmentPicker = () => {
     if (Platform.OS === 'ios') {
       const options = ['Annuler', 'Photo depuis la galerie', 'Document (PDF, Word)', ...(isPrestataire ? ['Générer un devis'] : [])];
@@ -794,6 +834,27 @@ export default function ChatScreen() {
           }}
         />
       )}
+      {/* Prise de RDV depuis la discussion : le client réserve dans les
+          créneaux du prestataire ; le prestataire fixe librement un créneau. */}
+      {conv && (isPrestataire ? (
+        <ProposeAppointmentModal
+          visible={rdvModal}
+          onClose={() => setRdvModal(false)}
+          clientId={conv.client_id}
+          clientName={otherName}
+          accessToken={user?.accessToken}
+          onProposed={sendRdvRecap}
+        />
+      ) : (
+        <BookingModal
+          visible={rdvModal}
+          onClose={() => setRdvModal(false)}
+          prestataireId={conv.prestataire_id}
+          prestataireName={otherName}
+          accessToken={user?.accessToken}
+          onBooked={sendRdvRecap}
+        />
+      ))}
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -805,6 +866,13 @@ export default function ChatScreen() {
           </View>
           <ThemedText style={styles.headerTitle} numberOfLines={1}>{otherName}</ThemedText>
         </View>
+        {/* Prendre / fixer un rendez-vous directement depuis la discussion */}
+        {conv && (
+          <Pressable style={styles.rdvBtn} onPress={() => setRdvModal(true)} hitSlop={8}>
+            <Ionicons name="calendar-outline" size={16} color={C.saugeDark} />
+            <ThemedText style={styles.rdvBtnTxt}>RDV</ThemedText>
+          </Pressable>
+        )}
       </View>
 
       {loading ? (
@@ -920,6 +988,12 @@ const styles = StyleSheet.create({
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
   headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#A7AD9A', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   headerAvatarTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  rdvBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 99, backgroundColor: '#EDF0E5', flexShrink: 0,
+  },
+  rdvBtnTxt: { fontSize: 12, fontWeight: '700', color: C.saugeDark },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#111827', flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyTxt: { color: '#9ca3af', fontSize: 14, textAlign: 'center' },

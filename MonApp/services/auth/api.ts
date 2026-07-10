@@ -474,7 +474,8 @@ export const calendarApi = {
     get(API_ENDPOINTS.calendarAppointments, accessToken),
 
   requestAppointment: (accessToken: string, data: {
-    prestataire_id: number;
+    prestataire_id?: number;
+    client_id?: number; // renseigné quand c'est le prestataire qui fixe le RDV
     title: string;
     requested_date: string;
     requested_time: string;
@@ -486,6 +487,14 @@ export const calendarApi = {
     proposed_date?: string;
     proposed_time?: string;
   }) => patch(API_ENDPOINTS.calendarAppointmentRespond(id), data, accessToken),
+
+  // Déplace un RDV (prestataire) — le client est notifié par push.
+  rescheduleAppointment: (accessToken: string, id: number, data: { new_date: string; new_time: string }) =>
+    patch(API_ENDPOINTS.calendarAppointment(id), data, accessToken),
+
+  // Annule un RDV (prestataire ou client) — l'autre partie est notifiée par push.
+  cancelAppointment: (accessToken: string, id: number) =>
+    post(API_ENDPOINTS.calendarAppointmentCancel(id), {}, accessToken),
 };
 
 // ── Oheve Premium ─────────────────────────────────────────────────────────────

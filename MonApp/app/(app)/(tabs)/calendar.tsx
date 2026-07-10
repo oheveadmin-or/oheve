@@ -49,6 +49,7 @@ const STATUS_LABELS: Record<string, string> = {
   accepted: 'Accepté',
   refused: 'Refusé',
   counter_proposed: 'Autre créneau proposé',
+  cancelled: 'Annulé',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -653,6 +654,11 @@ function PrestataireAgenda() {
   const [counterModal, setCounterModal] = useState<AppointmentRequest | null>(null);
   const [counterDate, setCounterDate] = useState('');
   const [counterTime, setCounterTime] = useState('10:00');
+  // Déplacement d'un RDV confirmé (le client est notifié par push)
+  const [rescheduleModal, setRescheduleModal] = useState<AppointmentRequest | null>(null);
+  const [reschedDate, setReschedDate] = useState('');
+  const [reschedTime, setReschedTime] = useState('10:00');
+  const [rescheduling, setRescheduling] = useState(false);
   const [blockStart, setBlockStart] = useState('');
   const [blockEnd, setBlockEnd] = useState('');
   const [blockReason, setBlockReason] = useState('');
@@ -775,6 +781,70 @@ function PrestataireAgenda() {
     }
   };
 
+  // ── Annulation d'un RDV confirmé (notifie le client) ──────────────────────
+  const cancelAppointment = (req: AppointmentRequest) => {
+    Alert.alert(
+      'Annuler ce rendez-vous',
+      `« ${req.title} » avec ${req.client_prenom ?? ''} ${req.client_nom ?? ''} sera annulé. Le client recevra une notification.`,
+      [
+        { text: 'Ne pas annuler', style: 'cancel' },
+        {
+          text: 'Annuler le RDV',
+          style: 'destructive',
+          onPress: async () => {
+            if (!user?.accessToken) return;
+            try {
+              const res = await calendarApi.cancelAppointment(user.accessToken, req.id);
+              if (res?.success) {
+                load();
+              } else {
+                Alert.alert('Erreur', res?.message ?? 'Annulation impossible. Réessayez.');
+              }
+            } catch {
+              Alert.alert('Erreur', 'Vérifiez votre connexion et réessayez.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // ── Déplacement d'un RDV confirmé (notifie le client) ─────────────────────
+  const openReschedule = (req: AppointmentRequest) => {
+    setReschedDate(req.proposed_date ?? req.requested_date);
+    setReschedTime((req.proposed_time ?? req.requested_time)?.slice(0, 5) ?? '10:00');
+    setRescheduleModal(req);
+  };
+
+  const doReschedule = async () => {
+    if (!user?.accessToken || !rescheduleModal) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(reschedDate.trim())) {
+      Alert.alert('Date invalide', 'Utilisez le format AAAA-MM-JJ (ex. 2026-09-15).');
+      return;
+    }
+    if (!/^\d{1,2}:\d{2}$/.test(reschedTime.trim())) {
+      Alert.alert('Heure invalide', 'Utilisez le format HH:MM (ex. 14:30).');
+      return;
+    }
+    setRescheduling(true);
+    try {
+      const res = await calendarApi.rescheduleAppointment(user.accessToken, rescheduleModal.id, {
+        new_date: reschedDate.trim(),
+        new_time: reschedTime.trim(),
+      });
+      if (res?.success) {
+        setRescheduleModal(null);
+        Alert.alert('Rendez-vous déplacé', 'Le client a été notifié du nouveau créneau.');
+        load();
+      } else {
+        Alert.alert('Erreur', res?.message ?? 'Déplacement impossible. Réessayez.');
+      }
+    } catch {
+      Alert.alert('Erreur', 'Vérifiez votre connexion et réessayez.');
+    }
+    setRescheduling(false);
+  };
+
   const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
   const selectedDateFr = formatDateLong(selectedDate);
 
@@ -834,9 +904,14 @@ function PrestataireAgenda() {
                       {time ? ` · ${time}` : ''}
                     </ThemedText>
                   </View>
-                  <View style={styles.syncBadge}>
-                    <Ionicons name="checkmark-circle-outline" size={11} color={C.saugeDark} />
-                    <ThemedText style={styles.syncBadgeText}>Confirmé</ThemedText>
+                  {/* Modifier / annuler → le client est notifié par push */}
+                  <View style={styles.apptActions}>
+                    <Pressable style={styles.apptActionBtn} onPress={() => openReschedule(r)} hitSlop={6}>
+                      <Ionicons name="create-outline" size={17} color={C.saugeDark} />
+                    </Pressable>
+                    <Pressable style={styles.apptActionBtn} onPress={() => cancelAppointment(r)} hitSlop={6}>
+                      <Ionicons name="close-circle-outline" size={17} color={C.error} />
+                    </Pressable>
                   </View>
                 </View>
               );
@@ -1025,6 +1100,37 @@ function PrestataireAgenda() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal déplacement d'un RDV confirmé */}
+      <Modal visible={!!rescheduleModal} animationType="slide" transparent onRequestClose={() => setRescheduleModal(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={styles.modalHandle} />
+            <ThemedText style={styles.modalTitle}>Déplacer le rendez-vous</ThemedText>
+            {rescheduleModal && (
+              <ThemedText style={styles.rescheduleInfo}>
+                « {rescheduleModal.title} » — {rescheduleModal.client_prenom} {rescheduleModal.client_nom}
+              </ThemedText>
+            )}
+            <ThemedText style={styles.modalLabel}>Nouvelle date (AAAA-MM-JJ)</ThemedText>
+            <TextInput style={styles.input} value={reschedDate} onChangeText={setReschedDate} placeholder="2026-09-15" placeholderTextColor={C.textLight} />
+            <ThemedText style={styles.modalLabel}>Nouvelle heure (HH:MM)</ThemedText>
+            <TextInput style={styles.input} value={reschedTime} onChangeText={setReschedTime} placeholder="14:00" placeholderTextColor={C.textLight} />
+            <View style={styles.reminderInfo}>
+              <Ionicons name="notifications-outline" size={14} color={C.saugeDark} />
+              <ThemedText style={styles.reminderInfoText}>Le client sera notifié du nouveau créneau</ThemedText>
+            </View>
+            <View style={styles.modalActions}>
+              <Pressable style={styles.cancelBtn} onPress={() => setRescheduleModal(null)}>
+                <ThemedText style={styles.cancelBtnText}>Annuler</ThemedText>
+              </Pressable>
+              <Pressable style={[styles.saveBtn, rescheduling && { opacity: 0.6 }]} onPress={doReschedule} disabled={rescheduling}>
+                <ThemedText style={styles.saveBtnText}>{rescheduling ? 'Déplacement…' : 'Déplacer'}</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenLayout>
   );
 }
@@ -1085,6 +1191,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7, paddingVertical: 3, backgroundColor: C.saugePale, borderRadius: RADIUS.pill,
   },
   syncBadgeText: { fontSize: 10, color: C.saugeDark, fontWeight: '600' },
+
+  // Actions RDV confirmé (modifier / annuler)
+  apptActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  apptActionBtn: {
+    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.saugePale,
+  },
+  rescheduleInfo: { fontSize: 13, color: C.textMid, marginTop: -6, marginBottom: 4 },
 
   // À venir
   upcomingSection: { marginTop: 20, gap: 0 },
