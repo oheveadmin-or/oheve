@@ -1,7 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+
+import { ThemedText } from '@/components/themed-text';
+
+// Chargement défensif : sur un binaire construit sans le module natif
+// expo-video (ancien build simulateur/TestFlight), on affiche un placeholder
+// au lieu de faire planter tout l'écran au premier rendu d'une vidéo.
+let videoSdk: typeof import('expo-video') | null = null;
+try {
+  videoSdk = require('expo-video');
+} catch {
+  videoSdk = null;
+}
+
+type FeedVideoProps = {
+  uri: string;
+  isActive?: boolean;
+  showSoundToggle?: boolean;
+  nativeControls?: boolean;
+  startMuted?: boolean;
+  style?: StyleProp<ViewStyle>;
+};
 
 /**
  * Lecteur vidéo du feed/reels/portfolio.
@@ -10,21 +30,29 @@ import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
  * - `showSoundToggle` : bouton 🔇/🔊 en overlay (reels, démarre en muet).
  * - `nativeControls` : contrôles iOS natifs (modal détail, plein écran).
  */
-export function FeedVideo({
+export function FeedVideo(props: FeedVideoProps) {
+  if (!videoSdk) {
+    return (
+      <View style={[props.style, fvStyles.fallback]}>
+        <Ionicons name="videocam-off-outline" size={34} color="rgba(255,255,255,0.8)" />
+        <ThemedText style={fvStyles.fallbackTxt}>
+          Vidéo disponible après mise à jour de l'app
+        </ThemedText>
+      </View>
+    );
+  }
+  return <NativeFeedVideo {...props} />;
+}
+
+function NativeFeedVideo({
   uri,
   isActive = true,
   showSoundToggle = false,
   nativeControls = false,
   startMuted = true,
   style,
-}: {
-  uri: string;
-  isActive?: boolean;
-  showSoundToggle?: boolean;
-  nativeControls?: boolean;
-  startMuted?: boolean;
-  style?: StyleProp<ViewStyle>;
-}) {
+}: FeedVideoProps) {
+  const { useVideoPlayer, VideoView } = videoSdk!;
   const [muted, setMuted] = useState(startMuted);
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
@@ -67,6 +95,19 @@ export function VideoBadge({ size = 18 }: { size?: number }) {
 }
 
 const fvStyles = StyleSheet.create({
+  fallback: {
+    backgroundColor: '#374151',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+  },
+  fallbackTxt: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12.5,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   soundBtn: {
     position: 'absolute', top: 12, right: 12,
     width: 34, height: 34, borderRadius: 17,
