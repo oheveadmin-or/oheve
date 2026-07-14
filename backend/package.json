@@ -2,6 +2,9 @@
   "name": "wedding-planner-api",
   "version": "1.0.0",
   "description": "API backend pour The Event Planner - Wedding Planner",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

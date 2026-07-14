@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Oheve Wedding Planner - API backend (see backend/)",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "cd backend && npm install --include=dev && npm run build",
     "start": "cd backend && npm start"

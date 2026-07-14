@@ -1,8 +1,26 @@
 import fs from 'fs';
 import path from 'path';
 import { NextFunction, Request, Response } from 'express';
-import sharp from 'sharp';
+import type SharpType from 'sharp';
 import { logger } from './logger';
+
+// sharp est un module natif : si son binaire ne se charge pas sur la plateforme
+// (ex. binaire Linux absent du déploiement), un import classique ferait crasher
+// TOUT le serveur au démarrage. Chargement paresseux : en cas d'échec on log
+// l'erreur et l'app tourne sans optimisation d'images plutôt que pas du tout.
+let sharpModule: typeof SharpType | null | undefined;
+function getSharp(): typeof SharpType | null {
+  if (sharpModule === undefined) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      sharpModule = require('sharp') as typeof SharpType;
+    } catch (err) {
+      sharpModule = null;
+      logger.error({ err }, "sharp indisponible — les images ne seront pas compressées");
+    }
+  }
+  return sharpModule;
+}
 
 // Les photos iPhone font 3–8 Mo : servies telles quelles, le feed et les
 // portfolios téléchargent des dizaines de Mo → app très lente. On les
@@ -32,6 +50,8 @@ function isOptimizableImage(filePath: string, mimetype?: string): boolean {
  * Toute erreur (format exotique, fichier corrompu) laisse l'original intact.
  */
 export async function optimizeImageFile(filePath: string, maxDim: number = MAX_DIM): Promise<void> {
+  const sharp = getSharp();
+  if (!sharp) return;
   try {
     const original = await fs.promises.stat(filePath);
     const img = sharp(filePath).rotate().resize(maxDim, maxDim, {
@@ -83,6 +103,9 @@ export const optimizeAvatarUpload = () => optimizeUploadedImage(AVATAR_MAX_DIM);
  * sont considérés déjà bons.
  */
 export async function optimizeExistingUploads(): Promise<void> {
+  // Sans sharp, ne rien marquer comme traité : le passage se fera au prochain
+  // démarrage où sharp sera disponible.
+  if (!getSharp()) return;
   const base = path.join(process.cwd(), 'uploads');
   const manifestPath = path.join(base, '.optim-manifest.json');
   let done: Set<string>;
