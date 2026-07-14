@@ -20,6 +20,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookingModal } from '@/components/booking-modal';
+import { FeedVideo } from '@/components/feed-video';
 import { ThemedText } from '@/components/themed-text';
 import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { ThemedView } from '@/components/themed-view';
@@ -36,7 +37,7 @@ import {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const AnimatedView = Animated.createAnimatedComponent(View);
 
-type Photo = { id: number; url: string; is_cover: boolean; caption?: string | null };
+type Photo = { id: number; url: string; is_cover: boolean; caption?: string | null; media_type?: 'image' | 'video' };
 
 type ApiRow = {
   nom: string;
@@ -197,7 +198,16 @@ export default function ProviderDetailScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setSelectedPhoto(null)}>
           {selectedPhoto && (
             <AnimatedView entering={FadeIn.springify()} style={styles.modalImageWrap}>
-              <Image source={{ uri: selectedPhoto.url }} style={styles.modalImage} contentFit="contain" />
+              {selectedPhoto.media_type === 'video' ? (
+                <FeedVideo
+                  uri={selectedPhoto.url}
+                  nativeControls
+                  startMuted={false}
+                  style={styles.modalImage}
+                />
+              ) : (
+                <Image source={{ uri: selectedPhoto.url }} style={styles.modalImage} contentFit="contain" />
+              )}
               {selectedPhoto.caption ? (
                 <View style={styles.modalCaption}>
                   <ThemedText style={styles.modalCaptionTxt}>{selectedPhoto.caption}</ThemedText>
@@ -280,7 +290,13 @@ export default function ProviderDetailScreen() {
                     ]}
                     onPress={() => setSelectedPhoto(item)}
                   >
-                    <Image source={{ uri: item.url }} style={styles.galleryImage} contentFit="cover" />
+                    {item.media_type === 'video' ? (
+                      <View style={[styles.galleryImage, styles.galleryVideoTile]}>
+                        <Ionicons name="play-circle" size={30} color="rgba(255,255,255,0.9)" />
+                      </View>
+                    ) : (
+                      <Image source={{ uri: item.url }} style={styles.galleryImage} contentFit="cover" />
+                    )}
                     {item.is_cover && (
                       <View style={styles.galleryBadge}>
                         <Ionicons name="star" size={10} color="#fff" />
@@ -625,6 +641,7 @@ const styles = StyleSheet.create({
   galleryThumbFirst: { marginLeft: 0 },
   galleryThumbCover: { borderWidth: 2.5, borderColor: C.sauge },
   galleryImage: { width: '100%', height: '100%' },
+  galleryVideoTile: { backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center' },
   galleryBadge: {
     position: 'absolute',
     bottom: 0,

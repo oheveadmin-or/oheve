@@ -138,7 +138,8 @@ export class PhotosController {
       }
 
       const caption = typeof req.body?.caption === 'string' ? req.body.caption : '';
-      const photo = await repo.insert(prestataireId, '', req.file.filename, caption);
+      const mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+      const photo = await repo.insert(prestataireId, '', req.file.filename, caption, mediaType);
       const url = buildPhotoUrl(req, req.file.filename);
       return res.status(201).json({ success: true, data: { ...photo, url } });
     } catch (err) {

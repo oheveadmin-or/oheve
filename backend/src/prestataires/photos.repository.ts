@@ -7,6 +7,7 @@ export interface PhotoRow {
   filename: string;
   is_cover: boolean;
   caption?: string | null;
+  media_type?: 'image' | 'video';
   created_at: string;
 }
 
@@ -19,16 +20,24 @@ export class PhotosRepository {
     return r.rows as PhotoRow[];
   }
 
-  async insert(prestataireId: number, url: string, filename: string, caption?: string | null): Promise<PhotoRow> {
+  async insert(
+    prestataireId: number,
+    url: string,
+    filename: string,
+    caption?: string | null,
+    mediaType: 'image' | 'video' = 'image'
+  ): Promise<PhotoRow> {
     const hasCover = await pool.query(
       `SELECT 1 FROM prestataire_photos WHERE prestataire_id=$1 AND is_cover=true LIMIT 1`,
       [prestataireId]
     );
-    const isCover = hasCover.rowCount === 0;
+    // Une vidéo ne devient jamais couverture automatiquement (la couverture
+    // est affichée comme image partout dans l'app).
+    const isCover = hasCover.rowCount === 0 && mediaType === 'image';
     const r = await pool.query(
-      `INSERT INTO prestataire_photos (prestataire_id, url, filename, is_cover, caption)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [prestataireId, url, filename, isCover, caption?.trim() || null]
+      `INSERT INTO prestataire_photos (prestataire_id, url, filename, is_cover, caption, media_type)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [prestataireId, url, filename, isCover, caption?.trim() || null, mediaType]
     );
     return r.rows[0] as PhotoRow;
   }
@@ -59,11 +68,14 @@ export class PhotosRepository {
     );
     const deleted = r.rows[0] as PhotoRow | undefined;
     if (!deleted) return null;
-    // Si on supprime la couverture, la prochaine photo devient couverture
+    // Si on supprime la couverture, la prochaine IMAGE devient couverture
+    // (jamais une vidéo : la couverture est affichée comme image).
     if (deleted.is_cover) {
       await pool.query(
         `UPDATE prestataire_photos SET is_cover=true
-         WHERE id=(SELECT id FROM prestataire_photos WHERE prestataire_id=$1 ORDER BY created_at ASC LIMIT 1)`,
+         WHERE id=(SELECT id FROM prestataire_photos
+                   WHERE prestataire_id=$1 AND COALESCE(media_type,'image')='image'
+                   ORDER BY created_at ASC LIMIT 1)`,
         [prestataireId]
       );
     }
@@ -72,7 +84,7 @@ export class PhotosRepository {
 
   async findFeedPhotos(limit: number, offset: number, viewerUserId?: number): Promise<(PhotoRow & { business_name: string; category: string; prenom: string; nom: string; like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null })[]> {
     const r = await pool.query(
-      `SELECT pp.id, pp.filename, pp.is_cover, pp.caption, pp.created_at,
+      `SELECT pp.id, pp.filename, pp.is_cover, pp.caption, pp.media_type, pp.created_at,
               p.business_name, p.category,
               u.id AS user_id, u.prenom, u.nom,
               COUNT(DISTINCT pl.id)::int AS like_count,
@@ -85,7 +97,7 @@ export class PhotosRepository {
        LEFT JOIN photo_comments pc ON pc.photo_id = pp.id
        LEFT JOIN photo_likes pl2 ON pl2.photo_id = pp.id AND pl2.user_id = $3
        WHERE COALESCE(p.is_hidden, false) = false AND COALESCE(p.is_suspended, false) = false
-       GROUP BY pp.id, pp.caption, p.business_name, p.category, u.id, u.prenom, u.nom
+       GROUP BY pp.id, pp.caption, pp.media_type, p.business_name, p.category, u.id, u.prenom, u.nom
        ORDER BY pp.created_at DESC
        LIMIT $1 OFFSET $2`,
       [limit, offset, viewerUserId ?? 0]

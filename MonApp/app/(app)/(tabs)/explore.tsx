@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FeedVideo } from '@/components/feed-video';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
 import { useBoutique } from '@/contexts/boutique-context';
@@ -465,6 +466,7 @@ const cmtStyles = StyleSheet.create({
 function ReelCard({
   post,
   reelH,
+  isActive,
   onLike,
   onComment,
   onShare,
@@ -472,6 +474,7 @@ function ReelCard({
 }: {
   post: Post;
   reelH: number;
+  isActive: boolean;
   onLike: (id: string) => void;
   onComment: (post: Post) => void;
   onShare: (post: Post) => void;
@@ -483,9 +486,12 @@ function ReelCard({
   return (
     <View style={[reelStyles.card, { width: W, height: reelH }]}>
       {post.mediaUri && post.mediaType === 'video' ? (
-        <View style={[StyleSheet.absoluteFill, reelStyles.videoBg]}>
-          <Ionicons name="videocam" size={62} color="#fff" />
-        </View>
+        <FeedVideo
+          uri={post.mediaUri}
+          isActive={isActive}
+          showSoundToggle
+          style={StyleSheet.absoluteFill}
+        />
       ) : post.mediaUri ? (
         <Image source={{ uri: post.mediaUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
@@ -655,11 +661,13 @@ function PostDetailModal({
           <View style={[detailStyles.media, { backgroundColor: post.bgColor }]}>
             {post.mediaUri && post.mediaType === 'image' ? (
               <Image source={{ uri: post.mediaUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-            ) : post.mediaType === 'video' ? (
-              <View style={detailStyles.videoBg}>
-                <Ionicons name="play-circle-outline" size={56} color="#fff" />
-                <ThemedText style={detailStyles.videoTxt}>Publication vidéo</ThemedText>
-              </View>
+            ) : post.mediaUri && post.mediaType === 'video' ? (
+              <FeedVideo
+                uri={post.mediaUri}
+                nativeControls
+                startMuted={false}
+                style={StyleSheet.absoluteFill}
+              />
             ) : (
               <ThemedText style={detailStyles.emoji}>{post.bgEmoji}</ThemedText>
             )}
@@ -776,10 +784,10 @@ function CreatePostModal({
   const handlePickMedia = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
-    // Photos uniquement : le serveur n'accepte pas encore les vidéos.
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ['images', 'videos'],
       quality: 0.8,
+      videoMaxDuration: 90,
       allowsEditing: false,
     });
     if (!result.canceled && result.assets[0]) {
@@ -814,7 +822,7 @@ function CreatePostModal({
               ) : (
                 <View style={createStyles.mediaPickerEmpty}>
                   <Ionicons name="images-outline" size={36} color="#a78bfa" />
-                  <ThemedText style={createStyles.mediaPickerTxt}>Ajouter une photo</ThemedText>
+                  <ThemedText style={createStyles.mediaPickerTxt}>Ajouter une photo ou vidéo</ThemedText>
                   <ThemedText style={createStyles.mediaPickerSub}>Appuie pour choisir depuis ta galerie</ThemedText>
                 </View>
               )}
@@ -953,8 +961,12 @@ export default function ExploreScreen() {
   const [providerModal, setProviderModal] = useState<string | null>(null);
 
   const viewRef = useRef<FlatList>(null);
+  // Reel actuellement visible : seule sa vidéo joue (les autres sont en pause).
+  const [activeReelId, setActiveReelId] = useState<string | null>(null);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 });
   const onViewableItemsChanged = useRef((info: { viewableItems: ViewToken[] }) => {
+    const first = info.viewableItems[0]?.item as Post | undefined;
+    setActiveReelId(first?.id ?? null);
     info.viewableItems.forEach(({ item }) => {
       const post = item as Post;
       if (post?.id?.startsWith('boutique-')) {
@@ -1036,12 +1048,13 @@ export default function ExploreScreen() {
           id: number; url: string; is_cover: boolean; created_at: string;
           user_id: number; business_name: string; category: string; prenom: string; nom: string;
           like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null;
+          media_type?: string;
         }) => ({
           id: `feed-${p.id}`,
           photoId: p.id,
           userId: p.user_id,
           mediaUri: p.url,
-          mediaType: 'image' as const,
+          mediaType: (p.media_type === 'video' ? 'video' : 'image') as 'image' | 'video',
           // Priorité à la description saisie par le prestataire lors de l'ajout ;
           // à défaut, on affiche le nom de l'établissement.
           caption: (p.caption && p.caption.trim()) || p.business_name || `${p.prenom} ${p.nom}`.trim(),
@@ -1216,15 +1229,11 @@ export default function ExploreScreen() {
     _cat: Exclude<MainCategory, 'tout'>,
     _subCat?: SubCategory,
     mediaUri?: string,
-    mediaType?: 'image' | 'video'
+    _mediaType?: 'image' | 'video'
   ) => {
     if (!user?.accessToken) return;
     if (!mediaUri) {
-      Alert.alert('Photo requise', 'Ajoutez une photo pour publier votre réalisation.');
-      return;
-    }
-    if (mediaType === 'video') {
-      Alert.alert('Vidéo non prise en charge', 'Seules les photos sont acceptées pour le moment.');
+      Alert.alert('Photo ou vidéo requise', 'Ajoutez une photo ou une vidéo pour publier votre réalisation.');
       return;
     }
     try {
@@ -1383,6 +1392,7 @@ export default function ExploreScreen() {
               <ReelCard
                 post={item}
                 reelH={reelH}
+                isActive={item.id === activeReelId}
                 onLike={handleLike}
                 onComment={handleOpenComment}
                 onShare={handleShare}

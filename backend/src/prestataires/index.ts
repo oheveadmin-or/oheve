@@ -3,6 +3,7 @@ import { Router } from 'express';
 import multer from 'multer';
 
 import { optionalAuth, requireAuth } from '../middleware/requireAuth';
+import { optimizeUploadedImage } from '../utils/image-optim';
 import { PrestatairesController } from './controller';
 import { PhotosController } from './photos.controller';
 
@@ -13,16 +14,18 @@ const photos = new PhotosController();
 const storage = multer.diskStorage({
   destination: path.join(process.cwd(), 'uploads', 'photos'),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const fallbackExt = file.mimetype.startsWith('video/') ? '.mp4' : '.jpg';
+    const ext = path.extname(file.originalname).toLowerCase() || fallbackExt;
     cb(null, `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
   },
 });
+// Photos ET vidéos (reels) — 100 Mo max pour couvrir les vidéos de réalisation.
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Seules les images sont acceptées'));
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) cb(null, true);
+    else cb(new Error('Seules les images et les vidéos sont acceptées'));
   },
 });
 
@@ -39,7 +42,7 @@ prestatairesRoutes.get('/feed/photos', optionalAuth, photos.getFeedPhotos.bind(p
 
 // ── Photos (me) ───────────────────────────────────────────────────────────────
 prestatairesRoutes.get('/me/photos', requireAuth, photos.getMyPhotos.bind(photos));
-prestatairesRoutes.post('/me/photos', requireAuth, upload.single('photo'), photos.uploadPhoto.bind(photos));
+prestatairesRoutes.post('/me/photos', requireAuth, upload.single('photo'), optimizeUploadedImage(), photos.uploadPhoto.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/cover', requireAuth, photos.setCover.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/caption', requireAuth, photos.updateCaption.bind(photos));
 prestatairesRoutes.delete('/me/photos/:photoId', requireAuth, photos.deletePhoto.bind(photos));

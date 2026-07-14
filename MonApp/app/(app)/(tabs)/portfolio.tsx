@@ -39,6 +39,7 @@ type Photo = {
   url: string;
   is_cover: boolean;
   caption?: string | null;
+  media_type?: 'image' | 'video';
 };
 
 export default function PortfolioScreen() {
@@ -51,9 +52,10 @@ export default function PortfolioScreen() {
   const [captionPhoto, setCaptionPhoto] = useState<Photo | null>(null);
   const [captionText, setCaptionText] = useState('');
   const [savingCaption, setSavingCaption] = useState(false);
-  // Photo choisie mais pas encore envoyée : on demande la description AVANT
-  // l'upload (elle s'affiche ensuite dans l'Explore et les reels).
+  // Photo/vidéo choisie mais pas encore envoyée : on demande la description
+  // AVANT l'upload (elle s'affiche ensuite dans l'Explore et les reels).
   const [pendingUri, setPendingUri] = useState<string | null>(null);
+  const [pendingIsVideo, setPendingIsVideo] = useState(false);
 
   const tileSize = gridW > 0 ? (gridW - GAP * 2) / 3 : PHOTO_SIZE;
 
@@ -112,9 +114,10 @@ export default function PortfolioScreen() {
     let result: ImagePicker.ImagePickerResult;
     try {
       result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ['images', 'videos'],
         allowsMultipleSelection: true,
         quality: 0.85,
+        videoMaxDuration: 90,
         // ⚠️ selectionLimit: 0 (illimité) masque le bouton « Ajouter » du sélecteur
         // iOS sur certaines versions → l'utilisateur ne peut plus valider sa sélection.
         // Une limite finie restaure le bouton. 30 photos par lot (répétable).
@@ -127,10 +130,11 @@ export default function PortfolioScreen() {
 
     if (result.canceled || !result.assets.length) return;
 
-    // Une seule photo → on demande d'abord la description (facultative).
-    // Plusieurs photos → upload direct (description ajoutable ensuite par photo).
+    // Un seul média → on demande d'abord la description (facultative).
+    // Plusieurs médias → upload direct (description ajoutable ensuite par média).
     if (result.assets.length === 1) {
       setCaptionText('');
+      setPendingIsVideo(result.assets[0].type === 'video');
       setPendingUri(result.assets[0].uri);
       return;
     }
@@ -323,11 +327,12 @@ export default function PortfolioScreen() {
                   onPress={() => openCaption(photo)}
                   onLongPress={() =>
                     Alert.alert(
-                      photo.is_cover ? 'Photo de couverture' : 'Photo',
+                      photo.is_cover ? 'Photo de couverture' : photo.media_type === 'video' ? 'Vidéo' : 'Photo',
                       'Que voulez-vous faire ?',
                       [
                         { text: photo.caption ? 'Modifier la description' : 'Ajouter une description', onPress: () => openCaption(photo) },
-                        !photo.is_cover
+                        // Une vidéo ne peut pas servir de couverture (affichée en image partout)
+                        !photo.is_cover && photo.media_type !== 'video'
                           ? { text: 'Définir comme couverture', onPress: () => setCover(photo.id) }
                           : { text: 'Annuler', style: 'cancel' },
                         {
@@ -340,11 +345,17 @@ export default function PortfolioScreen() {
                     )
                   }
                 >
-                  <Image
-                    source={{ uri: photo.url }}
-                    style={styles.photoImage}
-                    contentFit="cover"
-                  />
+                  {photo.media_type === 'video' ? (
+                    <View style={[styles.photoImage, styles.videoTile]}>
+                      <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.9)" />
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri: photo.url }}
+                      style={styles.photoImage}
+                      contentFit="cover"
+                    />
+                  )}
                   {photo.is_cover && (
                     <View style={styles.photoCoverBadge}>
                       <Ionicons name="star" size={10} color="#fff" />
@@ -414,7 +425,14 @@ export default function PortfolioScreen() {
           <View style={[styles.captionSheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.captionHandle} />
             {(captionPhoto || pendingUri) && (
-              <Image source={{ uri: captionPhoto?.url ?? pendingUri! }} style={styles.captionPreview} contentFit="cover" />
+              (captionPhoto ? captionPhoto.media_type === 'video' : pendingIsVideo) ? (
+                <View style={[styles.captionPreview, styles.videoPreview]}>
+                  <Ionicons name="videocam" size={34} color="rgba(255,255,255,0.9)" />
+                  <ThemedText style={styles.videoPreviewTxt}>Vidéo</ThemedText>
+                </View>
+              ) : (
+                <Image source={{ uri: captionPhoto?.url ?? pendingUri! }} style={styles.captionPreview} contentFit="cover" />
+              )
             )}
             <ThemedText style={styles.captionSheetTitle}>
               {pendingUri ? 'Ajouter une description' : 'Description de la photo'}
@@ -600,6 +618,9 @@ const styles = StyleSheet.create({
   },
   captionHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 6 },
   captionPreview: { width: '100%', height: 150, borderRadius: 14, backgroundColor: '#ede9fe' },
+  videoTile: { backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center' },
+  videoPreview: { backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  videoPreviewTxt: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
   captionSheetTitle: { fontSize: 16, fontWeight: '800', color: '#1c1535', marginTop: 4 },
   captionSheetSub: { fontSize: 12.5, color: '#A09890', lineHeight: 17, marginTop: 2 },
   captionInput: {

@@ -43,7 +43,7 @@ const ROLE_LABELS: Record<string, string> = {
   client: 'Marié(e)',
 };
 
-type Photo = { id: number; url: string; is_cover: boolean; caption?: string | null };
+type Photo = { id: number; url: string; is_cover: boolean; caption?: string | null; media_type?: 'image' | 'video' };
 
 type PrestProfile = {
   business_name?: string;
@@ -124,28 +124,35 @@ function PrestataireInstaProfile() {
   };
 
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  // On demande la description AVANT d'ajouter la photo : on choisit d'abord
-  // l'image, puis une petite fenêtre invite à saisir la légende (facultative)
-  // qui s'affichera ensuite dans les reels de l'Explore.
+  // On demande la description AVANT d'ajouter la photo/vidéo : on choisit
+  // d'abord le média, puis une petite fenêtre invite à saisir la légende
+  // (facultative) qui s'affichera ensuite dans les reels de l'Explore.
   const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null);
+  const [pendingIsVideo, setPendingIsVideo] = useState(false);
   const [captionDraft, setCaptionDraft] = useState('');
 
   const pickAndUploadPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      quality: 0.85,
+      videoMaxDuration: 90,
+    });
     if (result.canceled || !result.assets[0]) return;
     setCaptionDraft('');
+    setPendingIsVideo(result.assets[0].type === 'video');
     setPendingPhotoUri(result.assets[0].uri);
   };
 
   // Appui long sur une photo de la grille → couverture / suppression.
+  // (une vidéo ne peut pas servir de couverture : elle est affichée en image partout)
   const photoOptions = (photo: Photo) => {
     Alert.alert(
-      photo.is_cover ? 'Photo de couverture' : 'Photo',
+      photo.is_cover ? 'Photo de couverture' : photo.media_type === 'video' ? 'Vidéo' : 'Photo',
       'Que voulez-vous faire ?',
       [
-        ...(!photo.is_cover
+        ...(!photo.is_cover && photo.media_type !== 'video'
           ? [{
               text: 'Définir comme couverture',
               onPress: async () => {
@@ -346,7 +353,13 @@ function PrestataireInstaProfile() {
                   onPress={() => router.push('/(app)/(tabs)/portfolio' as never)}
                   onLongPress={() => photoOptions(item)}
                 >
-                  <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                  {item.media_type === 'video' ? (
+                    <View style={instaStyles.videoTile}>
+                      <Ionicons name="play-circle" size={30} color="rgba(255,255,255,0.9)" />
+                    </View>
+                  ) : (
+                    <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                  )}
                   {item.is_cover && (
                     <View style={instaStyles.coverBadge}>
                       <Ionicons name="star" size={10} color="#fff" />
@@ -383,12 +396,17 @@ function PrestataireInstaProfile() {
             <View style={instaStyles.modalHandle} />
             <ThemedText style={instaStyles.captionTitle}>Ajouter une description</ThemedText>
             <ThemedText style={instaStyles.captionSub}>
-              Elle s'affichera avec votre photo dans l'Explore et les reels.
+              Elle s'affichera avec votre {pendingIsVideo ? 'vidéo' : 'photo'} dans l'Explore et les reels.
             </ThemedText>
 
-            {pendingPhotoUri && (
+            {pendingPhotoUri && (pendingIsVideo ? (
+              <View style={instaStyles.videoPreview}>
+                <Ionicons name="videocam" size={36} color="rgba(255,255,255,0.9)" />
+                <ThemedText style={instaStyles.videoPreviewTxt}>Vidéo sélectionnée</ThemedText>
+              </View>
+            ) : (
               <Image source={{ uri: pendingPhotoUri }} style={instaStyles.captionPreview} contentFit="cover" />
-            )}
+            ))}
 
             <TextInput
               style={instaStyles.captionInput}
@@ -702,6 +720,12 @@ const instaStyles = StyleSheet.create({
   captionTitle: { fontSize: 19, fontWeight: '800', color: C.textDark, marginBottom: 4 },
   captionSub: { fontSize: 13, color: C.textLight, lineHeight: 18, marginBottom: 14 },
   captionPreview: { width: '100%', height: 160, borderRadius: 14, marginBottom: 14, backgroundColor: C.saugePale },
+  videoTile: { width: '100%', height: '100%', backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  videoPreview: {
+    width: '100%', height: 160, borderRadius: 14, marginBottom: 14,
+    backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
+  videoPreviewTxt: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
   captionInput: {
     borderWidth: 1.5, borderColor: C.border, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 15,
