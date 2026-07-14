@@ -311,25 +311,24 @@ export class ConnexionInscriptionRepository {
   // ── OTP ─────────────────────────────────────────────────────────────────────
 
   async saveOtp(email: string, code: string, purpose: string, expiresAt: Date) {
+    // Un seul aller-retour SQL : remplace l'ancien code s'il existe
     await pool.query(
-      `DELETE FROM otp_codes WHERE email=$1 AND purpose=$2`,
-      [email, purpose]
-    );
-    await pool.query(
-      `INSERT INTO otp_codes (email, code, purpose, expires_at) VALUES ($1,$2,$3,$4)`,
+      `WITH purge AS (
+         DELETE FROM otp_codes WHERE email=$1 AND purpose=$3
+       )
+       INSERT INTO otp_codes (email, code, purpose, expires_at) VALUES ($1,$2,$3,$4)`,
       [email, code, purpose, expiresAt]
     );
   }
 
   async verifyOtp(email: string, code: string, purpose: string): Promise<boolean> {
     const r = await pool.query(
-      `SELECT id FROM otp_codes
-       WHERE email=$1 AND code=$2 AND purpose=$3 AND used=false AND expires_at > NOW()`,
+      `UPDATE otp_codes SET used=true
+       WHERE email=$1 AND code=$2 AND purpose=$3 AND used=false AND expires_at > NOW()
+       RETURNING id`,
       [email, code, purpose]
     );
-    if (r.rows.length === 0) return false;
-    await pool.query(`UPDATE otp_codes SET used=true WHERE id=$1`, [r.rows[0].id]);
-    return true;
+    return (r.rowCount ?? 0) > 0;
   }
 
   async updatePassword(email: string, hash: string): Promise<{ id: number; email: string } | null> {

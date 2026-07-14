@@ -19,7 +19,19 @@ if (!connectionString) {
 const pool = new Pool({
   connectionString,
   ssl: connectionString?.includes('supabase') ? { rejectUnauthorized: false } : false,
+  // Par défaut pg ferme les connexions inactives après 10 s : presque chaque
+  // requête après une pause payait une reconnexion TCP+TLS+auth au pooler
+  // Supabase (jusqu'à plusieurs secondes) → app perçue comme lente partout.
+  idleTimeoutMillis: 10 * 60 * 1000,
+  keepAlive: true,
+  connectionTimeoutMillis: 10 * 1000,
 });
+
+// Battement de cœur : garde au moins une connexion chaude en permanence
+// (sinon la première action après 10 min d'inactivité reste lente).
+setInterval(() => {
+  pool.query('SELECT 1').catch(() => { /* le prochain vrai appel réessaiera */ });
+}, 4 * 60 * 1000).unref();
 
 // Test de connexion au demarrage
 pool.on('connect', () => {

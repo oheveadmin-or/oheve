@@ -4,6 +4,7 @@ import { Router } from 'express';
 import multer from 'multer';
 
 import { requireAuth } from '../middleware/requireAuth';
+import { optimizeUploadedImage } from '../utils/image-optim';
 import { MessagingController } from './controller';
 
 export const messagingRoutes = Router();
@@ -55,7 +56,7 @@ messagingRoutes.get('/', ctrl.listConversations.bind(ctrl));
 messagingRoutes.post('/', ctrl.startConversation.bind(ctrl));
 messagingRoutes.get('/:id/messages', ctrl.getMessages.bind(ctrl));
 messagingRoutes.post('/:id/messages', ctrl.sendMessage.bind(ctrl));
-messagingRoutes.post('/:id/attachments', chatUpload.single('file'), ctrl.uploadAttachment.bind(ctrl));
+messagingRoutes.post('/:id/attachments', chatUpload.single('file'), optimizeUploadedImage(), ctrl.uploadAttachment.bind(ctrl));
 messagingRoutes.post('/:id/devis', ctrl.sendDevis.bind(ctrl));
 messagingRoutes.get('/:id/devis/:devisId', ctrl.getDevis.bind(ctrl));
 messagingRoutes.patch('/:id/devis/:devisId/status', ctrl.updateDevisStatus.bind(ctrl));

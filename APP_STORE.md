@@ -4,6 +4,27 @@ Tout ce qu'il faut copier-coller dans App Store Connect pour la soumission.
 
 ---
 
+## ✅ Checklist vérifiée le 13/07/2026
+
+**Prêt (vérifié aujourd'hui) :**
+- Icône 1024×1024 sans transparence ✓
+- Permissions iOS en français (photos, caméra) dans app.json ✓
+- `ITSAppUsesNonExemptEncryption: false` (pas de question chiffrement à chaque build) ✓
+- Sign in with Apple activé (obligatoire car Google Sign-In présent) ✓
+- Suppression de compte dans l'app (Paramètres > Supprimer mon compte) ✓
+- Pages légales EN LIGNE : oheve.pages.dev/privacy, /support, /cgu ✓
+- Backend production Railway répond (api/health OK) ✓
+- Variables EAS production toutes définies (API, Google iOS+web, Supabase, Stripe) ✓
+- `iosUrlScheme` Google = client iOS 328961509377-jh9p… ✓
+
+**⚠️ À FAIRE AVANT DE SOUMETTRE :**
+1. **Clé Stripe = clé de TEST** : `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` sur EAS est une `pk_test_…`. En production, personne ne peut payer avec une vraie carte. Pour lancer en réel : passer la clé EAS en `pk_live_…` **ET** vérifier sur Railway que `STRIPE_SECRET_KEY` est `sk_live_…` + webhook Stripe en mode live. (Les deux doivent être du même mode, sinon tout paiement échoue.)
+2. **Compte démo Apple : N'EXISTE PAS encore** (vérifié sur l'API prod : EMAIL_NOT_FOUND). Le créer dans l'app avec `oheveadmin+applereview@gmail.com` + mot de passe, et pré-remplir : un mariage, des invités, un site publié.
+3. Captures d'écran 6,9" (3 à 10) — voir section 8.
+4. Rebuild + submit EAS — voir section 9 (les fixes carte/photos/permissions ne sont PAS dans le build actuel).
+
+---
+
 ## 1. Informations sur l'app
 
 **Nom** (30 car. max)

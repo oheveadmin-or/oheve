@@ -3,6 +3,7 @@ import { Router } from 'express';
 import multer from 'multer';
 
 import { requireAuth } from '../middleware/requireAuth';
+import { optimizeAvatarUpload } from '../utils/image-optim';
 import { ConnexionInscriptionController } from './controller';
 
 export const connexionInscriptionRoutes = Router();
@@ -45,7 +46,7 @@ connexionInscriptionRoutes.get('/me', requireAuth, ctrl.me.bind(ctrl));
 connexionInscriptionRoutes.delete('/me', requireAuth, ctrl.deleteAccount.bind(ctrl));
 connexionInscriptionRoutes.get('/export', requireAuth, ctrl.exportData.bind(ctrl));
 connexionInscriptionRoutes.patch('/profile', requireAuth, ctrl.updateProfile.bind(ctrl));
-connexionInscriptionRoutes.post('/avatar', requireAuth, uploadAvatar.single('avatar'), ctrl.uploadAvatar.bind(ctrl));
+connexionInscriptionRoutes.post('/avatar', requireAuth, uploadAvatar.single('avatar'), optimizeAvatarUpload(), ctrl.uploadAvatar.bind(ctrl));
 connexionInscriptionRoutes.patch('/change-password', requireAuth, ctrl.changePassword.bind(ctrl));
 
 // Méthodes de connexion (lier/délier Google & Apple, ajouter un mot de passe)

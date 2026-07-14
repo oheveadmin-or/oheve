@@ -22,7 +22,10 @@ import {
 } from '../auth/socialVerify';
 import { ConnexionInscriptionRepository } from './repository';
 
-const SALT_ROUNDS = 12;
+// 10 rounds (minimum OWASP) : 12 prenait >1 s sur le vCPU partagé Railway et
+// ralentissait sensiblement connexion + inscription. bcrypt.compare accepte
+// les anciens hashes en 12 rounds sans migration.
+const SALT_ROUNDS = 10;
 const MIN_PWD = 8;
 const repo = new ConnexionInscriptionRepository();
 

@@ -1,6 +1,7 @@
 import './config/load-env';
 
 import path from 'path';
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -25,6 +26,7 @@ import { weddingSitesRoutes } from './wedding-sites';
 import { rsvpRoutes } from './rsvp/rsvp.routes';
 import { healthRoutes } from './routes/health.routes';
 import { subscriptionRoutes } from './subscriptions';
+import { optimizeExistingUploads } from './utils/image-optim';
 import { prestataireSubscriptionRoutes } from './prestataire-subscription';
 import { premiumRoutes } from './premium';
 
@@ -37,6 +39,11 @@ const PORT = process.env.PORT || 3003;
 // hébergées ici sont BLOQUÉES quand elles sont affichées depuis
 // oheve.pages.dev / ohevewedding.com (images cassées + « Load failed »).
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+// Gzip sur les réponses JSON : les listes (feed, conversations, invités…)
+// passent de plusieurs centaines de Ko à quelques dizaines — décisif sur
+// une connexion mobile moyenne.
+app.use(compression());
 
 // ── CORS : autoriser uniquement les origines connues ─────────────────────────
 const BUILTIN_ORIGINS = [
@@ -98,7 +105,13 @@ app.use('/api/auth/inscription', authLimiter);
 // Le webhook Stripe nécessite le body brut (raw) avant express.json()
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '2mb' }));
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Les fichiers uploadés ont un nom unique (jamais réécrits sous le même nom) :
+// cache long + immutable → l'app ne retélécharge pas les mêmes photos à chaque
+// affichage du feed / d'un portfolio.
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
+  maxAge: '30d',
+  immutable: true,
+}));
 
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', connexionInscriptionRoutes);
@@ -160,7 +173,14 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
 runMigrations()
-  .then(() => startReminderScheduler())
+  .then(() => {
+    startReminderScheduler();
+    // Recompression des images uploadées avant l'ajout de l'optimisation à
+    // l'upload — en tâche de fond, sans bloquer le service.
+    optimizeExistingUploads().catch(err => {
+      logger.warn({ err }, 'Recompression des uploads existants échouée');
+    });
+  })
   .catch(err => {
     logger.error({ err }, 'Migrations failed');
   });
