@@ -138,7 +138,13 @@ export class PhotosController {
       }
 
       const caption = typeof req.body?.caption === 'string' ? req.body.caption : '';
-      const mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+      // Détection vidéo par mimetype OU par extension (iOS envoie parfois
+      // application/octet-stream, ce qui ferait passer une vidéo pour une image).
+      const ext = path.extname(req.file.filename || req.file.originalname || '').toLowerCase();
+      const isVideo =
+        req.file.mimetype.startsWith('video/') ||
+        ['.mp4', '.mov', '.m4v', '.webm', '.avi'].includes(ext);
+      const mediaType = isVideo ? 'video' : 'image';
       const photo = await repo.insert(prestataireId, '', req.file.filename, caption, mediaType);
       const url = buildPhotoUrl(req, req.file.filename);
       return res.status(201).json({ success: true, data: { ...photo, url } });

@@ -24,7 +24,14 @@ const upload = multer({
   storage,
   limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) cb(null, true);
+    // iOS envoie parfois la vidéo en application/octet-stream : on retombe alors
+    // sur l'extension pour ne pas rejeter à tort une vidéo légitime.
+    const ext = path.extname(file.originalname).toLowerCase();
+    const looksLikeMedia =
+      file.mimetype.startsWith('image/') ||
+      file.mimetype.startsWith('video/') ||
+      ['.mp4', '.mov', '.m4v', '.webm', '.avi', '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'].includes(ext);
+    if (looksLikeMedia) cb(null, true);
     else cb(new Error('Seules les images et les vidéos sont acceptées'));
   },
 });
