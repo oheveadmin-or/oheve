@@ -350,8 +350,7 @@ function PrestataireInstaProfile() {
               return (
                 <Pressable
                   style={instaStyles.gridPhoto}
-                  onPress={() => router.push('/(app)/(tabs)/portfolio' as never)}
-                  onLongPress={() => photoOptions(item)}
+                  onPress={() => photoOptions(item)}
                 >
                   {item.media_type === 'video' ? (
                     <View style={instaStyles.videoTile}>

@@ -1,8 +1,5 @@
-import { useColorScheme as useRNColorScheme } from 'react-native';
-
-// RN peut renvoyer 'unspecified' : on normalise vers 'light' | 'dark'
-// pour pouvoir indexer les palettes de couleurs sans erreur de type.
+// L'app force le thème clair quel que soit le réglage sombre de l'appareil.
+// On ignore volontairement le mode sombre du système.
 export function useColorScheme(): 'light' | 'dark' {
-  const scheme = useRNColorScheme();
-  return scheme === 'dark' ? 'dark' : 'light';
+  return 'light';
 }

@@ -36,7 +36,7 @@ export default function RootLayout() {
             </BoutiqueProvider>
           </AuthProvider>
         </ErrorBoundary>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
