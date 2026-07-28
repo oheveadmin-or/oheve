@@ -3,14 +3,19 @@ import { CardField, StripeProvider, useConfirmSetupIntent } from '@stripe/stripe
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View,
+  ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { IAP_SKUS, LEGAL_URLS } from '@/constants/config';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
-import { prestataireSubApi } from '@/services/auth/api';
+import {
+  describeIapError, getIapSdk, iapAvailable, IAP_UNAVAILABLE_MESSAGE,
+  loadIapProduct, type IapProductState,
+} from '@/lib/iap';
+import { iapApi, prestataireSubApi } from '@/services/auth/api';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
@@ -23,6 +28,287 @@ const FEATURES = [
   { icon: 'stats-chart-outline', label: 'Statistiques de consultation' },
 ];
 
+// ── Blocs partagés (hero, prix, features) ────────────────────────────────────
+function SubscribeHero({ priceLabel }: { priceLabel: string }) {
+  return (
+    <>
+      {/* Hero */}
+      <View style={styles.hero}>
+        <View style={styles.badge}>
+          <ThemedText style={styles.badgeTxt}>ESPACE PRESTATAIRE</ThemedText>
+        </View>
+        <ThemedText style={styles.heroTitle}>Développez votre activité{'\n'}sur Oheve</ThemedText>
+        <ThemedText style={styles.heroSub}>Accès complet à votre espace professionnel</ThemedText>
+      </View>
+
+      {/* Prix */}
+      <View style={styles.priceCard}>
+        <View style={styles.freeBadge}>
+          <Ionicons name="gift-outline" size={16} color={C.saugeDark} />
+          <ThemedText style={styles.freeTxt}>3 premiers mois offerts</ThemedText>
+        </View>
+        <View style={styles.priceRow}>
+          <ThemedText style={styles.price}>{priceLabel}</ThemedText>
+          <ThemedText style={styles.priceNote}>/ mois</ThemedText>
+        </View>
+        <ThemedText style={styles.priceDesc}>
+          Aucun prélèvement pendant 3 mois. Ensuite {priceLabel}/mois, sans engagement — annulable à tout moment.
+        </ThemedText>
+      </View>
+
+      {/* Features */}
+      <View style={styles.featuresList}>
+        {FEATURES.map((f, i) => (
+          <View key={i} style={styles.featureRow}>
+            <View style={styles.featureIcon}>
+              <Ionicons name={f.icon as 'search'} size={16} color={C.sauge} />
+            </View>
+            <ThemedText style={styles.featureLabel}>{f.label}</ThemedText>
+          </View>
+        ))}
+      </View>
+    </>
+  );
+}
+
+/**
+ * Mentions légales obligatoires sous tout abonnement auto-renouvelable :
+ * disclosure du renouvellement automatique + liens FONCTIONNELS vers les
+ * Conditions d'utilisation (EULA) et la politique de confidentialité
+ * (Apple Guideline 3.1.2).
+ */
+function SubscribeLegal({ priceLabel }: { priceLabel: string }) {
+  return (
+    <View style={styles.legal}>
+      <ThemedText style={styles.legalNote}>
+        Abonnement mensuel {priceLabel}/mois avec 3 mois d'essai gratuit.
+        {Platform.OS === 'ios'
+          ? ' Le paiement est débité sur votre compte Apple. L\'abonnement se renouvelle automatiquement chaque mois sauf annulation au moins 24 h avant la fin de la période en cours, dans Réglages → Abonnements.'
+          : ' L\'abonnement se renouvelle automatiquement chaque mois, sans engagement — annulable à tout moment.'}
+      </ThemedText>
+      <View style={styles.legalLinks}>
+        <Pressable hitSlop={8} onPress={() => Linking.openURL(LEGAL_URLS.terms)}>
+          <ThemedText style={styles.legalLink}>Conditions d'utilisation (EULA)</ThemedText>
+        </Pressable>
+        <ThemedText style={styles.legalDot}>·</ThemedText>
+        <Pressable hitSlop={8} onPress={() => Linking.openURL(LEGAL_URLS.privacy)}>
+          <ThemedText style={styles.legalLink}>Politique de confidentialité</ThemedText>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ── iOS : abonnement via Apple In-App Purchase (Guideline 3.1.1) ─────────────
+function SubscribeIos() {
+  const insets = useSafeAreaInsets();
+  const { user, updateUser } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [product, setProduct] = useState<{ id: string; displayPrice?: string } | null>(null);
+  const [storeState, setStoreState] = useState<IapProductState>('loading');
+
+  const sdk = getIapSdk()!;
+
+  /** Vérifie l'abonnement côté serveur puis débloque l'espace prestataire. */
+  const grantFromPurchase = async (purchase: { purchaseToken?: string | null }): Promise<boolean> => {
+    const jws = purchase.purchaseToken;
+    if (!jws || !user?.accessToken) return false;
+    const res = await iapApi.verify(user.accessToken, jws);
+    if (!res?.success) {
+      Alert.alert('Activation impossible', res?.message ?? 'Réessayez dans un instant.');
+      return false;
+    }
+    await updateUser({
+      presta_sub_status: res.data?.status ?? 'active',
+      presta_trial_end: res.data?.trial_end ?? undefined,
+      presta_current_period_end: res.data?.current_period_end ?? undefined,
+    });
+    return true;
+  };
+
+  const {
+    connected, requestPurchase, finishTransaction,
+  } = sdk.useIAP({
+    onPurchaseSuccess: async (purchase) => {
+      try {
+        if (purchase.productId !== IAP_SKUS.prestaMonthly) return;
+        const granted = await grantFromPurchase(purchase);
+        if (granted) {
+          // Transaction close uniquement après validation serveur : sinon un
+          // échec réseau ferait payer sans jamais débloquer l'accès.
+          await finishTransaction({ purchase, isConsumable: false });
+          Alert.alert(
+            '🎉 Bienvenue !',
+            'Vos 3 premiers mois sont offerts. Le renouvellement est géré par l\'App Store — annulable à tout moment dans Réglages → Abonnements.',
+            [{ text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') }],
+          );
+        }
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    onPurchaseError: (error) => {
+      setSubmitting(false);
+      if (error.code !== 'user-cancelled') {
+        Alert.alert('Abonnement impossible', describeIapError(error));
+      }
+    },
+  });
+
+  /**
+   * Charge l'abonnement auprès d'Apple (avec réessais). Tant qu'Apple ne l'a
+   * pas renvoyé, le bouton reste désactivé : on ne lance jamais un achat sur un
+   * produit inconnu de StoreKit (source de l'erreur « SKU not found »).
+   */
+  const loadProduct = useCallback(async () => {
+    const found = await loadIapProduct<{ id: string; displayPrice?: string }>(
+      sdk.fetchProducts, IAP_SKUS.prestaMonthly, 'subs',
+    );
+    setProduct(found);
+    setStoreState(found ? 'ready' : 'unavailable');
+    return found;
+  }, [sdk]);
+
+  /** Bouton « Réessayer » : repasse en chargement puis relance. */
+  const retryLoadProduct = useCallback(() => {
+    setStoreState('loading');
+    return loadProduct();
+  }, [loadProduct]);
+
+  useEffect(() => {
+    if (connected) loadProduct();
+  }, [connected, loadProduct]);
+
+  const priceLabel = product?.displayPrice ?? '39 €';
+
+  const handleSubscribe = async () => {
+    if (!user?.accessToken) return;
+    if (!connected) {
+      Alert.alert('App Store indisponible', 'Impossible de joindre l\'App Store. Réessayez dans un instant.');
+      return;
+    }
+    setSubmitting(true);
+    // Dernier filet : rechargement du produit juste avant l'achat.
+    if (!product && !(await loadProduct())) {
+      setSubmitting(false);
+      Alert.alert('Abonnement indisponible', IAP_UNAVAILABLE_MESSAGE);
+      return;
+    }
+    try {
+      await requestPurchase({
+        request: { apple: { sku: IAP_SKUS.prestaMonthly } },
+        type: 'subs',
+      });
+      // Résultat traité dans onPurchaseSuccess / onPurchaseError.
+    } catch (err) {
+      setSubmitting(false);
+      Alert.alert('Abonnement impossible', describeIapError(err as { code?: string; message?: string }));
+    }
+  };
+
+  // Restauration (changement d'iPhone, réinstallation) — exigée par Apple.
+  const handleRestore = async () => {
+    if (!user?.accessToken) return;
+    setRestoring(true);
+    try {
+      const purchases = await sdk.getAvailablePurchases();
+      const subPurchase = (purchases ?? []).find((p) => p.productId === IAP_SKUS.prestaMonthly);
+      if (!subPurchase) {
+        Alert.alert('Aucun abonnement trouvé', 'Aucun abonnement Oheve n\'est associé à ce compte Apple.');
+        return;
+      }
+      const granted = await grantFromPurchase(subPurchase);
+      if (granted) {
+        await finishTransaction({ purchase: subPurchase, isConsumable: false });
+        Alert.alert('✅ Abonnement restauré', 'Votre espace prestataire est de nouveau actif.', [
+          { text: 'Continuer', onPress: () => router.replace('/(app)/(tabs)') },
+        ]);
+      }
+    } catch {
+      Alert.alert('Restauration impossible', 'Réessayez dans un instant.');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  return (
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+      >
+        <SubscribeHero priceLabel={priceLabel} />
+
+        <Pressable
+          style={[styles.cta, (submitting || storeState !== 'ready') && styles.ctaOff]}
+          onPress={handleSubscribe}
+          disabled={submitting || storeState !== 'ready'}
+        >
+          {submitting || storeState === 'loading' ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <View style={styles.ctaInner}>
+              <Ionicons name="lock-closed" size={16} color="#fff" />
+              <ThemedText style={styles.ctaTxt}>Activer — 3 mois offerts</ThemedText>
+            </View>
+          )}
+        </Pressable>
+
+        {/* L'App Store n'a pas renvoyé l'offre : message clair + réessai, au
+            lieu de laisser l'achat échouer sur une erreur technique. */}
+        {storeState === 'unavailable' ? (
+          <View style={styles.storeError}>
+            <ThemedText style={styles.storeErrorTxt}>{IAP_UNAVAILABLE_MESSAGE}</ThemedText>
+            <Pressable hitSlop={8} onPress={retryLoadProduct}>
+              <ThemedText style={styles.storeRetry}>Réessayer</ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
+
+        <Pressable style={styles.restoreBtn} onPress={handleRestore} disabled={restoring}>
+          {restoring ? (
+            <ActivityIndicator color={C.sauge} size="small" />
+          ) : (
+            <ThemedText style={styles.restoreTxt}>Restaurer mes achats</ThemedText>
+          )}
+        </Pressable>
+
+        <View style={styles.secureRow}>
+          <Ionicons name="shield-checkmark-outline" size={14} color={C.textLight} />
+          <ThemedText style={styles.secureTxt}>
+            Abonnement géré par l'App Store · Annulable à tout moment
+          </ThemedText>
+        </View>
+
+        <SubscribeLegal priceLabel={priceLabel} />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ── Vieux binaire iOS sans StoreKit : demander la mise à jour ────────────────
+function SubscribeIosUpdateRequired() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
+        <SubscribeHero priceLabel="39 €" />
+        <View style={styles.errorCard}>
+          <Ionicons name="cloud-download-outline" size={26} color={C.saugeDark} />
+          <ThemedText style={styles.errorTitle}>Mise à jour requise</ThemedText>
+          <ThemedText style={styles.errorMsg}>
+            Mettez à jour Oheve depuis l'App Store pour activer votre abonnement prestataire.
+          </ThemedText>
+        </View>
+
+        <SubscribeLegal priceLabel="39 €" />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ── Android / web : Stripe (inchangé) ────────────────────────────────────────
 function SubscribeForm() {
   const insets = useSafeAreaInsets();
   const { user, updateUser } = useAuth();
@@ -121,41 +407,7 @@ function SubscribeForm() {
         // Remonte le champ carte / bouton au-dessus du clavier (iOS)
         automaticallyAdjustKeyboardInsets
       >
-        {/* Hero */}
-        <View style={styles.hero}>
-          <View style={styles.badge}>
-            <ThemedText style={styles.badgeTxt}>ESPACE PRESTATAIRE</ThemedText>
-          </View>
-          <ThemedText style={styles.heroTitle}>Développez votre activité{'\n'}sur Oheve</ThemedText>
-          <ThemedText style={styles.heroSub}>Accès complet à votre espace professionnel</ThemedText>
-        </View>
-
-        {/* Prix */}
-        <View style={styles.priceCard}>
-          <View style={styles.freeBadge}>
-            <Ionicons name="gift-outline" size={16} color={C.saugeDark} />
-            <ThemedText style={styles.freeTxt}>3 premiers mois offerts</ThemedText>
-          </View>
-          <View style={styles.priceRow}>
-            <ThemedText style={styles.price}>39 €</ThemedText>
-            <ThemedText style={styles.priceNote}>/ mois</ThemedText>
-          </View>
-          <ThemedText style={styles.priceDesc}>
-            Aucun prélèvement pendant 3 mois. Ensuite 39 €/mois, sans engagement — annulable à tout moment.
-          </ThemedText>
-        </View>
-
-        {/* Features */}
-        <View style={styles.featuresList}>
-          {FEATURES.map((f, i) => (
-            <View key={i} style={styles.featureRow}>
-              <View style={styles.featureIcon}>
-                <Ionicons name={f.icon as 'search'} size={16} color={C.sauge} />
-              </View>
-              <ThemedText style={styles.featureLabel}>{f.label}</ThemedText>
-            </View>
-          ))}
-        </View>
+        <SubscribeHero priceLabel="39 €" />
 
         {startError ? (
           /* start() a échoué : on ne montre pas un formulaire mort, mais un
@@ -209,6 +461,8 @@ function SubscribeForm() {
               <Ionicons name="shield-checkmark-outline" size={14} color={C.textLight} />
               <ThemedText style={styles.secureTxt}>Sécurisé par Stripe · Annulable à tout moment</ThemedText>
             </View>
+
+            <SubscribeLegal priceLabel="39 €" />
           </>
         )}
       </ScrollView>
@@ -217,6 +471,10 @@ function SubscribeForm() {
 }
 
 export default function PrestataireSubscribeScreen() {
+  // iOS : Apple impose l'In-App Purchase pour les abonnements (Guideline 3.1.1).
+  if (Platform.OS === 'ios') {
+    return iapAvailable ? <SubscribeIos /> : <SubscribeIosUpdateRequired />;
+  }
   return (
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
       <SubscribeForm />
@@ -270,8 +528,21 @@ const styles = StyleSheet.create({
   ctaInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ctaTxt: { color: '#fff', fontWeight: '700', fontSize: 16 },
 
+  storeError: { alignItems: 'center', gap: 6, paddingHorizontal: 8 },
+  storeErrorTxt: { fontSize: 13, color: C.textLight, textAlign: 'center' },
+  storeRetry: { fontSize: 14, fontWeight: '700', color: C.sauge, textDecorationLine: 'underline' },
+
+  restoreBtn: { alignItems: 'center', paddingVertical: 2, minHeight: 22, justifyContent: 'center' },
+  restoreTxt: { fontSize: 14, fontWeight: '600', color: C.sauge, textDecorationLine: 'underline' },
+
   secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   secureTxt: { fontSize: 12, color: C.textLight },
+
+  legal: { gap: 8, alignItems: 'center', marginTop: 4 },
+  legalNote: { fontSize: 11, color: C.textLight, textAlign: 'center', lineHeight: 16 },
+  legalLinks: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' },
+  legalLink: { fontSize: 12, color: C.sauge, fontWeight: '600', textDecorationLine: 'underline' },
+  legalDot: { fontSize: 12, color: C.textLight },
 
   errorCard: {
     alignItems: 'center', gap: 10, padding: 22,

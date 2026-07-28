@@ -15,6 +15,7 @@
     "seed:admin": "tsx src/db/seed-admin.ts"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.1.0",
     "@sentry/node": "^10.59.0",
     "@types/multer": "^2.1.0",
     "@types/pg": "^8.16.0",

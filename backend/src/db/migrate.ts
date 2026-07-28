@@ -59,6 +59,12 @@ const USERS_ADD_COLS = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_purchased_at TIMESTAMP WITH TIME ZONE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_stripe_payment_intent_id TEXT`,
+  // ── Achats Apple In-App Purchase (iOS — Guideline 3.1.1) ───────────────────
+  // originalTransactionId Apple du premium (non-consommable) : sert d'anti-doublon
+  // (un même achat Apple ne peut débloquer qu'un seul compte Oheve).
+  // Les abonnements prestataire Apple sont stockés dans presta_sub_id sous la
+  // forme 'apple:<originalTransactionId>'.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_apple_transaction_id TEXT`,
   // ── Abonnement Prestataire (39€/mois, 3 mois offerts) ──────────────────────
   // stripe_customer_id est partagé (client Stripe du user). presta_sub_* décrit
   // l'abonnement récurrent : status 'incomplete' = démarré sans CB validée,

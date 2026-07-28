@@ -29,6 +29,7 @@ import { subscriptionRoutes } from './subscriptions';
 import { optimizeExistingUploads } from './utils/image-optim';
 import { prestataireSubscriptionRoutes } from './prestataire-subscription';
 import { premiumRoutes } from './premium';
+import { iapRoutes } from './iap';
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -125,6 +126,7 @@ app.use('/api/prestataire-subscription', prestataireSubscriptionRoutes);
 app.use('/api/rsvp', rsvpRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/premium', premiumRoutes);
+app.use('/api/iap', iapRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/guests', guestsRoutes);
 
