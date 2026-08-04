@@ -6,6 +6,7 @@ import { Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { C } from '@/constants/OheveTheme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function Section({ title, children }: { title: string; children: string }) {
   return (
@@ -17,8 +18,10 @@ function Section({ title, children }: { title: string; children: string }) {
 }
 
 export default function PrivacyPolicyScreen() {
+  const insets = useSafeAreaInsets();
+
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={C.textDark} />
@@ -27,14 +30,14 @@ export default function PrivacyPolicyScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <ThemedText style={styles.date}>Dernière mise à jour : juin 2026</ThemedText>
+        <ThemedText style={styles.date}>Dernière mise à jour : août 2026</ThemedText>
 
         <Section title="1. Responsable du traitement">
           {"La société Oheve, responsable de l'application Oheve Wedding Planner, est le responsable du traitement de vos données personnelles au sens du RGPD (Règlement Général sur la Protection des Données).\n\nContact : oheveadmin@gmail.com"}
         </Section>
 
         <Section title="2. Données collectées">
-          {"Nous collectons les données suivantes :\n\n• Identité : prénom, nom, adresse email\n• Données de mariage : date, lieu, noms des mariés, budget\n• Invités : liste nominative, réponses RSVP\n• Prestataires : contacts et échanges de messages\n• Données techniques : tokens d'authentification, logs de connexion\n• Données de paiement : traitées directement par Stripe (nous ne stockons pas de numéros de carte)"}
+          {"Nous collectons les données suivantes :\n\n• Identité : prénom, nom, adresse email\n• Données de mariage : date, lieu, noms des mariés, budget\n• Invités : liste nominative, réponses RSVP\n• Prestataires : contacts et échanges de messages\n• Données techniques : tokens d'authentification, logs de connexion\n• Achats : état de votre accès Premium ou de votre abonnement (statut, échéance) — aucune donnée bancaire\n• Connexion Apple ou Google : identifiant de compte et adresse email transmis par le fournisseur, si vous choisissez ce mode de connexion\n• Données de paiement : traitées directement par Apple (App Store) ou Stripe — nous ne stockons aucun numéro de carte"}
         </Section>
 
         <Section title="3. Finalités du traitement">
@@ -50,18 +53,26 @@ export default function PrivacyPolicyScreen() {
         </Section>
 
         <Section title="6. Partage des données">
-          {"Vos données ne sont jamais vendues. Elles peuvent être partagées avec :\n\n• Stripe (paiements) — politique Stripe disponible sur stripe.com\n• Railway (hébergement) — politique disponible sur railway.app\n• Les prestataires que vous contactez via l'application"}
+          {"Vos données ne sont jamais vendues. Elles peuvent être partagées avec :\n\n• Apple (achats intégrés et abonnements réalisés via l'App Store)\n• Stripe (paiements sur Android et web) — politique disponible sur stripe.com\n• Railway (hébergement) — politique disponible sur railway.app\n• Apple ou Google (uniquement si vous utilisez « Se connecter avec Apple/Google »)\n• Les prestataires que vous contactez via l'application"}
         </Section>
 
-        <Section title="7. Vos droits (RGPD)">
+        <Section title="7. Achats et abonnements">
+          {"Sur iPhone et iPad, les achats et abonnements sont réalisés via l'App Store : Apple traite le paiement et nous ne recevons aucune donnée bancaire. Nous conservons uniquement l'état de votre achat (Premium actif, abonnement actif ou résilié, date d'échéance) afin de débloquer les fonctionnalités correspondantes.\n\nSur Android et sur le web, les paiements sont traités par Stripe, Inc. ; aucun numéro de carte n'est stocké sur nos serveurs."}
+        </Section>
+
+        <Section title="8. Absence de suivi publicitaire">
+          {"Oheve n'affiche aucune publicité, ne vend ni ne loue vos données, et n'utilise aucun traceur publicitaire ni identifiant de suivi (IDFA). Vos données ne sont jamais recoupées avec celles d'autres applications ou sites à des fins de ciblage."}
+        </Section>
+
+        <Section title="9. Vos droits (RGPD)">
           {"Conformément au RGPD, vous disposez des droits suivants :\n\n• Droit d'accès : obtenir une copie de vos données (Paramètres > Exporter mes données)\n• Droit de rectification : corriger vos données (Paramètres > Informations personnelles)\n• Droit à l'effacement : supprimer votre compte (Paramètres > Supprimer mon compte)\n• Droit à la portabilité : télécharger vos données en JSON\n• Droit d'opposition et de limitation : nous contacter\n\nPour exercer vos droits : oheveadmin@gmail.com\n\nVous pouvez également déposer une réclamation auprès de la CNIL (cnil.fr)."}
         </Section>
 
-        <Section title="8. Sécurité">
+        <Section title="10. Sécurité">
           {"Nous mettons en œuvre des mesures techniques adaptées : chiffrement des mots de passe (bcrypt), tokens JWT sécurisés, connexions HTTPS, rate limiting contre les attaques par force brute."}
         </Section>
 
-        <Section title="9. Cookies">
+        <Section title="11. Cookies">
           {"L'application mobile n'utilise pas de cookies. Le site invités (mini-site mariage) charge des polices Google Fonts — en cliquant sur 'Accepter' sur la bannière cookies, vous consentez à ce transfert vers les serveurs de Google."}
         </Section>
       </ScrollView>

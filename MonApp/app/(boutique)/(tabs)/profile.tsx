@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { useBoutique } from '@/contexts/boutique-context';
+import { authApi } from '@/services/auth/api';
 
 export default function BoutiqueProfileScreen() {
   const { user, signOut } = useAuth();
@@ -114,6 +115,37 @@ export default function BoutiqueProfileScreen() {
       <Pressable style={styles.logoutBtn} onPress={() => signOut()}>
         <Ionicons name="log-out-outline" size={18} color={C.error} />
         <ThemedText style={styles.logoutText}>Se déconnecter</ThemedText>
+      </Pressable>
+
+      {/* Suppression du compte (exigée par Apple — Guideline 5.1.1) */}
+      <Pressable
+        style={[styles.logoutBtn, { marginTop: 0, paddingTop: 0 }]}
+        onPress={() => {
+          if (!user?.accessToken) return;
+          Alert.alert(
+            'Supprimer mon compte',
+            'Toutes vos données seront définitivement supprimées. Cette action est irréversible.',
+            [
+              { text: 'Annuler', style: 'cancel' },
+              {
+                text: 'Supprimer définitivement',
+                style: 'destructive',
+                onPress: async () => {
+                  const res = await authApi.deleteAccount(user.accessToken!);
+                  if (res?.success) {
+                    Alert.alert('Compte supprimé', 'Votre compte et toutes vos données ont été supprimés.');
+                    signOut();
+                  } else {
+                    Alert.alert('Suppression impossible', res?.message ?? 'Vérifiez votre connexion et réessayez.');
+                  }
+                },
+              },
+            ],
+          );
+        }}
+      >
+        <Ionicons name="trash-outline" size={18} color={C.error} />
+        <ThemedText style={styles.logoutText}>Supprimer mon compte</ThemedText>
       </Pressable>
     </ScrollView>
   );

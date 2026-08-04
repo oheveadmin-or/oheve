@@ -1,5 +1,8 @@
 # App Store Connect — Textes prêts à coller (Oheve)
 
+> ⚠️ **Rejet Apple du 16/07/2026 (3.1.1 paiements, 5.1.1 suppression compte, 5.1.2 tracking)**
+> → corrections + checklist complète dans **[RESOUMISSION_APPLE.md](RESOUMISSION_APPLE.md)**.
+
 Tout ce qu'il faut copier-coller dans App Store Connect pour la soumission.
 
 ---

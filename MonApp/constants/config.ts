@@ -99,6 +99,38 @@ export const GOOGLE_CLIENT_IDS = {
   android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
 } as const;
 
+/**
+ * Base des liens de partage publics (page /p/:photoId sur le site Oheve) :
+ * la page affiche le post, ouvre l'app si elle est installée, sinon propose
+ * de la télécharger.
+ */
+export const SHARE_BASE_URL = 'https://oheve.pages.dev';
+
+/**
+ * Liens légaux publics — requis par Apple sur tout écran d'abonnement
+ * auto-renouvelable (Guideline 3.1.2 : liens FONCTIONNELS vers les CGU/EULA
+ * et la politique de confidentialité, dans le binaire ET les métadonnées).
+ * `terms` sert d'EULA (conditions d'utilisation). Ces mêmes URLs doivent
+ * figurer dans la description App Store Connect.
+ */
+export const LEGAL_URLS = {
+  terms: 'https://oheve.pages.dev/cgu',
+  privacy: 'https://oheve.pages.dev/privacy',
+} as const;
+
+/**
+ * Identifiants des produits Apple In-App Purchase (iOS uniquement).
+ * ⚠️ Doivent exister À L'IDENTIQUE dans App Store Connect (Fonctionnalités →
+ * Achats intégrés / Abonnements) et dans backend/src/iap (IAP_PRODUCTS).
+ * Sur iOS, Apple impose son propre système de paiement pour les biens
+ * numériques (Guideline 3.1.1) — Stripe reste utilisé sur Android/web et pour
+ * les paiements de services physiques aux prestataires.
+ */
+export const IAP_SKUS = {
+  premium: 'com.oheve.wedding.couple.premium',        // non-consommable 50 €
+  prestaMonthly: 'com.oheve.wedding.presta.sub', // abonnement 39,99 €/mois (3 mois offerts)
+} as const;
+
 export const API_ENDPOINTS = {
   health: `${API_BASE_URL}/api/health`,
   // Auth
@@ -129,6 +161,7 @@ export const API_ENDPOINTS = {
   prestataires: `${API_BASE_URL}/api/prestataires`,
   prestataireFeed: `${API_BASE_URL}/api/prestataires/feed/photos`,
   photoLike: (photoId: number) => `${API_BASE_URL}/api/prestataires/photos/${photoId}/like`,
+  photoPublic: (photoId: number | string) => `${API_BASE_URL}/api/prestataires/photos/${photoId}/public`,
   photoComments: (photoId: number) => `${API_BASE_URL}/api/prestataires/photos/${photoId}/comments`,
   conversations: `${API_BASE_URL}/api/conversations`,
   pushToken: `${API_BASE_URL}/api/conversations/push-token`,
@@ -158,7 +191,9 @@ export const API_ENDPOINTS = {
   premiumPurchase: `${API_BASE_URL}/api/premium/purchase`,
   premiumConfirm: `${API_BASE_URL}/api/premium/confirm`,
   premiumStatus: `${API_BASE_URL}/api/premium/status`,
-  // Abonnement Prestataire (39€/mois, 3 mois offerts)
+  // Achats Apple In-App Purchase (iOS — Guideline 3.1.1)
+  iapVerify: `${API_BASE_URL}/api/iap/verify`,
+  // Abonnement Prestataire (39,99€/mois, 3 mois offerts)
   prestaSubStart: `${API_BASE_URL}/api/prestataire-subscription/start`,
   prestaSubConfirm: `${API_BASE_URL}/api/prestataire-subscription/confirm`,
   prestaSubStatus: `${API_BASE_URL}/api/prestataire-subscription/status`,

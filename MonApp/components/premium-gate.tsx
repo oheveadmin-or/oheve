@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { C } from '@/constants/OheveTheme';
 import { usePremiumAccess } from '@/hooks/use-premium-access';
+import { PurchaseLegal } from './purchase-legal';
 import { ThemedText } from './themed-text';
 
 type Props = {
@@ -102,8 +103,16 @@ export function PremiumGate({ feature, icon, children }: Props) {
 
         <View style={s.trustRow}>
           <Ionicons name="shield-checkmark-outline" size={12} color={C.textLight} />
-          <ThemedText style={s.trustTxt}>Paiement unique · Sécurisé par Stripe · Aucun abonnement</ThemedText>
+          <ThemedText style={s.trustTxt}>Paiement unique · Sécurisé · Aucun abonnement</ThemedText>
         </View>
+
+        {/* Détail de l'offre + liens légaux (Apple Guideline 3.1.2) */}
+        <PurchaseLegal
+          productTitle="Oheve Premium"
+          duration="Achat unique — accès illimité dans le temps"
+          price="50 € TTC, une seule fois"
+          extra="Aucun abonnement, aucun renouvellement automatique."
+        />
       </ScrollView>
     </View>
   );

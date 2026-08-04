@@ -64,7 +64,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export function PrivacyPage() {
   return (
-    <LegalLayout title="Politique de confidentialité" updated="juillet 2026">
+    <LegalLayout title="Politique de confidentialité" updated="août 2026">
       <Section title="1. Responsable du traitement">
         {`Oheve, éditeur de l'application Oheve Wedding Planner et du site oheve.pages.dev, est le responsable du traitement de vos données personnelles au sens du RGPD (Règlement Général sur la Protection des Données).
 
@@ -80,7 +80,9 @@ Contact : ${CONTACT_EMAIL}`}
 • Prestataires : contacts et échanges de messages
 • Photos : celles que vous choisissez d'ajouter à votre profil, votre portfolio ou votre site mariage
 • Données techniques : tokens d'authentification, logs de connexion
-• Données de paiement : traitées directement par Stripe (nous ne stockons aucun numéro de carte)`}
+• Achats : état de votre accès Premium ou de votre abonnement (statut, échéance) — aucune donnée bancaire
+• Connexion Apple ou Google : identifiant de compte et adresse email transmis par le fournisseur, si vous choisissez ce mode de connexion
+• Données de paiement : traitées directement par Apple (App Store) ou Stripe — nous ne stockons aucun numéro de carte`}
       </Section>
 
       <Section title="3. Finalités du traitement">
@@ -111,14 +113,25 @@ La suppression de votre compte (Paramètres > Supprimer mon compte) entraîne l'
       <Section title="6. Partage des données">
         {`Vos données ne sont jamais vendues. Elles peuvent être partagées avec :
 
-• Stripe (paiements) — politique disponible sur stripe.com
+• Apple (achats intégrés et abonnements réalisés via l'App Store)
+• Stripe (paiements sur Android et web) — politique disponible sur stripe.com
 • Railway (hébergement) — politique disponible sur railway.app
 • Cloudflare (hébergement du site mariage) — politique disponible sur cloudflare.com
 • Resend (envoi d'emails transactionnels) — politique disponible sur resend.com
 • Les prestataires que vous contactez via l'application`}
       </Section>
 
-      <Section title="7. Vos droits (RGPD)">
+      <Section title="7. Achats et abonnements">
+        {`Sur iPhone et iPad, les achats et abonnements sont réalisés via l'App Store : Apple traite le paiement et nous ne recevons aucune donnée bancaire. Nous conservons uniquement l'état de votre achat (Premium actif, abonnement actif ou résilié, date d'échéance) afin de débloquer les fonctionnalités correspondantes.
+
+Sur Android et sur le web, les paiements sont traités par Stripe, Inc. ; aucun numéro de carte n'est stocké sur nos serveurs.`}
+      </Section>
+
+      <Section title="8. Absence de suivi publicitaire">
+        {`Oheve n'affiche aucune publicité, ne vend ni ne loue vos données, et n'utilise aucun traceur publicitaire ni identifiant de suivi (IDFA). Vos données ne sont jamais recoupées avec celles d'autres applications ou sites à des fins de ciblage.`}
+      </Section>
+
+      <Section title="9. Vos droits (RGPD)">
         {`Conformément au RGPD, vous disposez des droits suivants :
 
 • Droit d'accès : obtenir une copie de vos données (Paramètres > Exporter mes données)
@@ -132,11 +145,11 @@ Pour exercer vos droits : ${CONTACT_EMAIL}
 Vous pouvez également déposer une réclamation auprès de la CNIL (cnil.fr).`}
       </Section>
 
-      <Section title="8. Sécurité">
+      <Section title="10. Sécurité">
         {`Nous mettons en œuvre des mesures techniques adaptées : chiffrement des mots de passe (bcrypt), tokens JWT sécurisés, connexions HTTPS, protection contre les attaques par force brute.`}
       </Section>
 
-      <Section title="9. Cookies">
+      <Section title="11. Cookies">
         {`L'application mobile n'utilise pas de cookies. Le site invités (mini-site mariage) charge des polices Google Fonts — en cliquant sur « Accepter » sur la bannière cookies, vous consentez à ce transfert vers les serveurs de Google.`}
       </Section>
     </LegalLayout>
@@ -147,11 +160,11 @@ Vous pouvez également déposer une réclamation auprès de la CNIL (cnil.fr).`}
 
 export function CguPage() {
   return (
-    <LegalLayout title="Conditions d'utilisation" updated="juillet 2026">
+    <LegalLayout title="Conditions d'utilisation (EULA)" updated="août 2026">
       <Section title="1. Objet">
         {`Les présentes conditions générales d'utilisation (CGU) régissent l'accès et l'utilisation de l'application Oheve Wedding Planner et du site oheve.pages.dev, édités par Oheve.
 
-En créant un compte, vous acceptez sans réserve ces CGU.`}
+Elles constituent le contrat de licence utilisateur final (EULA) de l'application. En créant un compte ou en effectuant un achat, vous les acceptez sans réserve.`}
       </Section>
 
       <Section title="2. Description du service">
@@ -170,33 +183,47 @@ En créant un compte, vous acceptez sans réserve ces CGU.`}
 Un seul compte par personne est autorisé. Toute utilisation frauduleuse entraîne la suppression du compte.`}
       </Section>
 
-      <Section title="4. Abonnement et paiements">
-        {`Certaines fonctionnalités nécessitent un abonnement payant ou un achat unique. Les prix sont affichés en euros TTC.
+      <Section title="4. Offres payantes, prix et durée">
+        {`Oheve propose deux offres payantes, toutes deux en euros TTC :
 
-Les paiements sont traités par Stripe, Inc. Oheve ne stocke aucune donnée bancaire.
+• Oheve Premium (futurs mariés) — achat unique de 50 €. Accès illimité dans le temps, sans abonnement ni renouvellement.
 
-Sauf mention contraire, les abonnements sont sans engagement et résiliables à tout moment depuis les Paramètres.`}
+• Oheve Prestataire — abonnement mensuel de 39,99 € par mois, d'une durée d'un (1) mois renouvelable, avec les 3 premiers mois offerts.`}
       </Section>
 
-      <Section title="5. Propriété intellectuelle">
+      <Section title="5. Renouvellement automatique et résiliation">
+        {`Sur iPhone et iPad, les achats sont réalisés via l'App Store : le paiement est débité sur votre compte Apple à la confirmation de l'achat.
+
+L'abonnement mensuel se renouvelle automatiquement pour la même durée et au même tarif, sauf résiliation au moins 24 heures avant la fin de la période en cours. Le renouvellement est prélevé dans les 24 heures qui précèdent la fin de la période en cours.
+
+Vous pouvez gérer ou résilier votre abonnement à tout moment dans Réglages → votre nom → Abonnements. Supprimer l'application ne résilie pas l'abonnement.
+
+Toute partie non utilisée d'une période d'essai gratuite est perdue en cas de souscription à un abonnement payant.
+
+Sur Android et sur le web, les paiements sont traités par Stripe, Inc. et l'abonnement se résilie depuis « Mon abonnement ». Oheve ne stocke aucune donnée bancaire.
+
+Les demandes de remboursement des achats effectués via l'App Store relèvent d'Apple : reportaproblem.apple.com`}
+      </Section>
+
+      <Section title="6. Propriété intellectuelle">
         {`L'ensemble des contenus de l'application (design, code, templates, textes) est la propriété exclusive d'Oheve et est protégé par le droit français de la propriété intellectuelle.
 
 Les données que vous créez (invités, budget, site mariage) vous appartiennent. Vous nous accordez une licence limitée pour les afficher et les traiter dans le cadre du service.`}
       </Section>
 
-      <Section title="6. Responsabilité">
+      <Section title="7. Responsabilité">
         {`Oheve s'engage à mettre en œuvre tous les moyens raisonnables pour assurer la disponibilité et la sécurité du service.
 
 Oheve ne peut être tenu responsable des pertes de données dues à des cas de force majeure, ni des erreurs provenant d'informations incorrectes saisies par l'utilisateur.`}
       </Section>
 
-      <Section title="7. Résiliation">
+      <Section title="8. Résiliation du compte">
         {`Vous pouvez supprimer votre compte à tout moment depuis Paramètres > Supprimer mon compte. La suppression est immédiate et irréversible.
 
 Oheve se réserve le droit de suspendre ou supprimer tout compte en cas de violation des présentes CGU.`}
       </Section>
 
-      <Section title="8. Droit applicable">
+      <Section title="9. Droit applicable">
         {`Ces CGU sont soumises au droit français. Tout litige relève de la compétence des tribunaux français.`}
       </Section>
     </LegalLayout>

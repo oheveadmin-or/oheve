@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { ImageBackground, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { C } from '@/constants/OheveTheme';
+import { warmupServer } from '@/services/auth/api';
 
 // Image de fond : écran d'accueil complet (fond crème + ombres botaniques + logo Oheve + tagline).
 // resizeMode="cover" s'adapte automatiquement à chaque taille d'écran.
@@ -11,6 +13,12 @@ const AUTH_BG = require('@/assets/images/auth-bg.png');
 
 export default function AuthIndexScreen() {
   const insets = useSafeAreaInsets();
+
+  // Réveille le serveur dès l'écran d'accueil pour que la 1re connexion soit
+  // rapide (évite le « cold start » ressenti comme une erreur de connexion).
+  useEffect(() => {
+    warmupServer();
+  }, []);
 
   return (
     <ImageBackground source={AUTH_BG} resizeMode="cover" style={styles.root}>

@@ -3,12 +3,13 @@ import { CardField, StripeProvider, useConfirmSetupIntent } from '@stripe/stripe
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View,
+  ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PurchaseLegal } from '@/components/purchase-legal';
 import { ThemedText } from '@/components/themed-text';
-import { IAP_SKUS, LEGAL_URLS } from '@/constants/config';
+import { IAP_SKUS } from '@/constants/config';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -79,23 +80,34 @@ function SubscribeHero({ priceLabel }: { priceLabel: string }) {
  */
 function SubscribeLegal({ priceLabel }: { priceLabel: string }) {
   return (
-    <View style={styles.legal}>
-      <ThemedText style={styles.legalNote}>
-        Abonnement mensuel {priceLabel}/mois avec 3 mois d'essai gratuit.
-        {Platform.OS === 'ios'
-          ? ' Le paiement est débité sur votre compte Apple. L\'abonnement se renouvelle automatiquement chaque mois sauf annulation au moins 24 h avant la fin de la période en cours, dans Réglages → Abonnements.'
-          : ' L\'abonnement se renouvelle automatiquement chaque mois, sans engagement — annulable à tout moment.'}
-      </ThemedText>
-      <View style={styles.legalLinks}>
-        <Pressable hitSlop={8} onPress={() => Linking.openURL(LEGAL_URLS.terms)}>
-          <ThemedText style={styles.legalLink}>Conditions d'utilisation (EULA)</ThemedText>
-        </Pressable>
-        <ThemedText style={styles.legalDot}>·</ThemedText>
-        <Pressable hitSlop={8} onPress={() => Linking.openURL(LEGAL_URLS.privacy)}>
-          <ThemedText style={styles.legalLink}>Politique de confidentialité</ThemedText>
-        </Pressable>
-      </View>
-    </View>
+    <PurchaseLegal
+      productTitle="Oheve Prestataire — Abonnement mensuel"
+      duration="1 mois, renouvelé automatiquement"
+      price={`${priceLabel} / mois`}
+      autoRenewing
+      extra={`3 premiers mois offerts, puis ${priceLabel} par mois. Sans engagement : résiliable à tout moment.`}
+    />
+  );
+}
+
+/**
+ * Sortie de l'écran d'abonnement.
+ *
+ * L'écran était sans issue : après le setup de la fiche, un prestataire qui ne
+ * payait pas restait bloqué (aucun retour, aucun « plus tard »), et si l'App
+ * Store ne renvoyait pas l'offre, le bouton d'achat était grisé — cul-de-sac
+ * complet, y compris pour App Review. L'abonnement reste demandé, mais il n'est
+ * pas bloquant : l'accueil prestataire affiche une bannière de relance.
+ */
+function SkipLater() {
+  return (
+    <Pressable
+      style={styles.skipBtn}
+      hitSlop={8}
+      onPress={() => router.replace('/(app)/(tabs)')}
+    >
+      <ThemedText style={styles.skipTxt}>Plus tard</ThemedText>
+    </Pressable>
   );
 }
 
@@ -180,7 +192,7 @@ function SubscribeIos() {
     if (connected) loadProduct();
   }, [connected, loadProduct]);
 
-  const priceLabel = product?.displayPrice ?? '39 €';
+  const priceLabel = product?.displayPrice ?? '39,99 €';
 
   const handleSubscribe = async () => {
     if (!user?.accessToken) return;
@@ -281,6 +293,8 @@ function SubscribeIos() {
           </ThemedText>
         </View>
 
+        <SkipLater />
+
         <SubscribeLegal priceLabel={priceLabel} />
       </ScrollView>
     </View>
@@ -293,7 +307,7 @@ function SubscribeIosUpdateRequired() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
-        <SubscribeHero priceLabel="39 €" />
+        <SubscribeHero priceLabel="39,99 €" />
         <View style={styles.errorCard}>
           <Ionicons name="cloud-download-outline" size={26} color={C.saugeDark} />
           <ThemedText style={styles.errorTitle}>Mise à jour requise</ThemedText>
@@ -302,7 +316,9 @@ function SubscribeIosUpdateRequired() {
           </ThemedText>
         </View>
 
-        <SubscribeLegal priceLabel="39 €" />
+        <SkipLater />
+
+        <SubscribeLegal priceLabel="39,99 €" />
       </ScrollView>
     </View>
   );
@@ -379,7 +395,7 @@ function SubscribeForm() {
       });
       Alert.alert(
         '🎉 Bienvenue !',
-        'Vos 3 premiers mois sont offerts. Vous ne serez prélevé de 39 €/mois qu\'à la fin de l\'essai — annulable à tout moment.',
+        'Vos 3 premiers mois sont offerts. Vous ne serez prélevé de 39,99 €/mois qu\'à la fin de l\'essai — annulable à tout moment.',
         [{ text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') }],
       );
     } catch {
@@ -407,7 +423,7 @@ function SubscribeForm() {
         // Remonte le champ carte / bouton au-dessus du clavier (iOS)
         automaticallyAdjustKeyboardInsets
       >
-        <SubscribeHero priceLabel="39 €" />
+        <SubscribeHero priceLabel="39,99 €" />
 
         {startError ? (
           /* start() a échoué : on ne montre pas un formulaire mort, mais un
@@ -462,7 +478,9 @@ function SubscribeForm() {
               <ThemedText style={styles.secureTxt}>Sécurisé par Stripe · Annulable à tout moment</ThemedText>
             </View>
 
-            <SubscribeLegal priceLabel="39 €" />
+            <SkipLater />
+
+            <SubscribeLegal priceLabel="39,99 €" />
           </>
         )}
       </ScrollView>
@@ -535,14 +553,11 @@ const styles = StyleSheet.create({
   restoreBtn: { alignItems: 'center', paddingVertical: 2, minHeight: 22, justifyContent: 'center' },
   restoreTxt: { fontSize: 14, fontWeight: '600', color: C.sauge, textDecorationLine: 'underline' },
 
+  skipBtn: { alignItems: 'center', paddingVertical: 6, minHeight: 30, justifyContent: 'center' },
+  skipTxt: { fontSize: 15, fontWeight: '600', color: C.textMid },
+
   secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   secureTxt: { fontSize: 12, color: C.textLight },
-
-  legal: { gap: 8, alignItems: 'center', marginTop: 4 },
-  legalNote: { fontSize: 11, color: C.textLight, textAlign: 'center', lineHeight: 16 },
-  legalLinks: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' },
-  legalLink: { fontSize: 12, color: C.sauge, fontWeight: '600', textDecorationLine: 'underline' },
-  legalDot: { fontSize: 12, color: C.textLight },
 
   errorCard: {
     alignItems: 'center', gap: 10, padding: 22,

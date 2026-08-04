@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Linking, Platform, Pressable,
+  ActivityIndicator, Alert, Platform, Pressable,
   ScrollView, StyleSheet, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PurchaseLegal } from '@/components/purchase-legal';
 import { ThemedText } from '@/components/themed-text';
-import { IAP_SKUS, LEGAL_URLS } from '@/constants/config';
+import { IAP_SKUS } from '@/constants/config';
 import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -188,15 +189,13 @@ function PremiumBody({
           <ThemedText style={s.trustTxt}>{trustLabel}</ThemedText>
         </View>
 
-        <View style={s.legalLinks}>
-          <Pressable hitSlop={8} onPress={() => Linking.openURL(LEGAL_URLS.terms)}>
-            <ThemedText style={s.legalLink}>Conditions d'utilisation</ThemedText>
-          </Pressable>
-          <ThemedText style={s.legalDot}>·</ThemedText>
-          <Pressable hitSlop={8} onPress={() => Linking.openURL(LEGAL_URLS.privacy)}>
-            <ThemedText style={s.legalLink}>Confidentialité</ThemedText>
-          </Pressable>
-        </View>
+        {/* Détail de l'offre + liens CGU/confidentialité (Guideline 3.1.2) */}
+        <PurchaseLegal
+          productTitle="Oheve Premium"
+          duration="Achat unique — accès illimité dans le temps"
+          price={`${priceLabel} TTC, une seule fois`}
+          extra="Oheve Premium n'est pas un abonnement : aucun renouvellement, aucun prélèvement récurrent."
+        />
       </ScrollView>
     </View>
   );
@@ -497,7 +496,4 @@ const s = StyleSheet.create({
   trustRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   trustTxt: { fontSize: 12, color: C.textLight, textAlign: 'center', flex: 1 },
 
-  legalLinks: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' },
-  legalLink: { fontSize: 12, color: C.sauge, fontWeight: '600', textDecorationLine: 'underline' },
-  legalDot: { fontSize: 12, color: C.textLight },
 });

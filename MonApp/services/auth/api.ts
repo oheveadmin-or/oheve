@@ -7,6 +7,19 @@ import { API_ENDPOINTS } from '@/constants/config';
 // un message en français exploitable directement dans une Alert.
 
 const REQUEST_TIMEOUT_MS = 20000;
+// Réessais automatiques : le serveur (Railway) peut être en « cold start » et
+// mettre quelques secondes à répondre à la 1re requête. Sans réessai, l'app
+// affichait « erreur de connexion » alors que le réseau était bon (cause du
+// rejet Apple 2.1(a) : « login flow prompted a connection error »).
+const MAX_ATTEMPTS = 3; // 1 tentative + 2 réessais
+const RETRY_BASE_DELAY_MS = 800;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Codes « passerelle indisponible / temporisation » = serveur qui se réveille.
+function isTransientStatus(status: number): boolean {
+  return status === 408 || status === 502 || status === 503 || status === 504;
+}
 
 function httpMessage(status: number): string {
   if (status === 401) return 'Votre session a expiré. Reconnectez-vous.';
@@ -18,43 +31,81 @@ function httpMessage(status: number): string {
   return `Une erreur est survenue (code ${status}).`;
 }
 
-async function request(url: string, options: RequestInit = {}): Promise<any> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  let res: Response;
-  try {
-    res = await fetch(url, { ...options, signal: controller.signal });
-  } catch (e) {
-    const aborted = e instanceof Error && e.name === 'AbortError';
+/**
+ * Requête robuste : timeout + réessais automatiques sur erreur réseau,
+ * temporisation, et passerelle indisponible (cold start). Ne throw jamais :
+ * renvoie toujours { success, message?, data?, status?, networkError? }.
+ */
+export async function request(url: string, options: RequestInit = {}): Promise<any> {
+  let aborted = false;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(url, { ...options, signal: controller.signal });
+    } catch (e) {
+      aborted = e instanceof Error && e.name === 'AbortError';
+      // Erreur réseau / temporisation : on réessaie tant qu'il reste des essais.
+      if (attempt < MAX_ATTEMPTS) {
+        await sleep(RETRY_BASE_DELAY_MS * attempt);
+        continue;
+      }
+      return {
+        success: false,
+        networkError: true,
+        message: aborted
+          ? 'Le serveur met trop de temps à répondre. Vérifiez votre connexion et réessayez.'
+          : 'Pas de connexion internet. Vérifiez votre réseau et réessayez.',
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+
+    // Passerelle momentanément indisponible (Railway en train de démarrer) : réessai.
+    if (isTransientStatus(res.status) && attempt < MAX_ATTEMPTS) {
+      await sleep(RETRY_BASE_DELAY_MS * attempt);
+      continue;
+    }
+
+    let json: any = null;
+    try {
+      json = await res.json();
+    } catch {
+      // Réponse non-JSON (page d'erreur Railway, proxy…)
+    }
+    if (json && typeof json === 'object' && !Array.isArray(json)) {
+      if (json.success === undefined) json.success = res.ok;
+      if (!res.ok && !json.message) json.message = httpMessage(res.status);
+      json.status = res.status;
+      return json;
+    }
     return {
-      success: false,
-      networkError: true,
-      message: aborted
-        ? 'Le serveur met trop de temps à répondre. Vérifiez votre connexion et réessayez.'
-        : 'Pas de connexion internet. Vérifiez votre réseau et réessayez.',
+      success: res.ok,
+      status: res.status,
+      data: json ?? undefined,
+      message: res.ok ? undefined : httpMessage(res.status),
     };
-  } finally {
-    clearTimeout(timer);
   }
 
-  let json: any = null;
-  try {
-    json = await res.json();
-  } catch {
-    // Réponse non-JSON (page d'erreur Railway, proxy…)
-  }
-  if (json && typeof json === 'object' && !Array.isArray(json)) {
-    if (json.success === undefined) json.success = res.ok;
-    if (!res.ok && !json.message) json.message = httpMessage(res.status);
-    json.status = res.status;
-    return json;
-  }
+  // Inatteignable en pratique (les branches ci-dessus renvoient au dernier essai).
   return {
-    success: res.ok,
-    status: res.status,
-    data: json ?? undefined,
-    message: res.ok ? undefined : httpMessage(res.status),
+    success: false,
+    networkError: true,
+    message: aborted
+      ? 'Le serveur met trop de temps à répondre. Vérifiez votre connexion et réessayez.'
+      : 'Pas de connexion internet. Vérifiez votre réseau et réessayez.',
   };
+}
+
+/**
+ * « Réveille » le serveur en tâche de fond (health check) sans bloquer l'UI.
+ * Appelé à l'ouverture de l'écran d'accueil pour que la 1re connexion soit
+ * rapide même après une longue inactivité (cold start Railway).
+ */
+export function warmupServer(): void {
+  fetch(API_ENDPOINTS.health).catch(() => {});
 }
 
 /**
@@ -187,6 +238,10 @@ export const authApi = {
 
   setPassword: (accessToken: string, new_password: string) =>
     post(API_ENDPOINTS.setPassword, { new_password }, accessToken),
+
+  // Suppression définitive du compte + toutes les données (Guideline 5.1.1).
+  deleteAccount: (accessToken: string) =>
+    del(API_ENDPOINTS.deleteAccount, accessToken),
 };
 
 // ── Prestataires ──────────────────────────────────────────────────────────────
@@ -509,6 +564,14 @@ export const premiumApi = {
 
   status: (accessToken: string) =>
     get(API_ENDPOINTS.premiumStatus, accessToken),
+};
+
+// ── Achats Apple In-App Purchase (iOS — Guideline 3.1.1) ─────────────────────
+export const iapApi = {
+  // Envoie le jeton JWS signé par Apple (purchase.purchaseToken d'expo-iap) au
+  // serveur, qui vérifie la signature et active le droit (premium / abo presta).
+  verify: (accessToken: string, jws: string) =>
+    post(API_ENDPOINTS.iapVerify, { jws }, accessToken),
 };
 
 // ── Abonnement Prestataire (39€/mois, 3 mois offerts) ─────────────────────────

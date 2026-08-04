@@ -54,6 +54,9 @@ prestatairesRoutes.put('/me/photos/:photoId/cover', requireAuth, photos.setCover
 prestatairesRoutes.put('/me/photos/:photoId/caption', requireAuth, photos.updateCaption.bind(photos));
 prestatairesRoutes.delete('/me/photos/:photoId', requireAuth, photos.deletePhoto.bind(photos));
 
+// ── Fiche publique d'un post (page de partage /p/:photoId du site) ───────────
+prestatairesRoutes.get('/photos/:photoId/public', photos.getPublicPhoto.bind(photos));
+
 // ── Likes & commentaires ─────────────────────────────────────────────────────
 prestatairesRoutes.post('/photos/:photoId/like', requireAuth, photos.toggleLike.bind(photos));
 prestatairesRoutes.get('/photos/:photoId/comments', requireAuth, photos.getComments.bind(photos));

@@ -31,6 +31,28 @@ export class PhotosController {
     }
   }
 
+  /** Fiche publique d'un post — consommée par la page de partage /p/:photoId
+   *  du site Oheve (sans authentification). */
+  async getPublicPhoto(req: Request, res: Response) {
+    try {
+      const photoId = parseInt(req.params.photoId, 10);
+      if (!Number.isFinite(photoId)) {
+        return res.status(400).json({ success: false, message: 'Identifiant invalide' });
+      }
+      const photo = await repo.findPublicById(photoId);
+      if (!photo) {
+        return res.status(404).json({ success: false, message: 'Publication introuvable' });
+      }
+      return res.status(200).json({
+        success: true,
+        data: { ...photo, url: buildPhotoUrl(req, photo.filename) },
+      });
+    } catch (err) {
+      console.error('getPublicPhoto:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
   async toggleLike(req: Request, res: Response) {
     try {
       const photoId = parseInt(req.params.photoId, 10);

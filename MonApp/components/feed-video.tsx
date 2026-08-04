@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { peekVideoThumbnail } from '@/components/video-thumbnail';
 
 // Chargement défensif : sur un binaire construit sans le module natif
 // expo-video (ancien build simulateur/TestFlight), on affiche un placeholder
@@ -20,6 +22,10 @@ type FeedVideoProps = {
   showSoundToggle?: boolean;
   nativeControls?: boolean;
   startMuted?: boolean;
+  /** 'contain' pour les reels : la vidéo s'adapte sans être rognée. */
+  contentFit?: 'cover' | 'contain';
+  /** Image affichée pendant le chargement (évite l'écran noir des reels). */
+  posterUri?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -50,13 +56,26 @@ function NativeFeedVideo({
   showSoundToggle = false,
   nativeControls = false,
   startMuted = true,
+  contentFit = 'cover',
+  posterUri,
   style,
 }: FeedVideoProps) {
   const { useVideoPlayer, VideoView } = videoSdk!;
   const [muted, setMuted] = useState(startMuted);
+  // Tant que la vidéo n'a pas assez de données, on ne montre pas un écran noir
+  // vide : miniature (si déjà en cache) + indicateur de chargement.
+  const [ready, setReady] = useState(false);
+  const [poster, setPoster] = useState<string | null>(posterUri ?? null);
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.muted = startMuted;
+    // Démarrer dès qu'il y a de quoi jouer, sans attendre un gros tampon :
+    // c'est ce qui faisait patienter plusieurs secondes sur un écran noir.
+    p.bufferOptions = {
+      preferredForwardBufferDuration: 3,
+      waitsToMinimizeStalling: false,
+      minBufferForPlayback: 0.5,
+    };
   });
 
   useEffect(() => {
@@ -68,14 +87,50 @@ function NativeFeedVideo({
     else player.pause();
   }, [isActive, player]);
 
+  // Statut du lecteur → masque l'écran d'attente dès la première image.
+  useEffect(() => {
+    const sub = player.addListener('statusChange', ({ status }) => {
+      setReady(status === 'readyToPlay' || status === 'error');
+    });
+    // Le lecteur peut déjà être prêt avant l'abonnement (vidéo en cache).
+    const t = setTimeout(() => {
+      setReady(player.status === 'readyToPlay' || player.status === 'error');
+    }, 0);
+    return () => { clearTimeout(t); sub.remove(); };
+  }, [player]);
+
+  // Miniature déjà générée par les grilles (profil, explore…) : affichage
+  // instantané, aucun téléchargement supplémentaire.
+  useEffect(() => {
+    if (posterUri) return;
+    let alive = true;
+    peekVideoThumbnail(uri).then((t) => { if (alive && t) setPoster(t); });
+    return () => { alive = false; };
+  }, [uri, posterUri]);
+
+  const shownPoster = posterUri ?? poster;
+
   return (
     <View style={style}>
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill}
-        contentFit="cover"
+        contentFit={contentFit}
         nativeControls={nativeControls}
       />
+      {!ready && (
+        <View style={[StyleSheet.absoluteFill, fvStyles.loading]} pointerEvents="none">
+          {shownPoster && (
+            <Image
+              source={{ uri: shownPoster }}
+              style={StyleSheet.absoluteFill}
+              contentFit={contentFit}
+              transition={150}
+            />
+          )}
+          <ActivityIndicator size="small" color="rgba(255,255,255,0.9)" />
+        </View>
+      )}
       {showSoundToggle && (
         <Pressable style={fvStyles.soundBtn} onPress={() => setMuted((m) => !m)} hitSlop={10}>
           <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={17} color="#fff" />
@@ -95,6 +150,11 @@ export function VideoBadge({ size = 18 }: { size?: number }) {
 }
 
 const fvStyles = StyleSheet.create({
+  loading: {
+    backgroundColor: '#1B1917',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   fallback: {
     backgroundColor: '#374151',
     alignItems: 'center',

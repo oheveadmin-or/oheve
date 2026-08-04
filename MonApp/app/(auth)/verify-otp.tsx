@@ -10,6 +10,7 @@ import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
 import { API_ENDPOINTS } from '@/constants/config';
+import { request } from '@/services/auth/api';
 
 export default function VerifyOtpScreen() {
   const { signIn } = useAuth();
@@ -52,7 +53,7 @@ export default function VerifyOtpScreen() {
     }
     setLoading(true);
     try {
-      const res = await fetch(API_ENDPOINTS.inscription, {
+      const json = await request(API_ENDPOINTS.inscription, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,7 +67,6 @@ export default function VerifyOtpScreen() {
           otp_code: otp,
         }),
       });
-      const json = await res.json();
       if (!json.success) {
         Alert.alert('Erreur', json.message ?? 'Code invalide ou expiré');
         return;

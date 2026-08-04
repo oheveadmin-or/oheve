@@ -12,16 +12,26 @@ type StripeSub = Awaited<ReturnType<typeof stripe.subscriptions.retrieve>>;
 export const prestataireSubscriptionRoutes = Router();
 
 // ── Constantes de l'offre ──────────────────────────────────────────────────
-const PRICE_CENTS = 3900;            // 39€
+const PRICE_CENTS = 3999;            // 39,99 €
 const TRIAL_DAYS = 90;               // 3 mois offerts
 const CURRENCY = 'eur';
 const PRODUCT_ID = 'oheve_prestataire_sub';
-const PRICE_LOOKUP_KEY = 'oheve_presta_39_monthly';
+// ⚠️ Les prix Stripe sont immuables : changer PRICE_CENTS sans changer la clé
+// laisserait `prices.list` retrouver l'ancien tarif. Toute évolution du prix
+// doit donc s'accompagner d'un nouveau lookup_key.
+const PRICE_LOOKUP_KEY = 'oheve_presta_3999_monthly';
 
 // Statuts Stripe qui donnent accès à l'espace prestataire.
 const ACTIVE_STATUSES = ['trialing', 'active'];
 export function isPrestaSubActive(status?: string | null): boolean {
   return !!status && ACTIVE_STATUSES.includes(status);
+}
+
+// Abonnement souscrit via Apple In-App Purchase (iOS) : presta_sub_id est de la
+// forme 'apple:<originalTransactionId>' (voir src/iap). Il n'est PAS géré par
+// Stripe : renouvellement et résiliation passent par l'App Store.
+export function isAppleSub(subId?: string | null): boolean {
+  return !!subId && subId.startsWith('apple:');
 }
 
 // ── Prix récurrent : réutilisé ou créé à la volée (aucune config dashboard) ──
@@ -108,6 +118,24 @@ export async function syncPrestaSubscription(sub: StripeSub): Promise<number | n
     [sub.id, effectiveStatus, trialEnd, periodEnd, userId]
   );
   return result.rows[0]?.id ?? null;
+}
+
+/** Suppression de compte (Guideline 5.1.1) : résilie immédiatement l'abonnement
+ *  Stripe du prestataire pour ne pas prélever un compte qui n'existe plus.
+ *  Best-effort : un échec Stripe ne doit pas bloquer la suppression.
+ *  Les abonnements Apple ne peuvent pas être annulés côté serveur (l'app
+ *  prévient l'utilisateur de résilier depuis les Réglages iOS). */
+export async function cancelStripeSubOnAccountDeletion(userId: number): Promise<void> {
+  try {
+    const row = (await pool.query(
+      `SELECT presta_sub_id FROM users WHERE id=$1`, [userId]
+    )).rows[0];
+    if (row?.presta_sub_id && !isAppleSub(row.presta_sub_id)) {
+      await stripe.subscriptions.cancel(row.presta_sub_id);
+    }
+  } catch (err: any) {
+    console.error('cancelStripeSubOnAccountDeletion:', err.message);
+  }
 }
 
 // ── POST /start ─────────────────────────────────────────────────────────────
@@ -255,6 +283,31 @@ prestataireSubscriptionRoutes.get('/status', requireAuth, async (req: Request, r
        FROM users WHERE id=$1`, [userId]
     )).rows[0];
 
+    // ── Abonnement Apple (iOS) : pas de réconciliation Stripe. L'expiration
+    // stockée (renouvelée à chaque re-vérification du JWS par l'app) fait foi.
+    if (isAppleSub(row?.presta_sub_id)) {
+      const endMs = row?.presta_current_period_end
+        ? new Date(row.presta_current_period_end).getTime() : null;
+      const expired = !!endMs && endMs < Date.now();
+      if (expired && isPrestaSubActive(row?.presta_sub_status)) {
+        await pool.query(
+          `UPDATE users SET presta_sub_status='canceled' WHERE id=$1`, [userId]
+        );
+        row.presta_sub_status = 'canceled';
+      }
+      return res.json({
+        success: true,
+        data: {
+          provider: 'apple',
+          status: row?.presta_sub_status ?? null,
+          active: isPrestaSubActive(row?.presta_sub_status),
+          trial_end: row?.presta_trial_end ?? null,
+          current_period_end: row?.presta_current_period_end ?? null,
+          cancel_at_period_end: false,
+        },
+      });
+    }
+
     let cancelAtPeriodEnd = false;
     if (row?.presta_sub_id) {
       try {
@@ -273,6 +326,7 @@ prestataireSubscriptionRoutes.get('/status', requireAuth, async (req: Request, r
     return res.json({
       success: true,
       data: {
+        provider: 'stripe',
         status: row?.presta_sub_status ?? null,
         active: isPrestaSubActive(row?.presta_sub_status),
         trial_end: row?.presta_trial_end ?? null,
@@ -293,6 +347,13 @@ prestataireSubscriptionRoutes.post('/cancel', requireAuth, async (req: Request, 
     const row = (await pool.query(`SELECT presta_sub_id FROM users WHERE id=$1`, [userId])).rows[0];
     if (!row?.presta_sub_id) {
       return res.status(404).json({ success: false, message: 'Aucun abonnement à annuler' });
+    }
+    if (isAppleSub(row.presta_sub_id)) {
+      // Impossible côté serveur : Apple gère la résiliation.
+      return res.status(400).json({
+        success: false,
+        message: 'Abonnement souscrit via l\'App Store — résiliez-le depuis Réglages → Apple ID → Abonnements sur votre iPhone.',
+      });
     }
     const sub = await stripe.subscriptions.update(row.presta_sub_id, { cancel_at_period_end: true });
     await syncPrestaSubscription(sub);

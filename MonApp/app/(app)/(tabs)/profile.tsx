@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
   Alert,
@@ -20,8 +20,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FeedVideo } from '@/components/feed-video';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { VideoThumbnail } from '@/components/video-thumbnail';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
@@ -44,6 +46,60 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 type Photo = { id: number; url: string; is_cover: boolean; caption?: string | null; media_type?: 'image' | 'video' };
+
+/**
+ * Suppression définitive du compte (exigée par Apple — Guideline 5.1.1).
+ * Double confirmation, puis DELETE /api/auth/me : le serveur supprime le user
+ * et toutes ses données en cascade (site, invités, messages, photos…) et
+ * résilie l'abonnement Stripe éventuel. Les abonnements souscrits via
+ * l'App Store doivent être résiliés par l'utilisateur dans les Réglages iOS.
+ */
+function confirmDeleteAccount(
+  user: { accessToken?: string; role?: string } | null,
+  signOut: () => void,
+) {
+  if (!user?.accessToken) return;
+  const appleSubNote =
+    Platform.OS === 'ios' && user.role === 'prestataire'
+      ? '\n\nSi vous avez un abonnement via l\'App Store, pensez aussi à le résilier dans Réglages → Abonnements.'
+      : '';
+  Alert.alert(
+    'Supprimer mon compte',
+    `Toutes vos données (profil, site de mariage, invités, messages, photos) seront définitivement supprimées. Cette action est irréversible.${appleSubNote}`,
+    [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Continuer',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'Dernière confirmation',
+            'Confirmez la suppression définitive de votre compte Oheve.',
+            [
+              { text: 'Annuler', style: 'cancel' },
+              {
+                text: 'Supprimer définitivement',
+                style: 'destructive',
+                onPress: async () => {
+                  const res = await authApi.deleteAccount(user.accessToken!);
+                  if (res?.success) {
+                    Alert.alert('Compte supprimé', 'Votre compte et toutes vos données ont été supprimés.');
+                    signOut();
+                  } else {
+                    Alert.alert(
+                      'Suppression impossible',
+                      res?.message ?? 'Vérifiez votre connexion et réessayez.',
+                    );
+                  }
+                },
+              },
+            ],
+          );
+        },
+      },
+    ],
+  );
+}
 
 type PrestProfile = {
   business_name?: string;
@@ -145,52 +201,49 @@ function PrestataireInstaProfile() {
     setPendingPhotoUri(result.assets[0].uri);
   };
 
-  // Appui long sur une photo de la grille → couverture / suppression.
-  // (une vidéo ne peut pas servir de couverture : elle est affichée en image partout)
-  const photoOptions = (photo: Photo) => {
+  // Tap sur une photo/vidéo de la grille → viewer plein écran avec la
+  // description et les actions (couverture, suppression) — plus d'alerte brute.
+  const [viewerPhoto, setViewerPhoto] = useState<Photo | null>(null);
+
+  const setAsCover = async (photo: Photo) => {
+    try {
+      const res = await prestatairesApi.setCoverPhoto(user!.accessToken!, photo.id);
+      if (res?.success) {
+        setViewerPhoto((prev) => (prev?.id === photo.id ? { ...prev, is_cover: true } : prev));
+        load();
+      } else Alert.alert('Erreur', res?.message ?? 'Action impossible.');
+    } catch { Alert.alert('Erreur', 'Vérifiez votre connexion.'); }
+  };
+
+  const confirmDeletePhoto = (photo: Photo) => {
     Alert.alert(
-      photo.is_cover ? 'Photo de couverture' : photo.media_type === 'video' ? 'Vidéo' : 'Photo',
-      'Que voulez-vous faire ?',
+      photo.media_type === 'video' ? 'Supprimer la vidéo' : 'Supprimer la photo',
+      'Cette action est irréversible.',
       [
-        ...(!photo.is_cover && photo.media_type !== 'video'
-          ? [{
-              text: 'Définir comme couverture',
-              onPress: async () => {
-                try {
-                  const res = await prestatairesApi.setCoverPhoto(user!.accessToken!, photo.id);
-                  if (res?.success) load();
-                  else Alert.alert('Erreur', res?.message ?? 'Action impossible.');
-                } catch { Alert.alert('Erreur', 'Vérifiez votre connexion.'); }
-              },
-            }]
-          : []),
+        { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Supprimer la photo',
-          style: 'destructive' as const,
-          onPress: () => {
-            Alert.alert('Supprimer la photo', 'Cette action est irréversible.', [
-              { text: 'Annuler', style: 'cancel' },
-              {
-                text: 'Supprimer',
-                style: 'destructive',
-                onPress: async () => {
-                  try {
-                    const res = await prestatairesApi.deletePhoto(user!.accessToken!, photo.id);
-                    if (res?.success) setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
-                    else Alert.alert('Erreur', res?.message ?? 'Suppression impossible.');
-                  } catch { Alert.alert('Erreur', 'Vérifiez votre connexion.'); }
-                },
-              },
-            ]);
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await prestatairesApi.deletePhoto(user!.accessToken!, photo.id);
+              if (res?.success) {
+                setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+                setViewerPhoto((prev) => (prev?.id === photo.id ? null : prev));
+              } else Alert.alert('Erreur', res?.message ?? 'Suppression impossible.');
+            } catch { Alert.alert('Erreur', 'Vérifiez votre connexion.'); }
           },
         },
-        { text: 'Annuler', style: 'cancel' as const },
       ],
     );
   };
 
+  // Verrou synchrone anti double-tap : deux taps rapprochés sur « Publier »
+  // lisaient tous les deux l'ancien état → média envoyé en double/triple.
+  const uploadingPhotoRef = useRef(false);
   const confirmUploadPhoto = async () => {
-    if (!pendingPhotoUri) return;
+    if (!pendingPhotoUri || uploadingPhotoRef.current) return;
+    uploadingPhotoRef.current = true;
     const uri = pendingPhotoUri;
     const caption = captionDraft.trim();
     setPendingPhotoUri(null);
@@ -211,6 +264,7 @@ function PrestataireInstaProfile() {
     } catch (e) {
       Alert.alert('Erreur', e instanceof Error ? e.message : String(e));
     }
+    uploadingPhotoRef.current = false;
     setUploadingPhoto(false);
   };
 
@@ -350,12 +404,10 @@ function PrestataireInstaProfile() {
               return (
                 <Pressable
                   style={instaStyles.gridPhoto}
-                  onPress={() => photoOptions(item)}
+                  onPress={() => setViewerPhoto(item)}
                 >
                   {item.media_type === 'video' ? (
-                    <View style={instaStyles.videoTile}>
-                      <Ionicons name="play-circle" size={30} color="rgba(255,255,255,0.9)" />
-                    </View>
+                    <VideoThumbnail uri={item.url} style={{ width: '100%', height: '100%' }} />
                   ) : (
                     <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                   )}
@@ -379,6 +431,65 @@ function PrestataireInstaProfile() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Viewer plein écran — média + description + actions */}
+      <Modal
+        visible={!!viewerPhoto}
+        animationType="fade"
+        onRequestClose={() => setViewerPhoto(null)}
+      >
+        {viewerPhoto && (
+          <View style={[instaStyles.viewerRoot, { paddingTop: insets.top }]}>
+            <View style={instaStyles.viewerHeader}>
+              <Pressable hitSlop={12} onPress={() => setViewerPhoto(null)}>
+                <Ionicons name="close" size={26} color="#fff" />
+              </Pressable>
+              <ThemedText style={instaStyles.viewerTitle}>
+                {viewerPhoto.media_type === 'video' ? 'Vidéo' : 'Photo'}
+              </ThemedText>
+              <View style={{ width: 26 }} />
+            </View>
+
+            <View style={instaStyles.viewerMedia}>
+              {viewerPhoto.media_type === 'video' ? (
+                <FeedVideo
+                  uri={viewerPhoto.url}
+                  nativeControls
+                  startMuted={false}
+                  contentFit="contain"
+                  style={StyleSheet.absoluteFill}
+                />
+              ) : (
+                <Image source={{ uri: viewerPhoto.url }} style={StyleSheet.absoluteFill} contentFit="contain" />
+              )}
+            </View>
+
+            <View style={[instaStyles.viewerFooter, { paddingBottom: insets.bottom + 16 }]}>
+              {viewerPhoto.is_cover && (
+                <View style={instaStyles.viewerCoverBadge}>
+                  <Ionicons name="star" size={12} color="#fff" />
+                  <ThemedText style={instaStyles.viewerCoverBadgeTxt}>Photo de couverture</ThemedText>
+                </View>
+              )}
+              <ThemedText style={instaStyles.viewerCaption}>
+                {viewerPhoto.caption?.trim() || 'Aucune description'}
+              </ThemedText>
+              <View style={instaStyles.viewerActions}>
+                {!viewerPhoto.is_cover && viewerPhoto.media_type !== 'video' && (
+                  <Pressable style={instaStyles.viewerCoverBtn} onPress={() => setAsCover(viewerPhoto)}>
+                    <Ionicons name="star-outline" size={16} color="#fff" />
+                    <ThemedText style={instaStyles.viewerCoverBtnTxt}>Couverture</ThemedText>
+                  </Pressable>
+                )}
+                <Pressable style={instaStyles.viewerDeleteBtn} onPress={() => confirmDeletePhoto(viewerPhoto)}>
+                  <Ionicons name="trash-outline" size={16} color="#fff" />
+                  <ThemedText style={instaStyles.viewerDeleteBtnTxt}>Supprimer</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
+      </Modal>
+
       {/* Description de la photo — demandée avant l'ajout */}
       <Modal
         visible={!!pendingPhotoUri}
@@ -399,10 +510,7 @@ function PrestataireInstaProfile() {
             </ThemedText>
 
             {pendingPhotoUri && (pendingIsVideo ? (
-              <View style={instaStyles.videoPreview}>
-                <Ionicons name="videocam" size={36} color="rgba(255,255,255,0.9)" />
-                <ThemedText style={instaStyles.videoPreviewTxt}>Vidéo sélectionnée</ThemedText>
-              </View>
+              <VideoThumbnail uri={pendingPhotoUri} iconSize={36} style={instaStyles.videoPreview} />
             ) : (
               <Image source={{ uri: pendingPhotoUri }} style={instaStyles.captionPreview} contentFit="cover" />
             ))}
@@ -444,6 +552,9 @@ function PrestataireInstaProfile() {
               { icon: 'shield-outline', label: 'Sécurité & mot de passe', route: '/(app)/security' },
               { icon: 'card-outline', label: 'Recevoir des paiements (Stripe)', route: '/(app)/stripe-connect' },
               { icon: 'notifications-outline', label: 'Notifications', route: '/(app)/notifications' },
+              // Exigés par Apple sur un compte qui peut s'abonner (Guideline 3.1.2).
+              { icon: 'document-text-outline', label: 'Conditions d\'utilisation (EULA)', route: '/(app)/cgu' },
+              { icon: 'shield-checkmark-outline', label: 'Politique de confidentialité', route: '/(app)/privacy-policy' },
             ].map((item) => (
               <Pressable
                 key={item.label}
@@ -461,6 +572,11 @@ function PrestataireInstaProfile() {
             <Pressable style={instaStyles.modalItem} onPress={() => { setSettingsModal(false); confirmLogout(false); }}>
               <Ionicons name="log-out-outline" size={20} color={C.error} />
               <ThemedText style={[instaStyles.modalItemTxt, { color: C.error }]}>Déconnexion</ThemedText>
+            </Pressable>
+
+            <Pressable style={instaStyles.modalItem} onPress={() => { setSettingsModal(false); confirmDeleteAccount(user, signOut); }}>
+              <Ionicons name="trash-outline" size={20} color={C.error} />
+              <ThemedText style={[instaStyles.modalItemTxt, { color: C.error }]}>Supprimer mon compte</ThemedText>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -604,6 +720,10 @@ function ClientProfile() {
           <Ionicons name="phone-portrait-outline" size={18} color={C.textLight} />
           <ThemedText style={styles.logoutSoftTxt}>Déconnexion de tous les appareils</ThemedText>
         </Pressable>
+        <Pressable style={styles.deleteCard} onPress={() => confirmDeleteAccount(user, signOut)}>
+          <Ionicons name="trash-outline" size={18} color={C.error} />
+          <ThemedText style={styles.deleteTxt}>Supprimer mon compte</ThemedText>
+        </Pressable>
       </ScrollView>
     </ScreenLayout>
   );
@@ -743,6 +863,32 @@ const instaStyles = StyleSheet.create({
   },
   captionPublishTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
+  viewerRoot: { flex: 1, backgroundColor: '#000' },
+  viewerHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
+  viewerTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  viewerMedia: { flex: 1, backgroundColor: '#000' },
+  viewerFooter: { paddingHorizontal: 16, paddingTop: 14, gap: 12 },
+  viewerCoverBadge: {
+    alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: C.sauge, paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.pill,
+  },
+  viewerCoverBadgeTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  viewerCaption: { color: 'rgba(255,255,255,0.92)', fontSize: 14, lineHeight: 20 },
+  viewerActions: { flexDirection: 'row', gap: 10 },
+  viewerCoverBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 12, paddingVertical: 12,
+  },
+  viewerCoverBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  viewerDeleteBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: C.error, borderRadius: 12, paddingVertical: 12,
+  },
+  viewerDeleteBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
   modalSheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
@@ -811,4 +957,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
   },
   logoutSoftTxt: { fontSize: 14, fontWeight: '500', color: C.textLight },
+  deleteCard: {
+    borderRadius: RADIUS.md, paddingVertical: 14, paddingHorizontal: 16,
+    borderWidth: 1, borderColor: C.error + '55',
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4,
+  },
+  deleteTxt: { fontSize: 14, fontWeight: '600', color: C.error },
 });

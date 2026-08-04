@@ -2,11 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Pressable,
+  ActivityIndicator, Alert, Platform, Pressable,
   ScrollView, StyleSheet, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LegalLinks } from '@/components/purchase-legal';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
 import { subscriptionApi } from '@/services/auth/api';
@@ -55,6 +56,9 @@ export default function SubscriptionScreen() {
 
   const handleSubscribe = async (planId: string) => {
     if (!user?.accessToken) return;
+    // Sur iOS, un abonnement doit obligatoirement passer par l'In-App Purchase
+    // Apple (Guideline 3.1.1) : on ne l'active jamais côté serveur seul.
+    if (Platform.OS === 'ios') return;
     if (user.role !== 'boutique') {
       Alert.alert('Compte boutique requis', 'Seuls les comptes boutique peuvent souscrire à un abonnement.');
       return;
@@ -206,7 +210,7 @@ export default function SubscriptionScreen() {
                   ))}
                 </View>
 
-                {!isCurrentPlan && (
+                {!isCurrentPlan && Platform.OS !== 'ios' && (
                   <Pressable
                     style={[styles.subscribeBtn, isPlusHighlight && styles.subscribeBtnPlus, subscribing === plan.id && styles.subscribeBtnDisabled]}
                     onPress={() => handleSubscribe(plan.id)}
@@ -227,9 +231,13 @@ export default function SubscriptionScreen() {
 
           <View style={styles.disclaimer}>
             <ThemedText style={styles.disclaimerTxt}>
-              * L'intégration paiement (Stripe) sera disponible prochainement. En attendant, contactez l'administrateur pour activer votre abonnement.
+              {Platform.OS === 'ios'
+                ? 'Les formules Boutique ne sont pas encore proposées à la vente dans l\'application. Elles sont présentées ici à titre informatif.'
+                : '* L\'intégration paiement (Stripe) sera disponible prochainement. En attendant, contactez l\'administrateur pour activer votre abonnement.'}
             </ThemedText>
           </View>
+
+          <LegalLinks />
         </ScrollView>
       )}
     </View>

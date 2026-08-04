@@ -4,7 +4,12 @@ import path from 'path';
 import { Request, Response } from 'express';
 import { sendOtpEmail, sendResetEmail } from '../utils/mailer';
 
-import { isAdminEmail, sanitizeAssignedRole } from '../auth/admin';
+import {
+  BOUTIQUE_SOON_MESSAGE,
+  isAdminEmail,
+  isBoutiqueSignupOpen,
+  sanitizeAssignedRole,
+} from '../auth/admin';
 import { ensureAndGetRole } from '../auth/resolveUserRole';
 import {
   UserRole,
@@ -89,6 +94,11 @@ export class ConnexionInscriptionController {
   async inscription(req: Request, res: Response) {
     const { email, nom, prenom, mot_de_passe, role, otp_code, bride_name, groom_name } = req.body;
     const userRole: UserRole = (['client', 'prestataire', 'boutique'] as UserRole[]).includes(role) ? role : 'client';
+    // Comptes Boutique en « coming soon » : inscription refusée tant que
+    // BOUTIQUE_SIGNUP_ENABLED n'est pas activée.
+    if (userRole === 'boutique' && !isBoutiqueSignupOpen()) {
+      return res.status(403).json({ success: false, message: BOUTIQUE_SOON_MESSAGE, boutique_soon: true });
+    }
     const isClient = userRole === 'client';
     const effectiveBride = isClient ? String(bride_name ?? prenom ?? '').trim() : '';
     const effectiveGroom = isClient ? String(groom_name ?? nom ?? '').trim() : '';
@@ -288,6 +298,9 @@ export class ConnexionInscriptionController {
     try {
       // Role update: update in DB then issue fresh tokens
       if (role) {
+        if (role === 'boutique' && !isBoutiqueSignupOpen()) {
+          return res.status(403).json({ success: false, message: BOUTIQUE_SOON_MESSAGE, boutique_soon: true });
+        }
         const me = await repo.findById(req.auth!.sub);
         if (!me) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
         const safeRole = sanitizeAssignedRole(me.email, role);
@@ -696,6 +709,12 @@ export class ConnexionInscriptionController {
   async deleteAccount(req: Request, res: Response) {
     try {
       const userId = req.auth!.sub;
+      // Résilier l'abonnement Stripe avant la suppression (sinon un prestataire
+      // supprimé continuerait d'être prélevé). Import différé pour éviter une
+      // dépendance circulaire au chargement des modules. Les abonnements Apple
+      // se résilient uniquement depuis les Réglages iOS (message côté app).
+      const { cancelStripeSubOnAccountDeletion } = await import('../prestataire-subscription');
+      await cancelStripeSubOnAccountDeletion(userId);
       await repo.deleteAllRefreshTokens(userId);
       await repo.deleteAccount(userId);
       return res.status(200).json({ success: true, message: 'Compte supprimé définitivement' });

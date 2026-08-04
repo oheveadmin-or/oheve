@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import { VideoThumbnail } from '@/components/video-thumbnail';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
@@ -346,9 +347,7 @@ export default function PortfolioScreen() {
                   }
                 >
                   {photo.media_type === 'video' ? (
-                    <View style={[styles.photoImage, styles.videoTile]}>
-                      <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.9)" />
-                    </View>
+                    <VideoThumbnail uri={photo.url} iconSize={32} style={styles.photoImage} />
                   ) : (
                     <Image
                       source={{ uri: photo.url }}
@@ -426,10 +425,11 @@ export default function PortfolioScreen() {
             <View style={styles.captionHandle} />
             {(captionPhoto || pendingUri) && (
               (captionPhoto ? captionPhoto.media_type === 'video' : pendingIsVideo) ? (
-                <View style={[styles.captionPreview, styles.videoPreview]}>
-                  <Ionicons name="videocam" size={34} color="rgba(255,255,255,0.9)" />
-                  <ThemedText style={styles.videoPreviewTxt}>Vidéo</ThemedText>
-                </View>
+                <VideoThumbnail
+                  uri={captionPhoto?.url ?? pendingUri!}
+                  iconSize={34}
+                  style={styles.captionPreview}
+                />
               ) : (
                 <Image source={{ uri: captionPhoto?.url ?? pendingUri! }} style={styles.captionPreview} contentFit="cover" />
               )

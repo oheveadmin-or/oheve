@@ -718,6 +718,16 @@ function PrestataireAgenda() {
     return s;
   }, [acceptedRequests]);
 
+  // Historique : uniquement les rendez-vous à venir (les dates passées sortent
+  // de la liste automatiquement).
+  const historyRequests = useMemo(() => {
+    const d = new Date();
+    const todayIso = toIso(d.getFullYear(), d.getMonth(), d.getDate());
+    return requests.filter(
+      (r) => r.status !== 'pending' && dateOnly(r.proposed_date ?? r.requested_date) >= todayIso,
+    );
+  }, [requests]);
+
   // RDV du jour sélectionné
   const apptForDay = useMemo(() =>
     acceptedRequests
@@ -1018,10 +1028,10 @@ function PrestataireAgenda() {
         </View>
 
         {/* Historique */}
-        {requests.filter((r) => r.status !== 'pending').length > 0 && (
+        {historyRequests.length > 0 && (
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Historique</ThemedText>
-            {requests.filter((r) => r.status !== 'pending').map((req) => (
+            {historyRequests.map((req) => (
               <View key={req.id} style={styles.historyRow}>
                 <View style={[styles.historyDot, { backgroundColor: req.status === 'accepted' ? C.sauge : C.error }]} />
                 <View style={{ flex: 1 }}>

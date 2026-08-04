@@ -20,7 +20,7 @@ cp .env.example .env
 Ouvre `.env` et colle ta connection string :
 
 ```
-DATABASE_URL=postgresql://postgres.xxx:Ez08092676!!@aws-0-xx.pooler.supabase.com:6543/postgres
+DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[MOT-DE-PASSE]@aws-0-xx.pooler.supabase.com:6543/postgres
 PORT=3001
 NODE_ENV=development
 ```

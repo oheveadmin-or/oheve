@@ -105,6 +105,28 @@ export class PhotosRepository {
     return r.rows;
   }
 
+  /** Fiche publique d'un post pour la page de partage (aucune donnée sensible). */
+  async findPublicById(photoId: number): Promise<{
+    id: number; filename: string; caption: string | null; media_type: string | null;
+    created_at: string; business_name: string; category: string; user_id: number;
+    prenom: string; nom: string; like_count: number;
+  } | null> {
+    const r = await pool.query(
+      `SELECT pp.id, pp.filename, pp.caption, pp.media_type, pp.created_at,
+              p.business_name, p.category,
+              u.id AS user_id, u.prenom, u.nom,
+              (SELECT COUNT(*)::int FROM photo_likes pl WHERE pl.photo_id = pp.id) AS like_count
+       FROM prestataire_photos pp
+       JOIN prestataire_profiles p ON pp.prestataire_id = p.id
+       JOIN users u ON p.user_id = u.id
+       WHERE pp.id = $1
+         AND COALESCE(p.is_hidden, false) = false
+         AND COALESCE(p.is_suspended, false) = false`,
+      [photoId]
+    );
+    return r.rows[0] ?? null;
+  }
+
   async toggleLike(photoId: number, userId: number): Promise<{ liked: boolean; like_count: number }> {
     const existing = await pool.query(`SELECT id FROM photo_likes WHERE photo_id=$1 AND user_id=$2`, [photoId, userId]);
     if (existing.rowCount && existing.rowCount > 0) {

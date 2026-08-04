@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookingModal } from '@/components/booking-modal';
 import { FeedVideo } from '@/components/feed-video';
 import { ThemedText } from '@/components/themed-text';
+import { VideoThumbnail } from '@/components/video-thumbnail';
 import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { ThemedView } from '@/components/themed-view';
 import { C, RADIUS } from '@/constants/OheveTheme';
@@ -291,9 +292,7 @@ export default function ProviderDetailScreen() {
                     onPress={() => setSelectedPhoto(item)}
                   >
                     {item.media_type === 'video' ? (
-                      <View style={[styles.galleryImage, styles.galleryVideoTile]}>
-                        <Ionicons name="play-circle" size={30} color="rgba(255,255,255,0.9)" />
-                      </View>
+                      <VideoThumbnail uri={item.url} iconSize={30} style={styles.galleryImage} />
                     ) : (
                       <Image source={{ uri: item.url }} style={styles.galleryImage} contentFit="cover" />
                     )}

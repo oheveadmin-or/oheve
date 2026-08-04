@@ -6,7 +6,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import {
+  ActivityIndicator,
   Alert,
+  AppState,
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
@@ -24,10 +26,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FeedVideo } from '@/components/feed-video';
+import { VideoThumbnail } from '@/components/video-thumbnail';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
 import { useBoutique } from '@/contexts/boutique-context';
-import { API_ENDPOINTS } from '@/constants/config';
+import { API_ENDPOINTS, SHARE_BASE_URL } from '@/constants/config';
 import { uploadFile } from '@/services/auth/api';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -84,7 +87,27 @@ type Post = {
   cardH: number;
   providerId?: string;
   comments: Comment[];
+  /** Nombre de commentaires renvoyé par le serveur — affiché même quand la
+   *  liste complète n'a pas encore été chargée (compteur toujours à jour). */
+  commentCount?: number;
+  createdAt?: string;
 };
+
+/** « à l'instant », « il y a 5 min »… pour que les nouveaux commentaires
+ *  se distinguent immédiatement des anciens. */
+function formatCommentTime(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return '';
+  const diff = Math.max(0, Date.now() - t);
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "à l'instant";
+  if (min < 60) return `il y a ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `il y a ${d} j`;
+  return new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
 
 // ── Demo providers ───────────────────────────────────────────────────────────
 const DEMO_PROVIDERS: Record<string, ProviderProfile> = {
@@ -184,16 +207,39 @@ const CAT_COLORS: Record<Exclude<MainCategory, 'tout'>, string> = {
 };
 
 const FEED_CACHE_KEY = '@oheve:explore_feed_cache';
+const AFFINITY_KEY = '@oheve:cat_affinity';
 
-// Mélange Fisher-Yates — feed « algorithme » : les réels sortent dans un ordre
-// aléatoire (et non l'un après l'autre) à chaque chargement.
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+// ── Algorithme du feed (façon Instagram) ─────────────────────────────────────
+// Chaque post est noté puis classé :
+//  • affinité   — catégories avec lesquelles CE client interagit (like, commentaire,
+//                 ouverture, partage), apprises en local et persistées ;
+//  • engagement — likes + commentaires (échelle log pour ne pas écraser les petits) ;
+//  • récence    — les publications fraîches remontent (demi-vie ~2 semaines) ;
+//  • hasard     — un léger aléa pour que le feed ne soit pas figé ;
+// puis on évite deux posts consécutifs du même prestataire (diversité).
+function rankFeed(posts: Post[], affinity: Record<string, number>): Post[] {
+  const maxAff = Math.max(1, ...Object.values(affinity));
+  const now = Date.now();
+  const scored = posts.map((post) => {
+    const aff = (affinity[post.category] ?? 0) / maxAff;
+    const engagement = Math.log1p(post.likes + 2 * post.comments.length) / 5;
+    const ageHours = post.createdAt
+      ? Math.max(0, (now - new Date(post.createdAt).getTime()) / 36e5)
+      : 24 * 30;
+    const recency = Math.exp(-ageHours / (24 * 14));
+    const jitter = Math.random() * 0.3;
+    return { post, score: 2 * aff + engagement + 1.2 * recency + jitter };
+  });
+  scored.sort((a, b) => b.score - a.score);
+
+  const pool = scored.map((s) => s.post);
+  const result: Post[] = [];
+  while (pool.length) {
+    const lastAuthor = result[result.length - 1]?.author;
+    const idx = pool.findIndex((p) => p.author !== lastAuthor);
+    result.push(pool.splice(idx === -1 ? 0 : idx, 1)[0]);
   }
-  return a;
+  return result;
 }
 
 // ── Provider Profile Modal ───────────────────────────────────────────────────
@@ -377,6 +423,7 @@ function CommentSheet({
 }) {
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
+  const listRef = useRef<ScrollView>(null);
 
   const submit = () => {
     if (!post || !text.trim()) return;
@@ -384,15 +431,26 @@ function CommentSheet({
     setText('');
   };
 
+  const count = post?.commentCount ?? post?.comments.length ?? 0;
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={cmtStyles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={cmtStyles.sheet}>
           <View style={cmtStyles.handle} />
-          <ThemedText style={cmtStyles.title}>Commentaires</ThemedText>
+          <ThemedText style={cmtStyles.title}>
+            {count > 0 ? `Commentaires (${count})` : 'Commentaires'}
+          </ThemedText>
 
-          <ScrollView style={cmtStyles.list} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            ref={listRef}
+            style={cmtStyles.list}
+            showsVerticalScrollIndicator={false}
+            // Un nouveau commentaire (le mien ou celui d'un autre client arrivé
+            // en direct) fait défiler la liste jusqu'en bas.
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          >
             {post?.comments.length === 0 && (
               <ThemedText style={cmtStyles.empty}>Aucun commentaire. Sois le premier !</ThemedText>
             )}
@@ -490,6 +548,8 @@ function ReelCard({
           uri={post.mediaUri}
           isActive={isActive}
           showSoundToggle
+          startMuted={false}
+          contentFit="contain"
           style={StyleSheet.absoluteFill}
         />
       ) : post.mediaUri ? (
@@ -514,7 +574,9 @@ function ReelCard({
         </Pressable>
         <Pressable style={reelStyles.actionBtn} onPress={() => onComment(post)} hitSlop={12}>
           <Ionicons name="chatbubble-outline" size={26} color="#fff" />
-          <ThemedText style={reelStyles.actionCount}>{post.comments.length || 'Commenter'}</ThemedText>
+          <ThemedText style={reelStyles.actionCount}>
+            {(post.commentCount ?? post.comments.length) || 'Commenter'}
+          </ThemedText>
         </Pressable>
         <Pressable style={reelStyles.actionBtn} onPress={() => onShare(post)} hitSlop={12}>
           <Ionicons name="share-social-outline" size={26} color="#fff" />
@@ -584,9 +646,11 @@ function GridCard({
   return (
     <Pressable style={[gridStyles.card, { height: post.cardH }]} onPress={() => onOpen(post.id)} hitSlop={6}>
       {post.mediaUri && post.mediaType === 'video' ? (
-        <View style={[StyleSheet.absoluteFill, gridStyles.videoBg]}>
-          <Ionicons name="play-circle-outline" size={42} color="#fff" />
-        </View>
+        <VideoThumbnail
+          uri={post.mediaUri}
+          iconSize={42}
+          style={[StyleSheet.absoluteFill, { borderRadius: 14 }]}
+        />
       ) : post.mediaUri ? (
         <Image source={{ uri: post.mediaUri }} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} contentFit="cover" />
       ) : (
@@ -716,7 +780,9 @@ function PostDetailModal({
               </Pressable>
               <Pressable style={detailStyles.actionBtn} onPress={() => { onClose(); onComment(post); }}>
                 <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />
-                <ThemedText style={detailStyles.actionTxt}>{post.comments.length} commentaires</ThemedText>
+                <ThemedText style={detailStyles.actionTxt}>
+                  {post.commentCount ?? post.comments.length} commentaires
+                </ThemedText>
               </Pressable>
               <Pressable style={detailStyles.actionBtn} onPress={() => onShare(post)}>
                 <Ionicons name="share-social-outline" size={18} color="#6b7280" />
@@ -754,10 +820,12 @@ const detailStyles = StyleSheet.create({
 // ── Create Post Modal (prestataire only) ────────────────────────────────────
 function CreatePostModal({
   visible,
+  publishing,
   onClose,
   onPublish,
 }: {
   visible: boolean;
+  publishing: boolean;
   onClose: () => void;
   onPublish: (caption: string, category: Exclude<MainCategory, 'tout'>, subCategory?: SubCategory, mediaUri?: string, mediaType?: 'image' | 'video') => void;
 }) {
@@ -797,7 +865,9 @@ function CreatePostModal({
   };
 
   const handlePublish = () => {
-    if (!newCaption.trim()) return;
+    // publishing : upload déjà en cours (vidéo = plusieurs secondes) — un 2e tap
+    // relançait un envoi complet → publications en double/triple.
+    if (!newCaption.trim() || publishing) return;
     onPublish(newCaption.trim(), newCategory, newSubCategory, newMediaUri, newMediaType);
   };
 
@@ -813,10 +883,7 @@ function CreatePostModal({
             {/* Media picker */}
             <Pressable style={createStyles.mediaPicker} onPress={handlePickMedia}>
               {newMediaUri && newMediaType === 'video' ? (
-                <View style={createStyles.mediaPreviewVideoBg}>
-                  <Ionicons name="videocam" size={40} color="#fff" />
-                  <ThemedText style={createStyles.mediaPreviewVideoTxt}>Vidéo sélectionnée</ThemedText>
-                </View>
+                <VideoThumbnail uri={newMediaUri} iconSize={40} style={{ flex: 1 }} />
               ) : newMediaUri ? (
                 <Image source={{ uri: newMediaUri }} style={createStyles.mediaPreview} contentFit="cover" />
               ) : (
@@ -887,12 +954,18 @@ function CreatePostModal({
                 <ThemedText style={createStyles.btnCancelTxt}>Annuler</ThemedText>
               </Pressable>
               <Pressable
-                style={[createStyles.btnPublish, !newCaption.trim() && { opacity: 0.4 }]}
+                style={[createStyles.btnPublish, (!newCaption.trim() || publishing) && { opacity: 0.4 }]}
                 onPress={handlePublish}
-                disabled={!newCaption.trim()}
+                disabled={!newCaption.trim() || publishing}
               >
-                <Ionicons name="send-outline" size={16} color="#fff" />
-                <ThemedText style={createStyles.btnPublishTxt}>Publier</ThemedText>
+                {publishing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="send-outline" size={16} color="#fff" />
+                )}
+                <ThemedText style={createStyles.btnPublishTxt}>
+                  {publishing ? 'Envoi en cours…' : 'Publier'}
+                </ThemedText>
               </Pressable>
             </View>
           </ScrollView>
@@ -955,7 +1028,27 @@ export default function ExploreScreen() {
   const [mode, setMode] = useState<'grid' | 'reels'>('grid');
 
   const [createModal, setCreateModal] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  // Verrou synchrone anti double-tap : l'état React est asynchrone, deux taps
+  // rapprochés sur « Publier » passaient tous les deux → publication en double.
+  const publishingRef = useRef(false);
   const [openedPostId, setOpenedPostId] = useState<string | null>(null);
+
+  // ── Affinité par catégorie (algo du feed) ─────────────────────────────────
+  const affinityRef = useRef<Record<string, number>>({});
+  useEffect(() => {
+    AsyncStorage.getItem(AFFINITY_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        try { affinityRef.current = JSON.parse(raw) as Record<string, number>; } catch { /* ignore */ }
+      })
+      .catch(() => {});
+  }, []);
+  const bumpAffinity = useCallback((cat: string, weight: number) => {
+    const a = affinityRef.current;
+    a[cat] = (a[cat] ?? 0) + weight;
+    AsyncStorage.setItem(AFFINITY_KEY, JSON.stringify(a)).catch(() => {});
+  }, []);
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [commentVisible, setCommentVisible] = useState(false);
   const [providerModal, setProviderModal] = useState<string | null>(null);
@@ -1008,10 +1101,16 @@ export default function ExploreScreen() {
         prev.filter((p) => p.id.startsWith('feed-')).map((p) => [p.id, p.comments])
       );
       const withoutFeed = prev.filter((post) => !post.id.startsWith('feed-'));
-      const merged = feedPosts.map((p) => ({
-        ...p,
-        comments: existingComments.get(p.id) ?? [],
-      }));
+      const merged = feedPosts.map((p) => {
+        const comments = existingComments.get(p.id) ?? [];
+        return {
+          ...p,
+          comments,
+          // Le serveur fait foi, mais on ne redescend jamais sous le nombre de
+          // commentaires déjà affichés (le mien vient peut-être d'être posté).
+          commentCount: Math.max(p.commentCount ?? 0, comments.length),
+        };
+      });
       // Mettre à jour le cache (sans les commentaires locaux)
       AsyncStorage.setItem(FEED_CACHE_KEY, JSON.stringify(feedPosts)).catch(() => {});
       return [...merged, ...withoutFeed];
@@ -1064,15 +1163,59 @@ export default function ExploreScreen() {
           isLiked: p.liked_by_me ?? false,
           cardH: 200,
           comments: [],
+          commentCount: p.comment_count ?? 0,
+          createdAt: p.created_at,
           bgColor: '#F5EFE8',
           bgEmoji: CAT_EMOJI[CAT_MAP[p.category?.toLowerCase()?.trim()] ?? 'autres'],
         }));
-        applyFeedPosts(shuffle(feedPosts));
+        applyFeedPosts(rankFeed(feedPosts, affinityRef.current));
       })
       .catch(() => {});
   }, [user?.accessToken, applyFeedPosts]);
 
-  useFocusEffect(useCallback(() => { loadFeed(); }, [loadFeed]));
+  // ── Rafraîchissement live des compteurs (j'aime + commentaires) ───────────
+  // On ne recharge PAS tout le feed (ça réordonnerait les reels sous le doigt) :
+  // on ne fait que remettre à jour les compteurs des posts déjà affichés, pour
+  // qu'un like ou un commentaire d'un autre client apparaisse quasi en direct.
+  const pendingLikesRef = useRef<Set<string>>(new Set());
+  const refreshCounters = useCallback(() => {
+    const headers: Record<string, string> = {};
+    if (user?.accessToken) headers['Authorization'] = `Bearer ${user.accessToken}`;
+    fetch(`${API_ENDPOINTS.prestataireFeed}`, { headers })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json?.success || !Array.isArray(json.data)) return;
+        const byId = new Map<number, { like_count: number; comment_count: number; liked_by_me: boolean }>(
+          json.data.map((p: { id: number; like_count: number; comment_count: number; liked_by_me: boolean }) =>
+            [p.id, p]),
+        );
+        setPosts((prev) => prev.map((p) => {
+          if (!p.photoId) return p;
+          const row = byId.get(p.photoId);
+          if (!row) return p;
+          // Un like en cours d'envoi garde sa valeur optimiste.
+          const likePending = pendingLikesRef.current.has(p.id);
+          const nextLikes = likePending ? p.likes : (row.like_count ?? 0);
+          const nextLiked = likePending ? p.isLiked : (row.liked_by_me ?? false);
+          const nextCount = Math.max(row.comment_count ?? 0, p.comments.length);
+          if (nextLikes === p.likes && nextLiked === p.isLiked && nextCount === (p.commentCount ?? 0)) {
+            return p;
+          }
+          return { ...p, likes: nextLikes, isLiked: nextLiked, commentCount: nextCount };
+        }));
+      })
+      .catch(() => {});
+  }, [user?.accessToken]);
+
+  useFocusEffect(useCallback(() => {
+    loadFeed();
+    // Tant que l'écran Explore est visible, on rafraîchit les compteurs.
+    const timer = setInterval(refreshCounters, 8000);
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') refreshCounters();
+    });
+    return () => { clearInterval(timer); sub.remove(); };
+  }, [loadFeed, refreshCounters]));
 
   // ── Sync boutique reels into explore feed ────────────────────────────────
   useEffect(() => {
@@ -1116,6 +1259,8 @@ export default function ExploreScreen() {
     // qui inclut déjà notre like — ne jamais additionner les deux).
     // Les reels boutique sont ajustés par leur contexte : on ne touche que isLiked.
     const isBoutique = id.startsWith('boutique-');
+    const likedPost = posts.find((p) => p.id === id);
+    if (likedPost && !likedPost.isLiked) bumpAffinity(likedPost.category, 3);
     setPosts((prev) => prev.map((p) => (
       p.id === id
         ? {
@@ -1130,6 +1275,9 @@ export default function ExploreScreen() {
     } else if (id.startsWith('feed-') && user?.accessToken) {
       const post = posts.find((p) => p.id === id);
       if (post?.photoId) {
+        // Le rafraîchissement périodique ne doit pas écraser l'affichage
+        // optimiste tant que le serveur n'a pas répondu.
+        pendingLikesRef.current.add(id);
         fetch(API_ENDPOINTS.photoLike(post.photoId), {
           method: 'POST',
           headers: { Authorization: `Bearer ${user.accessToken}` },
@@ -1142,80 +1290,134 @@ export default function ExploreScreen() {
               ));
             }
           })
-          .catch(() => {});
+          .catch(() => {})
+          .finally(() => { pendingLikesRef.current.delete(id); });
       }
     }
-  }, [toggleReelLike, user?.accessToken, posts]);
+  }, [toggleReelLike, user?.accessToken, posts, bumpAffinity]);
 
-  const handleOpenPost = useCallback((id: string) => setOpenedPostId(id), []);
+  const handleOpenPost = useCallback((id: string) => {
+    setOpenedPostId(id);
+    const post = posts.find((p) => p.id === id);
+    if (post) bumpAffinity(post.category, 1);
+  }, [posts, bumpAffinity]);
+
+  // Applique la liste serveur à un post, en gardant les commentaires optimistes
+  // (envoyés à l'instant, pas encore confirmés) pour ne rien faire clignoter.
+  const applyComments = useCallback((postId: string, backendComments: Comment[]) => {
+    const backendTexts = new Set(backendComments.map((c) => c.text));
+    const merge = (existing: Comment[]) => [
+      ...backendComments,
+      ...existing.filter((c) => c.id.startsWith('c') && !backendTexts.has(c.text)),
+    ];
+    // Rien de neuf → on ne recrée pas l'état (pas de re-rendu inutile toutes
+    // les 3 secondes pendant que la feuille est ouverte).
+    const unchanged = (a: Comment[], b: Comment[]) =>
+      a.length === b.length && a.every((c, i) => c.id === b[i].id && c.text === b[i].text);
+    setPosts((prev) => prev.map((p) => {
+      if (p.id !== postId) return p;
+      const comments = merge(p.comments);
+      if (unchanged(comments, p.comments) && p.commentCount === comments.length) return p;
+      return { ...p, comments, commentCount: comments.length };
+    }));
+    setCommentPost((prev) => {
+      if (prev?.id !== postId) return prev;
+      const comments = merge(prev.comments);
+      if (unchanged(comments, prev.comments) && prev.commentCount === comments.length) return prev;
+      return { ...prev, comments, commentCount: comments.length };
+    });
+  }, []);
+
+  // Recharge les commentaires d'un post depuis le serveur.
+  const fetchComments = useCallback((postId: string, photoId?: number) => {
+    if (!postId.startsWith('feed-') || !photoId || !user?.accessToken) return;
+    fetch(API_ENDPOINTS.photoComments(photoId), {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json?.success || !Array.isArray(json.data)) return;
+        const backendComments: Comment[] = json.data.map((c: {
+          id: number; text: string; created_at: string; prenom: string; nom: string;
+        }) => ({
+          id: `bc${c.id}`,
+          author: `${c.prenom} ${c.nom ? c.nom[0] + '.' : ''}`.trim(),
+          text: c.text,
+          time: formatCommentTime(c.created_at),
+        }));
+        applyComments(postId, backendComments);
+      })
+      .catch(() => {});
+  }, [user?.accessToken, applyComments]);
 
   const handleOpenComment = useCallback((post: Post) => {
     setCommentPost(post);
     setCommentVisible(true);
-    // Charger les commentaires depuis le backend pour les posts du feed
-    if (post.id.startsWith('feed-') && post.photoId && user?.accessToken) {
-      fetch(API_ENDPOINTS.photoComments(post.photoId), {
-        headers: { Authorization: `Bearer ${user.accessToken}` },
-      })
-        .then((r) => r.json())
-        .then((json) => {
-          if (!json?.success || !Array.isArray(json.data)) return;
-          const backendComments: Comment[] = json.data.map((c: {
-            id: number; text: string; created_at: string; prenom: string; nom: string;
-          }) => ({
-            id: `bc${c.id}`,
-            author: `${c.prenom} ${c.nom ? c.nom[0] + '.' : ''}`.trim(),
-            text: c.text,
-            time: new Date(c.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
-          }));
-          // Fusionner en gardant les commentaires optimistes (locaux non encore confirmés)
-          const backendTexts = new Set(backendComments.map((c) => c.text));
-          const merge = (existing: Comment[]) => [
-            ...backendComments,
-            ...existing.filter((c) => c.id.startsWith('c') && !backendTexts.has(c.text)),
-          ];
-          setPosts((prev) => prev.map((p) =>
-            p.id === post.id ? { ...p, comments: merge(p.comments) } : p
-          ));
-          setCommentPost((prev) =>
-            prev?.id === post.id ? { ...prev, comments: merge(prev.comments) } : prev
-          );
-        })
-        .catch(() => {});
-    }
-  }, [user?.accessToken]);
+    fetchComments(post.id, post.photoId);
+  }, [fetchComments]);
+
+  // ── Commentaires en direct pendant que la feuille est ouverte ─────────────
+  // Un commentaire posté par un autre client apparaît sans rien fermer.
+  const openCommentRef = useRef<{ id: string; photoId?: number } | null>(null);
+  useEffect(() => {
+    openCommentRef.current = commentPost ? { id: commentPost.id, photoId: commentPost.photoId } : null;
+  }, [commentPost?.id, commentPost?.photoId]);
+
+  useEffect(() => {
+    if (!commentVisible) return;
+    const tick = () => {
+      const open = openCommentRef.current;
+      if (open) fetchComments(open.id, open.photoId);
+    };
+    const timer = setInterval(tick, 3000);
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') tick(); });
+    return () => { clearInterval(timer); sub.remove(); };
+  }, [commentVisible, fetchComments]);
 
   const handleAddComment = useCallback((postId: string, text: string) => {
-    const newComment = { id: `c${Date.now()}`, author: user?.prenom || 'Moi', text, time: "maintenant" };
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, comments: [...p.comments, newComment] } : p
-      )
-    );
-    setCommentPost((prev) =>
-      prev?.id === postId ? { ...prev, comments: [...prev.comments, newComment] } : prev
-    );
+    const newComment = { id: `c${Date.now()}`, author: user?.prenom || 'Moi', text, time: "à l'instant" };
+    const addLocal = (p: Post) => {
+      const comments = [...p.comments, newComment];
+      return { ...p, comments, commentCount: comments.length };
+    };
+    setPosts((prev) => prev.map((p) => (p.id === postId ? addLocal(p) : p)));
+    setCommentPost((prev) => (prev?.id === postId ? addLocal(prev) : prev));
     // Persist to backend for feed posts
     if (postId.startsWith('feed-') && user?.accessToken) {
       const post = posts.find((p) => p.id === postId);
       if (post?.photoId) {
-        fetch(API_ENDPOINTS.photoComments(post.photoId), {
+        const photoId = post.photoId;
+        fetch(API_ENDPOINTS.photoComments(photoId), {
           method: 'POST',
           headers: { Authorization: `Bearer ${user.accessToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ text }),
-        }).catch(() => {});
+        })
+          // Dès la confirmation du serveur, on recharge la liste : le
+          // commentaire optimiste est remplacé par sa version définitive et
+          // les commentaires arrivés entre-temps s'affichent aussi.
+          .then(() => fetchComments(postId, photoId))
+          .catch(() => {});
       }
     }
-  }, [user, posts]);
+    const commented = posts.find((p) => p.id === postId);
+    if (commented) bumpAffinity(commented.category, 2);
+  }, [user, posts, bumpAffinity, fetchComments]);
 
   const handleShare = useCallback(async (post: Post) => {
+    bumpAffinity(post.category, 2);
+    // Vrai lien de partage : page publique du post (ouvre l'app si installée,
+    // propose le téléchargement sinon). Seuls les posts du feed ont un photoId.
+    const url = post.photoId ? `${SHARE_BASE_URL}/p/${post.photoId}` : undefined;
     try {
       await Share.share({
-        message: `${post.caption} — Découvrez cette inspiration mariage ! 💍`,
+        message: url
+          ? `${post.caption} — à découvrir sur Oheve 💍\n${url}`
+          : `${post.caption} — Découvrez cette inspiration mariage ! 💍`,
+        ...(url ? { url } : {}),
         title: post.caption,
       });
     } catch {}
-  }, []);
+  }, [bumpAffinity]);
 
   const handleOpenProvider = useCallback((providerId: string) => {
     setProviderModal(providerId);
@@ -1236,6 +1438,11 @@ export default function ExploreScreen() {
       Alert.alert('Photo ou vidéo requise', 'Ajoutez une photo ou une vidéo pour publier votre réalisation.');
       return;
     }
+    // Un seul envoi à la fois : sans ce verrou, taper plusieurs fois « Publier »
+    // pendant l'upload (long pour une vidéo) créait des publications en double.
+    if (publishingRef.current) return;
+    publishingRef.current = true;
+    setPublishing(true);
     try {
       const res = await uploadFile(
         `${API_ENDPOINTS.prestataires}/me/photos`,
@@ -1252,6 +1459,9 @@ export default function ExploreScreen() {
       loadFeed();
     } catch {
       Alert.alert('Publication impossible', 'Vérifiez votre connexion et réessayez.');
+    } finally {
+      publishingRef.current = false;
+      setPublishing(false);
     }
   }, [user, loadFeed]);
 
@@ -1404,6 +1614,13 @@ export default function ExploreScreen() {
             snapToAlignment="start"
             decelerationRate="fast"
             showsVerticalScrollIndicator={false}
+            // Fenêtre courte : seules la vidéo visible et ses voisines immédiates
+            // sont montées. Avant, une dizaine de lecteurs se partageaient la
+            // bande passante → plusieurs secondes d'écran noir sur le reel actif.
+            initialNumToRender={2}
+            maxToRenderPerBatch={2}
+            windowSize={3}
+            getItemLayout={(_, index) => ({ length: reelH, offset: reelH * index, index })}
             viewabilityConfig={viewabilityConfig.current}
             onViewableItemsChanged={onViewableItemsChanged.current}
             ListHeaderComponent={
@@ -1468,6 +1685,7 @@ export default function ExploreScreen() {
       {isPrestataire && (
         <CreatePostModal
           visible={createModal}
+          publishing={publishing}
           onClose={() => setCreateModal(false)}
           onPublish={handlePublish}
         />

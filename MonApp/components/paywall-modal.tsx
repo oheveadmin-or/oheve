@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { C, RADIUS } from '@/constants/OheveTheme';
+import { PurchaseLegal } from './purchase-legal';
 import { ThemedText } from './themed-text';
 
 type Props = {
@@ -95,8 +96,17 @@ export function PaywallModal({ visible, onClose }: Props) {
 
           <View style={s.secureRow}>
             <Ionicons name="shield-checkmark-outline" size={13} color={C.textLight} />
-            <ThemedText style={s.secureTxt}>Paiement unique · Sécurisé par Stripe · Aucun abonnement</ThemedText>
+            <ThemedText style={s.secureTxt}>Paiement unique · Sécurisé · Aucun abonnement</ThemedText>
           </View>
+
+          {/* Détail de l'offre + liens légaux (Apple Guideline 3.1.2) */}
+          <PurchaseLegal
+            productTitle="Oheve Premium"
+            duration="Achat unique — accès illimité dans le temps"
+            price="50 € TTC, une seule fois"
+            extra="Aucun abonnement, aucun renouvellement automatique."
+            onNavigate={onClose}
+          />
         </ScrollView>
       </View>
     </Modal>

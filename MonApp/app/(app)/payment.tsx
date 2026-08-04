@@ -192,7 +192,7 @@ function PaymentForm({
       <View style={styles.secureRow}>
         <Ionicons name="shield-checkmark-outline" size={14} color={C.textLight} />
         <ThemedText style={styles.secureTxt}>
-          {isPremium ? 'Paiement unique · Sécurisé par Stripe · Aucun abonnement' : 'Contribution sécurisée par Stripe · SSL 256 bits'}
+          {isPremium ? 'Paiement unique · Paiement sécurisé · Aucun abonnement' : 'Contribution sécurisée · SSL 256 bits'}
         </ThemedText>
       </View>
     </View>

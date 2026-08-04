@@ -2,10 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View,
+  ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PurchaseLegal } from '@/components/purchase-legal';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { C, RADIUS } from '@/constants/OheveTheme';
@@ -13,6 +14,8 @@ import { isPrestaSubActive, useAuth } from '@/contexts/auth-context';
 import { prestataireSubApi } from '@/services/auth/api';
 
 type SubStatus = {
+  /** 'apple' = souscrit via In-App Purchase iOS (résiliation gérée par Apple). */
+  provider?: 'apple' | 'stripe';
   status: string | null;
   active: boolean;
   trial_end: string | null;
@@ -77,6 +80,22 @@ export default function ManageSubscriptionScreen() {
   };
 
   const confirmCancel = () => {
+    // Abonnement souscrit via l'App Store : Apple gère le renouvellement, la
+    // résiliation se fait dans les Réglages iOS — impossible côté serveur.
+    if (sub?.provider === 'apple') {
+      Alert.alert(
+        'Abonnement App Store',
+        'Votre abonnement est géré par Apple. Résiliez-le depuis Réglages → votre nom → Abonnements, ou en appuyant sur « Ouvrir mes abonnements ».',
+        [
+          { text: 'Fermer', style: 'cancel' },
+          {
+            text: 'Ouvrir mes abonnements',
+            onPress: () => Linking.openURL('https://apps.apple.com/account/subscriptions'),
+          },
+        ],
+      );
+      return;
+    }
     Alert.alert(
       'Résilier mon abonnement',
       'Vous perdrez l\'accès à l\'espace prestataire à la fin de la période en cours (visibilité, messagerie, portfolio). Vous pourrez vous réabonner à tout moment.',
@@ -137,7 +156,7 @@ export default function ManageSubscriptionScreen() {
                   : isTrial
                     ? `3 mois offerts${trialEnd ? ` — 1er prélèvement le ${formatDate(trialEnd)}` : ''}`
                     : active
-                      ? `39 €/mois${periodEnd ? ` — prochain paiement le ${formatDate(periodEnd)}` : ''}`
+                      ? `39,99 €/mois${periodEnd ? ` — prochain paiement le ${formatDate(periodEnd)}` : ''}`
                       : 'Réabonnez-vous pour retrouver votre espace professionnel.'}
               </ThemedText>
             </View>
@@ -145,11 +164,15 @@ export default function ManageSubscriptionScreen() {
             {/* Prix rappel */}
             <View style={styles.infoRow}>
               <Ionicons name="pricetag-outline" size={18} color={C.saugeDark} />
-              <ThemedText style={styles.infoTxt}>39 € / mois, sans engagement</ThemedText>
+              <ThemedText style={styles.infoTxt}>39,99 € / mois, sans engagement</ThemedText>
             </View>
             <View style={styles.infoRow}>
               <Ionicons name="shield-checkmark-outline" size={18} color={C.saugeDark} />
-              <ThemedText style={styles.infoTxt}>Paiement sécurisé par Stripe</ThemedText>
+              <ThemedText style={styles.infoTxt}>
+                {sub?.provider === 'apple'
+                  ? 'Abonnement géré par l\'App Store'
+                  : 'Paiement sécurisé'}
+              </ThemedText>
             </View>
 
             {/* Action */}
@@ -180,6 +203,15 @@ export default function ManageSubscriptionScreen() {
               En cas de résiliation, vous gardez l'accès jusqu'à la fin de la période déjà payée. Aucun
               remboursement partiel, mais aucun prélèvement supplémentaire.
             </ThemedText>
+
+            {/* Détail de l'offre + liens légaux (Apple Guideline 3.1.2) */}
+            <PurchaseLegal
+              productTitle="Oheve Prestataire — Abonnement mensuel"
+              duration="1 mois, renouvelé automatiquement"
+              price="39,99 € / mois"
+              autoRenewing
+              extra="3 premiers mois offerts à la souscription."
+            />
           </>
         )}
       </ScrollView>

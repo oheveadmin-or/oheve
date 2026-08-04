@@ -1,1 +1,0 @@
-export { connexionInscriptionRoutes } from './routes';

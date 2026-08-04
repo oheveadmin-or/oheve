@@ -7,6 +7,12 @@
       "runtimeArgs": ["run", "dev", "--prefix", "guest-site"],
       "port": 5173,
       "autoPort": true
+    },
+    {
+      "name": "shoutafim-web",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/odayaattia/shoutafim && npx expo start --web --port 8081"],
+      "port": 8081
     }
   ]
 }

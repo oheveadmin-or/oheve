@@ -10,7 +10,11 @@ import { authApi } from '@/services/auth/api';
 
 type Role = 'client' | 'prestataire' | 'boutique';
 
-const ROLES: { id: Role; icon: string; title: string; subtitle: string; color: string }[] = [
+const BOUTIQUE_SOON_TITLE = 'Coming soon';
+const BOUTIQUE_SOON_TEXT =
+  "Les comptes Boutique arrivent très bientôt sur Oheve. En attendant, choisissez Marié·e ou Prestataire.";
+
+const ROLES: { id: Role; icon: string; title: string; subtitle: string; color: string; soon?: boolean }[] = [
   {
     id: 'client',
     icon: 'heart-outline',
@@ -29,8 +33,9 @@ const ROLES: { id: Role; icon: string; title: string; subtitle: string; color: s
     id: 'boutique',
     icon: 'storefront-outline',
     title: 'Boutique',
-    subtitle: 'Vendez vos produits, partagez vos créations',
+    subtitle: 'Bientôt disponible sur Oheve',
     color: '#B8A082',
+    soon: true,
   },
 ];
 
@@ -42,6 +47,10 @@ export default function RoleSelectScreen() {
   const handleConfirm = async () => {
     if (!selected) {
       Alert.alert('Choisissez un profil', 'Sélectionnez votre type de compte pour continuer.');
+      return;
+    }
+    if (selected === 'boutique') {
+      Alert.alert(BOUTIQUE_SOON_TITLE, BOUTIQUE_SOON_TEXT);
       return;
     }
     setLoading(true);
@@ -61,9 +70,7 @@ export default function RoleSelectScreen() {
         await updateUser({ role: selected as 'client' | 'prestataire' | 'boutique' });
       }
 
-      if (selected === 'boutique') {
-        router.replace('/(boutique)/(tabs)');
-      } else if (selected === 'prestataire') {
+      if (selected === 'prestataire') {
         // Inscription prestataire : d'abord la fiche complète (infos visibles
         // par les mariés), puis l'abonnement (39€/mois, 3 mois offerts).
         router.replace('/(app)/prestataire/setup');
@@ -96,8 +103,18 @@ export default function RoleSelectScreen() {
           return (
             <Pressable
               key={r.id}
-              style={[styles.card, active && { borderColor: r.color, borderWidth: 2.5 }]}
-              onPress={() => setSelected(r.id)}
+              style={[
+                styles.card,
+                active && !r.soon && { borderColor: r.color, borderWidth: 2.5 },
+                r.soon && styles.cardSoon,
+              ]}
+              onPress={() => {
+                if (r.soon) {
+                  Alert.alert(BOUTIQUE_SOON_TITLE, BOUTIQUE_SOON_TEXT);
+                  return;
+                }
+                setSelected(r.id);
+              }}
             >
               <View style={[styles.iconCircle, { backgroundColor: active ? r.color : C.card }]}>
                 <Ionicons
@@ -107,12 +124,19 @@ export default function RoleSelectScreen() {
                 />
               </View>
               <View style={styles.cardText}>
-                <ThemedText style={[styles.cardTitle, active && { color: r.color }]}>
-                  {r.title}
-                </ThemedText>
+                <View style={styles.cardTitleRow}>
+                  <ThemedText style={[styles.cardTitle, active && !r.soon && { color: r.color }]}>
+                    {r.title}
+                  </ThemedText>
+                  {r.soon && (
+                    <View style={styles.soonBadge}>
+                      <ThemedText style={styles.soonBadgeTxt}>Coming soon</ThemedText>
+                    </View>
+                  )}
+                </View>
                 <ThemedText style={styles.cardSub}>{r.subtitle}</ThemedText>
               </View>
-              {active && (
+              {active && !r.soon && (
                 <Ionicons name="checkmark-circle" size={22} color={r.color} style={styles.check} />
               )}
             </Pressable>
@@ -158,7 +182,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   cardText: { flex: 1 },
-  cardTitle: { fontSize: 17, fontWeight: '700', color: C.textDark, marginBottom: 3 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
+  cardSoon: { opacity: 0.55, borderStyle: 'dashed', borderColor: C.border },
+  soonBadge: {
+    backgroundColor: C.moka, borderRadius: 99,
+    paddingHorizontal: 8, paddingVertical: 2,
+  },
+  soonBadgeTxt: { fontSize: 9.5, fontWeight: '800', color: C.textInvert, letterSpacing: 0.3 },
+  cardTitle: { fontSize: 17, fontWeight: '700', color: C.textDark },
   cardSub: { fontSize: 13, color: C.textLight },
   check: { marginLeft: 4 },
 

@@ -12,14 +12,20 @@ import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { UserRole } from '@/contexts/auth-context';
 import { API_ENDPOINTS } from '@/constants/config';
+import { request } from '@/services/auth/api';
 import { useSocialAuth } from '@/hooks/use-social-auth';
 import { useAppleAuthAvailable } from '@/hooks/use-apple-auth-available';
 
-const ROLES: { key: UserRole; label: string; icon: string; desc: string }[] = [
+const ROLES: { key: UserRole; label: string; icon: string; desc: string; soon?: boolean }[] = [
   { key: 'client', label: 'Futur(e) marié(e)', icon: '💍', desc: 'Organise ton mariage' },
-  { key: 'prestataire', label: 'Prestataire', icon: '🏢', desc: '3 mois offerts puis 39€/mois' },
-  { key: 'boutique', label: 'Boutique', icon: '🛍️', desc: 'À partir de 7€/mois' },
+  { key: 'prestataire', label: 'Prestataire', icon: '🏢', desc: '3 mois offerts puis 39,99€/mois' },
+  // Comptes Boutique pas encore ouverts : carte visible mais non sélectionnable.
+  { key: 'boutique', label: 'Boutique', icon: '🛍️', desc: 'Bientôt disponible', soon: true },
 ];
+
+const BOUTIQUE_SOON_TITLE = 'Coming soon';
+const BOUTIQUE_SOON_TEXT =
+  "Les comptes Boutique arrivent très bientôt sur Oheve. En attendant, créez un compte Marié·e ou Prestataire.";
 
 export default function RegisterScreen() {
   const [role, setRole] = useState<UserRole>('client');
@@ -39,6 +45,10 @@ export default function RegisterScreen() {
   const appleAvailable = useAppleAuthAvailable();
 
   const handleRegister = async () => {
+    if (role === 'boutique') {
+      Alert.alert(BOUTIQUE_SOON_TITLE, BOUTIQUE_SOON_TEXT);
+      return;
+    }
     const isClient = role === 'client';
     if (isClient) {
       if (!brideName.trim() || !groomName.trim() || !email.trim() || !password) {
@@ -60,15 +70,14 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     try {
-      const res = await fetch(API_ENDPOINTS.sendOtp, {
+      const json = await request(API_ENDPOINTS.sendOtp, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), purpose: 'inscription' }),
       });
-      const json = await res.json();
       if (!json.success) {
         // Cas 1 : email déjà inscrit → proposer la connexion au lieu d'un 2e compte
-        if (res.status === 409) {
+        if (json.status === 409) {
           Alert.alert(
             'Compte existant',
             'Un compte existe déjà avec cet email.',
@@ -152,13 +161,24 @@ export default function RegisterScreen() {
             {ROLES.map((r) => (
               <Pressable
                 key={r.key}
-                style={[styles.roleCard, role === r.key && styles.roleCardOn]}
-                onPress={() => setRole(r.key)}
+                style={[styles.roleCard, role === r.key && styles.roleCardOn, r.soon && styles.roleCardSoon]}
+                onPress={() => {
+                  if (r.soon) {
+                    Alert.alert(BOUTIQUE_SOON_TITLE, BOUTIQUE_SOON_TEXT);
+                    return;
+                  }
+                  setRole(r.key);
+                }}
               >
                 <ThemedText style={styles.roleEmoji}>{r.icon}</ThemedText>
                 <ThemedText style={[styles.roleLabel, role === r.key && styles.roleLabelOn]}>{r.label}</ThemedText>
                 <ThemedText style={styles.roleDesc}>{r.desc}</ThemedText>
-                {role === r.key && (
+                {r.soon && (
+                  <View style={styles.soonBadge}>
+                    <ThemedText style={styles.soonBadgeTxt}>Coming soon</ThemedText>
+                  </View>
+                )}
+                {role === r.key && !r.soon && (
                   <View style={styles.roleCheck}>
                     <Ionicons name="checkmark-circle" size={16} color={C.sauge} />
                   </View>
@@ -295,6 +315,13 @@ const styles = StyleSheet.create({
   roleLabelOn: { color: C.saugeDark },
   roleDesc: { fontSize: 10, color: C.textLight, textAlign: 'center' },
   roleCheck: { position: 'absolute', top: 6, right: 6 },
+  roleCardSoon: { opacity: 0.55, borderStyle: 'dashed' },
+  soonBadge: {
+    position: 'absolute', top: -8, alignSelf: 'center',
+    backgroundColor: C.moka, borderRadius: 99,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  soonBadgeTxt: { fontSize: 8.5, fontWeight: '800', color: C.textInvert, letterSpacing: 0.3 },
 
   fieldsRow: { flexDirection: 'row', gap: 10, marginBottom: 0 },
 

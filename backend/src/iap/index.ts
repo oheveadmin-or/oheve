@@ -7,7 +7,7 @@ import { requireAuth } from '../middleware/requireAuth';
  * Vérification des achats Apple In-App Purchase (Guideline 3.1.1).
  *
  * Sur iOS, le premium couple (50 €, non-consommable) et l'abonnement
- * prestataire (39 €/mois, 3 mois offerts) passent par StoreKit — Stripe est
+ * prestataire (39,99 €/mois, 3 mois offerts) passent par StoreKit — Stripe est
  * interdit par Apple pour les biens numériques. L'app envoie le jeton JWS signé
  * par Apple (purchase.purchaseToken d'expo-iap) ; on vérifie ici la signature
  * (chaîne de certificats Apple), le bundleId et le produit avant d'accorder le
@@ -30,7 +30,7 @@ const APPLE_APP_ID = process.env.APPLE_APP_ID ? Number(process.env.APPLE_APP_ID)
 // et dans MonApp/constants/config.ts (IAP_SKUS).
 export const IAP_PRODUCTS = {
   premium: 'com.oheve.wedding.couple.premium',      // non-consommable 50 €
-  prestaMonthly: 'com.oheve.wedding.presta.sub', // abo auto-renouvelable 39 €/mois
+  prestaMonthly: 'com.oheve.wedding.presta.sub', // abo auto-renouvelable 39,99 €/mois
 } as const;
 
 // ── Certificats racine Apple ─────────────────────────────────────────────────

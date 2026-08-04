@@ -73,7 +73,8 @@
           }
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true,

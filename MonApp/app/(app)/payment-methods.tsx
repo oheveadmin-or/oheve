@@ -72,8 +72,6 @@ export default function PaymentMethodsScreen() {
   const [cvv, setCvv] = useState('');
 
   const cardType = detectCardType(cardNumber);
-  const isApplePayAvailable = Platform.OS === 'ios';
-  const isGooglePayAvailable = Platform.OS === 'android';
 
   const handleAddCard = () => {
     const digits = cardNumber.replace(/\s/g, '');
@@ -146,15 +144,6 @@ export default function PaymentMethodsScreen() {
     setCards((prev) => prev.map((c) => ({ ...c, isDefault: c.id === id })));
   };
 
-  const handleExpressPay = (method: 'apple' | 'google') => {
-    const name = method === 'apple' ? 'Apple Pay' : 'Google Pay';
-    Alert.alert(
-      `${name}`,
-      `${name} sera utilisé pour vos paiements. L'intégration complète nécessite une configuration Stripe.`,
-      [{ text: 'OK' }]
-    );
-  };
-
   return (
     <ScreenLayout edges={['top', 'left', 'right']} style={{ backgroundColor: C.ivoire }}>
       <View style={styles.headerRow}>
@@ -175,28 +164,6 @@ export default function PaymentMethodsScreen() {
           <ThemedText style={styles.securityText}>
             Vos données de paiement sont chiffrées et sécurisées (PCI DSS)
           </ThemedText>
-        </View>
-
-        {/* Express payment */}
-        <ThemedText style={styles.sectionTitle}>Paiement rapide</ThemedText>
-        <View style={styles.expressRow}>
-          {isApplePayAvailable && (
-            <Pressable style={styles.expressBtn} onPress={() => handleExpressPay('apple')}>
-              <ThemedText style={styles.expressBtnText}>🍎  Apple Pay</ThemedText>
-            </Pressable>
-          )}
-          {isGooglePayAvailable && (
-            <Pressable style={styles.expressBtn} onPress={() => handleExpressPay('google')}>
-              <ThemedText style={styles.expressBtnText}>G  Google Pay</ThemedText>
-            </Pressable>
-          )}
-          {!isApplePayAvailable && !isGooglePayAvailable && (
-            <View style={styles.expressPlaceholder}>
-              <ThemedText style={styles.expressPlaceholderText}>
-                Apple Pay et Google Pay sont disponibles sur iOS et Android
-              </ThemedText>
-            </View>
-          )}
         </View>
 
         {/* Saved cards */}
@@ -362,18 +329,6 @@ const styles = StyleSheet.create({
   securityText: { flex: 1, fontSize: 12, color: C.saugeDark, fontWeight: '500' },
 
   sectionTitle: { fontSize: 13, fontWeight: '700', color: C.textMid, letterSpacing: 0.8, textTransform: 'uppercase' },
-
-  expressRow: { flexDirection: 'row', gap: 10 },
-  expressBtn: {
-    flex: 1, backgroundColor: C.textDark, borderRadius: RADIUS.md,
-    paddingVertical: 14, alignItems: 'center',
-  },
-  expressBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  expressPlaceholder: {
-    flex: 1, backgroundColor: C.card, borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: C.border, padding: 14,
-  },
-  expressPlaceholderText: { fontSize: 13, color: C.textLight, textAlign: 'center' },
 
   emptyCard: {
     backgroundColor: C.card, borderRadius: RADIUS.md, borderWidth: 1.5,

@@ -20,6 +20,7 @@ try {
 }
 
 import { API_ENDPOINTS } from '@/constants/config';
+import { request } from '@/services/auth/api';
 import { useAuth } from '@/contexts/auth-context';
 
 /**
@@ -135,12 +136,11 @@ export function useSocialAuth(onAfterSignIn?: (isNew: boolean, role: string) => 
   const { signIn } = useAuth();
 
   const completeSignIn = async (credential: SocialCredential) => {
-    const res = await fetch(API_ENDPOINTS.socialAuth, {
+    const result = await request(API_ENDPOINTS.socialAuth, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credential),
     });
-    const result = await res.json();
 
     if (!result.success) {
       Alert.alert('Erreur', result.message ?? `Connexion ${credential.provider === 'apple' ? 'Apple' : 'Google'} échouée`);
@@ -187,20 +187,14 @@ export async function linkSocialProvider(
 ): Promise<{ has_password: boolean; providers: { provider: string; email: string | null }[] } | null> {
   const credential = provider === 'google' ? await getGoogleCredential() : await getAppleCredential();
   if (!credential) return null;
-  try {
-    const res = await fetch(API_ENDPOINTS.linkProvider, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify(credential),
-    });
-    const result = await res.json();
-    if (!result.success) {
-      Alert.alert('Liaison impossible', result.message ?? 'Erreur lors de la liaison');
-      return null;
-    }
-    return result.data;
-  } catch {
-    Alert.alert('Erreur', 'Impossible de joindre le serveur.');
+  const result = await request(API_ENDPOINTS.linkProvider, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(credential),
+  });
+  if (!result.success) {
+    Alert.alert('Liaison impossible', result.message ?? 'Erreur lors de la liaison');
     return null;
   }
+  return result.data;
 }
