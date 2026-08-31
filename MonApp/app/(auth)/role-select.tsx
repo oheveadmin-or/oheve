@@ -72,7 +72,7 @@ export default function RoleSelectScreen() {
 
       if (selected === 'prestataire') {
         // Inscription prestataire : d'abord la fiche complète (infos visibles
-        // par les mariés), puis l'abonnement (39€/mois, 3 mois offerts).
+        // par les mariés), puis l'abonnement (39,99€/mois, 6 mois offerts aux 200 premiers).
         router.replace('/(app)/prestataire/setup');
       } else {
         router.replace('/(onboarding)/setup');

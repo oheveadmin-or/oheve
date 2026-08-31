@@ -574,9 +574,15 @@ export const iapApi = {
     post(API_ENDPOINTS.iapVerify, { jws }, accessToken),
 };
 
-// ── Abonnement Prestataire (39€/mois, 3 mois offerts) ─────────────────────────
+// ── Abonnement Prestataire (39,99€/mois, 6 mois offerts aux 200 premiers) ─────
 export const prestataireSubApi = {
-  // Démarre l'abonnement (essai 90 j) et renvoie le SetupIntent pour saisir la CB.
+  // Offre en cours : durée d'essai due à ce compte et places restantes sur les
+  // 200 de l'offre de lancement. C'est la source des « 6 mois offerts » affichés.
+  offer: (accessToken?: string) =>
+    getPublic(API_ENDPOINTS.prestaSubOffer, accessToken),
+
+  // Démarre l'abonnement (essai 180 j fondateur, sinon 90 j) et renvoie le
+  // SetupIntent pour saisir la CB.
   start: (accessToken: string) =>
     post(API_ENDPOINTS.prestaSubStart, {}, accessToken),
 

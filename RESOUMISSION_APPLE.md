@@ -5,6 +5,60 @@ Il reste des actions manuelles dans App Store Connect + un rebuild EAS (voir §2
 
 ---
 
+## 0-sexies. 🎁 Offre de lancement — 6 mois offerts aux 200 premiers prestataires
+
+Décidée le 31/08/2026. L'essai de l'abonnement `com.oheve.wedding.presta.sub` passe de
+**3 mois** à **6 mois** pour les **200 premiers** prestataires qui activent leur espace ;
+au-delà, retour à 3 mois.
+
+### Ce qui est fait dans le code (rien à faire de plus)
+
+| Où | Quoi |
+|---|---|
+| [migrate.ts](backend/src/db/migrate.ts) | colonne `users.presta_founder_rank` (rang 1→200, unique) |
+| [prestataire-subscription](backend/src/prestataire-subscription/index.ts) | `FOUNDER_LIMIT=200`, `FOUNDER_TRIAL_DAYS=180`, attribution des places sous verrou, route **`GET /api/prestataire-subscription/offer`** |
+| [iap](backend/src/iap/index.ts) | la place fondateur est consommée aussi quand l'abonnement vient de l'App Store |
+| [presta-offer.ts](MonApp/lib/presta-offer.ts) | hook `usePrestaOffer()` : **aucun écran n'écrit « 6 mois » en dur**, tout vient du serveur |
+| écrans | abonnement, gestion d'abonnement, setup fiche, accueil presta, inscription, CGU |
+
+Sur **Android / web (Stripe)** la durée est appliquée par le serveur : 180 jours si le
+compte a une place fondateur, 90 sinon. **Rien à configurer.**
+
+Sur **iOS**, la durée réellement offerte est celle de **l'offre d'introduction StoreKit** :
+c'est Apple qui l'accorde, elle n'est pas modifiable par compte. Elle doit donc être
+passée à 6 mois dans App Store Connect — et ramenée à 3 mois quand les 200 places sont
+prises, sinon l'App Store continuera d'offrir 6 mois alors que l'app annonce 3.
+
+### 🍎 À faire dans App Store Connect — AVANT que le nouveau build soit publié
+
+| # | Où | Quoi |
+|---|---|---|
+| 1 | **Monétisation → Abonnements** → groupe → `com.oheve.wedding.presta.sub` → **Offres d'introduction** | L'offre « essai gratuit 3 mois » en cours **n'est pas modifiable** : lui donner une **date de fin** (aujourd'hui), puis **créer une nouvelle offre** qui démarre le lendemain — type **Essai gratuit**, durée **6 mois**, **tous les pays/régions**, clients éligibles **Nouveaux abonnés**. |
+| 2 | Même écran → **Localisations (français)** | Description de l'abonnement : remplacer « 3 mois offerts » par « **6 premiers mois offerts pour les 200 premiers prestataires inscrits, puis 39,99 €/mois** ». Le nom d'affichage ne change pas (« Oheve Prestataire — Abonnement mensuel »). |
+| 3 | Même écran → **Capture d'écran de review** | Si la capture montre « 3 mois offerts », en remettre une prise sur le nouveau build (l'écran affiche maintenant « 6 mois offerts »). |
+| 4 | **Version 1.0.x → Description / Texte promotionnel (FR)** | Toute mention de « 3 mois offerts » → « 6 mois offerts (offre de lancement, 200 premiers prestataires) ». |
+| 5 | **Version → Notes pour la review** | Ajouter : « L'abonnement prestataire bénéficie d'une offre de lancement : 6 mois d'essai gratuit (offre d'introduction StoreKit) pour les 200 premiers prestataires. Les écrans d'achat affichent la durée renvoyée par le serveur. » |
+| 6 | **Nouveau build** | Uploader le build EAS puis l'attacher à la version. |
+
+⚠️ **Ordre important** : l'offre d'introduction 6 mois (#1) doit être **active** au moment
+où le build est examiné/publié. Si l'app annonce 6 mois et que l'App Store en offre 3,
+c'est un rejet **3.1.2** (informations d'achat trompeuses) quasi assuré.
+
+### Quand les 200 places sont prises
+
+Le compteur est lisible publiquement (aucune connexion) :
+
+```bash
+curl -s https://oheve-production.up.railway.app/api/prestataire-subscription/offer
+```
+
+`founder_remaining` tombe à 0 → l'app repasse d'elle-même à « 3 mois offerts » et masque
+la bannière de lancement. Il reste alors **une seule action manuelle** : dans App Store
+Connect, donner une date de fin à l'offre d'introduction 6 mois et en créer une de
+**3 mois** à la suite (mêmes étapes que #1 ci-dessus).
+
+---
+
 ## 0-quinquies. 🔴 REJET du 04/08/2026 (build 21) — 2.1(b) achats introuvables + 2.1 PassKit
 
 > « we cannot locate the In-App Purchases, such as oheve prestataire, within the app »
@@ -46,7 +100,7 @@ Il reste des actions manuelles dans App Store Connect + un rebuild EAS (voir §2
 | Produit | Identifiant | Chemin dans l'app |
 |---|---|---|
 | Premium futurs mariés (50 €, non consommable) | `com.oheve.wedding.couple.premium` | Compte futurs mariés → onglet **Profil** → carte **Oheve Premium** ([profile.tsx:689](MonApp/app/(app)/(tabs)/profile.tsx:689)) — ou **Plan de table** / **Site de mariage** → paywall → « Débloquer » |
-| Abonnement prestataire (39,99 €/mois, 3 mois offerts) | `com.oheve.wedding.presta.sub` | Compte **prestataire** → onglet **Profil** → **« Mon abonnement Oheve »** → « S'abonner » ([profile.tsx:551](MonApp/app/(app)/(tabs)/profile.tsx:551)) — ou bannière de l'accueil prestataire |
+| Abonnement prestataire (39,99 €/mois, 6 mois offerts — offre de lancement) | `com.oheve.wedding.presta.sub` | Compte **prestataire** → onglet **Profil** → **« Mon abonnement Oheve »** → « S'abonner » ([profile.tsx:551](MonApp/app/(app)/(tabs)/profile.tsx:551)) — ou bannière de l'accueil prestataire |
 
 Aucune restriction de storefront ni de device. iOS = StoreKit uniquement ; le formulaire
 carte Stripe n'est rendu que si `Platform.OS !== 'ios'`
@@ -76,7 +130,7 @@ IN-APP PURCHASES
 - com.oheve.wedding.couple.premium (non-consumable, EUR 50):
   log in with account 1 > "Profil" tab > "Oheve Premium" card > purchase button.
   Also reachable from "Plan de table" or "Site de mariage" (paywall sheet).
-- com.oheve.wedding.presta.sub (auto-renewable, EUR 39.99/month, 3 months free):
+- com.oheve.wedding.presta.sub (auto-renewable, EUR 39.99/month, 6 months free — launch offer):
   log in with account 2 > "Profil" tab > "Mon abonnement Oheve" > "S'abonner".
 No storefront, region or device restriction. Verified on iPad and iPhone.
 
@@ -126,7 +180,7 @@ OTP code sent by email. We have therefore created a second demo account:
     purchase button. It is also reachable from "Plan de table" or
     "Site de mariage", which open the premium sheet.
 
-  - com.oheve.wedding.presta.sub (auto-renewable, EUR 39.99/month, 3 months free)
+  - com.oheve.wedding.presta.sub (auto-renewable, EUR 39.99/month, 6 months free — launch offer)
     Log in with the VENDOR account > "Profil" tab > "Mon abonnement Oheve" >
     "S'abonner". The StoreKit sheet opens from there.
 
@@ -225,7 +279,7 @@ Autres corrections :
 | 1 | **Informations sur l'app → URL de politique de confidentialité** | `https://oheve.pages.dev/privacy` |
 | 2 | **Informations sur l'app → Contrat de licence utilisateur final (EULA)** | Coller l'URL `https://oheve.pages.dev/cgu` (ou le texte complet des CGU). Si le champ est vide, Apple applique son EULA standard — mais ici il faut le remplir. |
 | 3 | **Version 1.0 (ou 1.0.1) → Description** | Ajouter les 2 liens **en toutes lettres à la fin** (voir le texte à coller ci-dessous). C'est ce que cherche le contrôle d'Apple. |
-| 4 | **Monétisation → Abonnements → `com.oheve.wedding.presta.sub`** | Nom d'affichage FR = **« Oheve Prestataire — Abonnement mensuel »**, durée **1 mois**, prix **39,99 €**, offre d'introduction 3 mois offerts, description FR remplie, capture d'écran de review. |
+| 4 | **Monétisation → Abonnements → `com.oheve.wedding.presta.sub`** | Nom d'affichage FR = **« Oheve Prestataire — Abonnement mensuel »**, durée **1 mois**, prix **39,99 €**, offre d'introduction **6 mois offerts** (voir §0-sexies), description FR remplie, capture d'écran de review. |
 | 5 | **Informations sur la review → Notes** | Coller les identifiants du compte démo + la phrase indiquant où trouver les liens dans l'app (voir ci-dessous). |
 
 **Texte à ajouter à la fin de la description de l'app :**
@@ -233,7 +287,7 @@ Autres corrections :
 ```
 Oheve Premium (futurs mariés) : achat unique de 50 €, accès illimité, sans abonnement.
 Oheve Prestataire : abonnement de 39,99 €/mois, durée 1 mois renouvelable automatiquement,
-3 premiers mois offerts. Le paiement est débité sur le compte Apple à la confirmation
+6 premiers mois offerts (offre de lancement, 200 premiers prestataires). Le paiement est débité sur le compte Apple à la confirmation
 de l'achat. L'abonnement se renouvelle automatiquement sauf résiliation au moins 24 h
 avant la fin de la période en cours, dans Réglages → votre nom → Abonnements.
 
@@ -341,7 +395,7 @@ ordre de fréquence :
 |---|---|---|
 | 1 | **Entreprise → Accords, taxes et opérations bancaires** | Ligne « Applications payantes » = **Actif** (pas « En attente »). Coordonnées **bancaires** + **fiscales** (formulaires US) complétées. |
 | 2 | App Oheve → **Monétisation → Achats intégrés** | Un produit **Non consommable**, ID **exactement** `com.oheve.wedding.couple.premium`, statut **« Prêt à envoyer »**, prix 50 €, localisation FR remplie, **capture d'écran de review** ajoutée. |
-| 3 | App Oheve → **Monétisation → Abonnements** | Groupe créé, abonnement ID **exactement** `com.oheve.wedding.presta.sub`, statut **« Prêt à envoyer »**, durée 1 mois, prix 39,99 €, offre d'introduction *essai gratuit 3 mois*, localisation FR, capture d'écran. |
+| 3 | App Oheve → **Monétisation → Abonnements** | Groupe créé, abonnement ID **exactement** `com.oheve.wedding.presta.sub`, statut **« Prêt à envoyer »**, durée 1 mois, prix 39,99 €, offre d'introduction *essai gratuit 6 mois* (voir §0-sexies), localisation FR, capture d'écran. |
 | 4 | Page de la **version 1.0 (build 20)** | Section « Achats intégrés et abonnements » → **les 2 produits sont cochés/rattachés à la version**. Le tout premier IAP doit être soumis EN MÊME TEMPS que la version. |
 | 5 | Chaque produit | **Disponibilité** : tous les pays (au minimum la France + les États-Unis, le reviewer teste souvent depuis un compte US). |
 
@@ -492,7 +546,7 @@ automatique. URLs centralisées dans `constants/config.ts` (`LEGAL_URLS`).
    Conditions d'utilisation (EULA) : https://oheve.pages.dev/cgu
    Politique de confidentialité : https://oheve.pages.dev/privacy
 
-   L'abonnement Espace Prestataire (39,99 €/mois, 3 mois d'essai gratuit) se
+   L'abonnement Espace Prestataire (39,99 €/mois, 6 mois d'essai gratuit) se
    renouvelle automatiquement sauf annulation au moins 24 h avant la fin de la
    période. Le renouvellement est géré dans Réglages → Abonnements.
    ```
@@ -511,7 +565,7 @@ automatique. URLs centralisées dans `constants/config.ts` (`LEGAL_URLS`).
 ### ❌ Guideline 3.1.1 — Paiements (Stripe interdit pour le numérique sur iOS)
 - **iOS → Apple In-App Purchase** via `expo-iap` :
   - Premium couple 50 € (paiement unique) → produit **non-consommable** `com.oheve.wedding.couple.premium`
-  - Abonnement prestataire 39,99 €/mois (3 mois offerts) → **abonnement auto-renouvelable** `com.oheve.wedding.presta.sub`
+  - Abonnement prestataire 39,99 €/mois (6 mois offerts) → **abonnement auto-renouvelable** `com.oheve.wedding.presta.sub`
   - Boutons **« Restaurer mes achats »** ajoutés (exigé par Apple).
   - Prix affiché = prix localisé renvoyé par l'App Store.
 - **Android / web : Stripe conservé** (rien ne change).
@@ -554,13 +608,13 @@ Mon app Oheve → **Fonctionnalités → Achats intégrés** → ➕ :
   Description : `Site de mariage, faire-part, RSVP, plan de table, invités illimités.`
 - Capture d'écran de review : screenshot de l'écran Premium de l'app.
 
-### b) Abonnement prestataire — mensuel avec 3 mois offerts
+### b) Abonnement prestataire — mensuel avec 6 mois offerts
 Mon app Oheve → **Fonctionnalités → Abonnements** → créer un **groupe**
 `Oheve Prestataire` puis dedans ➕ :
 - Nom de référence : `Abonnement Prestataire Oheve`
 - **ID produit : `com.oheve.wedding.presta.sub`** (exactement)
 - Durée : **1 mois** — Prix : **39,99 €**
-- **Offre d'introduction** : type **Essai gratuit**, durée **3 mois**, pour tous les pays.
+- **Offre d'introduction** : type **Essai gratuit**, durée **6 mois** (offre de lancement — voir §0-sexies), pour tous les pays.
 - Localisation (français) — Nom : `Espace Prestataire` ;
   Description : `Visibilité dans le répertoire, messagerie, portfolio, calendrier.`
 
@@ -626,7 +680,7 @@ eas submit --platform ios
 
 Avant de tester l'achat en TestFlight : créer un **compte Sandbox** (App Store Connect →
 Utilisateurs et accès → Sandbox → Testeurs) et s'y connecter sur l'iPhone
-(Réglages → App Store → Compte sandbox). L'essai 3 mois sandbox dure ~quelques minutes
+(Réglages → App Store → Compte sandbox). L'essai 6 mois sandbox dure ~quelques minutes
 (durées accélérées), c'est normal.
 
 ### Notes pour App Review (à coller dans « Notes » de la version)
@@ -639,7 +693,7 @@ Nous avons corrigé les trois points du précédent rejet :
 1. Guideline 3.1.1 : Sur iOS, tous les contenus numériques passent désormais
    exclusivement par l'achat intégré Apple : « Oheve Premium »
    (com.oheve.wedding.couple.premium, non consommable) et l'abonnement prestataire
-   (com.oheve.wedding.presta.sub, auto-renouvelable avec 3 mois d'essai
+   (com.oheve.wedding.presta.sub, auto-renouvelable avec 6 mois d'essai
    gratuit). Un bouton « Restaurer mes achats » est présent. Le paiement Stripe
    restant dans l'app sert uniquement à régler des prestataires de mariage réels
    (traiteur, photographe, DJ…) : services physiques rendus hors de
@@ -670,7 +724,7 @@ Aujourd'hui l'app Android utilise encore Stripe → **risque de rejet Google Pla
 
 Bonne nouvelle : `expo-iap` gère aussi Google Play. Avant la soumission Android il faudra :
 1. Créer les produits équivalents dans la **Play Console** (produit intégré +
-   abonnement avec offre 3 mois gratuits).
+   abonnement avec offre 6 mois gratuits).
 2. Activer le flux IAP côté Android dans `premium.tsx` / `subscribe.tsx`
    (aujourd'hui volontairement limité à iOS).
 3. Ajouter la vérification des achats Google côté backend (`/api/iap/verify`).

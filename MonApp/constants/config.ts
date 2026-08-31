@@ -128,7 +128,7 @@ export const LEGAL_URLS = {
  */
 export const IAP_SKUS = {
   premium: 'com.oheve.wedding.couple.premium',        // non-consommable 50 €
-  prestaMonthly: 'com.oheve.wedding.presta.sub', // abonnement 39,99 €/mois (3 mois offerts)
+  prestaMonthly: 'com.oheve.wedding.presta.sub', // abonnement 39,99 €/mois (mois offerts = offre d'introduction ASC)
 } as const;
 
 export const API_ENDPOINTS = {
@@ -193,7 +193,8 @@ export const API_ENDPOINTS = {
   premiumStatus: `${API_BASE_URL}/api/premium/status`,
   // Achats Apple In-App Purchase (iOS — Guideline 3.1.1)
   iapVerify: `${API_BASE_URL}/api/iap/verify`,
-  // Abonnement Prestataire (39,99€/mois, 3 mois offerts)
+  // Abonnement Prestataire (39,99€/mois, 6 mois offerts aux 200 premiers)
+  prestaSubOffer: `${API_BASE_URL}/api/prestataire-subscription/offer`,
   prestaSubStart: `${API_BASE_URL}/api/prestataire-subscription/start`,
   prestaSubConfirm: `${API_BASE_URL}/api/prestataire-subscription/confirm`,
   prestaSubStatus: `${API_BASE_URL}/api/prestataire-subscription/status`,

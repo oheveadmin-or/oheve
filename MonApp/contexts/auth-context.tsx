@@ -35,7 +35,7 @@ export interface AuthUser {
   groom_name?: string;
   premium?: boolean;
   premium_purchased_at?: string;
-  // Abonnement prestataire (39€/mois, 3 mois offerts). Statut Stripe :
+  // Abonnement prestataire (39,99€/mois, 6 mois offerts aux 200 premiers). Statut Stripe :
   // 'incomplete' (CB pas encore validée) | 'trialing' | 'active' | 'past_due' | 'canceled'…
   presta_sub_status?: string;
   presta_trial_end?: string;

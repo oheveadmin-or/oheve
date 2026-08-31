@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
-import { requireAuth } from '../middleware/requireAuth';
+import { optionalAuth, requireAuth } from '../middleware/requireAuth';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2026-05-27.dahlia' as any });
 
@@ -13,8 +13,19 @@ export const prestataireSubscriptionRoutes = Router();
 
 // ── Constantes de l'offre ──────────────────────────────────────────────────
 const PRICE_CENTS = 3999;            // 39,99 €
-const TRIAL_DAYS = 90;               // 3 mois offerts
+const TRIAL_DAYS = 90;               // 3 mois offerts (offre standard)
 const CURRENCY = 'eur';
+
+// ── Offre de lancement ──────────────────────────────────────────────────────
+// Les 200 premiers prestataires qui activent leur espace bénéficient de 6 mois
+// offerts au lieu de 3. La place est consommée au démarrage de l'abonnement
+// (Stripe /start ou vérification de l'achat Apple) et n'est jamais rendue.
+// ⚠️ Sur iOS, la durée réellement offerte vient de l'offre d'introduction
+// configurée dans App Store Connect (StoreKit) : quand les 200 places sont
+// prises, il faut y repasser l'offre d'introduction de 6 à 3 mois — sinon
+// l'App Store continuera d'offrir 6 mois alors que l'app annonce 3.
+export const FOUNDER_LIMIT = 200;
+export const FOUNDER_TRIAL_DAYS = 180;  // 6 mois offerts
 const PRODUCT_ID = 'oheve_prestataire_sub';
 // ⚠️ Les prix Stripe sont immuables : changer PRICE_CENTS sans changer la clé
 // laisserait `prices.list` retrouver l'ancien tarif. Toute évolution du prix
@@ -33,6 +44,109 @@ export function isPrestaSubActive(status?: string | null): boolean {
 export function isAppleSub(subId?: string | null): boolean {
   return !!subId && subId.startsWith('apple:');
 }
+
+// ── Offre de lancement : attribution des 200 places ─────────────────────────
+
+const FOUNDER_LOCK_KEY = 815200;   // clé arbitraire du verrou consultatif
+
+/** Nombre de places fondateur déjà attribuées. */
+async function countFounders(): Promise<number> {
+  const row = (await pool.query(
+    `SELECT COUNT(*)::int AS n FROM users WHERE presta_founder_rank IS NOT NULL`
+  )).rows[0];
+  return row?.n ?? 0;
+}
+
+/**
+ * Attribue une place fondateur au user si le quota n'est pas atteint, et
+ * renvoie son rang (déjà attribué ou nouveau), ou null s'il n'y a plus de place.
+ *
+ * Le verrou consultatif sérialise les attributions concurrentes : sans lui,
+ * deux inscriptions simultanées pourraient lire le même compteur et distribuer
+ * la 201e place.
+ */
+export async function claimFounderRank(userId: number): Promise<number | null> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1)', [FOUNDER_LOCK_KEY]);
+
+    const existing = (await client.query(
+      `SELECT presta_founder_rank FROM users WHERE id=$1`, [userId]
+    )).rows[0];
+    if (existing?.presta_founder_rank) {
+      await client.query('COMMIT');
+      return existing.presta_founder_rank;
+    }
+
+    const taken = (await client.query(
+      `SELECT COUNT(*)::int AS n FROM users WHERE presta_founder_rank IS NOT NULL`
+    )).rows[0]?.n ?? 0;
+    if (taken >= FOUNDER_LIMIT) {
+      await client.query('COMMIT');
+      return null;
+    }
+
+    const rank = taken + 1;
+    await client.query(
+      `UPDATE users SET presta_founder_rank=$1 WHERE id=$2`, [rank, userId]
+    );
+    await client.query('COMMIT');
+    return rank;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('claimFounderRank:', (err as Error).message);
+    return null;   // best-effort : un échec ne doit pas casser la souscription
+  } finally {
+    client.release();
+  }
+}
+
+/** Nombre de jours d'essai auxquels ce user a droit (180 si fondateur). */
+async function trialDaysFor(userId: number): Promise<number> {
+  const row = (await pool.query(
+    `SELECT presta_founder_rank FROM users WHERE id=$1`, [userId]
+  )).rows[0];
+  return row?.presta_founder_rank ? FOUNDER_TRIAL_DAYS : TRIAL_DAYS;
+}
+
+// ── GET /offer ───────────────────────────────────────────────────────────────
+// Décrit l'offre en cours pour cet utilisateur : c'est l'app qui affiche
+// « 6 mois offerts » ou « 3 mois offerts » d'après cette réponse, jamais une
+// constante codée en dur dans l'écran. Lisible sans être connecté : l'écran
+// d'inscription annonce l'offre avant qu'un compte existe.
+prestataireSubscriptionRoutes.get('/offer', optionalAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.auth?.sub ?? null;
+    const row = userId
+      ? (await pool.query(
+          `SELECT presta_founder_rank FROM users WHERE id=$1`, [userId]
+        )).rows[0]
+      : null;
+    const taken = await countFounders();
+    const isFounder = !!row?.presta_founder_rank;
+    // Une place est déjà réservée pour un fondateur : l'offre lui reste acquise.
+    const founderOpen = isFounder || taken < FOUNDER_LIMIT;
+    const trialDays = founderOpen ? FOUNDER_TRIAL_DAYS : TRIAL_DAYS;
+
+    return res.json({
+      success: true,
+      data: {
+        founder_open: founderOpen,
+        is_founder: isFounder,
+        founder_rank: row?.presta_founder_rank ?? null,
+        founder_limit: FOUNDER_LIMIT,
+        founder_taken: taken,
+        founder_remaining: Math.max(0, FOUNDER_LIMIT - taken),
+        trial_days: trialDays,
+        trial_months: Math.round(trialDays / 30),
+        price_cents: PRICE_CENTS,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // ── Prix récurrent : réutilisé ou créé à la volée (aucune config dashboard) ──
 let _cachedPriceId: string | null = null;
@@ -139,7 +253,8 @@ export async function cancelStripeSubOnAccountDeletion(userId: number): Promise<
 }
 
 // ── POST /start ─────────────────────────────────────────────────────────────
-// Crée (ou reprend) l'abonnement avec 90 jours d'essai et renvoie le SetupIntent
+// Crée (ou reprend) l'abonnement avec l'essai dû (180 j pour les 200 premiers
+// prestataires, 90 j ensuite) et renvoie le SetupIntent
 // pour saisir la CB. Tant que la CB n'est pas validée via /confirm, on garde le
 // statut 'incomplete' (accès bloqué) même si Stripe considère déjà l'essai actif.
 prestataireSubscriptionRoutes.post('/start', requireAuth, async (req: Request, res: Response) => {
@@ -160,6 +275,10 @@ prestataireSubscriptionRoutes.post('/start', requireAuth, async (req: Request, r
 
     const customerId = await ensureCustomer(userId);
     const priceId = await getPriceId();
+    // Consomme une place de l'offre de lancement (sans effet si déjà fondateur
+    // ou si les 200 places sont prises) puis lit la durée d'essai qui en découle.
+    await claimFounderRank(userId);
+    const trialDays = await trialDaysFor(userId);
 
     // Réutiliser un abonnement déjà démarré (incomplete) plutôt que d'en empiler.
     let sub: StripeSub | null = null;
@@ -176,7 +295,7 @@ prestataireSubscriptionRoutes.post('/start', requireAuth, async (req: Request, r
       sub = await stripe.subscriptions.create({
         customer: customerId,
         items: [{ price: priceId }],
-        trial_period_days: TRIAL_DAYS,
+        trial_period_days: trialDays,
         payment_behavior: 'default_incomplete',
         payment_settings: { save_default_payment_method: 'on_subscription' },
         trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
@@ -203,7 +322,7 @@ prestataireSubscriptionRoutes.post('/start', requireAuth, async (req: Request, r
         subscription_id: sub.id,
         setup_client_secret: setupIntent.client_secret,
         customer_id: customerId,
-        trial_days: TRIAL_DAYS,
+        trial_days: trialDays,
         price_cents: PRICE_CENTS,
       },
     });

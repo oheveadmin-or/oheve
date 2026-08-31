@@ -65,7 +65,7 @@ const USERS_ADD_COLS = [
   // Les abonnements prestataire Apple sont stockés dans presta_sub_id sous la
   // forme 'apple:<originalTransactionId>'.
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_apple_transaction_id TEXT`,
-  // ── Abonnement Prestataire (39€/mois, 3 mois offerts) ──────────────────────
+  // ── Abonnement Prestataire (39,99€/mois, essai selon l'offre en cours) ─────
   // stripe_customer_id est partagé (client Stripe du user). presta_sub_* décrit
   // l'abonnement récurrent : status 'incomplete' = démarré sans CB validée,
   // 'trialing'/'active' = accès autorisé, 'past_due'/'canceled'/'unpaid' = bloqué.
@@ -74,6 +74,13 @@ const USERS_ADD_COLS = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_sub_status VARCHAR(30)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_trial_end TIMESTAMP WITH TIME ZONE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_current_period_end TIMESTAMP WITH TIME ZONE`,
+  // ── Offre de lancement : 6 mois offerts aux 200 premiers prestataires ──────
+  // Rang d'attribution (1..200). NULL = pas fondateur. Le rang est attribué au
+  // démarrage de l'abonnement (Stripe /start ou vérification de l'achat Apple)
+  // et n'est jamais réattribué : une place consommée l'est définitivement.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_founder_rank INTEGER`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_presta_founder_rank_idx
+     ON users (presta_founder_rank) WHERE presta_founder_rank IS NOT NULL`,
   // ── Réparation : comptes Apple créés avec l'id du relay comme nom ──────────
   // ("000416.fd0b…" affiché comme nom de profil). On vide pour laisser la place
   // aux prénoms des mariés saisis dans l'app.
@@ -504,6 +511,14 @@ export async function runMigrations(): Promise<void> {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_wedding_sites_slug ON wedding_sites(slug)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_wedding_sites_user ON wedding_sites(user_id)`);
+    // ── Clé d'accès privée : le site public n'est accessible qu'avec ?k=<clé>
+    // (impossible de tomber sur un site en devinant son slug) ────────────────
+    await pool.query(`ALTER TABLE wedding_sites ADD COLUMN IF NOT EXISTS access_key VARCHAR(64)`);
+    await pool.query(`
+      UPDATE wedding_sites
+      SET access_key = substr(md5(random()::text || clock_timestamp()::text || id::text), 1, 16)
+      WHERE access_key IS NULL OR access_key = ''
+    `);
 
     // ── Invités (synchro serveur : partagés entre appareils d'un même compte) ──
     await pool.query(`

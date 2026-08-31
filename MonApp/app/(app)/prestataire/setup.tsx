@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
+import { trialLabel, usePrestaOffer } from '@/lib/presta-offer';
 import { prestatairesApi, uploadFile } from '@/services/auth/api';
 
 // Taxonomie unifiée avec profile-edit.tsx et le répertoire côté client.
@@ -49,6 +50,7 @@ type SetupForm = {
 export default function PrestataireSetup() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const offer = usePrestaOffer();
 
   const [form, setForm] = useState<SetupForm>({
     business_name: '',
@@ -277,7 +279,7 @@ export default function PrestataireSetup() {
           )}
         </Pressable>
         <ThemedText style={styles.nextStepHint}>
-          Étape suivante : activation de votre espace (3 mois offerts)
+          Étape suivante : activation de votre espace ({trialLabel(offer)})
         </ThemedText>
       </ScrollView>
     </KeyboardAvoidingView>

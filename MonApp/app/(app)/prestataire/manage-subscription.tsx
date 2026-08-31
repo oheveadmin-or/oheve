@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { isPrestaSubActive, useAuth } from '@/contexts/auth-context';
+import { trialLabel, trialLabelLong, usePrestaOffer } from '@/lib/presta-offer';
 import { prestataireSubApi } from '@/services/auth/api';
 
 type SubStatus = {
@@ -33,6 +34,7 @@ function formatDate(iso?: string | null): string {
 export default function ManageSubscriptionScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const offer = usePrestaOffer();
   const [sub, setSub] = useState<SubStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -154,7 +156,7 @@ export default function ManageSubscriptionScreen() {
                       ? `Accès maintenu jusqu'au ${formatDate(periodEnd ?? trialEnd)}, puis résiliation.`
                       : 'Accès maintenu jusqu\'à la fin de la période en cours, puis résiliation.')
                   : isTrial
-                    ? `3 mois offerts${trialEnd ? ` — 1er prélèvement le ${formatDate(trialEnd)}` : ''}`
+                    ? `${trialLabel(offer)}${trialEnd ? ` — 1er prélèvement le ${formatDate(trialEnd)}` : ''}`
                     : active
                       ? `39,99 €/mois${periodEnd ? ` — prochain paiement le ${formatDate(periodEnd)}` : ''}`
                       : 'Réabonnez-vous pour retrouver votre espace professionnel.'}
@@ -210,7 +212,7 @@ export default function ManageSubscriptionScreen() {
               duration="1 mois, renouvelé automatiquement"
               price="39,99 € / mois"
               autoRenewing
-              extra="3 premiers mois offerts à la souscription."
+              extra={`${trialLabelLong(offer)} à la souscription.`}
             />
           </>
         )}

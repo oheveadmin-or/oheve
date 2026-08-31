@@ -2,13 +2,14 @@ import { Router, Request, Response } from 'express';
 import { Environment, SignedDataVerifier, VerificationException } from '@apple/app-store-server-library';
 import { pool } from '../config/database';
 import { requireAuth } from '../middleware/requireAuth';
+import { claimFounderRank } from '../prestataire-subscription';
 
 /**
  * Vérification des achats Apple In-App Purchase (Guideline 3.1.1).
  *
  * Sur iOS, le premium couple (50 €, non-consommable) et l'abonnement
- * prestataire (39,99 €/mois, 3 mois offerts) passent par StoreKit — Stripe est
- * interdit par Apple pour les biens numériques. L'app envoie le jeton JWS signé
+ * prestataire (39,99 €/mois, 6 mois offerts aux 200 premiers) passent par
+ * StoreKit — Stripe est interdit par Apple pour les biens numériques. L'app envoie le jeton JWS signé
  * par Apple (purchase.purchaseToken d'expo-iap) ; on vérifie ici la signature
  * (chaîne de certificats Apple), le bundleId et le produit avant d'accorder le
  * droit en BDD. Android / web restent sur Stripe.
@@ -163,10 +164,15 @@ iapRoutes.post('/verify', requireAuth, async (req: Request, res: Response) => {
       if (!expiresMs || expiresMs <= Date.now()) {
         return res.status(402).json({ success: false, message: 'Cet abonnement Apple est expiré.' });
       }
-      // offerType 1 = offre d'introduction (les 3 mois offerts) → 'trialing'
+      // offerType 1 = offre d'introduction (les mois offerts) → 'trialing'
       // pour garder le même affichage que le parcours Stripe.
       const isTrial = Number(tx.offerType) === 1;
       const expiresAt = new Date(expiresMs);
+      // Offre de lancement : la place fondateur est consommée dès la première
+      // vérification de l'abonnement. La durée réellement offerte, elle, vient
+      // de l'offre d'introduction App Store Connect (StoreKit) — le compteur
+      // sert à savoir quand y ramener l'offre de 6 à 3 mois.
+      if (isTrial) await claimFounderRank(userId);
       await pool.query(
         `UPDATE users SET
            presta_sub_id = $1,

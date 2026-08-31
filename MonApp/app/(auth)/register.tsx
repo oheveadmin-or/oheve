@@ -15,10 +15,13 @@ import { API_ENDPOINTS } from '@/constants/config';
 import { request } from '@/services/auth/api';
 import { useSocialAuth } from '@/hooks/use-social-auth';
 import { useAppleAuthAvailable } from '@/hooks/use-apple-auth-available';
+import { trialLabel, usePrestaOffer } from '@/lib/presta-offer';
 
 const ROLES: { key: UserRole; label: string; icon: string; desc: string; soon?: boolean }[] = [
   { key: 'client', label: 'Futur(e) marié(e)', icon: '💍', desc: 'Organise ton mariage' },
-  { key: 'prestataire', label: 'Prestataire', icon: '🏢', desc: '3 mois offerts puis 39,99€/mois' },
+  // desc de la carte Prestataire : rempli à l'affichage avec la durée d'essai
+  // réellement en cours (offre de lancement ou offre standard).
+  { key: 'prestataire', label: 'Prestataire', icon: '🏢', desc: '' },
   // Comptes Boutique pas encore ouverts : carte visible mais non sélectionnable.
   { key: 'boutique', label: 'Boutique', icon: '🛍️', desc: 'Bientôt disponible', soon: true },
 ];
@@ -28,6 +31,7 @@ const BOUTIQUE_SOON_TEXT =
   "Les comptes Boutique arrivent très bientôt sur Oheve. En attendant, créez un compte Marié·e ou Prestataire.";
 
 export default function RegisterScreen() {
+  const offer = usePrestaOffer();
   const [role, setRole] = useState<UserRole>('client');
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
@@ -172,7 +176,9 @@ export default function RegisterScreen() {
               >
                 <ThemedText style={styles.roleEmoji}>{r.icon}</ThemedText>
                 <ThemedText style={[styles.roleLabel, role === r.key && styles.roleLabelOn]}>{r.label}</ThemedText>
-                <ThemedText style={styles.roleDesc}>{r.desc}</ThemedText>
+                <ThemedText style={styles.roleDesc}>
+                  {r.key === 'prestataire' ? `${trialLabel(offer)} puis 39,99€/mois` : r.desc}
+                </ThemedText>
                 {r.soon && (
                   <View style={styles.soonBadge}>
                     <ThemedText style={styles.soonBadgeTxt}>Coming soon</ThemedText>

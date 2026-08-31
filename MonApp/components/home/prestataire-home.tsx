@@ -24,6 +24,7 @@ import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { isPrestaSubActive, useAuth } from '@/contexts/auth-context';
+import { trialLabel, usePrestaOffer } from '@/lib/presta-offer';
 import { messagingApi, prestatairesApi } from '@/services/auth/api';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -115,6 +116,7 @@ function StatCard({
 
 export function PrestataireHome() {
   const { user } = useAuth();
+  const offer = usePrestaOffer();
   const [profile, setProfile] = useState<PrestataireProfile | null>(null);
   const [portfolioPhotos, setPortfolioPhotos] = useState<{ id: number; url: string; is_cover: boolean }[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -212,7 +214,7 @@ export function PrestataireHome() {
             <View style={styles.subBannerTextWrap}>
               <ThemedText style={styles.subBannerTitle}>Profil non visible</ThemedText>
               <ThemedText style={styles.subBannerSub}>
-                Activez votre espace pour apparaître dans le répertoire — 3 mois offerts.
+                Activez votre espace pour apparaître dans le répertoire — {trialLabel(offer)}.
               </ThemedText>
             </View>
             <Pressable

@@ -188,7 +188,7 @@ Un seul compte par personne est autorisé. Toute utilisation frauduleuse entraî
 
 • Oheve Premium (futurs mariés) — achat unique de 50 €. Accès illimité dans le temps, sans abonnement ni renouvellement.
 
-• Oheve Prestataire — abonnement mensuel de 39,99 € par mois, d'une durée d'un (1) mois renouvelable, avec les 3 premiers mois offerts.`}
+• Oheve Prestataire — abonnement mensuel de 39,99 € par mois, d'une durée d'un (1) mois renouvelable. Offre de lancement : les 200 premiers prestataires qui activent leur espace bénéficient des 6 premiers mois offerts ; passé ces 200 activations, les 3 premiers mois sont offerts. La durée offerte est indiquée sur l'écran d'abonnement avant tout paiement.`}
       </Section>
 
       <Section title="5. Renouvellement automatique et résiliation">

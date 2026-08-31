@@ -16,6 +16,9 @@ import {
   describeIapError, getIapSdk, iapAvailable, IAP_UNAVAILABLE_MESSAGE,
   loadIapProduct, type IapProductState,
 } from '@/lib/iap';
+import {
+  trialLabel, trialLabelLong, usePrestaOffer, type PrestaOffer,
+} from '@/lib/presta-offer';
 import { iapApi, prestataireSubApi } from '@/services/auth/api';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
@@ -30,7 +33,7 @@ const FEATURES = [
 ];
 
 // ── Blocs partagés (hero, prix, features) ────────────────────────────────────
-function SubscribeHero({ priceLabel }: { priceLabel: string }) {
+function SubscribeHero({ priceLabel, offer }: { priceLabel: string; offer: PrestaOffer }) {
   return (
     <>
       {/* Hero */}
@@ -42,18 +45,31 @@ function SubscribeHero({ priceLabel }: { priceLabel: string }) {
         <ThemedText style={styles.heroSub}>Accès complet à votre espace professionnel</ThemedText>
       </View>
 
+      {/* Offre de lancement : annoncée seulement tant qu'il reste des places. */}
+      {offer.founderOpen ? (
+        <View style={styles.launchBanner}>
+          <Ionicons name="sparkles" size={15} color={C.saugeDark} />
+          <ThemedText style={styles.launchTxt}>
+            Offre de lancement — {trialLabelLong(offer)} pour les {offer.limit} premiers
+            prestataires{offer.isFounder ? ' · votre place est réservée'
+              : offer.remaining > 0 ? ` · il reste ${offer.remaining} places` : ''}
+          </ThemedText>
+        </View>
+      ) : null}
+
       {/* Prix */}
       <View style={styles.priceCard}>
         <View style={styles.freeBadge}>
           <Ionicons name="gift-outline" size={16} color={C.saugeDark} />
-          <ThemedText style={styles.freeTxt}>3 premiers mois offerts</ThemedText>
+          <ThemedText style={styles.freeTxt}>{trialLabelLong(offer)}</ThemedText>
         </View>
         <View style={styles.priceRow}>
           <ThemedText style={styles.price}>{priceLabel}</ThemedText>
           <ThemedText style={styles.priceNote}>/ mois</ThemedText>
         </View>
         <ThemedText style={styles.priceDesc}>
-          Aucun prélèvement pendant 3 mois. Ensuite {priceLabel}/mois, sans engagement — annulable à tout moment.
+          Aucun prélèvement pendant {offer.trialMonths} mois. Ensuite {priceLabel}/mois, sans
+          engagement — annulable à tout moment.
         </ThemedText>
       </View>
 
@@ -78,14 +94,14 @@ function SubscribeHero({ priceLabel }: { priceLabel: string }) {
  * Conditions d'utilisation (EULA) et la politique de confidentialité
  * (Apple Guideline 3.1.2).
  */
-function SubscribeLegal({ priceLabel }: { priceLabel: string }) {
+function SubscribeLegal({ priceLabel, offer }: { priceLabel: string; offer: PrestaOffer }) {
   return (
     <PurchaseLegal
       productTitle="Oheve Prestataire — Abonnement mensuel"
       duration="1 mois, renouvelé automatiquement"
       price={`${priceLabel} / mois`}
       autoRenewing
-      extra={`3 premiers mois offerts, puis ${priceLabel} par mois. Sans engagement : résiliable à tout moment.`}
+      extra={`${trialLabelLong(offer)}, puis ${priceLabel} par mois. Sans engagement : résiliable à tout moment.`}
     />
   );
 }
@@ -115,6 +131,7 @@ function SkipLater() {
 function SubscribeIos() {
   const insets = useSafeAreaInsets();
   const { user, updateUser } = useAuth();
+  const offer = usePrestaOffer();
   const [submitting, setSubmitting] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [product, setProduct] = useState<{ id: string; displayPrice?: string } | null>(null);
@@ -152,7 +169,7 @@ function SubscribeIos() {
           await finishTransaction({ purchase, isConsumable: false });
           Alert.alert(
             '🎉 Bienvenue !',
-            'Vos 3 premiers mois sont offerts. Le renouvellement est géré par l\'App Store — annulable à tout moment dans Réglages → Abonnements.',
+            `Vos ${offer.trialMonths} premiers mois sont offerts. Le renouvellement est géré par l'App Store — annulable à tout moment dans Réglages → Abonnements.`,
             [{ text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') }],
           );
         }
@@ -250,7 +267,7 @@ function SubscribeIos() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
       >
-        <SubscribeHero priceLabel={priceLabel} />
+        <SubscribeHero priceLabel={priceLabel} offer={offer} />
 
         <Pressable
           style={[styles.cta, (submitting || storeState !== 'ready') && styles.ctaOff]}
@@ -262,7 +279,7 @@ function SubscribeIos() {
           ) : (
             <View style={styles.ctaInner}>
               <Ionicons name="lock-closed" size={16} color="#fff" />
-              <ThemedText style={styles.ctaTxt}>Activer — 3 mois offerts</ThemedText>
+              <ThemedText style={styles.ctaTxt}>Activer — {trialLabel(offer)}</ThemedText>
             </View>
           )}
         </Pressable>
@@ -295,7 +312,7 @@ function SubscribeIos() {
 
         <SkipLater />
 
-        <SubscribeLegal priceLabel={priceLabel} />
+        <SubscribeLegal priceLabel={priceLabel} offer={offer} />
       </ScrollView>
     </View>
   );
@@ -304,10 +321,11 @@ function SubscribeIos() {
 // ── Vieux binaire iOS sans StoreKit : demander la mise à jour ────────────────
 function SubscribeIosUpdateRequired() {
   const insets = useSafeAreaInsets();
+  const offer = usePrestaOffer();
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
-        <SubscribeHero priceLabel="39,99 €" />
+        <SubscribeHero priceLabel="39,99 €" offer={offer} />
         <View style={styles.errorCard}>
           <Ionicons name="cloud-download-outline" size={26} color={C.saugeDark} />
           <ThemedText style={styles.errorTitle}>Mise à jour requise</ThemedText>
@@ -318,7 +336,7 @@ function SubscribeIosUpdateRequired() {
 
         <SkipLater />
 
-        <SubscribeLegal priceLabel="39,99 €" />
+        <SubscribeLegal priceLabel="39,99 €" offer={offer} />
       </ScrollView>
     </View>
   );
@@ -328,6 +346,7 @@ function SubscribeIosUpdateRequired() {
 function SubscribeForm() {
   const insets = useSafeAreaInsets();
   const { user, updateUser } = useAuth();
+  const offer = usePrestaOffer();
   const { confirmSetupIntent, loading } = useConfirmSetupIntent();
 
   const [initializing, setInitializing] = useState(true);
@@ -395,7 +414,7 @@ function SubscribeForm() {
       });
       Alert.alert(
         '🎉 Bienvenue !',
-        'Vos 3 premiers mois sont offerts. Vous ne serez prélevé de 39,99 €/mois qu\'à la fin de l\'essai — annulable à tout moment.',
+        `Vos ${offer.trialMonths} premiers mois sont offerts. Vous ne serez prélevé de 39,99 €/mois qu'à la fin de l'essai — annulable à tout moment.`,
         [{ text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') }],
       );
     } catch {
@@ -423,7 +442,7 @@ function SubscribeForm() {
         // Remonte le champ carte / bouton au-dessus du clavier (iOS)
         automaticallyAdjustKeyboardInsets
       >
-        <SubscribeHero priceLabel="39,99 €" />
+        <SubscribeHero priceLabel="39,99 €" offer={offer} />
 
         {startError ? (
           /* start() a échoué : on ne montre pas un formulaire mort, mais un
@@ -455,7 +474,7 @@ function SubscribeForm() {
               onCardChange={(card) => setCardComplete(card.complete)}
             />
             <ThemedText style={styles.hint}>
-              Nécessaire pour activer l'essai. Rien n'est prélevé avant la fin des 3 mois.
+              Nécessaire pour activer l'essai. Rien n'est prélevé avant la fin des {offer.trialMonths} mois.
             </ThemedText>
 
             <Pressable
@@ -468,7 +487,7 @@ function SubscribeForm() {
               ) : (
                 <View style={styles.ctaInner}>
                   <Ionicons name="lock-closed" size={16} color="#fff" />
-                  <ThemedText style={styles.ctaTxt}>Activer — 3 mois offerts</ThemedText>
+                  <ThemedText style={styles.ctaTxt}>Activer — {trialLabel(offer)}</ThemedText>
                 </View>
               )}
             </Pressable>
@@ -480,7 +499,7 @@ function SubscribeForm() {
 
             <SkipLater />
 
-            <SubscribeLegal priceLabel="39,99 €" />
+            <SubscribeLegal priceLabel="39,99 €" offer={offer} />
           </>
         )}
       </ScrollView>
@@ -511,6 +530,14 @@ const styles = StyleSheet.create({
   badgeTxt: { color: '#fff', fontWeight: '800', fontSize: 11, letterSpacing: 1.5 },
   heroTitle: { fontSize: 25, fontWeight: '800', color: C.textDark, textAlign: 'center', lineHeight: 31 },
   heroSub: { fontSize: 14, color: C.textLight, textAlign: 'center' },
+
+  launchBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: C.saugePale, borderRadius: RADIUS.md,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: C.sauge,
+  },
+  launchTxt: { flex: 1, fontSize: 12.5, fontWeight: '600', color: C.saugeDark, lineHeight: 18 },
 
   priceCard: {
     backgroundColor: C.saugePale, borderRadius: RADIUS.lg, padding: 20,
