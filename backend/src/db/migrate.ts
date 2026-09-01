@@ -75,9 +75,9 @@ const USERS_ADD_COLS = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_trial_end TIMESTAMP WITH TIME ZONE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_current_period_end TIMESTAMP WITH TIME ZONE`,
   // ── Offre de lancement : 6 mois offerts aux 200 premiers prestataires ──────
-  // Rang d'attribution (1..200). NULL = pas fondateur. Le rang est attribué au
-  // démarrage de l'abonnement (Stripe /start ou vérification de l'achat Apple)
-  // et n'est jamais réattribué : une place consommée l'est définitivement.
+  // Rang d'attribution (1..200). NULL = pas fondateur. Le rang est attribué à la
+  // souscription réelle (carte validée via /confirm, ou achat Apple vérifié) et
+  // n'est jamais réattribué : une place consommée l'est définitivement.
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS presta_founder_rank INTEGER`,
   `CREATE UNIQUE INDEX IF NOT EXISTS users_presta_founder_rank_idx
      ON users (presta_founder_rank) WHERE presta_founder_rank IS NOT NULL`,

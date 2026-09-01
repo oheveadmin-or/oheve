@@ -16,7 +16,7 @@ au-delà, retour à 3 mois.
 | Où | Quoi |
 |---|---|
 | [migrate.ts](backend/src/db/migrate.ts) | colonne `users.presta_founder_rank` (rang 1→200, unique) |
-| [prestataire-subscription](backend/src/prestataire-subscription/index.ts) | `FOUNDER_LIMIT=200`, `FOUNDER_TRIAL_DAYS=180`, attribution des places sous verrou, route **`GET /api/prestataire-subscription/offer`** |
+| [prestataire-subscription](backend/src/prestataire-subscription/index.ts) | `FOUNDER_LIMIT=200`, `FOUNDER_TRIAL_DAYS=180`, attribution des places sous verrou **à la souscription réelle** (carte validée, pas à l'ouverture de l'écran), route **`GET /api/prestataire-subscription/offer`** |
 | [iap](backend/src/iap/index.ts) | la place fondateur est consommée aussi quand l'abonnement vient de l'App Store |
 | [presta-offer.ts](MonApp/lib/presta-offer.ts) | hook `usePrestaOffer()` : **aucun écran n'écrit « 6 mois » en dur**, tout vient du serveur |
 | écrans | abonnement, gestion d'abonnement, setup fiche, accueil presta, inscription, CGU |
