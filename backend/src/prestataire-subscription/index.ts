@@ -102,12 +102,20 @@ export async function claimFounderRank(userId: number): Promise<number | null> {
   }
 }
 
-/** Nombre de jours d'essai auxquels ce user a droit (180 si fondateur). */
+/**
+ * Nombre de jours d'essai auxquels ce user a droit, SANS consommer de place :
+ * 180 s'il est déjà fondateur ou s'il reste des places au moment de l'appel.
+ *
+ * La place n'est prise qu'une fois l'abonnement réellement souscrit (carte
+ * validée via /confirm, ou achat Apple vérifié) : sinon un prestataire qui
+ * ouvre l'écran d'abonnement puis abandonne brûlerait une des 200 places.
+ */
 async function trialDaysFor(userId: number): Promise<number> {
   const row = (await pool.query(
     `SELECT presta_founder_rank FROM users WHERE id=$1`, [userId]
   )).rows[0];
-  return row?.presta_founder_rank ? FOUNDER_TRIAL_DAYS : TRIAL_DAYS;
+  if (row?.presta_founder_rank) return FOUNDER_TRIAL_DAYS;
+  return (await countFounders()) < FOUNDER_LIMIT ? FOUNDER_TRIAL_DAYS : TRIAL_DAYS;
 }
 
 // ── GET /offer ───────────────────────────────────────────────────────────────
@@ -275,9 +283,8 @@ prestataireSubscriptionRoutes.post('/start', requireAuth, async (req: Request, r
 
     const customerId = await ensureCustomer(userId);
     const priceId = await getPriceId();
-    // Consomme une place de l'offre de lancement (sans effet si déjà fondateur
-    // ou si les 200 places sont prises) puis lit la durée d'essai qui en découle.
-    await claimFounderRank(userId);
+    // Durée d'essai due à ce compte. La place fondateur n'est PAS consommée
+    // ici : elle l'est dans /confirm, une fois la carte validée.
     const trialDays = await trialDaysFor(userId);
 
     // Réutiliser un abonnement déjà démarré (incomplete) plutôt que d'en empiler.
@@ -374,6 +381,11 @@ prestataireSubscriptionRoutes.post('/confirm', requireAuth, async (req: Request,
     await stripe.customers.update(customerId, {
       invoice_settings: { default_payment_method: paymentMethodId },
     });
+
+    // Abonnement réellement souscrit : c'est maintenant, et pas avant, que la
+    // place de l'offre de lancement est consommée. Sans effet si le quota est
+    // atteint entre-temps — l'essai déjà accordé par Stripe reste acquis.
+    await claimFounderRank(userId);
 
     const fresh = await stripe.subscriptions.retrieve(subscriptionId);
     await syncPrestaSubscription(fresh);
