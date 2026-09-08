@@ -454,10 +454,13 @@ export class CalendarRepository {
     };
   }
 
+  // « Rendez-vous » sur l'accueil : inclut les RDV prestataires ET les
+  // événements créés à la main dans le calendrier (type 'event'), sinon la
+  // carte restait vide alors que l'agenda contient des entrées.
   async countUpcomingAppointments(userId: number): Promise<number> {
     const r = await pool.query<{ count: string }>(
       `SELECT COUNT(*)::text AS count FROM calendar_events
-       WHERE user_id = $1 AND type = 'appointment'
+       WHERE user_id = $1 AND type IN ('appointment', 'event')
          AND (event_date IS NULL OR event_date >= CURRENT_DATE)`,
       [userId],
     );
@@ -467,7 +470,7 @@ export class CalendarRepository {
   async listUpcomingAppointments(userId: number, limit = 3): Promise<CalendarEventRow[]> {
     const r = await pool.query<CalendarEventRow>(
       `SELECT * FROM calendar_events
-       WHERE user_id = $1 AND type = 'appointment'
+       WHERE user_id = $1 AND type IN ('appointment', 'event')
          AND event_date IS NOT NULL AND event_date >= CURRENT_DATE
        ORDER BY event_date, event_time NULLS LAST
        LIMIT $2`,

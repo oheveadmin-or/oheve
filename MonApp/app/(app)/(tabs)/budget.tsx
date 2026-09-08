@@ -239,7 +239,7 @@ export default function BudgetScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.catTopRow}>
-                    <ThemedText style={styles.catLabel}>{cat.label}</ThemedText>
+                    <ThemedText style={styles.catLabel} numberOfLines={1}>{cat.label}</ThemedText>
                     <View style={styles.catAmounts}>
                       <ThemedText style={[styles.catSpent, spent > 0 && { color: STATUS_COLOR[status] }]}>
                         {euro(spent)}
@@ -433,7 +433,7 @@ export default function BudgetScreen() {
                         <ThemedText style={{ fontSize: 20 }}>{cat.icon}</ThemedText>
                         <View style={{ flex: 1, marginLeft: 10 }}>
                           <View style={styles.catTopRow}>
-                            <ThemedText style={styles.catLabel}>{cat.label}</ThemedText>
+                            <ThemedText style={styles.catLabel} numberOfLines={1}>{cat.label}</ThemedText>
                             <ThemedText style={[styles.catSpent, { color: spent > 0 ? STATUS_COLOR[status] : C.textLight }]}>
                               {euro(spent)}
                             </ThemedText>
@@ -625,8 +625,9 @@ const styles = StyleSheet.create({
     position: 'absolute', left: 0, top: 0, bottom: 0,
     backgroundColor: '#D4A853', borderRadius: 5,
   },
-  payLegend: { flexDirection: 'row', gap: 14 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  // flexWrap : deux gros montants (ex. 50 000 €) débordaient sur écran étroit
+  payLegend: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendTxt: { fontSize: 11, color: C.textMid, fontWeight: '500' },
   remainingPay: { fontSize: 12, color: '#C0503A', fontWeight: '600' },
@@ -646,7 +647,7 @@ const styles = StyleSheet.create({
   catIcon: { fontSize: 17 },
   catTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   catLabel: { fontSize: 13, fontWeight: '600', color: C.textDark, flex: 1 },
-  catAmounts: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  catAmounts: { flexDirection: 'row', alignItems: 'baseline', gap: 2, flexShrink: 0 },
   catSpent: { fontSize: 13, fontWeight: '700', color: C.textMid },
   catPlanned: { fontSize: 10, color: C.textLight },
   miniTrack: { height: 3, borderRadius: 2, backgroundColor: C.saugePale, overflow: 'hidden' },

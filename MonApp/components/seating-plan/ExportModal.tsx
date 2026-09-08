@@ -91,17 +91,18 @@ const th = StyleSheet.create({
     borderWidth: 1.5, borderColor: 'transparent', padding: 3,
   },
   card: {
-    height: 108, borderRadius: 6, borderWidth: 1,
-    overflow: 'hidden', alignItems: 'center', position: 'relative',
+    height: 150, borderRadius: 8, borderWidth: 1,
+    overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+    position: 'relative', paddingHorizontal: 10,
   },
-  topBand: { width: '100%', height: 5, opacity: 0.7 },
+  topBand: { position: 'absolute', top: 0, left: 0, right: 0, height: 6, opacity: 0.7 },
   num: {
-    fontSize: 22, fontWeight: '700', marginTop: 4, lineHeight: 26,
+    fontSize: 40, fontWeight: '700', lineHeight: 46,
     fontFamily: 'serif',
   },
-  symbol: { fontSize: 10, marginTop: 0, opacity: 0.6 },
-  lines: { marginTop: 5, width: '80%' },
-  line: { height: 2, borderRadius: 1, marginBottom: 3 },
+  symbol: { fontSize: 14, marginTop: 2, opacity: 0.6 },
+  lines: { marginTop: 12, width: '86%' },
+  line: { height: 2.5, borderRadius: 1.5, marginBottom: 5, alignSelf: 'center' },
   badge: {
     position: 'absolute', top: 4, right: 4,
     width: 14, height: 14, borderRadius: 7,
@@ -114,8 +115,8 @@ const th = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   label: {
-    fontSize: 10, color: C.textMid, fontWeight: '500',
-    textAlign: 'center', marginTop: 4, lineHeight: 13,
+    fontSize: 11.5, color: C.textMid, fontWeight: '500',
+    textAlign: 'center', marginTop: 6, lineHeight: 15,
   },
 });
 

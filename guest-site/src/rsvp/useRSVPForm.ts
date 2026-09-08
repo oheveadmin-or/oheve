@@ -37,6 +37,12 @@ export function useRSVPBundle(slug: string | undefined) {
       }
       setSite(ws);
       setForm(ws.rsvpForm ?? createDefaultRSVPForm(ws.id));
+    } catch (e) {
+      // Sans catch, un site privé (403) remontait en rejet non géré et la page
+      // affichait « Mini-site introuvable » au lieu du vrai motif du blocage.
+      setErr((e as Error).message || 'Impossible de charger ce mini-site.');
+      setSite(null);
+      setForm(null);
     } finally {
       setLoading(false);
     }

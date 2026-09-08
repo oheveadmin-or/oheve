@@ -6,11 +6,16 @@ import { adaptPhotoWithGemini, buildAdaptPrompt, isPhotoAIEnabled } from './phot
 import { signBuilderToken } from '../auth/jwt';
 import { reconcilePremiumFromStripe } from '../premium';
 
-function rowToSite(row: Awaited<ReturnType<typeof weddingSitesRepo.findBySlug>>) {
+function rowToSite(
+  row: Awaited<ReturnType<typeof weddingSitesRepo.findBySlug>>,
+  opts: { includeAccessKey?: boolean } = {},
+) {
   if (!row) return null;
   return {
     id: row.id,
     slug: row.slug,
+    // Clé privée : uniquement pour le propriétaire (jamais pour un visiteur)
+    ...(opts.includeAccessKey ? { accessKey: row.access_key ?? null } : {}),
     coupleName: row.couple_name,
     groomName: row.groom_name,
     brideName: row.bride_name,
@@ -36,7 +41,7 @@ export async function getMySites(req: Request, res: Response): Promise<void> {
     const userId = req.auth?.sub;
     if (!userId) { res.status(401).json({ success: false, message: 'Authentification requise' }); return; }
     const rows = await weddingSitesRepo.findByUserId(userId);
-    res.json({ success: true, data: rows.map(rowToSite) });
+    res.json({ success: true, data: rows.map((r) => rowToSite(r, { includeAccessKey: true })) });
   } catch (err) {
     console.error('getMySites:', err);
     res.status(500).json({ success: false });
@@ -89,7 +94,30 @@ export async function getWeddingSiteBySlug(req: Request, res: Response): Promise
       return;
     }
 
-    res.json({ success: true, data: rowToSite(row) });
+    // Accès privé : impossible de consulter un site en devinant son slug.
+    // Il faut la clé partagée par les mariés (?k=<access_key>) ou un token
+    // d'invitation du site. Le propriétaire authentifié passe sans clé.
+    if (!isOwner) {
+      const providedKey = String(req.query.k ?? '').trim();
+      const inviteTokens = Array.isArray(row.invite_links)
+        ? (row.invite_links as { token?: unknown }[])
+            .map((l) => String(l?.token ?? '').trim())
+            .filter(Boolean)
+        : [];
+      const keyOk =
+        (!!row.access_key && providedKey === row.access_key) ||
+        (!!providedKey && inviteTokens.includes(providedKey));
+      if (!keyOk) {
+        res.status(403).json({
+          success: false,
+          code: 'PRIVATE_LINK_REQUIRED',
+          message: "Ce site de mariage est privé. Utilisez le lien d'invitation transmis par les mariés pour y accéder.",
+        });
+        return;
+      }
+    }
+
+    res.json({ success: true, data: rowToSite(row, { includeAccessKey: isOwner }) });
   } catch (err) {
     console.error('getWeddingSiteBySlug:', err);
     res.status(500).json({ success: false });
@@ -150,7 +178,7 @@ export async function createWeddingSite(req: Request, res: Response): Promise<vo
       inviteLinks: b.inviteLinks ?? [],
     });
 
-    res.status(201).json({ success: true, data: rowToSite(row) });
+    res.status(201).json({ success: true, data: rowToSite(row, { includeAccessKey: true }) });
   } catch (err) {
     console.error('createWeddingSite:', err);
     res.status(500).json({ success: false });
@@ -272,7 +300,7 @@ export async function updateWeddingSite(req: Request, res: Response): Promise<vo
     });
 
     if (!row) { res.status(404).json({ success: false }); return; }
-    res.json({ success: true, data: rowToSite(row) });
+    res.json({ success: true, data: rowToSite(row, { includeAccessKey: true }) });
   } catch (err) {
     console.error('updateWeddingSite:', err);
     res.status(500).json({ success: false });

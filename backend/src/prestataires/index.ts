@@ -4,6 +4,7 @@ import multer from 'multer';
 
 import { optionalAuth, requireAuth } from '../middleware/requireAuth';
 import { optimizeUploadedImage } from '../utils/image-optim';
+import { optimizeUploadedVideo } from '../utils/video-optim';
 import { PrestatairesController } from './controller';
 import { PhotosController } from './photos.controller';
 
@@ -49,7 +50,7 @@ prestatairesRoutes.get('/feed/photos', optionalAuth, photos.getFeedPhotos.bind(p
 
 // ── Photos (me) ───────────────────────────────────────────────────────────────
 prestatairesRoutes.get('/me/photos', requireAuth, photos.getMyPhotos.bind(photos));
-prestatairesRoutes.post('/me/photos', requireAuth, upload.single('photo'), optimizeUploadedImage(), photos.uploadPhoto.bind(photos));
+prestatairesRoutes.post('/me/photos', requireAuth, upload.single('photo'), optimizeUploadedImage(), optimizeUploadedVideo(), photos.uploadPhoto.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/cover', requireAuth, photos.setCover.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/caption', requireAuth, photos.updateCaption.bind(photos));
 prestatairesRoutes.delete('/me/photos/:photoId', requireAuth, photos.deletePhoto.bind(photos));

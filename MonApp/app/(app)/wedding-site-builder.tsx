@@ -250,6 +250,7 @@ function WeddingSiteBuilderContent() {
       // Try slug, retry with suffix on conflict
       let createdSlug = '';
       let createdId = '';
+      let createdKey = '';
       for (let attempt = 0; attempt < 5; attempt++) {
         const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt}`;
         const res = await fetch(API_ENDPOINTS.weddingSites, {
@@ -258,16 +259,18 @@ function WeddingSiteBuilderContent() {
           body: JSON.stringify({ ...body, slug }),
         });
         if (res.status === 409) continue;
-        const json = await res.json() as { success: boolean; data?: { id: string; slug: string }; message?: string };
+        const json = await res.json() as { success: boolean; data?: { id: string; slug: string; accessKey?: string | null }; message?: string };
         if (!res.ok || !json.success || !json.data) throw new Error(json.message ?? 'Erreur création site');
         createdSlug = json.data.slug;
         createdId = json.data.id;
+        createdKey = json.data.accessKey ?? '';
         break;
       }
       if (!createdSlug) throw new Error('Slug déjà utilisé — change les prénoms ou réessaie.');
 
       setPublishedSlug(createdSlug);
-      setPublishedUrl(`${API_ENDPOINTS.weddingSitePublicBase}/${createdSlug}`);
+      // Lien privé : la clé ?k= est indispensable pour que les invités accèdent au site
+      setPublishedUrl(`${API_ENDPOINTS.weddingSitePublicBase}/${createdSlug}${createdKey ? `?k=${createdKey}` : ''}`);
       setFinalLinks(generatedLinks);
     } catch (e) {
       Alert.alert('Erreur', (e as Error).message);

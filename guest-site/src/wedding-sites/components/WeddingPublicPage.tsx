@@ -1,19 +1,25 @@
 import type { CSSProperties } from 'react';
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import { mapLegacyPublicSiteToWeddingSite, type LegacyPublicPayload } from '../utils/legacyPublicSite';
 import { publicSitesFetchUrl } from '../utils/publicApiUrl';
-import { getWeddingSiteBySlug } from '../services/weddingSiteService';
+import { getWeddingSiteBySlug, setSiteAccessKey } from '../services/weddingSiteService';
 import type { WeddingSite } from '../types';
 import { defaultWeddingSections, defaultWeddingTheme } from '../types';
 import { getTemplateByTheme } from '../utils/template-selector';
 
 export function WeddingPublicPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
   const [site, setSite] = useState<WeddingSite | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Clé privée du site : arrive via ?k= dans le lien partagé aux invités.
+  // Captée avant le fetch (et mémorisée pour les navigations internes → /rsvp).
+  const accessKey = searchParams.get('k');
+  if (accessKey) setSiteAccessKey(accessKey);
 
   useEffect(() => {
     const s = slug ?? '';

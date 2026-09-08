@@ -27,6 +27,8 @@ import { rsvpRoutes } from './rsvp/rsvp.routes';
 import { healthRoutes } from './routes/health.routes';
 import { subscriptionRoutes } from './subscriptions';
 import { optimizeExistingUploads } from './utils/image-optim';
+import { optimizeExistingVideos } from './utils/video-optim';
+import { PhotosRepository } from './prestataires/photos.repository';
 import { prestataireSubscriptionRoutes } from './prestataire-subscription';
 import { premiumRoutes } from './premium';
 import { iapRoutes } from './iap';
@@ -182,6 +184,13 @@ runMigrations()
     optimizeExistingUploads().catch(err => {
       logger.warn({ err }, 'Recompression des uploads existants échouée');
     });
+    // Même chose pour les vidéos déjà en ligne : elles ont leur index `moov` en
+    // fin de fichier et mettent plusieurs secondes à démarrer dans le feed.
+    const photosRepo = new PhotosRepository();
+    optimizeExistingVideos((oldName, newName) => photosRepo.renameFilename(oldName, newName))
+      .catch(err => {
+        logger.warn({ err }, 'Optimisation des vidéos existantes échouée');
+      });
   })
   .catch(err => {
     logger.error({ err }, 'Migrations failed');

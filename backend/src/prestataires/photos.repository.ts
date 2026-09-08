@@ -42,6 +42,18 @@ export class PhotosRepository {
     return r.rows[0] as PhotoRow;
   }
 
+  /**
+   * Suit le renommage d'un fichier sur le disque (`.mov` → `.mp4` après
+   * optimisation vidéo). Les URLs servies sont construites à partir de
+   * `filename` : sans cette mise à jour, la vidéo deviendrait un 404.
+   */
+  async renameFilename(oldName: string, newName: string): Promise<void> {
+    await pool.query(
+      `UPDATE prestataire_photos SET filename=$1 WHERE filename=$2`,
+      [newName, oldName]
+    );
+  }
+
   async updateCaption(prestataireId: number, photoId: number, caption: string): Promise<PhotoRow | null> {
     const r = await pool.query(
       `UPDATE prestataire_photos SET caption=$1 WHERE id=$2 AND prestataire_id=$3 RETURNING *`,

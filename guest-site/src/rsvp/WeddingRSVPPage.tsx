@@ -6,10 +6,16 @@ import { WeddingRSVPForm } from './WeddingRSVPForm';
 import { createDefaultRSVPForm } from './types';
 
 import { useRSVPBundle } from './useRSVPForm';
+import { setSiteAccessKey } from '../wedding-sites/services/weddingSiteService';
 
 export function WeddingRSVPPage() {
   const { slug, token } = useParams<{ slug: string; token?: string }>();
   const [searchParams] = useSearchParams();
+
+  // Site privé : le token d'invitation (ou ?k=) sert de clé d'accès au backend.
+  const keyParam = searchParams.get('k');
+  if (token) setSiteAccessKey(token);
+  else if (keyParam) setSiteAccessKey(keyParam);
 
   const { site, form, loading, err } = useRSVPBundle(slug);
 

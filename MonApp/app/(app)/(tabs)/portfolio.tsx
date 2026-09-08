@@ -119,6 +119,8 @@ export default function PortfolioScreen() {
         allowsMultipleSelection: true,
         quality: 0.85,
         videoMaxDuration: 90,
+        // `quality` ne s'applique pas aux vidéos — sans ceci iOS envoie l'original 4K.
+        videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
         // ⚠️ selectionLimit: 0 (illimité) masque le bouton « Ajouter » du sélecteur
         // iOS sur certaines versions → l'utilisateur ne peut plus valider sa sélection.
         // Une limite finie restaure le bouton. 30 photos par lot (répétable).

@@ -1,3 +1,5 @@
+import { randomBytes } from 'crypto';
+
 import { pool } from '../config/database';
 
 export interface WeddingSiteRow {
@@ -19,6 +21,7 @@ export interface WeddingSiteRow {
   content: unknown;
   rsvp_form: unknown;
   invite_links: unknown;
+  access_key: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,8 +65,8 @@ export const weddingSitesRepo = {
     const { rows } = await pool.query(
       `INSERT INTO wedding_sites
         (user_id, slug, couple_name, groom_name, bride_name, date, time, city, venue,
-         welcome_text, main_text, language, theme, sections, content, rsvp_form, invite_links)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb)
+         welcome_text, main_text, language, theme, sections, content, rsvp_form, invite_links, access_key)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb,$18)
        RETURNING *`,
       [
         data.userId ?? null,
@@ -83,6 +86,8 @@ export const weddingSitesRepo = {
         JSON.stringify(data.content ?? {}),
         JSON.stringify(data.rsvpForm ?? null),
         JSON.stringify(data.inviteLinks ?? []),
+        // Clé d'accès secrète : requise pour consulter la page publique (?k=)
+        randomBytes(8).toString('hex'),
       ]
     );
     return rows[0];

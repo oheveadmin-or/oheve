@@ -305,6 +305,8 @@ export type WeddingSite = {
   rsvpForm?: RSVPForm;
   /** Liens d'invitation segmentés par événement */
   inviteLinks?: InviteLink[];
+  /** Clé privée d'accès public (?k=) — renvoyée uniquement au propriétaire */
+  accessKey?: string | null;
   createdAt: string;
   updatedAt: string;
 };

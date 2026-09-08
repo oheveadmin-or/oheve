@@ -78,6 +78,14 @@ export class PublicSitesRepository {
     return result.rows[0] ?? null;
   }
 
+  /** true si le propriétaire du site legacy a payé Oheve Premium. */
+  async isOwnerPremium(userId: number | null): Promise<boolean> {
+    if (userId == null) return false;
+    const { rows } = await pool.query(`SELECT premium, role FROM users WHERE id = $1`, [userId]);
+    const u = rows[0] as { premium?: boolean; role?: string } | undefined;
+    return !!u && (u.premium === true || u.role === 'admin');
+  }
+
   async updateSiteConfig(userId: number, slug: string, siteConfig: unknown, inviteLinks: unknown): Promise<void> {
     await pool.query(
       `UPDATE public_sites SET site_config = $1::jsonb, invite_links = $2::jsonb, updated_at = NOW()

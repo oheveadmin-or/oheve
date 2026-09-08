@@ -53,6 +53,39 @@ export async function getPublicSiteBySlug(req: Request, res: Response): Promise<
       return;
     }
 
+    // Même règle que /api/wedding-sites : abonnement premium requis pour que
+    // le site reste consultable publiquement (cette route legacy laissait
+    // sinon un accès libre en devinant le slug).
+    const isOwner = !!req.auth && (req.auth.sub === row.user_id || req.auth.role === 'admin');
+    if (!isOwner && !(await service.isOwnerPremium(row.user_id))) {
+      res.status(403).json({
+        success: false,
+        code: 'PREMIUM_REQUIRED',
+        message: 'Ce site de mariage est momentanément indisponible. Les mariés doivent activer Oheve Premium pour le publier.',
+      });
+      return;
+    }
+
+    // Accès privé : il faut un token d'invitation du site (?k=), sinon le slug
+    // seul suffirait à ouvrir la page.
+    if (!isOwner) {
+      const providedKey = String(req.query.k ?? '').trim();
+      const rawLinks = (row as unknown as { invite_links?: unknown }).invite_links;
+      const tokens = Array.isArray(rawLinks)
+        ? (rawLinks as { token?: unknown }[])
+            .map((l) => String(l?.token ?? '').trim())
+            .filter(Boolean)
+        : [];
+      if (!providedKey || !tokens.includes(providedKey)) {
+        res.status(403).json({
+          success: false,
+          code: 'PRIVATE_LINK_REQUIRED',
+          message: "Ce site de mariage est privé. Utilisez le lien d'invitation transmis par les mariés pour y accéder.",
+        });
+        return;
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: {

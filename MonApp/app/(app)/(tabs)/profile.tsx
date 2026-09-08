@@ -194,6 +194,8 @@ function PrestataireInstaProfile() {
       mediaTypes: ['images', 'videos'],
       quality: 0.85,
       videoMaxDuration: 90,
+      // `quality` ne s'applique pas aux vidéos — sans ceci iOS envoie l'original 4K.
+      videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
     });
     if (result.canceled || !result.assets[0]) return;
     setCaptionDraft('');

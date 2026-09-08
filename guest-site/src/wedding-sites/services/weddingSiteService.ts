@@ -42,6 +42,35 @@ export function hasAuthToken(): boolean {
   return !!_authToken;
 }
 
+// ─── Clé d'accès du site (?k= dans le lien partagé aux invités) ───────────────
+// Les pages publiques sont privées : le backend exige la clé du site (ou un
+// token d'invitation) pour renvoyer les données. On la capte depuis l'URL et on
+// la garde en sessionStorage pour survivre aux navigations internes (ex: → /rsvp).
+
+const SITE_KEY_STORAGE = 'oheve_site_access_key';
+
+let _siteAccessKey: string | null = (() => {
+  try {
+    return typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(SITE_KEY_STORAGE) : null;
+  } catch {
+    return null;
+  }
+})();
+
+export function setSiteAccessKey(key: string | null) {
+  if (!key) return; // on ne remplace jamais une clé valide par du vide
+  _siteAccessKey = key;
+  try {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SITE_KEY_STORAGE, key);
+  } catch {
+    /* navigation privée — clé gardée en mémoire */
+  }
+}
+
+export function getSiteAccessKey(): string | null {
+  return _siteAccessKey;
+}
+
 /** Message d'auth clair : 401/403 signifient toujours « reconnecte-toi », quelle
  *  que soit la lisibilité du corps de la réponse (le body peut être masqué par
  *  CORS → readApiError retombe alors sur un « Erreur serveur (401) » cryptique). */
@@ -102,7 +131,8 @@ function writeAll(sites: WeddingSite[]) {
 export async function getWeddingSiteBySlug(slug: string): Promise<WeddingSite | null> {
   const s = slug.trim().toLowerCase();
 
-  const url = apiUrl(`/api/wedding-sites/${encodeURIComponent(s)}`);
+  const key = _siteAccessKey ? `?k=${encodeURIComponent(_siteAccessKey)}` : '';
+  const url = apiUrl(`/api/wedding-sites/${encodeURIComponent(s)}${key}`);
   if (url !== null) {
     // Le token (builder ouvert depuis l'app) permet au propriétaire de charger
     // son site même si l'accès public est bloqué (premium impayé).

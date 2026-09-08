@@ -9,7 +9,7 @@ import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
 import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
 import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId } from '../data/musicSuggestions';
-import { createWeddingSite, updateWeddingSite, setAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, adaptPhotoToTheme } from '../services/weddingSiteService';
+import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, adaptPhotoToTheme } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
   CardStyle,
@@ -161,6 +161,13 @@ export function WeddingSiteBuilder() {
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
   const [publishedId, setPublishedId] = useState<string | null>(null);
+  // Clé privée du site : les liens invités doivent inclure ?k=<clé> sinon la
+  // page publique est bloquée par le serveur (site non devinable par slug).
+  const [publishedKey, setPublishedKey] = useState<string | null>(null);
+  // Sans jeton (visiteur web sans l'app) : mode découverte — on laisse composer
+  // mais la publication est réservée aux comptes Oheve (le serveur la refuse
+  // de toute façon : autant l'afficher clairement).
+  const [hasToken, setHasToken] = useState<boolean>(() => hasAuthToken());
   const [slugCustom, setSlugCustom] = useState('');
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
 
@@ -335,7 +342,7 @@ export function WeddingSiteBuilder() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get('token');
-    if (t) setAuthToken(t);
+    if (t) { setAuthToken(t); setHasToken(true); }
 
     if (!routeSlug) return;
 
@@ -382,6 +389,7 @@ export function WeddingSiteBuilder() {
       }
       setPublishedId(site.id);
       setPublishedSlug(site.slug);
+      if (site.accessKey) setPublishedKey(site.accessKey);
       setNamesLocked(true);
     }).catch((err: unknown) => {
       console.error('[WeddingSiteBuilder] Erreur chargement site:', err);
@@ -541,6 +549,7 @@ export function WeddingSiteBuilder() {
 
       setPublishedId(row.id);
       setPublishedSlug(row.slug);
+      if (row.accessKey) setPublishedKey(row.accessKey);
       setInviteLinks(row.inviteLinks ?? finalInviteLinks);
       // Comme avant : une fois le site publié, les prénoms sont verrouillés
       // (ils définissent le site et son slug).
@@ -2036,9 +2045,27 @@ export function WeddingSiteBuilder() {
             </div>
           )}
 
-          <button type="submit" style={submitBtn} disabled={saving}>
-            {saving ? 'Enregistrement…' : namesLocked ? 'Sauvegarder les modifications' : 'Publier le mini-site'}
-          </button>
+          {!hasToken && !import.meta.env.DEV ? (
+            <div
+              style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: 12,
+                padding: '0.9rem 1rem',
+                fontSize: '0.88rem',
+                color: '#92400e',
+                lineHeight: 1.5,
+              }}
+            >
+              🔒 <strong>Mode découverte</strong> — composez librement votre site, mais la
+              publication et le lien invités sont réservés aux comptes Oheve. Ouvrez le
+              créateur de site depuis l'application Oheve pour publier.
+            </div>
+          ) : (
+            <button type="submit" style={submitBtn} disabled={saving}>
+              {saving ? 'Enregistrement…' : namesLocked ? 'Sauvegarder les modifications' : 'Publier le mini-site'}
+            </button>
+          )}
         </form>
 
         {/* ── Liens publiés ────────────────────────────────────────────────── */}
@@ -2046,27 +2073,32 @@ export function WeddingSiteBuilder() {
           <div style={{ ...block, background: '#f0fdf4', border: '1px solid #bbf7d0', marginTop: '1.5rem' }}>
             <h2 style={{ ...h2, color: '#166534' }}>✅ Site publié — vos liens</h2>
 
+            <p style={{ fontSize: '0.8rem', color: '#166534', marginBottom: 10 }}>
+              🔒 Votre site est privé : seuls ces liens (avec leur clé) permettent d'y accéder.
+              Partagez-les tels quels à vos invités.
+            </p>
+
             <div style={{ marginBottom: '1rem' }}>
               <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534', marginBottom: 6 }}>Site principal</p>
               <a
-                href={`/wedding/${publishedSlug}`}
+                href={`/wedding/${publishedSlug}${publishedKey ? `?k=${publishedKey}` : ''}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{ fontSize: '0.9rem', color: '#15803d', wordBreak: 'break-all' }}
               >
-                {window.location.origin}/wedding/{publishedSlug}
+                {window.location.origin}/wedding/{publishedSlug}{publishedKey ? `?k=${publishedKey}` : ''}
               </a>
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
               <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534', marginBottom: 6 }}>RSVP général</p>
               <a
-                href={`/wedding/${publishedSlug}/rsvp`}
+                href={`/wedding/${publishedSlug}/rsvp${publishedKey ? `?k=${publishedKey}` : ''}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{ fontSize: '0.9rem', color: '#15803d', wordBreak: 'break-all' }}
               >
-                {window.location.origin}/wedding/{publishedSlug}/rsvp
+                {window.location.origin}/wedding/{publishedSlug}/rsvp{publishedKey ? `?k=${publishedKey}` : ''}
               </a>
             </div>
 

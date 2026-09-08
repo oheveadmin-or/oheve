@@ -3,6 +3,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -234,7 +235,7 @@ export default function GuestsScreen() {
   // couple partage TOUJOURS le bon lien (fini les mauvais liens importés).
 
   type SiteInviteLink = { id: string; label: string; token: string };
-  const [mySiteLinks, setMySiteLinks] = useState<{ slug: string; inviteLinks: SiteInviteLink[] } | null>(null);
+  const [mySiteLinks, setMySiteLinks] = useState<{ slug: string; accessKey?: string | null; inviteLinks: SiteInviteLink[] } | null>(null);
 
   useEffect(() => {
     if (!user?.accessToken) return;
@@ -242,10 +243,10 @@ export default function GuestsScreen() {
       headers: { Authorization: `Bearer ${user.accessToken}` },
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { success?: boolean; data?: { slug: string; inviteLinks?: SiteInviteLink[] }[] } | null) => {
+      .then((json: { success?: boolean; data?: { slug: string; accessKey?: string | null; inviteLinks?: SiteInviteLink[] }[] } | null) => {
         const site = json?.data?.[0];
         if (site?.slug) {
-          setMySiteLinks({ slug: site.slug, inviteLinks: (site.inviteLinks ?? []).filter((l) => l.token) });
+          setMySiteLinks({ slug: site.slug, accessKey: site.accessKey, inviteLinks: (site.inviteLinks ?? []).filter((l) => l.token) });
           if (!weddingSlug) setWeddingSlug(site.slug);
         }
       })
@@ -382,6 +383,51 @@ export default function GuestsScreen() {
       );
     } catch {
       Alert.alert('Erreur', 'Impossible de lire ce fichier. Utilise un fichier .xlsx, .xls ou .csv.');
+    }
+  };
+
+  // ── Export Excel ─────────────────────────────────────────────────────────────
+
+  const onExportExcel = async () => {
+    if (guests.length === 0) {
+      Alert.alert('Export Excel', 'Aucun invité à exporter.');
+      return;
+    }
+    try {
+      const rows = guests.map((g) => {
+        const attending = g.events
+          ? Object.entries(g.events).filter(([, ev]) => ev.attending).map(([id]) => eventLabel(id)).join(', ')
+          : g.manualEventId ? eventLabel(g.manualEventId) : '';
+        return {
+          'Nom': g.name,
+          'Personnes': g.guestCount,
+          'Statut': g.status === 'confirmed' ? 'Confirmé' : 'Refusé',
+          'Groupe': g.group ?? '',
+          'Table': g.table ?? '',
+          'Email': g.email ?? '',
+          'Téléphone': g.phone ?? '',
+          'Événements': attending,
+          'Source': g.fromRSVP ? 'RSVP site' : 'Manuel',
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 26 }, { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 8 }, { wch: 28 }, { wch: 16 }, { wch: 26 }, { wch: 10 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Invités');
+      const b64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+      const fileUri = `${FileSystem.cacheDirectory}invites-oheve.xlsx`;
+      await FileSystem.writeAsStringAsync(fileUri, b64, { encoding: FileSystem.EncodingType.Base64 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          dialogTitle: 'Exporter la liste des invités',
+          UTI: 'org.openxmlformats.spreadsheetml.sheet',
+        });
+      } else {
+        Alert.alert('Export Excel', 'Le partage de fichiers est indisponible sur cet appareil.');
+      }
+    } catch {
+      Alert.alert('Erreur', "Impossible de générer le fichier Excel.");
     }
   };
 
@@ -529,6 +575,10 @@ export default function GuestsScreen() {
             <Ionicons name="sync-outline" size={14} color="#7A8A72" />
             <ThemedText style={styles.actionBtnText}>Sync site</ThemedText>
           </Pressable>
+          <Pressable style={styles.actionBtn} onPress={onExportExcel}>
+            <Ionicons name="download-outline" size={14} color="#7A8A72" />
+            <ThemedText style={styles.actionBtnText}>Exporter Excel</ThemedText>
+          </Pressable>
           <Pressable style={styles.actionBtn} onPress={onImportExcel}>
             <Ionicons name="document-attach-outline" size={14} color="#7A8A72" />
             <ThemedText style={styles.actionBtnText}>Importer Excel</ThemedText>
@@ -546,20 +596,24 @@ export default function GuestsScreen() {
               Partagez ces liens officiels à vos invités — les réponses arrivent directement dans cette liste.
             </ThemedText>
 
-            <View style={styles.inviteLinkRow}>
-              <View style={{ flex: 1 }}>
-                <ThemedText style={styles.inviteLinkLabel}>Site principal</ThemedText>
-                <ThemedText style={styles.inviteLinkUrl} numberOfLines={1}>
-                  {siteBaseUrl}/{mySiteLinks.slug}
-                </ThemedText>
-              </View>
-              <Pressable hitSlop={8} onPress={() => copyInviteLink(`${siteBaseUrl}/${mySiteLinks.slug}`)}>
-                <Ionicons name="copy-outline" size={17} color="#7A8A72" />
-              </Pressable>
-              <Pressable hitSlop={8} onPress={() => shareInviteLink(`${siteBaseUrl}/${mySiteLinks.slug}`)}>
-                <Ionicons name="share-outline" size={17} color="#7A8A72" />
-              </Pressable>
-            </View>
+            {/* La clé ?k= rend le lien privé : sans elle le serveur bloque la page */}
+            {(() => {
+              const mainUrl = `${siteBaseUrl}/${mySiteLinks.slug}${mySiteLinks.accessKey ? `?k=${mySiteLinks.accessKey}` : ''}`;
+              return (
+                <View style={styles.inviteLinkRow}>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.inviteLinkLabel}>Site principal</ThemedText>
+                    <ThemedText style={styles.inviteLinkUrl} numberOfLines={1}>{mainUrl}</ThemedText>
+                  </View>
+                  <Pressable hitSlop={8} onPress={() => copyInviteLink(mainUrl)}>
+                    <Ionicons name="copy-outline" size={17} color="#7A8A72" />
+                  </Pressable>
+                  <Pressable hitSlop={8} onPress={() => shareInviteLink(mainUrl)}>
+                    <Ionicons name="share-outline" size={17} color="#7A8A72" />
+                  </Pressable>
+                </View>
+              );
+            })()}
 
             {mySiteLinks.inviteLinks.map((l) => {
               const url = `${siteBaseUrl}/${mySiteLinks.slug}/invite/${l.token}`;

@@ -69,6 +69,13 @@ function isServerId(id: string): boolean {
   return /^\d+$/.test(id);
 }
 
+/** Id temporaire unique même après redémarrage de l'app (évite les collisions). */
+function _tempId(): string {
+  return `local-${Date.now()}-${++_localSeq}`;
+}
+
+const _norm = (s: string) => s.trim().toLowerCase();
+
 async function _authFetch(url: string, init: RequestInit): Promise<Response | null> {
   if (!_token) return null;
   try {
@@ -107,6 +114,29 @@ export function configureGuestsSync(token: string | null, userId?: number | null
   }
 }
 
+/**
+ * Repousse au serveur les invités ajoutés hors-ligne (id « local-… »).
+ * Sans ça, ils ne vivaient que dans le cache du téléphone et le premier GET
+ * réussi les effaçait.
+ */
+async function _pushPending(pending: StoredGuest[]): Promise<void> {
+  for (const g of pending) {
+    const res = await _authFetch(API_ENDPOINTS.guests, {
+      method: 'POST',
+      body: JSON.stringify({ ...g, id: undefined }),
+    });
+    if (!res?.ok) return; // hors-ligne : on retentera au prochain chargement
+    try {
+      const json = await res.json();
+      if (json?.success && json.data) {
+        _setList(_guests.map((x) => (x.id === g.id ? (json.data as StoredGuest) : x)));
+      }
+    } catch {
+      // on garde l'entrée locale, elle repartira au prochain essai
+    }
+  }
+}
+
 export async function loadGuests(): Promise<StoredGuest[]> {
   if (_loaded) return _guests;
   // 1. Cache local du compte d'abord (affichage instantané / hors-ligne).
@@ -122,8 +152,20 @@ export async function loadGuests(): Promise<StoredGuest[]> {
     try {
       const json = await res.json();
       if (json?.success && Array.isArray(json.data)) {
-        _guests = json.data as StoredGuest[];
+        const serveur = json.data as StoredGuest[];
+        // Un invité ajouté sans réseau (ou dont le POST a échoué) n'existe que
+        // localement : on le CONSERVE au lieu d'écraser la liste avec celle du
+        // serveur, sinon un simple aller-retour dans l'app le supprimait.
+        const nomsServeur = new Set(serveur.map((g) => _norm(g.name)));
+        const enAttente = _guests.filter(
+          (g) => !isServerId(g.id) && !nomsServeur.has(_norm(g.name)),
+        );
+        _guests = [...serveur, ...enAttente];
         _persist();
+        _loaded = true;
+        _notify();
+        if (enAttente.length > 0) void _pushPending(enAttente);
+        return _guests;
       }
     } catch {
       // réponse invalide : on garde le cache
@@ -132,6 +174,11 @@ export async function loadGuests(): Promise<StoredGuest[]> {
   _loaded = true;
   _notify();
   return _guests;
+}
+
+/** Force une resynchronisation serveur au prochain `loadGuests()`. */
+export function invalidateGuests(): void {
+  _loaded = false;
 }
 
 export function getGuests(): StoredGuest[] {
@@ -150,7 +197,7 @@ export function setGuests(guests: StoredGuest[]): void {
 
 /** Ajoute un invité (saisie manuelle). Optimiste puis POST serveur. */
 export function addGuest(guest: StoredGuest): void {
-  const tempId = guest.id && !isServerId(guest.id) ? guest.id : `local-${++_localSeq}`;
+  const tempId = guest.id && !isServerId(guest.id) ? guest.id : _tempId();
   const optimistic = { ...guest, id: tempId };
   _setList([..._guests, optimistic]);
 
@@ -201,7 +248,7 @@ export async function addGuests(guests: StoredGuest[]): Promise<number> {
     if (g.id && existingIds.has(g.id)) return false;
     if (g.rsvpRef && existingRefs.has(g.rsvpRef)) return false;
     return !existingNames.has(g.name.trim().toLowerCase());
-  }).map((g) => ({ ...g, id: g.id && !isServerId(g.id) ? g.id : `local-${++_localSeq}` }));
+  }).map((g) => ({ ...g, id: g.id && !isServerId(g.id) ? g.id : _tempId() }));
   if (fresh.length === 0) return 0;
   _setList([..._guests, ...fresh]);
   return fresh.length;

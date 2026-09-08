@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { useAuth } from '@/contexts/auth-context';
 import { messagingApi } from '@/services/auth/api';
 import { loadPersistedBudget, syncBudgetTotal, BudgetProvider } from '@/lib/budget-store';
+import { configureGuestsSync, loadGuests } from '@/lib/guests-store';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -41,7 +42,9 @@ export default function AppLayout() {
   const budgetLoadedRef = useRef(false);
   useEffect(() => {
     if (!user) return;
-    const profileBudget = user.budget_global ?? user.budget_total ?? 0;
+    // Coercition : pg numeric arrive en string ("50000.00") → Number sinon les
+    // comparaisons/affichages en aval manipulent une chaîne.
+    const profileBudget = Number(user.budget_global ?? user.budget_total ?? 0) || 0;
     const applyTotal = () => {
       if (profileBudget <= 0) return;
       syncBudgetTotal(profileBudget);
@@ -55,6 +58,15 @@ export default function AppLayout() {
       applyTotal();
     }
   }, [user?.id, user?.budget_global, user?.budget_total]);
+
+  // Invités : on configure le compte AVANT que le moindre écran ne charge la
+  // liste. Sinon l'accueil lisait le cache « sans compte » (vide) et affichait
+  // 0 invité alors que l'écran Invités, lui, avait la bonne liste.
+  useEffect(() => {
+    if (!user?.id) return;
+    configureGuestsSync(user.accessToken ?? null, user.id);
+    loadGuests().catch(() => {});
+  }, [user?.id, user?.accessToken]);
 
   useEffect(() => {
     if (!user?.accessToken) return;

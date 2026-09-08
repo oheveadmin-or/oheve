@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import {
@@ -521,7 +521,7 @@ const cmtStyles = StyleSheet.create({
 });
 
 // ── Reel Card ────────────────────────────────────────────────────────────────
-function ReelCard({
+function ReelCardBase({
   post,
   reelH,
   isActive,
@@ -609,6 +609,22 @@ function ReelCard({
     </View>
   );
 }
+
+/**
+ * Sans mémo, le moindre changement d'état de l'écran (scroll = nouveau reel
+ * actif, like, arrivée d'un commentaire, rafraîchissement du feed) re-rendait
+ * TOUTES les cartes montées, vidéos comprises → saccades au défilement.
+ * On ne re-rend une carte que si ce qu'elle affiche a réellement changé.
+ */
+const ReelCard = memo(ReelCardBase, (a, b) =>
+  a.post.id === b.post.id &&
+  a.isActive === b.isActive &&
+  a.reelH === b.reelH &&
+  a.post.isLiked === b.post.isLiked &&
+  a.post.likes === b.post.likes &&
+  a.post.mediaUri === b.post.mediaUri &&
+  (a.post.commentCount ?? a.post.comments.length) === (b.post.commentCount ?? b.post.comments.length),
+);
 
 const reelStyles = StyleSheet.create({
   card: { position: 'relative', backgroundColor: '#000', overflow: 'hidden' },
@@ -856,6 +872,10 @@ function CreatePostModal({
       mediaTypes: ['images', 'videos'],
       quality: 0.8,
       videoMaxDuration: 90,
+      // `quality` ne concerne QUE les images : sans `videoQuality`, iOS exporte
+      // la vidéo d'origine (jusqu'à 4K, plusieurs dizaines de Mo) → upload long
+      // et lecture qui rame dans le feed. 720p suffit largement à l'affichage.
+      videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
       allowsEditing: false,
     });
     if (!result.canceled && result.assets[0]) {
@@ -1423,6 +1443,7 @@ export default function ExploreScreen() {
     setProviderModal(providerId);
   }, []);
 
+
   // Publication réelle : la photo part sur le serveur (portfolio du prestataire)
   // avec sa description → visible par tous dans l'Explore/reels et persistante.
   // (Avant : post uniquement local, perdu au rechargement.)
@@ -1472,6 +1493,22 @@ export default function ExploreScreen() {
 
   // ── Reels height (full screen minus safe areas) ───────────────────────────
   const reelH = H;
+
+  // renderItem stable : recréé à chaque rendu, il annulait le mémo des cartes.
+  const renderReel = useCallback(
+    ({ item }: { item: Post }) => (
+      <ReelCard
+        post={item}
+        reelH={reelH}
+        isActive={item.id === activeReelId}
+        onLike={handleLike}
+        onComment={handleOpenComment}
+        onShare={handleShare}
+        onOpenProvider={handleOpenProvider}
+      />
+    ),
+    [reelH, activeReelId, handleLike, handleOpenComment, handleShare, handleOpenProvider],
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -1598,17 +1635,7 @@ export default function ExploreScreen() {
             ref={viewRef}
             data={filtered}
             keyExtractor={(p) => p.id}
-            renderItem={({ item }) => (
-              <ReelCard
-                post={item}
-                reelH={reelH}
-                isActive={item.id === activeReelId}
-                onLike={handleLike}
-                onComment={handleOpenComment}
-                onShare={handleShare}
-                onOpenProvider={handleOpenProvider}
-              />
-            )}
+            renderItem={renderReel}
             pagingEnabled
             snapToInterval={reelH}
             snapToAlignment="start"

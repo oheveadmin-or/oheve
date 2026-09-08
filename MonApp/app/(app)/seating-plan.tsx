@@ -322,22 +322,32 @@ let nextGuestId = 100;
 function SeatingPlanContent() {
   const insets = useSafeAreaInsets();
   const { hasPremiumAccess } = usePremiumAccess();
-  const { user } = useAuth();
-  const STORAGE_KEY = `seating_plan_v1_${user?.id ?? 'guest'}`;
+  const { user, loading: authLoading } = useAuth();
+  // Tant que l'auth n'a pas répondu, on ne connaît pas encore la bonne clé :
+  // charger (ou pire, sauvegarder) maintenant viserait le bucket « guest » et
+  // écraserait le plan du compte dès que l'id arrive.
+  const STORAGE_KEY = user?.id != null ? `seating_plan_v1_${user.id}` : null;
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [tables, setTables] = useState<SeatingTable[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  // Clé effectivement chargée : « prêt » se déduit d'elle, donc si le compte
+  // change on repasse automatiquement en « non chargé » (aucune sauvegarde ne
+  // peut partir sur la nouvelle clé avant d'avoir lu son contenu).
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const loaded = STORAGE_KEY !== null && loadedKey === STORAGE_KEY;
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Room dimensions (déclarées avant les effets qui les lisent)
   const [roomWidth, setRoomWidth] = useState('');
   const [roomHeight, setRoomHeight] = useState('');
 
-  // Load on mount
+  // Chargement : au montage ET à chaque fois que le compte (donc la clé) change.
   useEffect(() => {
+    if (authLoading || !STORAGE_KEY) return;
+    let alive = true;
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
+      if (!alive) return;
       if (raw) {
         try {
           const data = JSON.parse(raw);
@@ -359,9 +369,10 @@ function SeatingPlanContent() {
           if (data.roomHeight) setRoomHeight(data.roomHeight);
         } catch {}
       }
-      setLoaded(true);
+      setLoadedKey(STORAGE_KEY);
     });
-  }, []);
+    return () => { alive = false; };
+  }, [STORAGE_KEY, authLoading]);
 
   // Synchronisation avec la liste d'invités de l'app : tous les invités
   // (saisis, RSVP du site, import Excel) sont proposés pour l'assignation
@@ -384,20 +395,39 @@ function SeatingPlanContent() {
     return subscribeSharedGuests(mergeSharedGuests);
   }, [loaded, user?.accessToken, user?.id]);
 
+  // Dernier état connu : permet d'écrire immédiatement quand on quitte l'écran.
+  const snapshotRef = useRef({ tables, guests, roomWidth, roomHeight, key: STORAGE_KEY, loaded });
+  useEffect(() => {
+    snapshotRef.current = { tables, guests, roomWidth, roomHeight, key: STORAGE_KEY, loaded };
+  });
+
+  const flushSave = useCallback(() => {
+    const s = snapshotRef.current;
+    if (!s.loaded || !s.key) return;
+    AsyncStorage.setItem(
+      s.key,
+      JSON.stringify({
+        tables: s.tables, guests: s.guests,
+        roomWidth: s.roomWidth, roomHeight: s.roomHeight,
+        nextTableId, nextGuestId,
+      }),
+    ).catch(() => {});
+  }, []);
+
   // Auto-save (debounced 800ms) after load
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !STORAGE_KEY) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      AsyncStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ tables, guests, roomWidth, roomHeight, nextTableId, nextGuestId })
-      );
-    }, 800);
+    saveTimeoutRef.current = setTimeout(flushSave, 800);
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [tables, guests, roomWidth, roomHeight, loaded]);
+  }, [tables, guests, roomWidth, roomHeight, loaded, STORAGE_KEY, flushSave]);
+
+  // Écriture immédiate à la sortie de l'écran : avant, quitter dans les 800 ms
+  // qui suivaient une modification annulait purement la sauvegarde (le
+  // clearTimeout de démontage tuait le debounce) → table ajoutée puis perdue.
+  useEffect(() => flushSave, [flushSave]);
 
   // Modals
   const [addTableModal, setAddTableModal] = useState(false);
@@ -603,7 +633,7 @@ function SeatingPlanContent() {
                       setSelectedId(null);
                       nextTableId = 20;
                       nextGuestId = 100;
-                      AsyncStorage.removeItem(STORAGE_KEY);
+                      if (STORAGE_KEY) AsyncStorage.removeItem(STORAGE_KEY);
                     },
                   },
                 ]

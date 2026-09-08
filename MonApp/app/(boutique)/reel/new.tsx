@@ -26,6 +26,8 @@ export default function NewReelScreen() {
       allowsEditing: true,
       videoMaxDuration: 90,
       quality: 0.8,
+      // `quality` ne s'applique pas aux vidéos — sans ceci iOS envoie l'original 4K.
+      videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
     });
     if (!result.canceled) {
       setVideoUri(result.assets[0].uri);

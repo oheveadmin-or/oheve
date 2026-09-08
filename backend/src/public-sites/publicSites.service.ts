@@ -59,6 +59,10 @@ export class PublicSitesService {
     return this.repo.findPublishedBySlug(slug);
   }
 
+  isOwnerPremium(userId: number | null) {
+    return this.repo.isOwnerPremium(userId);
+  }
+
   getByUserId(userId: number) {
     return this.repo.findByUserId(userId);
   }

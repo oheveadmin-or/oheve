@@ -14,13 +14,13 @@ import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { calendarApi, prestatairesApi, type CalendarEvent } from '@/services/auth/api';
-import { INSPIRATIONS } from '@/data/home-dashboard-mock';
 import { useAuth } from '@/contexts/auth-context';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
 import { getGuests, loadGuests, subscribeGuests } from '@/lib/guests-store';
 import { getTodoTasks, loadTodoTasks, setTodoTasks } from '@/lib/todo-store';
 import { getHomeProviders, loadHomeProviders, type ProviderContact } from '@/lib/providers-store';
 import { useHomeDashboardStore } from '@/stores/use-home-dashboard-store';
+import { MADRICHIM_HATAN, MADRICHOT_KALA, MIKVES } from '@/data/officiants';
 import { getTotalSpent, getTotalBudget, subscribeBudget } from '@/lib/budget-store';
 
 type HomeSection =
@@ -33,16 +33,22 @@ type HomeSection =
   | 'jewishServices'
   | 'providerPhotos'
   | 'suggestions'
-  | 'inspirations'
   | 'weather'
   | 'countdown';
 
 const HOME_SECTIONS: HomeSection[] = [
   'venue', 'hero', 'appointments', 'priorities', 'budgetGuests', 'vendors', 'jewishServices', 'providerPhotos',
-  'suggestions', 'inspirations', 'weather', 'countdown',
+  'suggestions', 'weather', 'countdown',
 ];
 
 const AnimatedView = Animated.createAnimatedComponent(View);
+
+// Raccourcis « Mariage juif » → l'annuaire s'ouvre directement sur le bon onglet.
+const JEWISH_LINKS = [
+  { tab: 'kala', emoji: '👰', titre: 'Madrichot Kala', sous: `${MADRICHOT_KALA.length} madrichot en France & Israël` },
+  { tab: 'hatan', emoji: '🤵', titre: 'Madrichim Hatan', sous: `${MADRICHIM_HATAN.length} madrichim référencés` },
+  { tab: 'mikve', emoji: '💧', titre: 'Mikvés', sous: `${MIKVES.length} mikvés, adresse et itinéraire` },
+] as const;
 
 const AnimatedPlaceholder = () => {
   const opacity = useSharedValue(0.45);
@@ -115,18 +121,21 @@ export default function DashboardScreen() {
   const [homeProviders, setHomeProviders] = useState<ProviderContact[]>([]);
   const [guestStats, setGuestStats] = useState({ invitations: 0, people: 0, confirmed: 0 });
 
-  useEffect(() => {
-    const computeGuestStats = () => {
-      const gs = getGuests();
-      setGuestStats({
-        invitations: gs.length,
-        people: gs.reduce((s, g) => s + g.guestCount, 0),
-        confirmed: gs.filter((g) => g.status === 'confirmed').reduce((s, g) => s + g.guestCount, 0),
-      });
-    };
-    loadGuests().then(computeGuestStats);
-    return subscribeGuests(computeGuestStats);
+  const computeGuestStats = useCallback(() => {
+    const gs = getGuests();
+    setGuestStats({
+      invitations: gs.length,
+      people: gs.reduce((s, g) => s + g.guestCount, 0),
+      confirmed: gs.filter((g) => g.status === 'confirmed').reduce((s, g) => s + g.guestCount, 0),
+    });
   }, []);
+
+  // La synchro du compte est configurée dans (app)/_layout : ici on se contente
+  // de lire le store et de rester abonné (il notifie dès que le serveur répond).
+  useEffect(() => {
+    loadGuests().then(computeGuestStats).catch(() => {});
+    return subscribeGuests(computeGuestStats);
+  }, [computeGuestStats, user?.id]);
 
   const loading = useHomeDashboardStore((state) => state.loading);
   const taskDone = useHomeDashboardStore((state) => state.taskDone);
@@ -244,9 +253,12 @@ export default function DashboardScreen() {
     return 'Vous avancez bien, gardez le cap 🎯';
   }, [todoCompletion]);
 
-  const budgetTotal = budgetStoredTotal > 0 ? budgetStoredTotal : (user?.budget_global ?? 0);
+  // budget_global arrive parfois en string ("50000.00") depuis pg → coercition
+  // en nombre sinon toLocaleString n'a aucun effet et le montant déborde.
+  const budgetTotal = budgetStoredTotal > 0 ? budgetStoredTotal : (Number(user?.budget_global ?? 0) || 0);
   const budgetLeft = Math.max(0, budgetTotal - budgetSpent);
   const budgetProgress = budgetTotal > 0 ? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100)) : 0;
+  const fmtEuro = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`;
   const rsvpProgress = 0;
 
   useEffect(() => {
@@ -345,7 +357,7 @@ export default function DashboardScreen() {
                 {budgetTotal > 0 && (
                   <View style={styles.pill}>
                     <Ionicons name="stats-chart-outline" size={13} color={C.saugeDark} />
-                    <ThemedText style={styles.pillText}>Budget {budgetTotal.toLocaleString('fr-FR')} €</ThemedText>
+                    <ThemedText style={styles.pillText}>Budget {fmtEuro(budgetTotal)}</ThemedText>
                   </View>
                 )}
               </View>
@@ -368,27 +380,63 @@ export default function DashboardScreen() {
                 <View style={styles.emptyPriority}>
                   <Ionicons name="calendar-outline" size={28} color={C.sauge} />
                   <ThemedText style={styles.emptyPriorityTxt}>Vous n'avez aucun rendez-vous planifié.</ThemedText>
-                  <Pressable style={styles.siteRow} onPress={() => router.push('/(app)/(tabs)/calendar' as never)}>
-                    <Ionicons name="add-circle-outline" size={18} color={C.sauge} />
-                    <ThemedText style={[styles.siteLabel, { color: C.sauge }]}>Ajouter un rendez-vous</ThemedText>
-                  </Pressable>
                 </View>
               ) : (
-                upcomingAppointments.map((appt) => (
-                  <View key={appt.id} style={styles.priorityRow}>
-                    <View style={[styles.priorityLevel, styles.priorityMedium]} />
-                    <View style={styles.priorityBody}>
-                      <ThemedText style={styles.priorityTitle}>{appt.title}</ThemedText>
-                      <ThemedText style={styles.priorityDeadline}>
-                        {appt.event_date
-                          ? new Date(`${appt.event_date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-                          : 'Date à définir'}
-                        {appt.event_time ? ` · ${String(appt.event_time).slice(0, 5)}` : ''}
-                      </ThemedText>
-                    </View>
-                  </View>
-                ))
+                <View style={{ gap: 8 }}>
+                  {upcomingAppointments.slice(0, 3).map((appt) => {
+                    const d = appt.event_date
+                      ? new Date(`${String(appt.event_date).slice(0, 10)}T12:00:00`)
+                      : null;
+                    const valide = d && !Number.isNaN(d.getTime());
+                    const heure = appt.event_time ? String(appt.event_time).slice(0, 5) : null;
+                    const joursRestants = valide
+                      ? Math.round((d.getTime() - new Date().setHours(12, 0, 0, 0)) / 86400000)
+                      : null;
+                    const quand =
+                      joursRestants === 0 ? "Aujourd'hui"
+                      : joursRestants === 1 ? 'Demain'
+                      : joursRestants != null && joursRestants > 1 ? `Dans ${joursRestants} jours`
+                      : 'Date à définir';
+                    return (
+                      <Pressable
+                        key={appt.id}
+                        style={styles.apptRow}
+                        onPress={() => router.push('/(app)/(tabs)/calendar' as never)}
+                      >
+                        <View style={styles.apptDate}>
+                          <ThemedText style={styles.apptDay}>
+                            {valide ? d!.toLocaleDateString('fr-FR', { day: '2-digit' }) : '--'}
+                          </ThemedText>
+                          <ThemedText style={styles.apptMonth}>
+                            {valide ? d!.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '') : ''}
+                          </ThemedText>
+                        </View>
+                        <View style={styles.apptBody}>
+                          <ThemedText style={styles.apptTitle} numberOfLines={1}>{appt.title}</ThemedText>
+                          <View style={styles.apptMetaRow}>
+                            <ThemedText style={styles.apptMeta} numberOfLines={1}>{quand}</ThemedText>
+                            {heure && (
+                              <>
+                                <View style={styles.apptDot} />
+                                <ThemedText style={styles.apptMeta}>{heure}</ThemedText>
+                              </>
+                            )}
+                          </View>
+                        </View>
+                        <Ionicons name="chevron-forward" size={14} color={C.textLight} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
               )}
+
+              {/* Rangée d'action séparée : dans la rangée vide elle débordait */}
+              <Pressable style={styles.siteRow} onPress={() => router.push('/(app)/(tabs)/calendar' as never)}>
+                <Ionicons name="add-circle-outline" size={18} color={C.sauge} />
+                <ThemedText style={[styles.siteLabel, { color: C.sauge, flex: 1 }]} numberOfLines={1}>
+                  Ajouter un rendez-vous
+                </ThemedText>
+              </Pressable>
             </PremiumCard>
           </AnimatedView>
         );
@@ -439,15 +487,27 @@ export default function DashboardScreen() {
       if (section === 'budgetGuests') {
         return (
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.row}>
+            {/* Les deux cartes partagent la même structure — titre, chiffre clé,
+                précision, barre, pied — pour un alignement parfait côte à côte. */}
             <Pressable style={styles.half} onPress={() => router.push('/(app)/(tabs)/budget')}>
               <PremiumCard style={styles.stretch}>
                 <SectionHeader title="Budget" subtitle="Vue d'ensemble" />
-                <View style={styles.compactRow}>
-                  <DonutProgress progress={budgetProgress} size={64} stroke={7} label={`${budgetProgress}%`} />
-                  <View>
-                    <ThemedText style={styles.miniKpi}>{budgetTotal > 0 ? `${budgetTotal.toLocaleString('fr-FR')} €` : '—'}</ThemedText>
-                    <ThemedText style={styles.miniHint}>{budgetTotal > 0 ? `${budgetLeft.toLocaleString('fr-FR')} € restants` : 'Définir un budget'}</ThemedText>
-                  </View>
+                <View style={styles.miniBody}>
+                  <ThemedText style={styles.miniKpi} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                    {budgetTotal > 0 ? fmtEuro(budgetTotal) : '—'}
+                  </ThemedText>
+                  <ThemedText style={styles.miniHint} numberOfLines={1}>
+                    {budgetTotal > 0 ? `${fmtEuro(budgetLeft)} restants` : 'Définir un budget'}
+                  </ThemedText>
+                </View>
+                <View style={styles.progressTrackLight}>
+                  <View style={[styles.progressFillLight, { width: `${budgetProgress}%` }]} />
+                </View>
+                <View style={styles.miniFooter}>
+                  <Ionicons name="wallet-outline" size={13} color={C.sauge} />
+                  <ThemedText style={styles.miniFooterTxt} numberOfLines={1}>
+                    {budgetProgress}% dépensé
+                  </ThemedText>
                 </View>
               </PremiumCard>
             </Pressable>
@@ -455,21 +515,24 @@ export default function DashboardScreen() {
             <Pressable style={styles.half} onPress={() => router.push('/(app)/(tabs)/guests')}>
               <PremiumCard style={styles.stretch}>
                 <SectionHeader title="Invités" subtitle="RSVP en direct" />
-                <ThemedText style={styles.miniKpi}>
-                  {guestStats.people > 0 ? `${guestStats.people} personne${guestStats.people > 1 ? 's' : ''}` : '0 invité'}
-                </ThemedText>
-                <ThemedText style={styles.miniHint}>
-                  {guestStats.people > 0
-                    ? `${guestStats.confirmed} confirmée${guestStats.confirmed > 1 ? 's' : ''} · ${guestStats.invitations} invitation${guestStats.invitations > 1 ? 's' : ''}`
-                    : 'Ajoutez vos premiers invités'}
-                </ThemedText>
+                <View style={styles.miniBody}>
+                  <ThemedText style={styles.miniKpi} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                    {guestStats.people > 0 ? `${guestStats.people} personne${guestStats.people > 1 ? 's' : ''}` : '0 invité'}
+                  </ThemedText>
+                  <ThemedText style={styles.miniHint} numberOfLines={1}>
+                    {guestStats.people > 0
+                      ? `${guestStats.confirmed} confirmé${guestStats.confirmed > 1 ? 's' : ''} · ${guestStats.invitations} invitation${guestStats.invitations > 1 ? 's' : ''}`
+                      : 'Ajoutez vos premiers invités'}
+                  </ThemedText>
+                </View>
                 <View style={styles.progressTrackLight}>
                   <View style={[styles.progressFillLight, { width: `${guestStats.people > 0 ? Math.round((guestStats.confirmed / guestStats.people) * 100) : 0}%` }]} />
                 </View>
-                <View style={styles.avatarRow}>
-                  <View style={[styles.miniAvatar, { backgroundColor: C.saugePale }]}>
-                    <Ionicons name="person-add-outline" size={12} color={C.sauge} />
-                  </View>
+                <View style={styles.miniFooter}>
+                  <Ionicons name="person-add-outline" size={13} color={C.sauge} />
+                  <ThemedText style={styles.miniFooterTxt} numberOfLines={1}>
+                    Ajouter un invité
+                  </ThemedText>
                 </View>
               </PremiumCard>
             </Pressable>
@@ -556,21 +619,22 @@ export default function DashboardScreen() {
                 onActionPress={() => router.push('/(app)/providers/categories/juif' as never)}
               />
               <View style={{ gap: 8 }}>
-                <Pressable
-                  style={styles.jewishRow}
-                  onPress={() => router.push('/(app)/rabbins' as never)}
-                >
-                  <View style={styles.jewishRowIcon}>
-                    <ThemedText style={{ fontSize: 20 }}>🕍</ThemedText>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <ThemedText style={styles.jewishRowTitle}>Rabbins & Madrichot Kala</ThemedText>
-                    <ThemedText style={styles.jewishRowSub}>
-                      Annuaire en préparation
-                    </ThemedText>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={C.sauge} />
-                </Pressable>
+                {JEWISH_LINKS.map((lien) => (
+                  <Pressable
+                    key={lien.tab}
+                    style={styles.jewishRow}
+                    onPress={() => router.push(`/(app)/rabbins?tab=${lien.tab}` as never)}
+                  >
+                    <View style={styles.jewishRowIcon}>
+                      <ThemedText style={{ fontSize: 20 }}>{lien.emoji}</ThemedText>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText style={styles.jewishRowTitle} numberOfLines={1}>{lien.titre}</ThemedText>
+                      <ThemedText style={styles.jewishRowSub} numberOfLines={1}>{lien.sous}</ThemedText>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={C.sauge} />
+                  </Pressable>
+                ))}
 
                 <Pressable
                   style={styles.jewishRow}
@@ -637,51 +701,32 @@ export default function DashboardScreen() {
       }
 
       if (section === 'suggestions') {
+        // Toute la carte est cliquable et mène directement à l'onglet Explorer.
         return (
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
-            <PremiumCard>
-              <SectionHeader title="Suggestions" subtitle="Sélection pour vous" />
-              <View style={styles.emptyPriority}>
-                <Ionicons name="search-outline" size={28} color={C.sauge} />
-                <ThemedText style={styles.emptyPriorityTxt}>Découvrez les prestataires dans l'onglet Explorer</ThemedText>
-              </View>
-              <Pressable style={styles.siteRow} onPress={() => router.push('/(app)/(tabs)/providers' as never)}>
-                <Ionicons name="compass-outline" size={18} color={C.sauge} />
-                <ThemedText style={[styles.siteLabel, { color: C.sauge }]}>Explorer les prestataires</ThemedText>
-              </Pressable>
-            </PremiumCard>
-          </AnimatedView>
-        );
-      }
-
-      if (section === 'inspirations') {
-        const leftCol = INSPIRATIONS.filter((_, i) => i % 2 === 0);
-        const rightCol = INSPIRATIONS.filter((_, i) => i % 2 !== 0);
-        return (
-          <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
-            <PremiumCard>
-              <SectionHeader title="Inspirations" subtitle="Moodboard" actionLabel="Explorer" onActionPress={() => router.push('/(app)/(tabs)/explore')} />
-              <View style={styles.masonryWrap}>
-                <View style={styles.masonryCol}>
-                  {leftCol.map((tile) => (
-                    <View key={tile.id} style={[styles.masonryCard, { backgroundColor: tile.color, minHeight: tile.tall ? 138 : 108 }]}>
-                      <ThemedText style={styles.masonryEmoji}>{tile.emoji}</ThemedText>
-                      <ThemedText style={styles.masonryTitle}>{tile.title}</ThemedText>
-                      <ThemedText style={styles.masonrySub}>{tile.subtitle}</ThemedText>
-                    </View>
-                  ))}
+            <Pressable onPress={() => router.push('/(app)/(tabs)/explore' as never)}>
+              <PremiumCard>
+                <SectionHeader
+                  title="Suggestions"
+                  subtitle="Sélection pour vous"
+                  actionLabel="Explorer"
+                  onActionPress={() => router.push('/(app)/(tabs)/explore' as never)}
+                />
+                <View style={styles.emptyPriority}>
+                  <Ionicons name="compass-outline" size={28} color={C.sauge} />
+                  <ThemedText style={styles.emptyPriorityTxt}>
+                    Inspirations et prestataires, en vidéo
+                  </ThemedText>
                 </View>
-                <View style={styles.masonryCol}>
-                  {rightCol.map((tile) => (
-                    <View key={tile.id} style={[styles.masonryCard, { backgroundColor: tile.color, minHeight: tile.tall ? 138 : 108 }]}>
-                      <ThemedText style={styles.masonryEmoji}>{tile.emoji}</ThemedText>
-                      <ThemedText style={styles.masonryTitle}>{tile.title}</ThemedText>
-                      <ThemedText style={styles.masonrySub}>{tile.subtitle}</ThemedText>
-                    </View>
-                  ))}
+                <View style={styles.siteRow}>
+                  <Ionicons name="play-circle-outline" size={18} color={C.sauge} />
+                  <ThemedText style={[styles.siteLabel, { color: C.sauge, flex: 1 }]} numberOfLines={1}>
+                    Ouvrir Explorer
+                  </ThemedText>
+                  <Ionicons name="chevron-forward" size={14} color={C.sauge} />
                 </View>
-              </View>
-            </PremiumCard>
+              </PremiumCard>
+            </Pressable>
           </AnimatedView>
         );
       }
@@ -857,9 +902,35 @@ const styles = StyleSheet.create({
   priorityTitle: { fontSize: 15, fontWeight: '700', color: C.textDark },
   priorityDeadline: { fontSize: 12, color: C.textLight },
   doneBtn: { paddingHorizontal: 2 },
+
+  // ── Rendez-vous : pastille date + titre + « Dans X jours · 14:30 » ──────────
+  apptRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderWidth: 1, borderColor: C.border, borderRadius: RADIUS.md,
+    padding: 10, backgroundColor: C.card,
+  },
+  apptDate: {
+    width: 46, paddingVertical: 6, borderRadius: RADIUS.sm,
+    backgroundColor: C.saugePale, alignItems: 'center',
+  },
+  apptDay: { fontSize: 17, fontWeight: '800', color: C.saugeDark },
+  apptMonth: { fontSize: 10, fontWeight: '700', color: C.saugeDark, textTransform: 'uppercase' },
+  apptBody: { flex: 1, minWidth: 0, gap: 3 },
+  apptTitle: { fontSize: 14.5, fontWeight: '700', color: C.textDark },
+  apptMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  apptMeta: { fontSize: 12, color: C.textLight },
+  apptDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: C.textLight },
+
   compactRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  miniKpi: { fontSize: 18, fontWeight: '800', color: C.textDark },
-  miniHint: { fontSize: 12, color: C.textLight, marginTop: 3 },
+  // flex:1 + minWidth:0 : le montant ne peut plus déborder de la carte
+  compactBody: { flex: 1, minWidth: 0, gap: 2 },
+  // Corps des demi-cartes : flex:1 pour que les barres de progression des deux
+  // cartes tombent à la même hauteur quelle que soit la longueur du texte.
+  miniBody: { flex: 1, minWidth: 0, justifyContent: 'center', paddingVertical: 2 },
+  miniKpi: { fontSize: 17, fontWeight: '800', color: C.textDark },
+  miniHint: { fontSize: 12, color: C.textLight, marginTop: 3, flexShrink: 1 },
+  miniFooter: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  miniFooterTxt: { flex: 1, fontSize: 11.5, color: C.textMid, fontWeight: '600' },
   progressTrackLight: {
     marginTop: 10, height: 6, borderRadius: 6,
     backgroundColor: C.saugePale, overflow: 'hidden',
@@ -890,12 +961,6 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: '#ffffffcc', alignItems: 'center', justifyContent: 'center',
   },
-  masonryWrap: { flexDirection: 'row', gap: 8 },
-  masonryCol: { flex: 1, gap: 8 },
-  masonryCard: { borderRadius: RADIUS.md, padding: 11, justifyContent: 'flex-end' },
-  masonryEmoji: { fontSize: 20, marginBottom: 6 },
-  masonryTitle: { fontSize: 13, fontWeight: '700', color: C.textDark },
-  masonrySub: { fontSize: 11, color: C.textMid, marginTop: 3 },
   weatherCard: { backgroundColor: C.cardAlt },
   weatherTemp: { fontSize: 22, fontWeight: '800', color: C.textDark },
   weatherInfo: { marginTop: 8, fontSize: 13, color: C.textMid },
@@ -991,9 +1056,10 @@ const styles = StyleSheet.create({
   jsDetail: { fontSize: 12, color: C.textLight },
   emptyPriority: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 16, justifyContent: 'center',
+    paddingVertical: 16, justifyContent: 'center', paddingHorizontal: 4,
   },
-  emptyPriorityTxt: { fontSize: 14, color: C.textMid, fontWeight: '600' },
+  // flexShrink : le texte passe à la ligne au lieu d'être rogné à gauche
+  emptyPriorityTxt: { fontSize: 14, color: C.textMid, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
 
   // Vendors list
   vendorsList: { gap: 2, marginBottom: 4 },

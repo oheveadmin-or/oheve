@@ -29,6 +29,8 @@ type MySite = {
   groomName: string;
   date: string;
   city: string;
+  /** Clé privée du site : requise dans le lien invités (?k=) */
+  accessKey?: string | null;
 };
 
 function makeSlug(bride: string, groom: string): string {
@@ -82,8 +84,9 @@ export default function SiteMariageScreen() {
     ? `${API_ENDPOINTS.weddingSitePublicBase}/${mySite.slug}/build?token=${builderToken ?? user?.accessToken ?? ''}`
     : null;
 
+  // Le site est privé : sans ?k=<clé>, la page publique est bloquée serveur.
   const publicUrl = mySite
-    ? `${API_ENDPOINTS.weddingSitePublicBase}/${mySite.slug}`
+    ? `${API_ENDPOINTS.weddingSitePublicBase}/${mySite.slug}${mySite.accessKey ? `?k=${mySite.accessKey}` : ''}`
     : null;
 
   async function handleCreate() {
