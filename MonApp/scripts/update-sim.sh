@@ -30,6 +30,15 @@ for D in $(xcrun simctl list devices booted -j | grep -o '"udid" : "[^"]*"' | cu
   xcrun simctl terminate "$D" "$BUNDLE_ID" 2>/dev/null || true
   cp "$OUT/main.jsbundle" "$APP/main.jsbundle"
   rsync -a "$OUT/assets/" "$APP/assets/" 2>/dev/null || true
+  # L'app est configuree avec expo-updates (EAS Update) : si une mise a jour OTA
+  # a ete telechargee, elle est chargee EN PRIORITE et le bundle qu'on vient de
+  # copier est ignore — on testait alors du vieux code sans s'en rendre compte.
+  # On retire les mises a jour telechargees pour repartir du bundle embarque.
+  DATA=$(xcrun simctl get_app_container "$D" "$BUNDLE_ID" data 2>/dev/null || true)
+  if [ -n "$DATA" ] && [ -d "$DATA/Library/Application Support/.expo-internal" ]; then
+    rm -rf "$DATA/Library/Application Support/.expo-internal"
+    echo "    (mises a jour OTA telechargees retirees)"
+  fi
   codesign --force --sign - --timestamp=none "$APP" >/dev/null 2>&1 || true
   xcrun simctl launch "$D" "$BUNDLE_ID"
 done

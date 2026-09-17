@@ -16,8 +16,9 @@ import { C, RADIUS } from '@/constants/OheveTheme';
 import { calendarApi, prestatairesApi, type CalendarEvent } from '@/services/auth/api';
 import { useAuth } from '@/contexts/auth-context';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
+import { placeWithPreposition, weddingPlace } from '@/lib/place-utils';
 import { getGuests, loadGuests, subscribeGuests } from '@/lib/guests-store';
-import { getTodoTasks, loadTodoTasks, setTodoTasks } from '@/lib/todo-store';
+import { getTodoTasks, loadTodoTasks, setTodoTasks, subscribeTodo, type TodoTask } from '@/lib/todo-store';
 import { getHomeProviders, loadHomeProviders, type ProviderContact } from '@/lib/providers-store';
 import { useHomeDashboardStore } from '@/stores/use-home-dashboard-store';
 import { MADRICHIM_HATAN, MADRICHOT_KALA, MIKVES } from '@/data/officiants';
@@ -173,6 +174,10 @@ export default function DashboardScreen() {
     });
   }, []);
 
+  // Extrait du contexte pour que les dépendances des hooks portent sur le
+  // jeton lui-même et non sur l'objet `user` entier (qui change plus souvent).
+  const accessToken = user?.accessToken;
+
   const loadAppointments = useCallback(() => {
     if (!user?.accessToken || user.role === 'prestataire') return;
     calendarApi.getUpcoming(user.accessToken)
@@ -184,19 +189,35 @@ export default function DashboardScreen() {
 
   useFocusEffect(useCallback(() => {
     loadAppointments();
-    loadHomeProviders().then(() => {
+    loadHomeProviders().then(async () => {
       const providers = getHomeProviders();
       setHomeProviders(providers);
-      // Sync venue card with any saved salle/lieu provider
+      // La carte « Mon mariage sera » montre la salle QUE LE COUPLE A CHOISIE.
+      // (Avant, faute de salle enregistrée, on affichait une salle quelconque
+      // de l'annuaire : la photo ne correspondait pas au lieu du mariage.)
       const salleKeywords = ['salle', 'lieu', 'reception', 'venue'];
       const venueFromHome = providers.find((p) =>
         salleKeywords.some((kw) => p.categorie?.toLowerCase().includes(kw))
       );
-      if (venueFromHome) {
-        setVenueProvider({ name: venueFromHome.nom, photoUrl: venueFromHome.coverUrl, id: venueFromHome.id ? parseInt(venueFromHome.id, 10) : undefined });
+      if (!venueFromHome) {
+        setVenueProvider(null);
+        return;
       }
+      const venueId = venueFromHome.id ? parseInt(venueFromHome.id, 10) : undefined;
+      setVenueProvider({ name: venueFromHome.nom, photoUrl: venueFromHome.coverUrl, id: venueId });
+      // Photo de couverture à jour du compte prestataire (le cache local peut
+      // dater d'avant un changement de photo côté prestataire).
+      if (!accessToken || !venueId || Number.isNaN(venueId)) return;
+      try {
+        const photosRes = await prestatairesApi.getPhotos(accessToken, venueId);
+        if (!photosRes?.success || !Array.isArray(photosRes.data) || photosRes.data.length === 0) return;
+        const cover = photosRes.data.find((ph: { is_cover?: boolean }) => ph.is_cover) ?? photosRes.data[0];
+        if (cover?.url) {
+          setVenueProvider({ name: venueFromHome.nom, photoUrl: cover.url, id: venueId });
+        }
+      } catch { /* on garde la photo du cache */ }
     });
-  }, [loadAppointments]));
+  }, [loadAppointments, accessToken]));
 
   useEffect(() => {
     if (!user?.accessToken) return;
@@ -211,11 +232,6 @@ export default function DashboardScreen() {
               for (const p of photosRes.data) {
                 all.push({ ...p, prestataire_name: presta.business_name, prestataire_id: presta.user_id });
               }
-              // Use first provider with photos as venue if category matches salle
-              if (!venueProvider && photosRes.data.length > 0 && presta.category_name?.toLowerCase().includes('salle')) {
-                const coverPhoto = photosRes.data.find((p: { is_cover: boolean; url: string }) => p.is_cover)?.url ?? photosRes.data[0]?.url;
-                setVenueProvider({ name: presta.business_name, photoUrl: coverPhoto, id: presta.user_id });
-              }
             }
           } catch { /* ignoré */ }
         }
@@ -224,23 +240,30 @@ export default function DashboardScreen() {
       .catch(() => {});
   }, [user]);
 
+  // Recalcule la progression depuis la liste courante (locale ou serveur).
+  const refreshTodoStats = useCallback((tasks: TodoTask[]) => {
+    const done = tasks.filter((task) => task.done).length;
+    setTodoCompletion({ done, total: tasks.length });
+    const undone = tasks.filter((t) => !t.done).slice(0, 3).map((t, i) => ({
+      id: t.id,
+      label: t.title,
+      deadline: t.category,
+      done: false,
+      level: (i === 0 ? 'urgent' : 'medium') as 'urgent' | 'medium',
+    }));
+    setRealPriorityTasks(undone);
+  }, []);
+
+  // La synchro serveur répond après l'affichage : sans cet abonnement, le
+  // pourcentage restait figé sur la valeur locale jusqu'au prochain focus.
+  useEffect(() => subscribeTodo(() => refreshTodoStats(getTodoTasks())), [refreshTodoStats]);
+
   useFocusEffect(
     useCallback(() => {
       setBudgetSpent(getTotalSpent());
       setBudgetStoredTotal(getTotalBudget());
-      loadTodoTasks().then((tasks) => {
-        const done = tasks.filter((task) => task.done).length;
-        setTodoCompletion({ done, total: tasks.length });
-        const undone = tasks.filter((t) => !t.done).slice(0, 3).map((t, i) => ({
-          id: t.id,
-          label: t.title,
-          deadline: t.category,
-          done: false,
-          level: (i === 0 ? 'urgent' : 'medium') as 'urgent' | 'medium',
-        }));
-        setRealPriorityTasks(undone);
-      });
-    }, [])
+      loadTodoTasks().then(refreshTodoStats);
+    }, [refreshTodoStats])
   );
 
   const heroMotivation = useMemo(() => {
@@ -292,7 +315,11 @@ export default function DashboardScreen() {
 
   const renderSection = (section: HomeSection, index: number) => {
       if (section === 'venue') {
-        const weddingLocation = user?.wedding_address || user?.wedding_city;
+        // « à Marseille », « au Havre », « en Israël » — jamais « au Marseille ».
+        const lieuMariage = weddingPlace(user);
+        const lieuAvecPreposition = lieuMariage
+          ? placeWithPreposition(lieuMariage.label, lieuMariage.kind)
+          : null;
         return (
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
             <Pressable
@@ -309,8 +336,8 @@ export default function DashboardScreen() {
               <View style={styles.venueOverlay} />
               <View style={styles.venueContent}>
                 <ThemedText style={styles.venueOverline}>Mon mariage sera</ThemedText>
-                {weddingLocation ? (
-                  <ThemedText style={styles.venueTitle}>au {weddingLocation}</ThemedText>
+                {lieuAvecPreposition ? (
+                  <ThemedText style={styles.venueTitle}>{lieuAvecPreposition}</ThemedText>
                 ) : (
                   <ThemedText style={styles.venueTitle}>Lieu à définir</ThemedText>
                 )}
@@ -323,7 +350,7 @@ export default function DashboardScreen() {
                     <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.8)" />
                   </View>
                 )}
-                {!weddingLocation && !venueProvider && (
+                {!lieuAvecPreposition && !venueProvider && (
                   <ThemedText style={styles.venueHint}>Complétez votre profil pour ajouter votre lieu</ThemedText>
                 )}
               </View>
@@ -741,7 +768,7 @@ export default function DashboardScreen() {
               {weatherData ? (
                 <>
                   <ThemedText style={styles.weatherTemp}>{weatherData.temp}°C — {weatherData.desc}</ThemedText>
-                  <ThemedText style={styles.weatherInfo}>Prévision pour le jour J à {weddingCity || 'votre ville'}.</ThemedText>
+                  <ThemedText style={styles.weatherInfo}>Prévision pour le jour J {placeWithPreposition(weddingCity) ?? 'dans votre ville'}.</ThemedText>
                 </>
               ) : (
                 <>

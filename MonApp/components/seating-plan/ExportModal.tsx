@@ -131,7 +131,7 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
   const [exporting, setExporting] = useState(false);
 
   const previewHtml = useMemo(
-    () => generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate }),
+    () => generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate, preview: true }),
     [data, selected, cardStyle, panelTemplate],
   );
 
@@ -139,7 +139,12 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
     setExporting(true);
     try {
       const html = generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate });
-      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      // Les cartes panneau sont dessinées dans un repère A4 fixe (595 × 842 pt) :
+      // on impose ce format à l'impression pour que le PDF soit identique à l'aperçu.
+      const pageSize = selected === 'panneaux'
+        ? { width: 595, height: 842, margins: { left: 0, top: 0, right: 0, bottom: 0 } }
+        : {};
+      const { uri } = await Print.printToFileAsync({ html, base64: false, ...pageSize });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(uri, {

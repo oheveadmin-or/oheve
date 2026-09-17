@@ -1,6 +1,6 @@
 import { T } from './pdf-theme';
 import type { Guest, PdfCardStyle, PdfExportType, PdfOptions, SeatingPlanData, SeatingTable, TableShape } from './types';
-import { renderPanelPage, DEFAULT_PANEL_TEMPLATE } from './panel-templates';
+import { renderPanelPage, DEFAULT_PANEL_TEMPLATE, PANEL_CSS, PAGE_W } from './panel-templates';
 import type { PanelTemplateId } from './panel-templates';
 
 // Palette Oheve export — remplace les couleurs aléatoires des tables
@@ -442,17 +442,6 @@ function listePages(data: SeatingPlanData): string {
   </div>`;
 }
 
-// ── Expand guests (guestCount → lignes individuelles) ─────────────────────────
-
-function expandGuests(guests: Guest[]): string[] {
-  const lines: string[] = [];
-  for (const g of guests) {
-    for (let i = 0; i < Math.max(1, g.guestCount); i++) {
-      lines.push(g.name);
-    }
-  }
-  return lines;
-}
 
 // ── Ornement SVG décoratif ────────────────────────────────────────────────────
 
@@ -516,12 +505,11 @@ function panneauxPages(data: SeatingPlanData, _style: PdfCardStyle = 'elegant', 
 
   return tables.map((t, idx) => {
     const ag = tableGuests(t, guests);
-    const guestNames = expandGuests(ag);
     const occupied = ag.reduce((s, g) => s + g.guestCount, 0);
     return renderPanelPage(templateId, {
       tableNum: idx + 1,
       tableName: t.name,
-      guestNames,
+      guests: ag.map((g) => ({ name: g.name, count: Math.max(1, g.guestCount) })),
       occupied,
       seats: t.seats,
       coupleName: wedding.coupleName || '',
@@ -533,13 +521,23 @@ function panneauxPages(data: SeatingPlanData, _style: PdfCardStyle = 'elegant', 
 // ── CSS de base ───────────────────────────────────────────────────────────────
 
 const BASE_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Parisienne&family=Frank+Ruhl+Libre:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 body{font-family:'DM Sans',-apple-system,sans-serif;font-size:12px;line-height:1.45;}
 .page{page-break-after:always;position:relative;}
 .page:last-child{page-break-after:auto;}
 @page{margin:0;size:A4;}
+${PANEL_CSS}
+`;
+
+// Aperçu à l'écran : fond gris, pages espacées et ombrées. Jamais injecté dans
+// le HTML envoyé à l'impression (les marges casseraient la pagination).
+const PREVIEW_CSS = `
+body.preview{background:#DDD9CF;padding:14px 0 30px;}
+body.preview .page{margin:0 auto;background-color:#fff;}
+body.preview .page+.page{margin-top:18px;}
+body.preview .pn{box-shadow:0 10px 34px rgba(0,0,0,.22);}
 `;
 
 // ── Générateur principal ──────────────────────────────────────────────────────
@@ -584,5 +582,9 @@ export function generateSeatingPlanHtml(
       break;
   }
 
-  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><style>${BASE_CSS}</style></head><body>${pages}</body></html>`;
+  const preview = options.preview === true;
+  const head = preview
+    ? `<meta name="viewport" content="width=${PAGE_W + 28}"/><style>${BASE_CSS}${PREVIEW_CSS}</style>`
+    : `<style>${BASE_CSS}</style>`;
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>${head}</head><body${preview ? ' class="preview"' : ''}>${pages}</body></html>`;
 }

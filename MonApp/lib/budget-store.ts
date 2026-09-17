@@ -6,7 +6,12 @@
 import { createContext, createElement, useContext, useEffect, useReducer, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { bootstrapScope, pushScope, readCache } from './planning-sync';
+
 const BUDGET_STORAGE_KEY = '@oheve_budget_v1';
+
+/** Forme partagée avec le serveur (`/api/planning/budget`). */
+type BudgetDoc = { totalBudget: number; categories: BudgetCategory[] };
 
 export type BudgetEntry = {
   id: string;
@@ -144,7 +149,44 @@ function notifyListeners() {
 
 function saveBudget() {
   notifyListeners();
-  AsyncStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify({ totalBudget, categories })).catch(() => {});
+  const doc: BudgetDoc = { totalBudget, categories };
+  // Cache hérité gardé : une version antérieure de l'app lit encore cette clé.
+  AsyncStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(doc)).catch(() => {});
+  // Le budget suit le compte, pas le téléphone : les deux conjoints voient
+  // les mêmes dépenses et le même total.
+  pushScope<BudgetDoc>('budget', doc, applyServerBudget);
+}
+
+/** Applique la version serveur (l'autre appareil a écrit entre-temps). */
+function applyServerBudget(doc: BudgetDoc): void {
+  if (!doc) return;
+  if (typeof doc.totalBudget === 'number') totalBudget = doc.totalBudget;
+  if (Array.isArray(doc.categories)) categories = doc.categories;
+  notifyListeners();
+}
+
+/**
+ * Première rencontre entre cet appareil et le compte : aucune dépense ne doit
+ * disparaître, d'où l'union des écritures par identifiant. Ensuite, le serveur
+ * fait foi (supprimer une dépense doit pouvoir se propager).
+ */
+export function mergeBudget(local: BudgetDoc, serveur: BudgetDoc): BudgetDoc {
+  const parCle = new Map<string, BudgetCategory>();
+  for (const c of serveur.categories ?? []) parCle.set(c.key, { ...c, entries: [...(c.entries ?? [])] });
+  for (const c of local.categories ?? []) {
+    const existante = parCle.get(c.key);
+    if (!existante) {
+      parCle.set(c.key, { ...c, entries: [...(c.entries ?? [])] });
+      continue;
+    }
+    const vues = new Set(existante.entries.map((e) => e.id));
+    existante.entries.push(...(c.entries ?? []).filter((e) => !vues.has(e.id)));
+    existante.planned = existante.planned > 0 ? existante.planned : c.planned;
+  }
+  return {
+    totalBudget: serveur.totalBudget > 0 ? serveur.totalBudget : local.totalBudget,
+    categories: Array.from(parCle.values()),
+  };
 }
 
 // ── Subscriptions & React ─────────────────────────────────────────────────────
@@ -175,25 +217,43 @@ export function useBudget(): number {
 export async function loadPersistedBudget(): Promise<boolean> {
   const versionAtStart = version;
   const hadEntries = hasAnyEntries();
+  let charge = false;
   try {
-    const raw = await AsyncStorage.getItem(BUDGET_STORAGE_KEY);
-    if (!raw) return false;
-    if (versionAtStart !== version) return true;
+    // Cache du compte d'abord, sinon l'ancien stockage propre au téléphone.
+    const cache = await readCache<BudgetDoc>('budget');
+    const raw = cache ? null : await AsyncStorage.getItem(BUDGET_STORAGE_KEY);
+    const data = cache ?? (raw ? (JSON.parse(raw) as BudgetDoc) : null);
 
-    const data = JSON.parse(raw) as { totalBudget: number; categories: BudgetCategory[] };
-    const persistedHasEntries = Array.isArray(data.categories)
-      && data.categories.some(c => c.entries?.length > 0);
-
-    // Ne pas écraser des dépenses en mémoire avec une sauvegarde vide / périmée
-    if (hadEntries && !persistedHasEntries) return true;
-
-    if (typeof data.totalBudget === 'number') totalBudget = data.totalBudget;
-    if (Array.isArray(data.categories)) categories = data.categories;
-    notifyListeners();
-    return true;
+    if (data && versionAtStart === version) {
+      const persistedHasEntries = Array.isArray(data.categories)
+        && data.categories.some(c => c.entries?.length > 0);
+      // Ne pas écraser des dépenses en mémoire avec une sauvegarde vide / périmée
+      if (!(hadEntries && !persistedHasEntries)) {
+        if (typeof data.totalBudget === 'number') totalBudget = data.totalBudget;
+        if (Array.isArray(data.categories)) categories = data.categories;
+        notifyListeners();
+      }
+      charge = true;
+    }
   } catch {
-    return false;
+    // cache illisible : on continue vers le serveur
   }
+
+  // Serveur : source de vérité partagée entre les appareils du compte.
+  try {
+    const doc = await bootstrapScope<BudgetDoc>(
+      'budget',
+      { totalBudget, categories },
+      mergeBudget,
+    );
+    if (doc && (doc.totalBudget !== totalBudget || doc.categories !== categories)) {
+      applyServerBudget(doc);
+    }
+    charge = true;
+  } catch {
+    // hors-ligne : on reste sur le cache
+  }
+  return charge;
 }
 
 /** Synchronise le total profil sans effacer les dépenses ou budgets déjà saisis. */

@@ -52,6 +52,8 @@ export type PdfOptions = {
   cardStyle?: PdfCardStyle;
   expandGuests?: boolean;
   panelTemplate?: import('./panel-templates').PanelTemplateId;
+  /** Aperçu à l'écran (viewport A4, pages espacées). Jamais pour l'impression. */
+  preview?: boolean;
 };
 
 export const CARD_STYLES: { value: PdfCardStyle; label: string; desc: string }[] = [

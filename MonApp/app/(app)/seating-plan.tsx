@@ -13,6 +13,7 @@ import {
 } from '@/lib/guests-store';
 import type { SeatingPlanData, WeddingMeta } from '@/lib/seating-plan/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { bootstrapScope, configurePlanningSync, pushScope } from '@/lib/planning-sync';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -316,6 +317,31 @@ function ShapeIcon({ shape, active }: { shape: TableShape; active: boolean }) {
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 
+/** Plan de table partagé entre les appareils d'un même compte. */
+type SeatingPlanSnapshot = {
+  tables: SeatingTable[];
+  guests: Guest[];
+  roomWidth: string;
+  roomHeight: string;
+  nextTableId?: number;
+  nextGuestId?: number;
+};
+
+/**
+ * Première rencontre entre cet appareil et le compte. Deux plans de salle ne se
+ * fusionnent pas table par table (les positions n'auraient plus de sens) : on
+ * garde le plus avancé, et un plan vide ne remplace jamais un plan existant.
+ */
+function mergeSeating(
+  local: SeatingPlanSnapshot | null,
+  serveur: SeatingPlanSnapshot | null,
+): SeatingPlanSnapshot | null {
+  const nb = (p: SeatingPlanSnapshot | null) => p?.tables?.length ?? 0;
+  if (nb(serveur) === 0) return local ?? serveur;
+  if (nb(local) === 0) return serveur;
+  return nb(local) > nb(serveur) ? local : serveur;
+}
+
 let nextTableId = 20;
 let nextGuestId = 100;
 
@@ -346,11 +372,26 @@ function SeatingPlanContent() {
   useEffect(() => {
     if (authLoading || !STORAGE_KEY) return;
     let alive = true;
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
+    // Le plan de table suit le compte, pas le téléphone : on lit le cache
+    // local pour un affichage immédiat, puis le serveur fait foi.
+    configurePlanningSync(user?.accessToken ?? null, user?.id ?? null);
+    AsyncStorage.getItem(STORAGE_KEY).then(async (raw) => {
       if (!alive) return;
+      let local: SeatingPlanSnapshot | null = null;
       if (raw) {
+        try { local = JSON.parse(raw) as SeatingPlanSnapshot; } catch { local = null; }
+      }
+      let data: SeatingPlanSnapshot | null = local;
+      try {
+        // Premier contact avec le compte : on garde le plan le plus fourni
+        // plutôt que d'écraser celui d'un appareil avec celui d'un autre.
+        data = await bootstrapScope<SeatingPlanSnapshot | null>('seating', local, mergeSeating);
+      } catch {
+        // hors-ligne : on reste sur le cache
+      }
+      if (!alive) return;
+      if (data) {
         try {
-          const data = JSON.parse(raw);
           if (data.tables) {
             setTables(data.tables);
             const maxId = (data.tables as SeatingTable[]).reduce(
@@ -404,14 +445,13 @@ function SeatingPlanContent() {
   const flushSave = useCallback(() => {
     const s = snapshotRef.current;
     if (!s.loaded || !s.key) return;
-    AsyncStorage.setItem(
-      s.key,
-      JSON.stringify({
-        tables: s.tables, guests: s.guests,
-        roomWidth: s.roomWidth, roomHeight: s.roomHeight,
-        nextTableId, nextGuestId,
-      }),
-    ).catch(() => {});
+    const snapshot: SeatingPlanSnapshot = {
+      tables: s.tables, guests: s.guests,
+      roomWidth: s.roomWidth, roomHeight: s.roomHeight,
+      nextTableId, nextGuestId,
+    };
+    AsyncStorage.setItem(s.key, JSON.stringify(snapshot)).catch(() => {});
+    pushScope<SeatingPlanSnapshot>('seating', snapshot);
   }, []);
 
   // Auto-save (debounced 800ms) after load

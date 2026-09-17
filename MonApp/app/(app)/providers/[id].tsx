@@ -159,18 +159,24 @@ export default function ProviderDetailScreen() {
   const handleAddToHome = () => {
     if (!id || !display) return;
     const existing = getProviderContact(id);
-    const providerForHome: ProviderContact = existing ?? {
-      id,
-      nom: display.nom,
-      categorie: apiRow?.categorie ?? '',
-      ville: display.ville,
-      note: 4.5,
-      telephone: display.tel,
-      email: display.email,
-      adresse: display.adresse,
-      instagram: display.instagram,
-      coverUrl: coverPhoto?.url,
-      avatarUrl: user?.avatar_url,
+    // `avatarUrl` était l'avatar du COUPLE connecté : la carte d'accueil
+    // affichait donc la photo du compte au lieu de celle de la salle.
+    // On enregistre la couverture et l'avatar du PRESTATAIRE, et on les
+    // rafraîchit même si le contact était déjà en cache.
+    const providerForHome: ProviderContact = {
+      ...(existing ?? {
+        id,
+        nom: display.nom,
+        categorie: apiRow?.categorie ?? '',
+        ville: display.ville,
+        note: 4.5,
+        telephone: display.tel,
+        email: display.email,
+        adresse: display.adresse,
+        instagram: display.instagram,
+      }),
+      coverUrl: coverPhoto?.url ?? existing?.coverUrl,
+      avatarUrl: avatarUrl ?? existing?.avatarUrl,
     };
     addProviderToHome(providerForHome);
     setAdded(true);

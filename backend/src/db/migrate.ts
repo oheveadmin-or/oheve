@@ -542,6 +542,22 @@ export async function runMigrations(): Promise<void> {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_wedding_guests_user ON wedding_guests(user_id)`);
 
+    // ── Planification partagée (to-do, budget, prestataires enregistrés) ──────
+    // Ces trois listes ne vivaient que dans l'AsyncStorage du téléphone : deux
+    // appareils d'un même compte affichaient des avancements différents
+    // (« 6 % du mariage prêt » ici, « 1 % » là). Un document JSONB par compte
+    // et par domaine en fait une donnée partagée, comme les invités.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wedding_planning (
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        scope      VARCHAR(32) NOT NULL,
+        data       JSONB NOT NULL DEFAULT '{}'::jsonb,
+        revision   BIGINT NOT NULL DEFAULT 1,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (user_id, scope)
+      )
+    `);
+
     // ── Description par photo + compteur de vues du profil prestataire ─────────
     await pool.query(`ALTER TABLE prestataire_photos ADD COLUMN IF NOT EXISTS caption TEXT`);
     await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS profile_views INTEGER NOT NULL DEFAULT 0`);

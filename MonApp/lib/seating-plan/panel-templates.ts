@@ -1,23 +1,46 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Cartes panneau — une page A4 par table, six modèles.
+//
+// Toutes les mises en page sont dessinées dans un repère FIXE de 595 × 842 px
+// (A4 en points). L'aperçu (WebView, viewport = 595) et l'impression
+// (expo-print, width 595 / height 842) utilisent ce même repère : ce que l'on
+// voit à l'écran est exactement ce qui sort sur le PDF.
+//
+// La liste des convives s'adapte au nombre d'invités : nombre de colonnes,
+// taille de police et, pour les tablées exceptionnelles, découpage sur
+// plusieurs pages (« suite »). Un invité comptant pour plusieurs personnes
+// n'est affiché qu'une fois, avec un discret « +1 ».
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const PAGE_W = 595;
+export const PAGE_H = 842;
+
 const GOLD = '#C5A55A';
 const GOLD_DARK = '#A8893A';
-const NAVY = '#1A2B5E';
-const NAVY_LIGHT = '#2A4A8E';
-const SAGE = '#7A9B6A';
-const FOREST = '#4A6741';
-const FOREST_DK = '#2E5028';
-const CHAMPAGNE = '#D4B896';
+const GOLD_LIGHT = '#E9D8A8';
+const NAVY = '#1B2A56';
+const FOREST = '#3F5E3A';
+const SAGE = '#6E8F69';
+const BROWN = '#4A3620';
+const BURGUNDY = '#8B3A3A';
+const CHARCOAL = '#2F332D';
 
-const SERIF = "'Cormorant Garamond',serif";
-const SANS = "'DM Sans',sans-serif";
+const SERIF = "'Cormorant Garamond',Georgia,serif";
+const DISPLAY = "'Playfair Display','Cormorant Garamond',Georgia,serif";
+const SCRIPT = "'Parisienne','Cormorant Garamond',cursive";
+const SANS = "'DM Sans',-apple-system,sans-serif";
+const HEBREW = "'Frank Ruhl Libre','David','Times New Roman',serif";
 
 export type PanelTemplateId =
   | 'classic' | 'botanique' | 'jewish'
   | 'plexiglass' | 'suspended' | 'ketouba';
 
+export type PanelGuest = { name: string; count: number };
+
 export type RenderArgs = {
   tableNum: number;
   tableName: string;
-  guestNames: string[];
+  guests: PanelGuest[];
   occupied: number;
   seats: number;
   coupleName: string;
@@ -25,348 +48,523 @@ export type RenderArgs = {
 };
 
 function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ── SVG helpers ────────────────────────────────────────────────────────────────
+// ── Feuille de style partagée ─────────────────────────────────────────────────
+// Les couleurs propres à chaque modèle passent par des variables CSS posées sur
+// la page ; la structure (en-tête / liste / pied) est commune.
 
-// Single petal/leaf ellipse rotated around (cx,cy)
-function ep(cx: number, cy: number, angle: number, len: number, w: number, c: string, o: number): string {
-  return `<ellipse cx="${cx|0}" cy="${(cy-len/2)|0}" rx="${w|0}" ry="${(len/2)|0}" fill="${c}" opacity="${o}" transform="rotate(${angle},${cx|0},${cy|0})"/>`;
+export const PANEL_CSS = `
+.pn{width:${PAGE_W}px;height:${PAGE_H}px;overflow:hidden;position:relative;page-break-after:always;break-after:page;}
+.pn:last-child{page-break-after:auto;break-after:auto;}
+.pn-decor,.pn-over{position:absolute;inset:0;pointer-events:none;}
+.pn-decor{z-index:0;}.pn-over{z-index:2;}
+.pn-decor>svg,.pn-over>svg{display:block;position:absolute;top:0;left:0;}
+.pn-body{position:absolute;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;}
+.pn-head{flex:0 0 auto;width:100%;display:flex;flex-direction:column;align-items:center;}
+.pn-crest{display:flex;align-items:center;justify-content:center;}
+.pn-crest svg{display:block;}
+.pn-eyebrow{font-family:${SANS};font-size:8.5px;font-weight:600;letter-spacing:4px;text-transform:uppercase;color:var(--eyebrow);margin-top:14px;padding-left:4px;}
+.pn-couple{font-family:${SERIF};font-style:italic;font-weight:500;font-size:22px;color:var(--name);margin-top:3px;line-height:1.2;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pn-couple.script{font-family:${SCRIPT};font-style:normal;font-weight:400;font-size:32px;margin-top:0;line-height:1.15;}
+.pn-label{display:flex;align-items:center;gap:12px;margin-top:20px;font-family:${SANS};font-size:9.5px;font-weight:600;letter-spacing:7px;text-transform:uppercase;color:var(--label);padding-left:7px;}
+.pn-label i{display:block;width:34px;height:1px;background:var(--label);opacity:.55;}
+.pn-hero{font-family:${DISPLAY};font-weight:700;color:var(--num);line-height:1;margin-top:8px;font-variant-numeric:lining-nums;}
+.pn-hero.foil{background:linear-gradient(160deg,${GOLD_LIGHT} 0%,${GOLD} 45%,#9F8135 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+.pn-hero.light{font-weight:400;letter-spacing:-2px;}
+.pn-name{font-family:${SERIF};font-size:22px;font-weight:600;color:var(--name);margin-top:6px;line-height:1.2;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pn-suite{font-family:${SERIF};font-style:italic;font-size:14px;color:var(--foot);margin-top:4px;}
+.pn-rule{margin-top:14px;display:flex;justify-content:center;}
+.pn-rule svg{display:block;}
+.pn-list{flex:1 1 auto;width:100%;display:flex;align-items:center;justify-content:center;padding:12px 0;min-height:0;}
+.pn-grid{display:grid;width:100%;column-gap:28px;}
+.pn-cell{font-family:${SERIF};font-weight:600;color:var(--text);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:6px;padding-right:6px;}
+.pn-cell.b{border-bottom:.6px solid var(--divider);}
+.pn-cnt{font-family:${SANS};font-weight:600;color:var(--accent);vertical-align:super;margin-left:5px;letter-spacing:.5px;}
+.pn-empty{font-family:${SERIF};font-style:italic;font-size:19px;color:var(--foot);}
+.pn-foot{flex:0 0 auto;width:100%;display:flex;flex-direction:column;align-items:center;padding-top:12px;border-top:.6px solid var(--divider);}
+.pn-seats{font-family:${SANS};font-size:9px;font-weight:500;letter-spacing:2.5px;text-transform:uppercase;color:var(--foot);}
+.pn-tag{font-family:${SERIF};font-style:italic;font-size:13.5px;color:var(--foot);margin-top:5px;}
+.pn-heb{font-family:${HEBREW};font-size:14px;color:var(--accent);margin-top:7px;direction:rtl;letter-spacing:1px;}
+`;
+
+// ── Liste des convives : choix automatique colonnes / corps / pagination ──────
+
+const ROW_K = 1.8;    // hauteur d'une ligne ≈ 1.8 × corps (interligne 1.3 + marges 0.25)
+const MIN_FS = 11;    // corps minimal lisible sur un panneau
+const COL_GAP = 28;
+
+type Fit = { cols: number; rows: number; fs: number; pad: number; overflow: boolean };
+
+function fitGuests(n: number, budgetH: number, budgetW: number, maxChars: number): Fit {
+  const caps = [0, 27, 21, 16];
+  let best: Fit | undefined;
+  for (let cols = 1; cols <= 3; cols++) {
+    if (cols === 2 && n <= 8) break;
+    if (cols === 3 && n <= 22) break;
+    const rows = Math.ceil(n / cols);
+    const colW = (budgetW - (cols - 1) * COL_GAP) / cols;
+    const byH = budgetH / (rows * ROW_K);
+    const byW = (colW - 12) / (Math.max(8, maxChars) * 0.47);
+    const fs = Math.floor(Math.max(MIN_FS, Math.min(caps[cols], byH, byW)));
+    const overflow = rows * fs * ROW_K > budgetH + 1;
+    const fit: Fit = { cols, rows, fs, pad: Math.max(3, Math.round(fs * 0.25)), overflow };
+    if (!best || (best.overflow && !overflow) || (!overflow && fs > best.fs + 2)) best = fit;
+  }
+  return best!;
 }
 
-// White rose
-function wr(cx: number, cy: number, r: number): string {
-  const o = Array.from({length:8},(_,i)=>ep(cx,cy,i*45,r*.9,r*.31,'#FFF8F0',.5)).join('');
-  const m = Array.from({length:6},(_,i)=>ep(cx,cy,i*60+22,r*.66,r*.26,'#FFF2E4',.62)).join('');
-  const n = Array.from({length:4},(_,i)=>ep(cx,cy,i*90+8,r*.44,r*.2,'#FFECD0',.72)).join('');
-  return `${o}${m}${n}<circle cx="${cx|0}" cy="${cy|0}" r="${(r*.16)|0}" fill="#F5DCA0" opacity=".82"/>`;
+function splitEven<T>(items: T[], capacity: number): T[][] {
+  if (items.length <= capacity) return [items];
+  const pages = Math.ceil(items.length / capacity);
+  const per = Math.ceil(items.length / pages);
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += per) out.push(items.slice(i, i + per));
+  return out;
 }
 
-// Gold bar ornament
-function goldBar(w = 160, color = GOLD): string {
-  const h = w/2-14;
-  return `<svg width="${w}" height="16" viewBox="0 0 ${w} 16" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="8" x2="${h}" y2="8" stroke="${color}" stroke-width=".9" opacity=".6"/><circle cx="${w/2}" cy="8" r="4" fill="none" stroke="${color}" stroke-width="1" opacity=".7"/><circle cx="${w/2}" cy="8" r="1.7" fill="${color}" opacity=".6"/><line x1="${w/2+14}" y1="8" x2="${w}" y2="8" stroke="${color}" stroke-width=".9" opacity=".6"/></svg>`;
+function guestGrid(guests: PanelGuest[], budgetH: number, budgetW: number): string {
+  if (!guests.length) return `<div class="pn-empty">Aucun invité assigné</div>`;
+  const maxChars = Math.max(...guests.map(g => g.name.length + (g.count > 1 ? 3 : 0)));
+  const { cols, rows, fs, pad } = fitGuests(guests.length, budgetH, budgetW, maxChars);
+  const cells = guests.map((g, i) => {
+    const lastRow = i % rows === rows - 1 || i === guests.length - 1;
+    const cnt = g.count > 1 ? `<span class="pn-cnt" style="font-size:${Math.round(fs * 0.5)}px;">+${g.count - 1}</span>` : '';
+    return `<div class="pn-cell${lastRow ? '' : ' b'}" style="font-size:${fs}px;padding-top:${pad}px;padding-bottom:${pad}px;">${esc(g.name)}${cnt}</div>`;
+  }).join('');
+  return `<div class="pn-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${rows},auto);grid-auto-flow:column;">${cells}</div>`;
 }
 
-// Star of David
-function sodSvg(size: number, color: string): string {
-  const c=size/2, r=size*.42;
-  const p1=`${c},${c-r} ${c+r*.866},${c+r*.5} ${c-r*.866},${c+r*.5}`;
-  const p2=`${c},${c+r} ${c+r*.866},${c-r*.5} ${c-r*.866},${c-r*.5}`;
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><polygon points="${p1}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/><polygon points="${p2}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/><circle cx="${c}" cy="${c}" r="2.5" fill="${color}" opacity=".5"/></svg>`;
-}
-
-// ── Full-height botanical side branches ────────────────────────────────────────
-
-const BOT_L = `<svg width="105" height="842" viewBox="0 0 105 842" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-<path d="M72 842 Q65 700 50 560 Q35 420 45 260 Q50 160 40 60" stroke="#5A8045" stroke-width="1.8" fill="none" opacity=".38"/>
-<path d="M72 842 Q80 700 85 560 Q88 420 78 280" stroke="#5A8045" stroke-width="1.2" fill="none" opacity=".28"/>
-${[
-  [28,88,-48,64,22,'#4A7035',.42],[52,130,32,58,20,'#5A8045',.38],
-  [22,182,-56,68,24,'#3A6028',.4],[58,228,38,62,21,'#5A8045',.36],
-  [18,285,-45,60,20,'#4A7035',.38],[60,335,44,64,22,'#6A9055',.36],
-  [20,390,-52,66,22,'#4A7035',.4],[55,445,36,58,20,'#5A8045',.36],
-  [16,498,-46,62,21,'#3A6028',.38],[62,550,42,60,20,'#5A8045',.35],
-  [22,605,-54,64,22,'#4A7035',.38],[56,658,38,58,20,'#6A9055',.34],
-  [18,710,-44,58,20,'#5A8045',.36],[58,760,40,54,18,'#4A7035',.33],
-  [24,48,-38,52,18,'#6A9055',.35],[60,98,28,48,16,'#7A9B65',.32],
-  [30,155,-30,50,17,'#6A9055',.33],[55,205,34,52,18,'#7A9B65',.32],
-  [25,265,-35,50,17,'#5A8045',.34],[58,318,36,52,18,'#6A9055',.32],
-].map(([cx,cy,a,l,w,c,o])=>ep(cx as number,cy as number,a as number,l as number,w as number,c as string,o as number)).join('')}
-${[
-  wr(38,112,18), wr(32,298,16), wr(42,492,18), wr(36,685,16), wr(44,198,14), wr(38,405,15),
-].join('')}
-</svg>`;
-
-const BOT_R = `<svg width="105" height="842" viewBox="0 0 105 842" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-<path d="M33 842 Q40 700 55 560 Q70 420 60 260 Q55 160 65 60" stroke="#5A8045" stroke-width="1.8" fill="none" opacity=".38"/>
-<path d="M33 842 Q25 700 20 560 Q17 420 27 280" stroke="#5A8045" stroke-width="1.2" fill="none" opacity=".28"/>
-${[
-  [77,88,48,64,22,'#4A7035',.42],[53,130,-32,58,20,'#5A8045',.38],
-  [83,182,56,68,24,'#3A6028',.4],[47,228,-38,62,21,'#5A8045',.36],
-  [87,285,45,60,20,'#4A7035',.38],[45,335,-44,64,22,'#6A9055',.36],
-  [85,390,52,66,22,'#4A7035',.4],[50,445,-36,58,20,'#5A8045',.36],
-  [89,498,46,62,21,'#3A6028',.38],[43,550,-42,60,20,'#5A8045',.35],
-  [83,605,54,64,22,'#4A7035',.38],[49,658,-38,58,20,'#6A9055',.34],
-  [87,710,44,58,20,'#5A8045',.36],[47,760,-40,54,18,'#4A7035',.33],
-  [81,48,38,52,18,'#6A9055',.35],[45,98,-28,48,16,'#7A9B65',.32],
-  [75,155,30,50,17,'#6A9055',.33],[50,205,-34,52,18,'#7A9B65',.32],
-  [80,265,35,50,17,'#5A8045',.34],[47,318,-36,52,18,'#6A9055',.32],
-].map(([cx,cy,a,l,w,c,o])=>ep(cx as number,cy as number,a as number,l as number,w as number,c as string,o as number)).join('')}
-${[
-  wr(67,112,18), wr(73,298,16), wr(63,492,18), wr(69,685,16), wr(61,198,14), wr(67,405,15),
-].join('')}
-</svg>`;
-
-// ── Islamic arch border (Jewish template) ──────────────────────────────────────
-
-const JEWISH_BORDER = `<svg width="595" height="842" viewBox="0 0 595 842" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Outer gold border -->
-  <rect x="12" y="12" width="571" height="818" fill="none" stroke="${GOLD}" stroke-width="2" opacity=".5"/>
-  <rect x="18" y="18" width="559" height="806" fill="none" stroke="${GOLD}" stroke-width=".6" opacity=".25"/>
-  <!-- Top arch shape -->
-  <path d="M60 180 Q297 40 535 180" fill="none" stroke="${GOLD}" stroke-width="2" opacity=".4"/>
-  <path d="M72 185 Q297 58 523 185" fill="none" stroke="${GOLD}" stroke-width=".7" opacity=".22"/>
-  <!-- Decorative top geometric pattern -->
-  <path d="M60 180 L60 820" stroke="${GOLD}" stroke-width=".8" opacity=".28"/>
-  <path d="M535 180 L535 820" stroke="${GOLD}" stroke-width=".8" opacity=".28"/>
-  <!-- Star of David at top center -->
-  <polygon points="297,52 318,90 276,90" fill="none" stroke="${GOLD}" stroke-width="1.6" stroke-linejoin="round" opacity=".65"/>
-  <polygon points="297,100 318,62 276,62" fill="none" stroke="${GOLD}" stroke-width="1.6" stroke-linejoin="round" opacity=".65"/>
-  <!-- Side mini arches (left) -->
-  <path d="M12 220 Q36 196 60 220" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".3"/>
-  <path d="M12 280 Q36 256 60 280" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".26"/>
-  <path d="M12 340 Q36 316 60 340" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".24"/>
-  <path d="M12 400 Q36 376 60 400" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".22"/>
-  <path d="M12 460 Q36 436 60 460" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".2"/>
-  <path d="M12 520 Q36 496 60 520" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".2"/>
-  <path d="M12 580 Q36 556 60 580" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".18"/>
-  <path d="M12 640 Q36 616 60 640" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".18"/>
-  <path d="M12 700 Q36 676 60 700" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".16"/>
-  <!-- Side mini arches (right) -->
-  <path d="M535 220 Q559 196 583 220" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".3"/>
-  <path d="M535 280 Q559 256 583 280" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".26"/>
-  <path d="M535 340 Q559 316 583 340" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".24"/>
-  <path d="M535 400 Q559 376 583 400" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".22"/>
-  <path d="M535 460 Q559 436 583 460" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".2"/>
-  <path d="M535 520 Q559 496 583 520" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".2"/>
-  <path d="M535 580 Q559 556 583 580" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".18"/>
-  <path d="M535 640 Q559 616 583 640" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".18"/>
-  <path d="M535 700 Q559 676 583 700" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".16"/>
-  <!-- Corner ornaments -->
-  <circle cx="12" cy="12" r="5" fill="${GOLD}" opacity=".45"/>
-  <circle cx="583" cy="12" r="5" fill="${GOLD}" opacity=".45"/>
-  <circle cx="12" cy="830" r="5" fill="${GOLD}" opacity=".45"/>
-  <circle cx="583" cy="830" r="5" fill="${GOLD}" opacity=".45"/>
-  <!-- Bottom geometric pattern -->
-  <path d="M60 810 Q297 780 535 810" fill="none" stroke="${GOLD}" stroke-width="1" opacity=".3"/>
-</svg>`;
-
-// ── Mise en page commune ───────────────────────────────────────────────────────
-// Toutes les cartes partagent la même ossature : une page A4 pleine, centrée,
-// répartie en trois bandes (en-tête / invités / pied). La typographie de la liste
-// s'adapte au nombre d'invités pour que la page soit toujours remplie, jamais
-// tassée en haut avec du vide en dessous.
+// ── Ossature commune ──────────────────────────────────────────────────────────
 
 type Palette = {
-  eyebrow: string;   // « Mariage de … »
-  label: string;     // « Table »
-  num: string;       // numéro de table
-  name: string;      // nom de la table
-  text: string;      // noms des invités
-  divider: string;   // filets de séparation
-  foot: string;      // pied de page
-  guestFont?: string;
+  eyebrow: string; label: string; num: string; name: string;
+  text: string; divider: string; foot: string; accent: string;
 };
 
-// Plus la table est chargée, plus le numéro « héros » se réduit pour rendre de la
-// hauteur à la liste. `budget` = hauteur utile restante pour les noms sur une A4
-// (842 px moins l'en-tête, le pied de page et les marges) ; une ligne mesure
-// ≈ 2,05 × la taille de police.
-function density(count: number): { hero: number; budget: number } {
-  if (count > 14) return { hero: 0.66, budget: 385 };
-  if (count > 10) return { hero: 0.80, budget: 355 };
-  return { hero: 1, budget: 320 };
-}
-
-// Taille du numéro de table, réduite sur les grandes tablées.
-function heroSize(a: RenderArgs, base: number): number {
-  return Math.round(base * density(a.guestNames.length).hero);
-}
-
-function typeScale(count: number): { fs: number; pad: number } {
-  if (count === 0) return { fs: 18, pad: 10 };
-  const fs = Math.max(10, Math.min(30, Math.round(density(count).budget / (count * 2.05))));
-  return { fs, pad: Math.max(3, Math.round(fs * 0.35)) };
-}
-
-function guestBlock(names: string[], p: Palette): string {
-  const ff = p.guestFont ?? SERIF;
-  if (!names.length) {
-    return `<div style="font-family:${ff};font-size:19px;font-style:italic;color:${p.foot};opacity:.75;">Aucun invité assigné</div>`;
-  }
-  const { fs, pad } = typeScale(names.length);
-  const rows = names.map((n, i) => {
-    const last = i === names.length - 1;
-    return `<div style="font-family:${ff};font-size:${fs}px;line-height:1.35;color:${p.text};padding:${pad}px 6px;${!last ? `border-bottom:.7px solid ${p.divider};` : ''}">${esc(n)}</div>`;
-  }).join('');
-  return `<div style="width:100%;">${rows}</div>`;
-}
-
-function panelShell(o: {
+type ShellOpts = {
   a: RenderArgs;
   p: Palette;
-  bg: string;
-  pad: string;
-  decor?: string;
-  crest?: string;
-  numBlock: string;
+  bg: string;                         // fond CSS de la page
+  inset: [number, number, number, number]; // marges du bloc de contenu (haut, droite, bas, gauche)
+  decor?: string;                     // calque plein format sous le contenu
+  overlay?: string;                   // calque plein format au-dessus du contenu
+  crest?: string; crestH?: number;
+  hero: (size: number) => string; heroBase: number;
+  heroH?: (size: number) => number;   // hauteur réelle du bloc numéro si ≠ taille de police
   rule: string;
-  contentMin?: string;
-  wrap?: (inner: string) => string;
-}): string {
+  couple?: 'italic' | 'script';
+  extraFooter?: string;
+};
+
+// Les dégradés, motifs et filtres SVG sont référencés par id : on les suffixe
+// par page pour qu'aucune page n'aille chercher la définition d'une autre.
+function uniqIds(svg: string, uid: string): string {
+  return svg
+    .replace(/ id="([A-Za-z0-9_-]+)"/g, (_m, id) => ` id="${id}-${uid}"`)
+    .replace(/url\(#([A-Za-z0-9_-]+)\)/g, (_m, id) => `url(#${id}-${uid})`);
+}
+
+function renderPanel(o: ShellOpts): string {
   const { a, p } = o;
-  const min = o.contentMin ?? '100vh';
-  const sn = a.tableName !== String(a.tableNum)
-    ? `<div style="font-family:${SERIF};font-size:22px;font-weight:600;color:${p.name};margin-top:4px;">${esc(a.tableName)}</div>`
-    : '';
+  const [it, ir, ib, il] = o.inset;
+  const n = a.guests.length;
+  const heroK = n > 14 ? 0.66 : n > 9 ? 0.78 : n > 5 ? 0.9 : 1;
+  const heroSize = Math.round(o.heroBase * heroK);
+  const crestH = o.crestH ?? 0;
+  const tname = a.tableName.trim();
+  const hasName = tname !== '' && tname !== String(a.tableNum);
 
-  const header = `
-    ${o.crest ?? ''}
-    ${a.coupleName ? `<div style="font-size:9px;font-weight:700;letter-spacing:6px;text-transform:uppercase;color:${p.eyebrow};margin:10px 0 12px;font-family:${SANS};">Mariage de ${esc(a.coupleName)}</div>` : '<div style="height:12px;"></div>'}
-    <div style="font-size:10px;font-weight:700;letter-spacing:8px;text-transform:uppercase;color:${p.label};margin-bottom:8px;font-family:${SANS};">Table</div>
-    ${o.numBlock}
-    ${sn}
-    <div style="margin:14px auto 0;">${o.rule}</div>`;
+  const coupleH = a.coupleName ? (o.couple === 'script' ? 66 : 54) : 14;
+  const heroH = o.heroH ? o.heroH(heroSize) : heroSize;
+  const headerH = crestH + coupleH + 30 + heroH + (hasName ? 34 : 0) + 32;
+  const footerH = 62 + (o.extraFooter ? 24 : 0);
+  const budgetH = Math.max(120, PAGE_H - it - ib - headerH - footerH - 24);
+  const budgetW = PAGE_W - il - ir;
+  const capacity = Math.max(6, 3 * Math.floor(budgetH / (MIN_FS * ROW_K)));
+  const chunks = splitEven(a.guests, capacity);
 
-  const footer = `
-    <div style="padding-top:14px;border-top:.7px solid ${p.divider};font-size:9.5px;letter-spacing:1.5px;color:${p.foot};font-family:${SANS};">${a.occupied} / ${a.seats} places</div>
-    <div style="margin-top:8px;font-size:8.5px;letter-spacing:2.5px;text-transform:uppercase;color:${p.foot};opacity:.7;font-family:${SANS};">Merci de partager ce moment avec nous</div>`;
+  const vars = `--eyebrow:${p.eyebrow};--label:${p.label};--num:${p.num};--name:${p.name};--text:${p.text};--divider:${p.divider};--foot:${p.foot};--accent:${p.accent};`;
 
-  const inner = `<div style="min-height:${min};display:flex;flex-direction:column;justify-content:space-between;align-items:center;text-align:center;padding:${o.pad};position:relative;z-index:1;">
-      <div style="flex:0 0 auto;width:100%;">${header}</div>
-      <div style="flex:1 1 auto;width:100%;display:flex;flex-direction:column;justify-content:center;padding:16px 0;">${guestBlock(a.guestNames, p)}</div>
-      <div style="flex:0 0 auto;width:100%;">${footer}</div>
+  return chunks.map((chunk, idx) => {
+    const uid = `t${a.tableNum}p${idx}`;
+    const decor = o.decor ? uniqIds(o.decor, uid) : '';
+    const overlay = o.overlay ? uniqIds(o.overlay, uid) : '';
+    const crest = o.crest ? uniqIds(o.crest, uid) : '';
+    const suite = chunks.length > 1
+      ? `<div class="pn-suite">${idx === 0 ? `1 / ${chunks.length}` : `suite · ${idx + 1} / ${chunks.length}`}</div>`
+      : '';
+    const header = `
+      ${crest ? `<div class="pn-crest" style="height:${crestH}px;">${crest}</div>` : ''}
+      ${a.coupleName
+        ? `<div class="pn-eyebrow">Mariage de</div><div class="pn-couple${o.couple === 'script' ? ' script' : ''}">${esc(a.coupleName)}</div>`
+        : `<div style="height:14px;"></div>`}
+      <div class="pn-label"><i></i>Table<i></i></div>
+      ${o.hero(heroSize)}
+      ${hasName ? `<div class="pn-name">${esc(tname)}</div>` : ''}
+      ${suite}
+      <div class="pn-rule">${o.rule}</div>`;
+
+    const footer = `
+      <div class="pn-seats">${a.occupied} convive${a.occupied > 1 ? 's' : ''}</div>
+      <div class="pn-tag">Merci de partager ce moment avec nous</div>
+      ${o.extraFooter ? `<div class="pn-heb">${o.extraFooter}</div>` : ''}`;
+
+    return `<div class="page pn" style="background:${o.bg};${vars}">
+      ${decor ? `<div class="pn-decor">${decor}</div>` : ''}
+      <div class="pn-body" style="top:${it}px;right:${ir}px;bottom:${ib}px;left:${il}px;">
+        <div class="pn-head">${header}</div>
+        <div class="pn-list">${guestGrid(chunk, budgetH, budgetW)}</div>
+        <div class="pn-foot">${footer}</div>
+      </div>
+      ${overlay ? `<div class="pn-over">${overlay}</div>` : ''}
     </div>`;
-
-  // Pas d'overflow:hidden : une table exceptionnellement chargée doit déborder
-  // sur une page supplémentaire plutôt que de voir des invités rognés.
-  return `<div class="page" style="min-height:100vh;background:${o.bg};position:relative;">${o.decor ?? ''}${o.wrap ? o.wrap(inner) : inner}</div>`;
+  }).join('');
 }
 
-// Numéro de table « héros » : plein cadre, toujours au centre optique de la page.
-function numPlain(n: number, color: string, size = 108): string {
-  return `<div style="font-family:${SERIF};font-size:${size}px;font-weight:700;color:${color};line-height:.98;">${n}</div>`;
+// ── Petits composants SVG ─────────────────────────────────────────────────────
+
+const SVG_PAGE = `<svg width="${PAGE_W}" height="${PAGE_H}" viewBox="0 0 ${PAGE_W} ${PAGE_H}" xmlns="http://www.w3.org/2000/svg">`;
+
+function goldGrad(id: string, dir: 'diag' | 'radial' = 'diag'): string {
+  if (dir === 'radial') {
+    return `<radialGradient id="${id}" cx="38%" cy="32%" r="70%"><stop offset="0" stop-color="${GOLD_LIGHT}"/><stop offset=".55" stop-color="${GOLD}"/><stop offset="1" stop-color="#8F7330"/></radialGradient>`;
+  }
+  return `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${GOLD_LIGHT}"/><stop offset=".5" stop-color="${GOLD}"/><stop offset="1" stop-color="#9F8135"/></linearGradient>`;
 }
 
-function numCircle(n: number, color: string, ring: string, size = 124): string {
-  const r = size / 2;
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="${r}" cy="${r}" r="${r - 4}" fill="none" stroke="${ring}" stroke-width="1.1" opacity=".45"/>
-    <circle cx="${r}" cy="${r}" r="${r - 14}" fill="none" stroke="${ring}" stroke-width=".5" opacity=".25"/>
-    <text x="${r}" y="${r + size * 0.2}" text-anchor="middle" font-family="${SERIF}" font-size="${Math.round(size * 0.56)}" font-weight="700" fill="${color}" opacity=".92">${n}</text>
-  </svg>`;
+function star6(cx: number, cy: number, r: number, stroke: string, sw = 1.2, op = 1, fill = 'none'): string {
+  const h = r * 0.866;
+  return `<g opacity="${op}"><polygon points="${cx},${cy - r} ${cx + h},${cy + r / 2} ${cx - h},${cy + r / 2}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/><polygon points="${cx},${cy + r} ${cx + h},${cy - r / 2} ${cx - h},${cy - r / 2}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/></g>`;
+}
+
+function leaf(x: number, y: number, ang: number, len: number, w: number, fill: string, op = 1, vein = true): string {
+  const v = vein ? `<line x1="${x}" y1="${y}" x2="${x}" y2="${y - len}" stroke="#FFFFFF" stroke-width=".7" opacity=".45"/>` : '';
+  return `<g transform="rotate(${ang},${x},${y})" opacity="${op}"><path d="M${x} ${y} C${x + w} ${y - len * 0.35}, ${x + w * 0.6} ${y - len * 0.85}, ${x} ${y - len} C${x - w * 0.6} ${y - len * 0.85}, ${x - w} ${y - len * 0.35}, ${x} ${y}Z" fill="${fill}"/>${v}</g>`;
+}
+
+function rosette(cx: number, cy: number, r: number, petal: string, center: string): string {
+  const petals = Array.from({ length: 8 }, (_, i) =>
+    `<ellipse cx="${cx}" cy="${cy - r * 0.55}" rx="${r * 0.3}" ry="${r * 0.5}" fill="${petal}" transform="rotate(${i * 45},${cx},${cy})"/>`).join('');
+  return `<g>${petals}<circle cx="${cx}" cy="${cy}" r="${r * 0.28}" fill="${center}"/></g>`;
+}
+
+// Filet ornemental sous le numéro : lignes + motif central.
+function bar(w: number, color: string, center: 'lozenge' | 'dot' | 'star' | 'leaves' | 'ring', op = .7): string {
+  const c = w / 2;
+  let mid = '';
+  if (center === 'lozenge') mid = `<path d="M${c} 3 L${c + 5} 8 L${c} 13 L${c - 5} 8Z" fill="${color}"/>`;
+  if (center === 'dot') mid = `<circle cx="${c}" cy="8" r="2.4" fill="${color}"/>`;
+  if (center === 'ring') mid = `<circle cx="${c}" cy="8" r="4.5" fill="none" stroke="${color}" stroke-width="1"/><circle cx="${c}" cy="8" r="1.6" fill="${color}"/>`;
+  if (center === 'star') mid = star6(c, 8, 6.5, color, 1, 1);
+  if (center === 'leaves') mid = `${leaf(c - 4, 12, -62, 13, 4.5, color, .9, false)}${leaf(c + 4, 12, 62, 13, 4.5, color, .9, false)}<circle cx="${c}" cy="11" r="1.6" fill="${color}"/>`;
+  const gap = center === 'leaves' || center === 'star' ? 16 : 12;
+  return `<svg width="${w}" height="16" viewBox="0 0 ${w} 16" xmlns="http://www.w3.org/2000/svg"><g opacity="${op}"><line x1="0" y1="8" x2="${c - gap}" y2="8" stroke="${color}" stroke-width=".8"/><line x1="${c + gap}" y1="8" x2="${w}" y2="8" stroke="${color}" stroke-width=".8"/>${mid}</g></svg>`;
+}
+
+function heroPlain(n: number, cls = ''): (size: number) => string {
+  return (size) => `<div class="pn-hero${cls ? ' ' + cls : ''}" style="font-size:${size}px;">${n}</div>`;
 }
 
 function initialsOf(coupleName: string): string {
-  return coupleName.split(/[&+]|et /i).map(s => s.trim()[0] || '').join('').slice(0, 2).toUpperCase() || '♡';
+  const parts = coupleName.split(/\s*(?:&|\+|\bet\b|\band\b)\s*/i).map(s => s.trim()).filter(Boolean);
+  const ini = parts.map(s => s[0] ?? '').join('').slice(0, 2).toUpperCase();
+  return ini || '♡';
 }
 
-// ── Modèles ────────────────────────────────────────────────────────────────────
+// ── 1. Élégance Classique ─────────────────────────────────────────────────────
 
-type Renderer = (a: RenderArgs) => string;
+const CLASSIC_CORNER = `
+  <g fill="none" stroke="${GOLD}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 84 V24 Q10 10 24 10 H84"/>
+    <path d="M84 10 C60 10 48 16 44 24 C41 30 46 36 52 33 C57 30 54 23 48 25"/>
+    <path d="M10 84 C10 60 16 48 24 44 C30 41 36 46 33 52 C30 57 23 54 25 48"/>
+    <path d="M22 22 C32 30 40 40 46 52" stroke-width=".7"/>
+  </g>
+  ${leaf(30, 34, -128, 14, 5, GOLD, .85, false)}
+  ${leaf(40, 42, -100, 14, 5, GOLD, .85, false)}
+  ${leaf(36, 30, -160, 12, 4.5, GOLD, .7, false)}
+  <path d="M10 10 L16 4 L22 10 L16 16Z" fill="${GOLD}"/>
+  <circle cx="46" cy="52" r="1.8" fill="${GOLD}"/>`;
 
 function renderClassic(a: RenderArgs): string {
-  const cornerSvg = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M4 4 L4 48 Q4 60 16 60 L60 60" fill="none" stroke="${GOLD}" stroke-width="1.4" opacity=".52"/><path d="M4 4 L4 43 Q4 53 14 53 L55 53" fill="none" stroke="${GOLD}" stroke-width=".5" opacity=".28"/><path d="M4 4 L10 -2 L16 4 L10 10 Z" fill="${GOLD}" opacity=".42"/><circle cx="4" cy="24" r="1.6" fill="${GOLD}" opacity=".32"/><circle cx="4" cy="42" r="1.6" fill="${GOLD}" opacity=".32"/><circle cx="24" cy="60" r="1.6" fill="${GOLD}" opacity=".32"/><circle cx="42" cy="60" r="1.6" fill="${GOLD}" opacity=".32"/></svg>`;
-  const decor = `
-    <div style="position:absolute;inset:10mm;border:1.5px solid ${GOLD};opacity:.52;pointer-events:none;"></div>
-    <div style="position:absolute;inset:14mm;border:.5px solid ${GOLD};opacity:.25;pointer-events:none;"></div>
-    <div style="position:absolute;top:8mm;left:8mm;">${cornerSvg}</div>
-    <div style="position:absolute;top:8mm;right:8mm;transform:scaleX(-1);">${cornerSvg}</div>
-    <div style="position:absolute;bottom:8mm;left:8mm;transform:scaleY(-1);">${cornerSvg}</div>
-    <div style="position:absolute;bottom:8mm;right:8mm;transform:scale(-1,-1);">${cornerSvg}</div>`;
-  const crest = `<div style="display:inline-flex;align-items:center;justify-content:center;width:72px;height:72px;border-radius:50%;border:1.2px solid ${GOLD};position:relative;">
-      <div style="position:absolute;inset:6px;border-radius:50%;border:.4px solid rgba(197,165,90,.3);"></div>
-      <span style="font-family:${SERIF};font-size:25px;font-weight:700;color:${GOLD};font-style:italic;">${initialsOf(a.coupleName)}</span>
-    </div>`;
-  return panelShell({
-    a, bg: '#FEFCF7', pad: '20mm 24mm', decor, crest,
+  const diamond = (x: number, y: number) => `<path d="M${x} ${y - 5} L${x + 5} ${y} L${x} ${y + 5} L${x - 5} ${y}Z" fill="${GOLD}" opacity=".85"/>`;
+  const decor = `${SVG_PAGE}
+    <rect x="26" y="26" width="543" height="790" fill="none" stroke="${GOLD}" stroke-width="1.3" opacity=".85"/>
+    <rect x="34" y="34" width="527" height="774" fill="none" stroke="${GOLD}" stroke-width=".5" opacity=".5"/>
+    ${diamond(297.5, 26)}${diamond(297.5, 816)}${diamond(26, 421)}${diamond(569, 421)}
+    <g transform="translate(26,26)">${CLASSIC_CORNER}</g>
+    <g transform="translate(569,26) scale(-1,1)">${CLASSIC_CORNER}</g>
+    <g transform="translate(26,816) scale(1,-1)">${CLASSIC_CORNER}</g>
+    <g transform="translate(569,816) scale(-1,-1)">${CLASSIC_CORNER}</g>
+  </svg>`;
+  const crest = `<svg width="76" height="76" viewBox="0 0 76 76" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="38" cy="38" r="36" fill="none" stroke="${GOLD}" stroke-width="1"/>
+    <circle cx="38" cy="38" r="30" fill="none" stroke="${GOLD}" stroke-width=".5" opacity=".6"/>
+    <text x="38" y="47" text-anchor="middle" font-family="${DISPLAY}" font-style="italic" font-size="26" fill="${GOLD_DARK}">${esc(initialsOf(a.coupleName))}</text>
+  </svg>`;
+  return renderPanel({
+    a, decor, crest, crestH: 76,
+    bg: 'radial-gradient(ellipse at 50% 30%,#FFFEFA 0%,#FBF7EE 65%,#F4EEE0 100%)',
+    inset: [82, 84, 78, 84],
     p: {
-      eyebrow: 'rgba(26,26,26,.45)', label: 'rgba(26,26,26,.4)', num: '#1a1a1a',
-      name: '#3a3020', text: '#2a2020', divider: 'rgba(26,26,26,.12)', foot: 'rgba(26,26,26,.38)',
+      eyebrow: 'rgba(30,28,26,.55)', label: 'rgba(30,28,26,.55)', num: '#1C1B1A', name: '#3A3020',
+      text: '#262220', divider: 'rgba(197,165,90,.5)', foot: 'rgba(30,28,26,.5)', accent: GOLD_DARK,
     },
-    numBlock: numCircle(a.tableNum, '#1a1a1a', '#1a1a1a', heroSize(a, 124)),
-    rule: `<svg width="180" height="14" viewBox="0 0 180 14" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="7" x2="72" y2="7" stroke="#1a1a1a" stroke-width=".5" opacity=".22"/><path d="M80 7 C82 2, 90 0, 90 7 C90 0, 98 2, 100 7" stroke="#1a1a1a" stroke-width=".7" fill="none" opacity=".28"/><line x1="108" y1="7" x2="180" y2="7" stroke="#1a1a1a" stroke-width=".5" opacity=".22"/></svg>`,
+    hero: heroPlain(a.tableNum), heroBase: 128,
+    rule: bar(210, GOLD, 'lozenge', .85),
   });
+}
+
+// ── 2. Tradition Juive ────────────────────────────────────────────────────────
+
+function renderJewish(a: RenderArgs): string {
+  const bg = '#FCF9F0';
+  const arch = 'M64 792 V262 C64 150 150 84 250 74 L297.5 52 L345 74 C445 84 531 150 531 262 V792 Z';
+  const arch2 = 'M76 792 V266 C76 160 160 96 254 86 L297.5 66 L341 86 C435 96 519 160 519 266 V792';
+  const decor = `${SVG_PAGE}
+    <defs>
+      <pattern id="sebka" width="28" height="28" patternUnits="userSpaceOnUse">
+        <path d="M14 0 L28 14 L14 28 L0 14Z" fill="none" stroke="${GOLD}" stroke-width=".7"/>
+        <circle cx="14" cy="14" r="1.3" fill="${GOLD}"/>
+      </pattern>
+    </defs>
+    <rect x="22" y="22" width="551" height="798" fill="none" stroke="${GOLD}" stroke-width="1.4" opacity=".9"/>
+    <rect x="30" y="30" width="535" height="782" fill="url(#sebka)" opacity=".34"/>
+    <rect x="30" y="30" width="535" height="782" fill="none" stroke="${GOLD}" stroke-width=".6" opacity=".6"/>
+    <path d="${arch}" fill="${bg}" stroke="${GOLD}" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="${arch2}" fill="none" stroke="${GOLD}" stroke-width=".7" opacity=".7" stroke-linejoin="round"/>
+    <line x1="64" y1="792" x2="531" y2="792" stroke="${GOLD}" stroke-width="1.7"/>
+    <circle cx="297.5" cy="40" r="3.2" fill="${GOLD}"/>
+    ${star6(64, 262, 7, GOLD, 1, .9, bg)}${star6(531, 262, 7, GOLD, 1, .9, bg)}
+    ${star6(297.5, 806, 6, GOLD, 1, .9, bg)}
+    <line x1="64" y1="262" x2="531" y2="262" stroke="${GOLD}" stroke-width=".5" opacity=".35" stroke-dasharray="2 4"/>
+  </svg>`;
+  const crest = `<svg width="52" height="52" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+    <defs>${goldGrad('jg')}</defs>
+    ${star6(26, 26, 20, 'url(#jg)', 1.8, 1)}
+    <circle cx="26" cy="26" r="3" fill="${GOLD}" opacity=".8"/>
+  </svg>`;
+  return renderPanel({
+    a, bg, decor, crest, crestH: 52,
+    inset: [102, 100, 76, 100],
+    p: {
+      eyebrow: 'rgba(27,42,86,.6)', label: 'rgba(27,42,86,.6)', num: NAVY, name: '#2E3F73',
+      text: NAVY, divider: 'rgba(197,165,90,.55)', foot: 'rgba(27,42,86,.55)', accent: GOLD_DARK,
+    },
+    hero: heroPlain(a.tableNum), heroBase: 122,
+    rule: bar(190, GOLD, 'star', .9),
+    extraFooter: 'מזל טוב',
+  });
+}
+
+// ── 3. Style Ketouba ──────────────────────────────────────────────────────────
+
+function renderKetouba(a: RenderArgs): string {
+  const vine = `<pattern id="vine" width="40" height="14" patternUnits="userSpaceOnUse">
+      <path d="M0 7 Q10 1 20 7 T40 7" fill="none" stroke="${GOLD_DARK}" stroke-width=".8"/>
+      ${leaf(10, 7, -40, 7, 2.6, '#6F7C4E', .9, false)}${leaf(30, 7, 140, 7, 2.6, '#6F7C4E', .9, false)}
+      <circle cx="20" cy="7" r="1.6" fill="${BURGUNDY}"/>
+    </pattern>`;
+  const cartouche = (cx: number, cy: number) => `
+    <ellipse cx="${cx}" cy="${cy}" rx="34" ry="13" fill="#F8F1E3" stroke="${GOLD_DARK}" stroke-width="1"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="29" ry="9.5" fill="none" stroke="${GOLD_DARK}" stroke-width=".5" opacity=".7"/>
+    ${star6(cx, cy, 6, BURGUNDY, 1, 1)}`;
+  const decor = `${SVG_PAGE}
+    <defs>${vine}</defs>
+    <rect x="20" y="20" width="555" height="802" fill="none" stroke="${BROWN}" stroke-width="1.5" opacity=".75"/>
+    <rect x="26" y="26" width="543" height="790" fill="none" stroke="${GOLD}" stroke-width=".8"/>
+    <rect x="32" y="32" width="531" height="14" fill="url(#vine)"/>
+    <rect x="32" y="796" width="531" height="14" fill="url(#vine)"/>
+    <g transform="translate(46,32) rotate(90)"><rect x="0" y="0" width="778" height="14" fill="url(#vine)"/></g>
+    <g transform="translate(563,32) rotate(90)"><rect x="0" y="0" width="778" height="14" fill="url(#vine)"/></g>
+    <rect x="52" y="52" width="491" height="738" fill="none" stroke="${BROWN}" stroke-width=".9" opacity=".7"/>
+    <rect x="57" y="57" width="481" height="728" fill="none" stroke="${GOLD}" stroke-width=".45" opacity=".8"/>
+    ${rosette(39, 39, 12, GOLD, BURGUNDY)}${rosette(556, 39, 12, GOLD, BURGUNDY)}
+    ${rosette(39, 803, 12, GOLD, BURGUNDY)}${rosette(556, 803, 12, GOLD, BURGUNDY)}
+    ${cartouche(297.5, 39)}${cartouche(297.5, 803)}
+  </svg>`;
+  const rays = Array.from({ length: 16 }, (_, i) => `<line x1="30" y1="4" x2="30" y2="10" stroke="${GOLD}" stroke-width="1" transform="rotate(${i * 22.5},30,30)"/>`).join('');
+  const crest = `<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+    <defs>${goldGrad('kg')}</defs>
+    ${rays}
+    <circle cx="30" cy="30" r="17" fill="none" stroke="${GOLD}" stroke-width="1"/>
+    ${star6(30, 30, 12, 'url(#kg)', 1.6, 1)}
+  </svg>`;
+  return renderPanel({
+    a, decor, crest, crestH: 60,
+    bg: 'radial-gradient(ellipse at 50% 40%,#FBF5E8 0%,#F5EBD6 60%,#EEDFC4 100%)',
+    inset: [86, 92, 82, 92],
+    p: {
+      eyebrow: '#8B6B45', label: '#8B6B45', num: BROWN, name: '#6B4E2E',
+      text: BROWN, divider: 'rgba(139,107,69,.4)', foot: '#9A7D5A', accent: BURGUNDY,
+    },
+    hero: heroPlain(a.tableNum, 'foil'), heroBase: 122,
+    rule: bar(200, GOLD_DARK, 'leaves', .9),
+    extraFooter: 'אני לדודי ודודי לי',
+  });
+}
+
+// ── 4. Cartes Suspendues ──────────────────────────────────────────────────────
+
+function renderSuspended(a: RenderArgs): string {
+  const L = 52, R = 543, T = 118, B = 784;
+  const eyeL = [L + 62, T + 34], eyeR = [R - 62, T + 34];
+  const peak = [297.5, 30];
+  const twine = (dx: number, col: string, w: number, op: number) =>
+    `<path d="M${eyeL[0] + dx} ${eyeL[1]} L${peak[0] + dx} ${peak[1]} L${eyeR[0] + dx} ${eyeR[1]}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`;
+  const decor = `${SVG_PAGE}
+    <defs>
+      <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#5A3E2E" flood-opacity=".22"/></filter>
+      <filter id="sh2" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#5A3E2E" flood-opacity=".3"/></filter>
+      ${goldGrad('sg', 'radial')}
+    </defs>
+    <rect x="${L}" y="${T}" width="${R - L}" height="${B - T}" rx="14" fill="#FFFDF8" stroke="rgba(197,165,90,.4)" stroke-width="1" filter="url(#sh)"/>
+    <rect x="${L + 12}" y="${T + 12}" width="${R - L - 24}" height="${B - T - 24}" rx="8" fill="none" stroke="${GOLD}" stroke-width=".6" opacity=".55"/>
+    <circle cx="${eyeL[0]}" cy="${eyeL[1]}" r="7" fill="#F3E7DF" stroke="${GOLD}" stroke-width="1.4"/>
+    <circle cx="${eyeR[0]}" cy="${eyeR[1]}" r="7" fill="#F3E7DF" stroke="${GOLD}" stroke-width="1.4"/>
+  </svg>`;
+  const overlay = `${SVG_PAGE}
+    <defs>${goldGrad('sg2', 'radial')}<filter id="sh3" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#5A3E2E" flood-opacity=".3"/></filter></defs>
+    ${twine(0, '#B08E52', 2.6, 1)}${twine(0, '#E9D8A8', .8, .9)}
+    <circle cx="${peak[0]}" cy="${peak[1]}" r="5" fill="none" stroke="#B08E52" stroke-width="2.2"/>
+    <g filter="url(#sh3)">
+      <circle cx="297.5" cy="${T}" r="33" fill="url(#sg2)" opacity=".92"/>
+      <circle cx="297.5" cy="${T}" r="29" fill="none" stroke="#FFFFFF" stroke-width=".8" opacity=".5"/>
+      <text x="297.5" y="${T + 8}" text-anchor="middle" font-family="${DISPLAY}" font-style="italic" font-size="22" fill="#FFFFFF">${esc(initialsOf(a.coupleName))}</text>
+    </g>
+  </svg>`;
+  return renderPanel({
+    a, decor, overlay,
+    bg: 'linear-gradient(180deg,#F3E7DF 0%,#EDE0D5 100%)',
+    inset: [T + 52, L + 44, PAGE_H - B + 40, L + 44],
+    couple: 'script',
+    p: {
+      eyebrow: GOLD_DARK, label: '#B69A67', num: GOLD_DARK, name: '#7A6238',
+      text: '#5A4830', divider: 'rgba(197,165,90,.45)', foot: '#A8916A', accent: GOLD_DARK,
+    },
+    hero: heroPlain(a.tableNum, 'foil'), heroBase: 122,
+    rule: bar(180, GOLD, 'ring', .9),
+  });
+}
+
+// ── 5. Jardin Botanique ───────────────────────────────────────────────────────
+
+const GREENS = ['#8FAF8A', '#6E8F69', '#A9C3A3', '#7F9F7A', '#5F7F5A'];
+
+// Brin d'eucalyptus : une tige courbe, des feuilles alternées, quelques fleurs blanches.
+function sprig(x: number, y: number, ang: number, s: number, seed = 0): string {
+  const P0 = [0, 0], P1 = [46, -90], P2 = [30, -230];
+  const pt = (t: number) => [
+    (1 - t) * (1 - t) * P0[0] + 2 * (1 - t) * t * P1[0] + t * t * P2[0],
+    (1 - t) * (1 - t) * P0[1] + 2 * (1 - t) * t * P1[1] + t * t * P2[1],
+  ];
+  const tg = (t: number) => {
+    const dx = 2 * (1 - t) * (P1[0] - P0[0]) + 2 * t * (P2[0] - P1[0]);
+    const dy = 2 * (1 - t) * (P1[1] - P0[1]) + 2 * t * (P2[1] - P1[1]);
+    return Math.atan2(dy, dx) * 180 / Math.PI;
+  };
+  let out = `<path d="M0 0 Q${P1[0]} ${P1[1]} ${P2[0]} ${P2[1]}" fill="none" stroke="#6E8F69" stroke-width="1.6" stroke-linecap="round" opacity=".9"/>`;
+  for (let i = 0; i < 11; i++) {
+    const t = 0.12 + i * 0.08;
+    const [px, py] = pt(t);
+    const side = i % 2 === 0 ? 1 : -1;
+    const len = 30 - i * 1.2, w = 13 - i * 0.5;
+    const col = GREENS[(i + seed) % GREENS.length];
+    out += leaf(px, py, tg(t) + 90 + side * 52, len, w, col, .92);
+    if (i % 3 === 2) {
+      out += `<circle cx="${px - side * 8}" cy="${py - 4}" r="3.2" fill="#FFFFFF" opacity=".95"/><circle cx="${px - side * 8}" cy="${py - 4}" r="1.3" fill="#F2D98D"/>`;
+      out += `<circle cx="${px - side * 13}" cy="${py + 2}" r="2.2" fill="#FFFFFF" opacity=".9"/>`;
+    }
+  }
+  out += leaf(P2[0], P2[1], tg(0.98) + 90, 22, 9, GREENS[(seed + 1) % GREENS.length], .95);
+  return `<g transform="translate(${x},${y}) rotate(${ang}) scale(${s})">${out}</g>`;
 }
 
 function renderBotanique(a: RenderArgs): string {
-  const decor = `
-    <div style="position:absolute;top:0;left:0;bottom:0;width:105px;z-index:0;">${BOT_L}</div>
-    <div style="position:absolute;top:0;right:0;bottom:0;width:105px;z-index:0;">${BOT_R}</div>`;
-  return panelShell({
-    a, bg: '#F6FBF4', pad: '20mm 36mm', decor,
+  const decor = `${SVG_PAGE}
+    ${sprig(58, 870, -14, 1.15, 0)}
+    ${sprig(537, -28, 166, 1.15, 2)}
+    ${sprig(600, 850, -46, 0.8, 1)}
+    ${sprig(-6, -10, 134, 0.8, 3)}
+    <rect x="30" y="30" width="535" height="782" fill="none" stroke="#8FAF8A" stroke-width=".6" opacity=".55"/>
+  </svg>`;
+  const wreathBox = (size: number) => Math.round(size * 0.68) * 2 + 44;
+  const wreathHero = (size: number) => {
+    const R = Math.round(size * 0.68), box = wreathBox(size), c = box / 2;
+    const leaves = Array.from({ length: 26 }, (_, i) => {
+      const th = (i / 26) * 360;
+      const rad = th * Math.PI / 180;
+      const x = c + R * Math.cos(rad), y = c + R * Math.sin(rad);
+      const out = i % 2 === 0;
+      return leaf(x, y, th + (out ? 0 : 180) + 90, out ? 20 : 15, out ? 8 : 6, GREENS[i % GREENS.length], .9);
+    }).join('');
+    return `<div class="pn-hero" style="margin-top:6px;"><svg width="${box}" height="${box}" viewBox="0 0 ${box} ${box}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="${c}" cy="${c}" r="${R}" fill="none" stroke="#6E8F69" stroke-width="1.2" opacity=".8"/>
+      ${leaves}
+      <circle cx="${c}" cy="${c + R * 0.98}" r="3.4" fill="#FFFFFF"/><circle cx="${c}" cy="${c + R * 0.98}" r="1.4" fill="#F2D98D"/>
+      <circle cx="${c}" cy="${c - R * 0.98}" r="3.4" fill="#FFFFFF"/><circle cx="${c}" cy="${c - R * 0.98}" r="1.4" fill="#F2D98D"/>
+      <text x="${c}" y="${c + size * 0.34}" text-anchor="middle" font-family="${DISPLAY}" font-weight="700" font-size="${Math.round(size * 0.92)}" fill="${FOREST}">${a.tableNum}</text>
+    </svg></div>`;
+  };
+  return renderPanel({
+    a, decor,
+    bg: 'radial-gradient(circle at 12% 8%,rgba(143,169,138,.22),transparent 38%),radial-gradient(circle at 88% 94%,rgba(143,169,138,.2),transparent 38%),#F8FAF5',
+    inset: [70, 126, 64, 126],
+    couple: 'script',
     p: {
-      eyebrow: SAGE, label: 'rgba(74,103,65,.6)', num: FOREST,
-      name: FOREST, text: FOREST_DK, divider: 'rgba(74,103,65,.14)', foot: SAGE,
+      eyebrow: SAGE, label: '#7F9F7A', num: FOREST, name: FOREST,
+      text: '#33472F', divider: 'rgba(111,143,105,.4)', foot: '#7F9F7A', accent: SAGE,
     },
-    numBlock: numPlain(a.tableNum, FOREST, heroSize(a, 112)),
-    rule: `<svg width="150" height="14" viewBox="0 0 150 14" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="7" x2="62" y2="7" stroke="${SAGE}" stroke-width=".9" opacity=".5"/><ellipse cx="75" cy="7" rx="7" ry="5.5" fill="none" stroke="${FOREST}" stroke-width=".9" opacity=".5"/><circle cx="75" cy="7" r="2.2" fill="${FOREST}" opacity=".45"/><line x1="88" y1="7" x2="150" y2="7" stroke="${SAGE}" stroke-width=".9" opacity=".5"/></svg>`,
+    hero: wreathHero, heroBase: 100, heroH: wreathBox,
+    rule: bar(170, SAGE, 'leaves', .9),
   });
 }
 
-function renderJewish(a: RenderArgs): string {
-  return panelShell({
-    a, bg: '#FDFBF4', pad: '24mm 28mm',
-    decor: `<div style="position:absolute;inset:0;z-index:0;">${JEWISH_BORDER}</div>`,
-    crest: sodSvg(50, GOLD),
-    p: {
-      eyebrow: 'rgba(26,43,94,.55)', label: 'rgba(26,43,94,.5)', num: NAVY,
-      name: NAVY_LIGHT, text: NAVY, divider: 'rgba(26,43,94,.12)', foot: 'rgba(26,43,94,.45)',
-    },
-    numBlock: numPlain(a.tableNum, NAVY, heroSize(a, 108)),
-    rule: goldBar(170),
-  });
-}
+// ── 6. Plexiglas Mariage ──────────────────────────────────────────────────────
 
 function renderPlexiglass(a: RenderArgs): string {
-  const monogram = initialsOf(a.coupleName);
-  const seal = (pos: string) => `<div style="position:absolute;${pos};width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#E8D4A0,${GOLD});box-shadow:0 2px 10px rgba(197,165,90,.35);display:flex;align-items:center;justify-content:center;z-index:2;"><span style="font-size:11px;color:#fff;font-weight:700;font-family:${SANS};">${monogram}</span></div>`;
-  return panelShell({
-    a, bg: '#E8EDE4', pad: '18mm 16mm', contentMin: 'calc(100vh - 32mm)',
+  const I = 40;
+  const screw = (cx: number, cy: number) => `
+    <circle cx="${cx}" cy="${cy}" r="10" fill="url(#pg)" filter="url(#psh)"/>
+    <circle cx="${cx}" cy="${cy}" r="6.5" fill="none" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/>
+    <circle cx="${cx}" cy="${cy}" r="2.4" fill="#8F7330" opacity=".7"/>
+    <path d="M${cx - 6} ${cy - 4} Q${cx - 2} ${cy - 8} ${cx + 3} ${cy - 6}" fill="none" stroke="#FFFFFF" stroke-width="1.2" opacity=".7" stroke-linecap="round"/>`;
+  const decor = `${SVG_PAGE}
+    <defs>
+      ${goldGrad('pg', 'radial')}
+      <filter id="psh" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#1E281E" flood-opacity=".35"/></filter>
+      <filter id="pan" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="22" stdDeviation="20" flood-color="#1E281E" flood-opacity=".2"/></filter>
+      <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FFFFFF" stop-opacity=".78"/><stop offset=".5" stop-color="#FFFFFF" stop-opacity=".62"/><stop offset="1" stop-color="#FFFFFF" stop-opacity=".74"/>
+      </linearGradient>
+      <linearGradient id="streak" x1="0" y1="0" x2="1" y2="1">
+        <stop offset=".36" stop-color="#FFFFFF" stop-opacity="0"/><stop offset=".43" stop-color="#FFFFFF" stop-opacity=".6"/><stop offset=".47" stop-color="#FFFFFF" stop-opacity=".15"/><stop offset=".52" stop-color="#FFFFFF" stop-opacity="0"/>
+        <stop offset=".62" stop-color="#FFFFFF" stop-opacity="0"/><stop offset=".66" stop-color="#FFFFFF" stop-opacity=".38"/><stop offset=".71" stop-color="#FFFFFF" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <rect x="${I}" y="${I}" width="${PAGE_W - 2 * I}" height="${PAGE_H - 2 * I}" rx="6" fill="url(#glass)" stroke="#FFFFFF" stroke-width="1.2" filter="url(#pan)"/>
+    <rect x="${I}" y="${I}" width="${PAGE_W - 2 * I}" height="${PAGE_H - 2 * I}" rx="6" fill="url(#streak)"/>
+    <rect x="${I + 3}" y="${I + 3}" width="${PAGE_W - 2 * I - 6}" height="${PAGE_H - 2 * I - 6}" rx="4" fill="none" stroke="#1E281E" stroke-width=".6" opacity=".08"/>
+    ${screw(I + 18, I + 18)}${screw(PAGE_W - I - 18, I + 18)}${screw(I + 18, PAGE_H - I - 18)}${screw(PAGE_W - I - 18, PAGE_H - I - 18)}
+  </svg>`;
+  return renderPanel({
+    a, decor,
+    bg: 'linear-gradient(160deg,#E3E8DE 0%,#D8DFD2 50%,#E6EAE1 100%)',
+    inset: [100, 100, 100, 100],
     p: {
-      eyebrow: '#8F947F', label: '#A8AC9C', num: '#2A2520',
-      name: '#555', text: '#3A3530', divider: 'rgba(143,148,127,.18)', foot: '#9BA08C',
+      eyebrow: '#8F947F', label: '#A2A896', num: CHARCOAL, name: '#4A4F46',
+      text: '#3A3F36', divider: 'rgba(143,148,127,.4)', foot: '#9BA08C', accent: GOLD_DARK,
     },
-    numBlock: numPlain(a.tableNum, '#2A2520', heroSize(a, 112)),
-    rule: goldBar(160),
-    wrap: (inner) => `<div style="position:absolute;inset:16mm;">
-      ${seal('top:-16px;left:-16px')}${seal('top:-16px;right:-16px')}${seal('bottom:-16px;left:-16px')}${seal('bottom:-16px;right:-16px')}
-      <div style="height:100%;background:rgba(255,255,255,.92);border:1.5px solid rgba(255,255,255,.95);border-radius:8px;box-shadow:0 12px 48px rgba(0,0,0,.1);overflow:hidden;">${inner}</div>
-    </div>`,
+    hero: heroPlain(a.tableNum, 'light'), heroBase: 136,
+    rule: bar(140, GOLD_DARK, 'dot', .9),
   });
 }
 
-function renderSuspended(a: RenderArgs): string {
-  const crest = `<div style="display:inline-flex;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#E8D4A0,${GOLD});box-shadow:0 4px 16px rgba(197,165,90,.3);align-items:center;justify-content:center;">
-      <span style="font-size:16px;color:#fff;font-weight:700;font-family:${SERIF};">✦</span>
-    </div>`;
-  return panelShell({
-    a, bg: '#FAF6EE', pad: '22mm 26mm', crest,
-    decor: `<div style="position:absolute;inset:14mm;border:1.5px solid ${GOLD};opacity:.3;pointer-events:none;"></div>`,
-    p: {
-      eyebrow: GOLD_DARK, label: CHAMPAGNE, num: GOLD_DARK,
-      name: GOLD_DARK, text: '#5A4820', divider: 'rgba(197,165,90,.18)', foot: '#B49A62',
-    },
-    numBlock: numPlain(a.tableNum, GOLD_DARK, heroSize(a, 112)),
-    rule: goldBar(170),
-  });
-}
+// ── Registre des modèles ──────────────────────────────────────────────────────
 
-function renderKetouba(a: RenderArgs): string {
-  const wave = `<svg width="100%" height="12" viewBox="0 0 400 12" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 6 Q25 0 50 6 Q75 12 100 6 Q125 0 150 6 Q175 12 200 6 Q225 0 250 6 Q275 12 300 6 Q325 0 350 6 Q375 12 400 6" fill="none" stroke="#8B6B45" stroke-width=".7" opacity=".3"/></svg>`;
-  const decor = `
-    <div style="position:absolute;inset:10mm;border:2px solid #8B6B45;opacity:.45;pointer-events:none;"></div>
-    <div style="position:absolute;inset:14mm;border:.5px solid #8B6B45;opacity:.22;pointer-events:none;"></div>
-    <div style="position:absolute;top:9mm;left:9mm;width:10px;height:10px;background:${GOLD};opacity:.5;transform:rotate(45deg);"></div>
-    <div style="position:absolute;top:9mm;right:9mm;width:10px;height:10px;background:${GOLD};opacity:.5;transform:rotate(45deg);"></div>
-    <div style="position:absolute;bottom:9mm;left:9mm;width:10px;height:10px;background:${GOLD};opacity:.5;transform:rotate(45deg);"></div>
-    <div style="position:absolute;bottom:9mm;right:9mm;width:10px;height:10px;background:${GOLD};opacity:.5;transform:rotate(45deg);"></div>
-    <div style="position:absolute;top:17mm;left:17mm;right:17mm;">${wave}</div>
-    <div style="position:absolute;bottom:17mm;left:17mm;right:17mm;">${wave}</div>`;
-  return panelShell({
-    a, bg: '#FBF8F1', pad: '26mm 28mm', decor, crest: sodSvg(44, GOLD),
-    p: {
-      eyebrow: '#8B6B45', label: '#8B6B45', num: '#7B5C38',
-      name: '#7B5C38', text: '#5A4030', divider: 'rgba(139,107,69,.16)', foot: '#A08060',
-    },
-    numBlock: numPlain(a.tableNum, '#7B5C38', heroSize(a, 106)),
-    rule: goldBar(160),
-  });
-}
-
-// ── Template registry ──────────────────────────────────────────────────────────
+type Renderer = (a: RenderArgs) => string;
 
 type TemplateEntry = {
   id: PanelTemplateId; name: string; desc: string;
@@ -375,16 +573,16 @@ type TemplateEntry = {
 };
 
 export const PANEL_TEMPLATES: TemplateEntry[] = [
-  { id:'classic',    name:'Élégance Classique', desc:'Blanc · Noir · Coins dorés',       primary:'#1a1a1a', accent:GOLD,      bg:'#FEFCF7', symbol:'◇', render:renderClassic },
-  { id:'jewish',     name:'Tradition Juive',    desc:'Crème · Arche · Étoile de David',  primary:NAVY,      accent:GOLD,      bg:'#FDFBF4', symbol:'✡', badge:'★', render:renderJewish },
-  { id:'ketouba',    name:'Style Ketouba',      desc:'Crème · Bordure ornée · Tradition', primary:'#7B5C38', accent:GOLD,      bg:'#FBF8F1', symbol:'✦', render:renderKetouba },
-  { id:'suspended',  name:'Cartes Suspendues',  desc:'Ivoire · Cachet Or · Élégant',     primary:GOLD_DARK, accent:CHAMPAGNE, bg:'#FAF6EE', symbol:'✦', badge:'★', render:renderSuspended },
-  { id:'botanique',  name:'Jardin Botanique',   desc:'Blanc · Verdure · Nature',         primary:FOREST,    accent:SAGE,      bg:'#F6FBF4', symbol:'⚘', render:renderBotanique },
-  { id:'plexiglass', name:'Plexiglas Mariage',  desc:'Acrylique · Cachets de cire',      primary:'#8F947F', accent:GOLD,      bg:'#E8EDE4', symbol:'○', render:renderPlexiglass },
+  { id:'classic',    name:'Élégance Classique', desc:'Ivoire · Noir · Volutes dorées',      primary:'#1C1B1A', accent:GOLD,     bg:'#FBF7EE', symbol:'◇', render:renderClassic },
+  { id:'jewish',     name:'Tradition Juive',    desc:'Arche mauresque · Étoile de David',   primary:NAVY,      accent:GOLD,     bg:'#FCF9F0', symbol:'✡', badge:'★', render:renderJewish },
+  { id:'ketouba',    name:'Style Ketouba',      desc:'Parchemin enluminé · Vigne · Grenat', primary:BROWN,     accent:GOLD,     bg:'#F5EBD6', symbol:'✦', render:renderKetouba },
+  { id:'suspended',  name:'Cartes Suspendues',  desc:'Carte suspendue · Cachet de cire',    primary:GOLD_DARK, accent:'#D4B896', bg:'#F3E7DF', symbol:'✦', badge:'★', render:renderSuspended },
+  { id:'botanique',  name:'Jardin Botanique',   desc:'Eucalyptus · Couronne · Gypsophile',  primary:FOREST,    accent:'#8FAF8A', bg:'#F8FAF5', symbol:'⚘', render:renderBotanique },
+  { id:'plexiglass', name:'Plexiglas Mariage',  desc:'Acrylique givré · Vis dorées',        primary:'#8F947F', accent:GOLD,     bg:'#DDE3D8', symbol:'○', render:renderPlexiglass },
 ];
 
 export function renderPanelPage(id: PanelTemplateId, args: RenderArgs): string {
-  return (PANEL_TEMPLATES.find(t=>t.id===id) ?? PANEL_TEMPLATES[0]).render(args);
+  return (PANEL_TEMPLATES.find(t => t.id === id) ?? PANEL_TEMPLATES[0]).render(args);
 }
 
 export const DEFAULT_PANEL_TEMPLATE: PanelTemplateId = 'classic';

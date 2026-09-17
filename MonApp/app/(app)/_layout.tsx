@@ -7,6 +7,9 @@ import { useAuth } from '@/contexts/auth-context';
 import { messagingApi } from '@/services/auth/api';
 import { loadPersistedBudget, syncBudgetTotal, BudgetProvider } from '@/lib/budget-store';
 import { configureGuestsSync, loadGuests } from '@/lib/guests-store';
+import { configurePlanningSync } from '@/lib/planning-sync';
+import { invalidateTodoTasks, loadTodoTasks } from '@/lib/todo-store';
+import { invalidateHomeProviders, loadHomeProviders } from '@/lib/providers-store';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -39,7 +42,27 @@ export default function AppLayout() {
   const { user } = useAuth();
   const responseListenerRef = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
 
+  // ⚠️ Déclaré AVANT les effets de chargement : les effets s'exécutent dans
+  // l'ordre de déclaration, et budget/to-do/prestataires doivent connaître le
+  // compte avant de lire quoi que ce soit. Sans ça, ils liraient le cache
+  // « sans compte » et repartiraient sur des données vides.
+  const accountRef = useRef<number | null>(null);
   const budgetLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    configurePlanningSync(user.accessToken ?? null, user.id);
+    if (accountRef.current !== user.id) {
+      // Changement de compte sur ce téléphone : on repart des données du
+      // nouveau compte au lieu de garder celles du précédent.
+      accountRef.current = user.id;
+      budgetLoadedRef.current = false;
+      invalidateTodoTasks();
+      invalidateHomeProviders();
+    }
+    loadTodoTasks().catch(() => {});
+    loadHomeProviders().catch(() => {});
+  }, [user?.id, user?.accessToken]);
+
   useEffect(() => {
     if (!user) return;
     // Coercition : pg numeric arrive en string ("50000.00") → Number sinon les

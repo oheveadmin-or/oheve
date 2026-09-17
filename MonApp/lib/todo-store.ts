@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { bootstrapScope, pushScope, readCache } from './planning-sync';
+
 export type TodoTask = {
   id: string;
   title: string;
@@ -128,21 +130,80 @@ const todoStore: { tasks: TodoTask[] } = {
 };
 
 let _loaded = false;
+const _subs = new Set<() => void>();
+
+/** Notifie les écrans (la progression de l'accueil doit suivre le serveur). */
+function _notify(): void {
+  _subs.forEach((fn) => fn());
+}
+
+export function subscribeTodo(fn: () => void): () => void {
+  _subs.add(fn);
+  return () => { _subs.delete(fn); };
+}
+
+/**
+ * Première rencontre entre cet appareil et le compte : on ne perd aucune
+ * case cochée, des deux côtés. Une tâche est faite si elle l'est ici OU
+ * là-bas, et les tâches ajoutées à la main sur un seul appareil sont
+ * conservées. Les synchros suivantes suivent simplement le serveur.
+ */
+export function mergeTasks(local: TodoTask[], serveur: TodoTask[]): TodoTask[] {
+  const parId = new Map<string, TodoTask>();
+  for (const t of serveur) parId.set(t.id, { ...t });
+  for (const t of local) {
+    const existant = parId.get(t.id);
+    if (!existant) {
+      parId.set(t.id, { ...t });
+      continue;
+    }
+    const done = existant.done || t.done;
+    parId.set(t.id, {
+      ...existant,
+      done,
+      status: done ? 'done' : (existant.status ?? t.status),
+      dueDate: existant.dueDate ?? t.dueDate,
+    });
+  }
+  // Ordre du serveur d'abord, puis les tâches propres à cet appareil.
+  const vus = new Set(serveur.map((t) => t.id));
+  return [
+    ...serveur.map((t) => parId.get(t.id)!),
+    ...local.filter((t) => !vus.has(t.id)).map((t) => parId.get(t.id)!),
+  ];
+}
+
+/** Recharge depuis le serveur au prochain `loadTodoTasks()` (changement de compte). */
+export function invalidateTodoTasks(): void {
+  _loaded = false;
+}
 
 export async function loadTodoTasks(): Promise<TodoTask[]> {
   if (_loaded) return todoStore.tasks;
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      todoStore.tasks = JSON.parse(raw) as TodoTask[];
-    } else {
-      // First launch: save defaults so future loads return them
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(todoStore.tasks));
+
+  // 1. Cache du compte (nouveau format), sinon ancien stockage local du
+  //    téléphone — ce qui reprend les tâches déjà cochées avant la synchro.
+  const cache = await readCache<TodoTask[]>('todo');
+  if (cache && Array.isArray(cache) && cache.length > 0) {
+    todoStore.tasks = cache;
+  } else {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      if (raw) todoStore.tasks = JSON.parse(raw) as TodoTask[];
+    } catch {
+      // on garde les tâches par défaut
     }
-  } catch {
-    // Keep in-memory defaults on storage error
   }
+
+  // 2. Serveur : source de vérité partagée entre les appareils du compte.
+  try {
+    todoStore.tasks = await bootstrapScope<TodoTask[]>('todo', todoStore.tasks, mergeTasks);
+  } catch {
+    // hors-ligne : on reste sur le cache
+  }
+
   _loaded = true;
+  _notify();
   return todoStore.tasks;
 }
 
@@ -152,5 +213,12 @@ export function getTodoTasks(): TodoTask[] {
 
 export function setTodoTasks(next: TodoTask[]): void {
   todoStore.tasks = next;
+  // Cache hérité conservé : une version antérieure de l'app lit encore cette clé.
   AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+  pushScope<TodoTask[]>('todo', next, (serveur) => {
+    // L'autre appareil a écrit entre-temps : on s'aligne sur sa version.
+    todoStore.tasks = serveur;
+    _notify();
+  });
+  _notify();
 }

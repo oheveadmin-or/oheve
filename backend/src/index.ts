@@ -16,6 +16,7 @@ import { calendarRoutes } from './calendar';
 import { startReminderScheduler } from './calendar/reminder';
 import { connexionInscriptionRoutes } from './connexion-inscription';
 import { guestsRoutes } from './guests';
+import { planningRoutes } from './planning';
 import { runMigrations } from './db/migrate';
 import { pool } from './config/database';
 import { messagingRoutes } from './messaging';
@@ -131,6 +132,7 @@ app.use('/api/premium', premiumRoutes);
 app.use('/api/iap', iapRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/guests', guestsRoutes);
+app.use('/api/planning', planningRoutes);
 
 // Sentry error handler doit être après les routes (cast pour compatibilité types)
 if (typeof Sentry.expressErrorHandler === 'function') {

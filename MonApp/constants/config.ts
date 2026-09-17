@@ -214,6 +214,10 @@ export const API_ENDPOINTS = {
   rsvpPushToken: (slug: string) => `${API_BASE_URL}/api/rsvp/${encodeURIComponent(slug)}/push-token`,
   // Wedding site config
   siteConfig: (slug: string) => `${API_BASE_URL}/api/public-sites/${encodeURIComponent(slug)}/config`,
+  // Planification partagée (to-do, budget, prestataires épinglés) — mêmes
+  // données sur tous les appareils d'un compte, comme les invités.
+  planning: `${API_BASE_URL}/api/planning`,
+  planningScope: (scope: string) => `${API_BASE_URL}/api/planning/${scope}`,
   // Invités (synchro serveur entre appareils d'un même compte)
   guests: `${API_BASE_URL}/api/guests`,
   guestsBulk: `${API_BASE_URL}/api/guests/bulk`,
