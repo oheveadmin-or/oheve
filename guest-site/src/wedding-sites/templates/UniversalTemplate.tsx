@@ -27,46 +27,28 @@ import {
 } from './HeroVariants';
 import { applyThemePreset } from './themePresets';
 import { VintageHero, VintageFamilies } from '../components/VintageHero';
+import { HebrewVerseArc } from '../components/HebrewVerseArc';
 import { VintageCountdown } from '../components/VintageCountdown';
 import { formatWeddingDate } from '../utils/date';
 import { VintageTheme as V } from '../themes/VintageTheme';
 import { VintageRibbon, VintageDivider } from '../components/ornaments/VintageOrnaments';
 
-function stripNikud(text: string): string {
-  // Remove Hebrew vowel points (nikud) and cantillation marks (U+0591–U+05C7)
-  return text.replace(/[֑-ׇ]/g, '');
-}
-
 function ArchedHebrewQuote({ text, color, font }: { text: string; color: string; font: string }) {
-  const clean = stripNikud(text);
   return (
     <div style={{ textAlign: 'center', padding: '2rem 1rem 0.5rem', overflow: 'visible' }}>
-      <svg
-        viewBox="0 0 500 96"
-        width="500"
-        height="96"
-        style={{ maxWidth: '94%', overflow: 'visible' }}
-        role="img"
-        aria-label={text}
-      >
-        <defs>
-          {/* Path goes LEFT→RIGHT so glyphs appear right-side-up on the arc */}
-          <path id="hq-arc" d="M 20,80 Q 250,10 480,80" />
-        </defs>
-        <circle cx="20" cy="80" r="3" fill={color} opacity="0.4" />
-        <circle cx="480" cy="80" r="3" fill={color} opacity="0.4" />
-        <text
-          fontFamily={`'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', ${font}, serif`}
-          fontSize="22"
-          fill={color}
-          textAnchor="middle"
-          opacity="0.85"
-        >
-          <textPath href="#hq-arc" startOffset="50%">
-            {clean}
-          </textPath>
-        </text>
-      </svg>
+      <HebrewVerseArc
+        text={text}
+        color={color}
+        dotColor={color}
+        font={`'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', ${font}, serif`}
+        width={500}
+        rx={230}
+        ry={42}
+        maxFontSize={24}
+        minFontSize={11}
+        maxSpread={2.0}
+        opacity={0.85}
+      />
     </div>
   );
 }

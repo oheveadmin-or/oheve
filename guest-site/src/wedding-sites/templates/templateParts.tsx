@@ -252,6 +252,54 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   const navStyle = site.theme.navStyle ?? 'horizontal';
   const t = site.theme;
 
+  // Musique : lecture auto au 1er geste de l'invité + pastille pour la couper,
+  // logée dans la barre de nav (sticky, déjà éprouvée) plutôt qu'un bouton
+  // flottant `position: fixed` — celui-ci « sortait de l'écran » dès qu'un
+  // ancêtre pose un `transform`/`container-type` (aperçu iPhone du builder,
+  // cartes en `containerType: inline-size`…), qui redéfinit son point d'ancrage.
+  const { hasMusic, playing, toggle, requestPlay } = useMusicPlayer(site.content?.musicUrl);
+  useEffect(() => {
+    if (!hasMusic || playing) return;
+    const start = () => requestPlay();
+    window.addEventListener('pointerdown', start);
+    window.addEventListener('touchstart', start, { passive: true });
+    window.addEventListener('keydown', start);
+    window.addEventListener('scroll', start, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('touchstart', start);
+      window.removeEventListener('keydown', start);
+      window.removeEventListener('scroll', start);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMusic, playing, site.content?.musicUrl]);
+
+  const musicBtn = hasMusic ? (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={playing ? 'Couper la musique' : 'Activer la musique'}
+      title={playing ? 'Couper la musique' : 'Activer la musique'}
+      style={{
+        flex: '0 0 auto',
+        width: 30,
+        height: 30,
+        borderRadius: '50%',
+        border: `1px solid ${t.primaryColor}55`,
+        background: playing ? `${t.primaryColor}1e` : 'transparent',
+        color: t.primaryColor,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        fontSize: '0.85rem',
+        padding: 0,
+      }}
+    >
+      <span aria-hidden>{playing ? '🔊' : '🔇'}</span>
+    </button>
+  ) : null;
+
   const hasAccommodations = site.sections.accommodations && (site.content?.accommodations ?? []).some((h) => !h.isShabbatHatan);
   const hasFaq = site.sections.faq && (site.content?.faq ?? []).length > 0;
   const hasLocation = site.sections.location && !!(site.content?.venue?.name || site.content?.venue?.address || site.venue || site.city);
@@ -295,10 +343,12 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   if (navStyle === 'minimal') {
     return (
       <nav style={navBase}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0.72rem 1rem', textAlign: 'center' }}>
-          <a href="#top" style={{ textDecoration: 'none', color: t.textColor, fontWeight: 700, letterSpacing: '0.08em' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0.72rem 1rem', display: 'flex', alignItems: 'center', justifyContent: musicBtn ? 'space-between' : 'center', gap: 10 }}>
+          {musicBtn ? <span aria-hidden style={{ width: 30, flex: '0 0 auto' }} /> : null}
+          <a href="#top" style={{ textDecoration: 'none', color: t.textColor, fontWeight: 700, letterSpacing: '0.08em', textAlign: 'center' }}>
             {coupleLabel}
           </a>
+          {musicBtn}
         </div>
       </nav>
     );
@@ -312,13 +362,16 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
           <a href="#top" style={{ textDecoration: 'none', color: t.textColor, fontWeight: 700, letterSpacing: '0.05em' }}>
             {coupleLabel}
           </a>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            style={{ border: `1px solid ${t.primaryColor}66`, borderRadius: 10, background: menuOpen ? `${t.primaryColor}18` : 'transparent', padding: '0.35rem 0.65rem', color: t.primaryColor, fontWeight: 700, cursor: 'pointer', fontSize: '1rem' }}
-          >
-            {menuOpen ? '✕' : '☰'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {musicBtn}
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              style={{ border: `1px solid ${t.primaryColor}66`, borderRadius: 10, background: menuOpen ? `${t.primaryColor}18` : 'transparent', padding: '0.35rem 0.65rem', color: t.primaryColor, fontWeight: 700, cursor: 'pointer', fontSize: '1rem' }}
+            >
+              {menuOpen ? '✕' : '☰'}
+            </button>
+          </div>
         </div>
         {menuOpen ? (
           <div style={{ borderTop: `1px solid ${t.primaryColor}22`, padding: '0.55rem 1rem 0.8rem', display: 'grid', gap: 4 }}>
@@ -339,7 +392,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   }
 
   // ── Horizontal (default): links bar ──────────────────────────────────────
-  if (!anchors.length) return null;
+  if (!anchors.length && !musicBtn) return null;
 
   return (
     <nav style={navBase}>
@@ -361,20 +414,27 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
         >
           {coupleLabel}
         </a>
-        <button
-          type="button"
-          className="wedding-mobile-nav-btn"
-          onClick={() => setMenuOpen((v) => !v)}
-          style={{ display: 'none', border: `1px solid ${t.primaryColor}66`, borderRadius: 10, background: 'transparent', padding: '0.35rem 0.55rem', color: t.primaryColor, fontWeight: 700, cursor: 'pointer' }}
-        >
-          ☰
-        </button>
-        <div className="wedding-nav-links" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end', flex: '0 0 auto' }}>
-          {anchors.map((a) => (
-            <a key={a.id} href={`#${a.id}`} style={{ color: t.textColor, textDecoration: 'none', fontSize: '0.87rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {a.label}
-            </a>
-          ))}
+        {anchors.length ? (
+          <button
+            type="button"
+            className="wedding-mobile-nav-btn"
+            onClick={() => setMenuOpen((v) => !v)}
+            style={{ display: 'none', border: `1px solid ${t.primaryColor}66`, borderRadius: 10, background: 'transparent', padding: '0.35rem 0.55rem', color: t.primaryColor, fontWeight: 700, cursor: 'pointer' }}
+          >
+            ☰
+          </button>
+        ) : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: '0 0 auto' }}>
+          {anchors.length ? (
+            <div className="wedding-nav-links" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {anchors.map((a) => (
+                <a key={a.id} href={`#${a.id}`} style={{ color: t.textColor, textDecoration: 'none', fontSize: '0.87rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  {a.label}
+                </a>
+              ))}
+            </div>
+          ) : null}
+          {musicBtn}
         </div>
       </div>
       {menuOpen ? (
@@ -518,45 +578,27 @@ export function InlineMusicPlayer({
 }
 
 /**
- * Musique SANS aucun élément visuel : la lecture démarre au premier geste de
- * l'invité (tap / scroll / clic), car les navigateurs interdisent l'autoplay
- * sans interaction. Ne rend rien. Actif AUSSI dans l'aperçu du builder pour que
- * le couple entende sa musique sur la carte pendant qu'il compose.
+ * Musique de la carte : lecture AUTOMATIQUE au premier geste de l'invité
+ * (tap / scroll / clic), car les navigateurs interdisent l'autoplay sans
+ * interaction. N'affiche une pastille ronde ♫/🔇 QUE si le couple a
+ * effectivement configuré une musique — permet à l'invité de la couper.
+ * Actif aussi dans l'aperçu du builder pour que le couple entende sa musique
+ * sur la carte pendant qu'il compose.
  */
-export function HiddenAutoMusic({ url, enabled = true }: { url?: string; enabled?: boolean }) {
-  const { hasMusic, playing, requestPlay } = useMusicPlayer(url);
-
-  useEffect(() => {
-    // Rien à faire tant que la lecture n'a pas démarré. Dès que `playing`
-    // devient vrai, l'effet est ré-exécuté et retire les écouteurs.
-    if (!enabled || !hasMusic || playing) return;
-    // `requestPlay()` pose l'intention d'autoplay : la lecture démarre dès que
-    // l'extrait Deezer est résolu, sans exiger un 2e geste de l'invité.
-    const start = () => requestPlay();
-    window.addEventListener('pointerdown', start);
-    window.addEventListener('touchstart', start, { passive: true });
-    window.addEventListener('keydown', start);
-    window.addEventListener('scroll', start, { passive: true });
-    return () => {
-      window.removeEventListener('pointerdown', start);
-      window.removeEventListener('touchstart', start);
-      window.removeEventListener('keydown', start);
-      window.removeEventListener('scroll', start);
-    };
-    // toggle est recréé à chaque rendu ; les autres deps suffisent à ré-armer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, hasMusic, playing, url]);
-
+export function HiddenAutoMusic(_props: { url?: string; enabled?: boolean }) {
+  // Lecture auto + pastille de coupure : gérées par `PublicStickyNav`
+  // (sticky, déjà éprouvée dans l'aperçu iPhone du builder) plutôt qu'ici.
+  // Conservé comme no-op pour les templates qui l'importent déjà.
   return null;
 }
 
 /**
- * Musique du site : lecture AUTOMATIQUE, sans aucun bouton visible. Active aussi
- * dans l'aperçu du builder (le couple entend sa musique sur la carte). Conserve
- * le nom `PublicAudioToggle` pour les anciens templates qui l'importent déjà.
+ * @deprecated Conservé pour compatibilité — la musique (lecture auto + pastille
+ * de coupure) est désormais gérée par `PublicStickyNav`, qui reste visible en
+ * scrollant sans le bug de positionnement `fixed` sous un ancêtre transformé.
  */
-export function PublicAudioToggle({ site }: { site: WeddingSite }) {
-  return <HiddenAutoMusic url={site.content?.musicUrl} />;
+export function PublicAudioToggle(_props: { site: WeddingSite }) {
+  return null;
 }
 
 function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeof cardStyleSurface }) {

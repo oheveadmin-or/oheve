@@ -307,6 +307,8 @@ export type WeddingSite = {
   inviteLinks?: InviteLink[];
   /** Clé privée d'accès public (?k=) — renvoyée uniquement au propriétaire */
   accessKey?: string | null;
+  /** Masque la signature « © Oheve Wedding » en bas du site public */
+  hideSignature?: boolean;
   createdAt: string;
   updatedAt: string;
 };

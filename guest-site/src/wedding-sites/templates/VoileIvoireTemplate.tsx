@@ -20,6 +20,7 @@ import { formatWeddingDate } from '../utils/date';
 import { voileTokens } from '../themes/VoileIvoireTheme';
 import type { VoileTokens } from '../themes/VoileIvoireTheme';
 import { VoileFrame, VoileDivider } from './VoileOrnaments';
+import { HebrewVerseArc } from '../components/HebrewVerseArc';
 import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
 import type { ResolvedFamilyColumn } from './templateParts';
 
@@ -72,50 +73,22 @@ function Card({
   );
 }
 
-/** Retire les nikud/ta'amim (points-voyelles et cantillation U+0591–U+05C7). */
-function stripNikud(text: string): string {
-  return text.replace(/[֑-ׇ]/g, '');
-}
-
 /** Verset hébraïque (פסוק) disposé en arc, dans l'esprit calligraphié du faire-part. */
 function VoileHebrewArc({ tk, text }: { tk: VoileTokens; text: string }) {
-  const clean = stripNikud(text.trim());
-  if (!clean) return null;
-  // Longueur d'arc ≈ 490 unités : la taille de police s'adapte au verset pour
-  // qu'il tienne ENTIER sur l'arc (un verset court s'affiche grand, un long
-  // rétrécit au lieu d'être tronqué par textPath).
-  const fontSize = Math.max(18, Math.min(32, Math.round(440 / (0.55 * clean.length))));
   return (
     <div style={{ textAlign: 'center', marginBottom: '0.6rem', overflow: 'visible' }}>
-      <svg
-        viewBox="0 0 500 100"
-        width="100%"
-        height="auto"
-        style={{ maxWidth: '100%', overflow: 'visible', display: 'block' }}
-        role="img"
-        aria-label={text}
-      >
-        <defs>
-          <path id="voile-hq-arc" d="M 24,86 Q 250,8 476,86" fill="none" />
-        </defs>
-        <circle cx="24" cy="86" r="2.5" fill={tk.colors.accent} opacity="0.6" />
-        <circle cx="476" cy="86" r="2.5" fill={tk.colors.accent} opacity="0.6" />
-        <text
-          fontFamily={`'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', ${tk.fonts.body}, serif`}
-          fontSize={fontSize}
-          fill={tk.colors.text}
-          textAnchor="middle"
-          direction="rtl"
-        >
-          {/* Sans direction="rtl", SVG pose les caractères dans l'ordre logique (de
-              gauche à droite) le long du tracé — pour de l'hébreu (RTL) le verset
-              apparaît alors inversé. `direction="rtl"` fait poser les glyphes du
-              dernier au premier, donc dans le bon sens visuel sur l'arc. */}
-          <textPath href="#voile-hq-arc" startOffset="50%">
-            {clean}
-          </textPath>
-        </text>
-      </svg>
+      <HebrewVerseArc
+        text={text}
+        color={tk.colors.text}
+        dotColor={tk.colors.accent}
+        font={`'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', ${tk.fonts.body}, serif`}
+        width={500}
+        rx={226}
+        ry={46}
+        maxFontSize={32}
+        minFontSize={12}
+        maxSpread={2.0}
+      />
     </div>
   );
 }

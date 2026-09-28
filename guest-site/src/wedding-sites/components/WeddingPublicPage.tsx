@@ -156,13 +156,15 @@ export function WeddingPublicPage() {
   return (
     <>
       <Template site={site} />
-      <footer style={footerStyle}>
-        <a href="mailto:support@ohevewedding.com" style={footerLinkStyle}>
-          support@ohevewedding.com
-        </a>
-        <span style={footerSepStyle}>·</span>
-        <span>© {new Date().getFullYear()} Oheve Wedding</span>
-      </footer>
+      {!site.hideSignature && (
+        <footer style={footerStyle}>
+          <a href="mailto:support@ohevewedding.com" style={footerLinkStyle}>
+            support@ohevewedding.com
+          </a>
+          <span style={footerSepStyle}>·</span>
+          <span>© {new Date().getFullYear()} Oheve Wedding</span>
+        </footer>
+      )}
     </>
   );
 }

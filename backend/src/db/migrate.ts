@@ -514,6 +514,9 @@ export async function runMigrations(): Promise<void> {
     // ── Clé d'accès privée : le site public n'est accessible qu'avec ?k=<clé>
     // (impossible de tomber sur un site en devinant son slug) ────────────────
     await pool.query(`ALTER TABLE wedding_sites ADD COLUMN IF NOT EXISTS access_key VARCHAR(64)`);
+    // ── Signature « © Oheve Wedding » en bas du site public : les mariés
+    // peuvent la masquer depuis le builder ──────────────────────────────────
+    await pool.query(`ALTER TABLE wedding_sites ADD COLUMN IF NOT EXISTS hide_signature BOOLEAN NOT NULL DEFAULT false`);
     await pool.query(`
       UPDATE wedding_sites
       SET access_key = substr(md5(random()::text || clock_timestamp()::text || id::text), 1, 16)

@@ -31,6 +31,7 @@ function rowToSite(
     content: row.content,
     rsvpForm: row.rsvp_form,
     inviteLinks: row.invite_links ?? [],
+    hideSignature: row.hide_signature ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -176,6 +177,7 @@ export async function createWeddingSite(req: Request, res: Response): Promise<vo
       content: b.content ?? {},
       rsvpForm: b.rsvpForm ?? null,
       inviteLinks: b.inviteLinks ?? [],
+      hideSignature: b.hideSignature === true,
     });
 
     res.status(201).json({ success: true, data: rowToSite(row, { includeAccessKey: true }) });
@@ -297,6 +299,7 @@ export async function updateWeddingSite(req: Request, res: Response): Promise<vo
       content: b.content,
       rsvpForm: b.rsvpForm,
       inviteLinks: b.inviteLinks,
+      hideSignature: typeof b.hideSignature === 'boolean' ? b.hideSignature : undefined,
     });
 
     if (!row) { res.status(404).json({ success: false }); return; }

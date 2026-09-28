@@ -22,6 +22,7 @@ export interface WeddingSiteRow {
   rsvp_form: unknown;
   invite_links: unknown;
   access_key: string | null;
+  hide_signature: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -61,12 +62,13 @@ export const weddingSitesRepo = {
     content: unknown;
     rsvpForm: unknown;
     inviteLinks: unknown;
+    hideSignature?: boolean;
   }): Promise<WeddingSiteRow> {
     const { rows } = await pool.query(
       `INSERT INTO wedding_sites
         (user_id, slug, couple_name, groom_name, bride_name, date, time, city, venue,
-         welcome_text, main_text, language, theme, sections, content, rsvp_form, invite_links, access_key)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb,$18)
+         welcome_text, main_text, language, theme, sections, content, rsvp_form, invite_links, access_key, hide_signature)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb,$18,$19)
        RETURNING *`,
       [
         data.userId ?? null,
@@ -88,6 +90,7 @@ export const weddingSitesRepo = {
         JSON.stringify(data.inviteLinks ?? []),
         // Clé d'accès secrète : requise pour consulter la page publique (?k=)
         randomBytes(8).toString('hex'),
+        data.hideSignature ?? false,
       ]
     );
     return rows[0];
@@ -126,6 +129,7 @@ export const weddingSitesRepo = {
     content: unknown;
     rsvpForm: unknown;
     inviteLinks: unknown;
+    hideSignature: boolean;
   }>): Promise<WeddingSiteRow | null> {
     const sets: string[] = [];
     const vals: unknown[] = [];
@@ -152,6 +156,7 @@ export const weddingSitesRepo = {
     if (data.content !== undefined) add('content', data.content, true);
     if (data.rsvpForm !== undefined) add('rsvp_form', data.rsvpForm, true);
     if (data.inviteLinks !== undefined) add('invite_links', data.inviteLinks, true);
+    if (data.hideSignature !== undefined) add('hide_signature', data.hideSignature);
 
     if (sets.length === 0) return this.findBySlug(id);
 

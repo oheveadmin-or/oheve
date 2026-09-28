@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Oheve — l'application qui organise votre mariage juif : budget, invités, plan de table, prestataires et site des invités.">
+<link rel="canonical" href="https://ohevewedding.com/links">
+<link rel="icon" href="/app-icon.jpg">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Oheve — l'application de votre mariage">
+<meta property="og:description" content="Budget, invités, plan de table, prestataires et site des invités. Gratuit sur l'App Store.">
+<meta property="og:image" content="https://ohevewedding.com/links/oe.png">
+<meta property="og:url" content="https://ohevewedding.com/links">
+<meta name="twitter:card" content="summary_large_image">
+<style>*{margin:0}img{max-width:100%}</style>
+<title>Oheve — tous nos liens</title>
+<style>
+  /* Polices auto-hébergées : aucun appel à Google, rien à consentir */
+  @font-face {
+    font-family: 'Marcellus';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/links/fonts/marcellus-latin.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'Karla';
+    font-style: normal;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url('/links/fonts/karla-latin.woff2') format('woff2');
+  }
+</style>
+
+<style>
+  /* ── Jetons clairs ─────────────────────────────────────────── */
+  :root {
+    --ground:     #F1EBE0;
+    --ground-2:   #E7DFD1;
+    --paper:      #FBF8F2;
+    --paper-edge: #FFFFFF;
+    --ink:        #3C352F;
+    --ink-mid:    #665D54;
+    --ink-soft:   #9A9288;
+    --line:       #DDD2C3;
+    --line-soft:  #E8E0D4;
+    --sage:       #8F947F;
+    --sage-deep:  #6F7563;
+    --sage-pale:  #E4E7DC;
+    --on-sage:    #FBF8F2;
+    --press:      rgba(123, 112, 99, .16);
+    --press-lift: rgba(255, 255, 255, .9);
+  }
+
+  /* ── Jetons sombres (système, sauf choix clair explicite) ──── */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:     #201C18;
+      --ground-2:   #171411;
+      --paper:      #2A2520;
+      --paper-edge: #3A342D;
+      --ink:        #F2EDE4;
+      --ink-mid:    #C6BCB0;
+      --ink-soft:   #958B80;
+      --line:       #3E372F;
+      --line-soft:  #332D27;
+      --sage:       #A9AF95;
+      --sage-deep:  #BCC1A9;
+      --sage-pale:  #333B2C;
+      --on-sage:    #1F1C17;
+      --press:      rgba(0, 0, 0, .45);
+      --press-lift: rgba(255, 255, 255, .06);
+    }
+  }
+  /* ── Jetons sombres (choix explicite) ──────────────────────── */
+  :root[data-theme="dark"] {
+    --ground:     #201C18;
+    --ground-2:   #171411;
+    --paper:      #2A2520;
+    --paper-edge: #3A342D;
+    --ink:        #F2EDE4;
+    --ink-mid:    #C6BCB0;
+    --ink-soft:   #958B80;
+    --line:       #3E372F;
+    --line-soft:  #332D27;
+    --sage:       #A9AF95;
+    --sage-deep:  #BCC1A9;
+    --sage-pale:  #333B2C;
+    --on-sage:    #1F1C17;
+    --press:      rgba(0, 0, 0, .45);
+    --press-lift: rgba(255, 255, 255, .06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(120% 70% at 50% -10%, var(--paper) 0%, transparent 62%),
+      radial-gradient(90% 60% at 50% 108%, var(--ground-2) 0%, transparent 70%),
+      var(--ground);
+    color: var(--ink);
+    font-family: Karla, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px 56px;
+  }
+
+  /* Grain de lin très discret sur le fond */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .16;
+    background-image:
+      repeating-linear-gradient(90deg, var(--press) 0 1px, transparent 1px 5px),
+      repeating-linear-gradient(0deg, var(--press) 0 1px, transparent 1px 5px);
+    mix-blend-mode: multiply;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body::before { mix-blend-mode: normal; opacity: .12; } }
+  :root[data-theme="dark"] body::before { mix-blend-mode: normal; opacity: .12; }
+
+  .sheet {
+    position: relative;
+    width: 100%;
+    max-width: 424px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 26px;
+  }
+
+  /* ── En-tête ───────────────────────────────────────────────── */
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    text-align: center;
+  }
+
+  .monogram {
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+    padding: 5px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 0 0 1px var(--paper-edge) inset,
+      0 10px 26px -14px var(--press);
+  }
+  .monogram img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: block;
+    object-fit: cover;
+  }
+
+  .eyebrow {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  h1 {
+    font-family: Marcellus, "Times New Roman", serif;
+    font-weight: 400;
+    font-size: 40px;
+    line-height: 1.05;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    margin: 0;
+    color: var(--ink);
+  }
+
+  .tagline {
+    margin: 0;
+    max-width: 34ch;
+    color: var(--ink-mid);
+    font-size: 14.5px;
+    text-wrap: balance;
+  }
+
+  /* ── Liens ─────────────────────────────────────────────────── */
+  .links {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    text-decoration: none;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 1px 0 var(--paper-edge) inset,
+      0 8px 20px -16px var(--press);
+    transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+  }
+  .link:hover {
+    transform: translateY(-2px);
+    border-color: var(--sage);
+    box-shadow:
+      0 1px 0 var(--paper-edge) inset,
+      0 16px 28px -18px var(--press);
+  }
+  .link:active { transform: translateY(0); }
+  .link:focus-visible {
+    outline: 2px solid var(--sage-deep);
+    outline-offset: 3px;
+  }
+
+  .link .label { font-weight: 600; font-size: 15px; letter-spacing: .01em; }
+  .link .meta  { display: block; font-size: 12.5px; color: var(--ink-soft); font-weight: 400; }
+  .link .body  { flex: 1; min-width: 0; }
+  .link .glyph { flex: none; width: 22px; height: 22px; color: var(--sage-deep); }
+  .link .chev  { flex: none; width: 16px; height: 16px; color: var(--ink-soft); transition: transform .22s ease; }
+  .link:hover .chev { transform: translateX(3px); }
+
+  /* Le bouton principal : plein sauge, presse plus marquée */
+  .link.primary {
+    background: var(--sage);
+    border-color: var(--sage-deep);
+    color: var(--on-sage);
+    padding: 19px 20px;
+    box-shadow:
+      0 1px 0 var(--press-lift) inset,
+      0 14px 28px -18px var(--sage-deep);
+  }
+  .link.primary .glyph,
+  .link.primary .chev { color: var(--on-sage); }
+  .link.primary .meta { color: var(--on-sage); opacity: .78; }
+  .link.primary .label { font-size: 16px; }
+  .link.primary:hover {
+    border-color: var(--sage-deep);
+    box-shadow:
+      0 1px 0 var(--press-lift) inset,
+      0 20px 34px -18px var(--sage-deep);
+  }
+
+  /* ── Ornement + pied de page ───────────────────────────────── */
+  .ornament {
+    width: 100%;
+    max-width: 200px;
+    height: 12px;
+    color: var(--taupe-ornament, var(--ink-soft));
+    opacity: .55;
+    margin-top: 4px;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  footer nav { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  footer a { color: var(--ink-mid); text-decoration: none; border-bottom: 1px solid var(--line); padding-bottom: 1px; }
+  footer a:hover { color: var(--sage-deep); border-color: var(--sage); }
+  footer a:focus-visible { outline: 2px solid var(--sage-deep); outline-offset: 2px; }
+  footer .sep { color: var(--line); }
+  .hebrew { font-family: "Frank Ruhl Libre", "Times New Roman", serif; letter-spacing: .06em; }
+
+  /* ── Entrée en scène, une seule fois ───────────────────────── */
+  .reveal { opacity: 0; transform: translateY(10px); animation: rise .6s cubic-bezier(.2,.7,.3,1) forwards; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { animation: none; opacity: 1; transform: none; }
+    .link, .chev { transition: none; }
+  }
+</style>
+
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead reveal" style="animation-delay:.02s">
+    <div class="monogram"><img src="/links/oe.png" alt="Monogramme Oheve, un O et un e entrelacés"></div>
+    <span class="eyebrow">Mariage juif</span>
+    <h1>Oheve</h1>
+    <p class="tagline">Tout votre mariage dans une seule application : budget, invités, plan de table, prestataires et site des invités.</p>
+  </header>
+
+  <nav class="links" aria-label="Nos liens">
+
+    <!-- ⬇︎ REMPLACER les URL marquées « à compléter » par les vraies -->
+
+    <a class="link primary reveal" style="animation-delay:.08s" href="https://apps.apple.com/fr/app/oheve/id6785535857">
+      <svg class="glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.7c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.9-3-.8c-1.5 0-2.9.9-3.7 2.3-1.6 2.7-.4 6.8 1.1 9 .8 1.1 1.7 2.3 2.9 2.2 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.3 0 2.1-1.1 2.8-2.2.9-1.2 1.3-2.5 1.3-2.5s-2.5-1-2.5-3.6ZM14.2 5.9c.6-.8 1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.8-1.3Z"/></svg>
+      <span class="body">
+        <span class="label">Télécharger Oheve</span>
+        <span class="meta">Gratuit sur l’App Store</span>
+      </span>
+      <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3.5 5 4.5-5 4.5"/></svg>
+    </a>
+
+    <a class="link reveal" style="animation-delay:.14s" href="https://www.ohevewedding.com">
+      <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><ellipse cx="12" cy="12" rx="3.6" ry="8.5"/><path d="M3.9 9.4h16.2M3.9 14.6h16.2"/></svg>
+      <span class="body">
+        <span class="label">Notre site</span>
+        <span class="meta">ohevewedding.com</span>
+      </span>
+      <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3.5 5 4.5-5 4.5"/></svg>
+    </a>
+
+    <a class="link reveal" style="animation-delay:.2s" href="https://apps.apple.com/fr/app/oheve/id6785535857">
+      <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 19.5v-1.8a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1.8"/><circle cx="9.5" cy="7.8" r="3.3"/><path d="M17 11.2h4M19 9.2v4"/></svg>
+      <span class="body">
+        <span class="label">Devenir prestataire partenaire</span>
+        <span class="meta">6 mois offerts aux 200 premiers</span>
+      </span>
+      <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3.5 5 4.5-5 4.5"/></svg>
+    </a>
+
+    <a class="link reveal" style="animation-delay:.26s" href="https://oheve.pages.dev/support">
+      <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12.5a8 8 0 1 0-3.1 6.3l3.1.9-1-3.1a7.9 7.9 0 0 0 1-4.1Z"/><path d="M9.6 9.8a2.5 2.5 0 0 1 4.9.6c0 1.7-2.5 2-2.5 3.4"/><path d="M12 16.6h.01"/></svg>
+      <span class="body">
+        <span class="label">Aide &amp; contact</span>
+        <span class="meta">Une question sur l’app ?</span>
+      </span>
+      <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3.5 5 4.5-5 4.5"/></svg>
+    </a>
+
+    <a class="link reveal" style="animation-delay:.32s" href="https://www.instagram.com/ohevewedding">
+      <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <span class="body">
+        <span class="label">Instagram</span>
+        <span class="meta">@ohevewedding</span>
+      </span>
+      <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3.5 5 4.5-5 4.5"/></svg>
+    </a>
+
+  </nav>
+
+  <svg class="ornament reveal" style="animation-delay:.38s" viewBox="0 0 200 12" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+    <path d="M0 6h78M122 6h78"/>
+    <path d="M100 1.5 104.5 6 100 10.5 95.5 6Z"/>
+    <circle cx="86" cy="6" r="1.2" fill="currentColor" stroke="none"/>
+    <circle cx="114" cy="6" r="1.2" fill="currentColor" stroke="none"/>
+  </svg>
+
+  <footer class="reveal" style="animation-delay:.42s">
+    <nav>
+      <a href="https://oheve.pages.dev/cgu">Conditions</a>
+      <span class="sep">·</span>
+      <a href="https://oheve.pages.dev/privacy">Confidentialité</a>
+      <span class="sep">·</span>
+      <a href="https://oheve.pages.dev/support">Support</a>
+    </nav>
+    <p style="margin:0">Oheve — <span class="hebrew">מזל טוב</span></p>
+  </footer>
+
+</main>
+</body>
+</html>

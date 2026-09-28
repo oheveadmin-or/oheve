@@ -185,6 +185,7 @@ export function WeddingSiteBuilder() {
   const language: SiteLanguage = 'fr';
   const [theme, setTheme] = useState<WeddingTheme>(() => applyThemePreset(defaultWeddingTheme()));
   const [sections, setSections] = useState<WeddingSections>(() => defaultWeddingSections());
+  const [hideSignature, setHideSignature] = useState(false);
   const [content, setContent] = useState<WeddingSiteContent>({
     venue: {
       name: '',
@@ -318,6 +319,7 @@ export function WeddingSiteBuilder() {
       sections,
       content,
       rsvpForm,
+      hideSignature,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }),
@@ -336,6 +338,7 @@ export function WeddingSiteBuilder() {
       content,
       slugCustom,
       rsvpForm,
+      hideSignature,
     ]
   );
 
@@ -378,6 +381,7 @@ export function WeddingSiteBuilder() {
             }));
       }
       if (site.rsvpForm) setRsvpForm(site.rsvpForm);
+      setHideSignature(site.hideSignature === true);
       if (site.inviteLinks?.length) setInviteLinks(site.inviteLinks);
       if (site.date) {
         try {
@@ -540,6 +544,7 @@ export function WeddingSiteBuilder() {
         content,
         rsvpForm: { ...rsvpForm, updatedAt: new Date().toISOString() },
         inviteLinks: finalInviteLinks,
+        hideSignature,
         ...(custom ? { slug: custom } : {}),
       };
 
@@ -1553,6 +1558,18 @@ export function WeddingSiteBuilder() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* ── Signature « © Oheve Wedding » en bas de page ── */}
+            <div style={{ marginTop: '1.2rem' }}>
+              <label style={chk}>
+                <input
+                  type="checkbox"
+                  checked={hideSignature}
+                  onChange={(e) => setHideSignature(e.target.checked)}
+                />
+                Masquer la signature « © Oheve Wedding » en bas du site
+              </label>
             </div>
           </section>
 

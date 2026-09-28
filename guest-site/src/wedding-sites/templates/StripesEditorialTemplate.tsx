@@ -305,7 +305,17 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
             >
               {/* פסוק — tout en haut de la carte (nikoud retiré à l'affichage) */}
               {hebrewQuote && (
-                <p dir="rtl" style={{ fontFamily: fontTitle, fontSize: 'clamp(0.95rem,2.4cqw,1.2rem)', lineHeight: 1.6, margin: '0 auto clamp(0.9rem,2.2cqw,1.5rem)', color: inkProg }}>
+                <p
+                  dir="rtl"
+                  style={{
+                    fontFamily: `'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', ${fontTitle}, serif`,
+                    fontSize: 'clamp(0.95rem,2.4cqw,1.2rem)',
+                    lineHeight: 1.6,
+                    margin: '0 auto clamp(0.9rem,2.2cqw,1.5rem)',
+                    color: inkProg,
+                    textAlign: 'center',
+                  }}
+                >
                   {stripHebrewMarks(hebrewQuote)}
                 </p>
               )}
@@ -407,6 +417,21 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                 />
               </div>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* ── 1c. Texte principal (mot d'accueil libre) — même carte que les
+              sections fonctionnelles plus bas, pour épouser la largeur et la
+              hauteur de son contenu quel que soit le thème. Toujours affiché
+              (comme Voile Ivoire / Cartes Éditoriales), indépendamment de la
+              section « Message aux invités » qui est un contenu distinct ── */}
+      {site.mainText?.trim() && (
+        <section style={{ background: 'transparent', padding: '0 clamp(1.2rem,5cqw,2rem) clamp(1.5rem,4cqw,2.5rem)' }}>
+          <div style={{ maxWidth: 620, margin: '0 auto', ...cardStyleSurface({ theme: t }), textAlign: 'center' }}>
+            <p style={{ margin: 0, fontFamily: fontBody, fontSize: '1.05rem', lineHeight: 1.85, color: inkProg, whiteSpace: 'pre-wrap' }}>
+              {site.mainText}
+            </p>
           </div>
         </section>
       )}
