@@ -44,6 +44,36 @@ function useFloralBgUrl(): string | null {
   return url;
 }
 
+/**
+ * Géométrie du פסוק dans la carte ovale, en unités SVG, dans le repère de la
+ * carte de référence (340 px de large, bord intérieur du cadre = padding-box).
+ * Le SVG s'étend sur toute la largeur intérieure de la carte et se met à
+ * l'échelle avec elle : l'arc reste concentrique au cintre du double liseré
+ * quelle que soit la largeur réelle (296 px sur téléphone, 340 px sur ordinateur).
+ *
+ * Cintre du liseré intérieur ≈ centre (170, 150), rayons 161 × 141.
+ * Ligne de base du verset : rayons 141 × 121 — la hampe du ל (la plus haute,
+ * ≈ 0,8 corps en Frank Ruhl Libre) reste à 6,5–8 unités du liseré pour toutes
+ * les tailles de police possibles (mesuré à l'encre réelle).
+ */
+const VERSE_ARC = {
+  width: 340,
+  centerY: 150,
+  rx: 141,
+  ry: 121,
+  /** ≈ 155° : le verset descend le long du cintre, sans devenir vertical */
+  maxSpread: 2.7,
+  /** Plafond des versets courts : au-delà, les lettres frôleraient le liseré */
+  maxFontSize: 17,
+  minFontSize: 10.5,
+  /**
+   * Hauteur réservée dans le flux : le logo commence juste sous le haut du
+   * verset et se niche dans le creux de l'arc (au lieu d'être repoussé sous
+   * les extrémités du verset).
+   */
+  layoutHeight: 50,
+} as const;
+
 export type VintageHeroProps = {
   name1: string;
   name2?: string;
@@ -120,6 +150,9 @@ export function VintageHero({
         display: 'flex',
         justifyContent: 'center',
         overflow: 'hidden',
+        // Conteneur de requête : la hauteur de la carte à verset s'exprime en
+        // `cqw` (largeur réelle, y compris dans l'aperçu iPhone mis à l'échelle)
+        ...(hebrewQuote ? { containerType: 'inline-size' as const } : null),
       }}
     >
       {/* ─ Fond floral : motif de la combinaison s'il y en a une, sinon image
@@ -133,7 +166,13 @@ export function VintageHero({
           position: 'relative',
           zIndex: 1,
           width: 'min(340px, 82%)',
-          minHeight: 'clamp(640px, 84vh, 720px)',
+          // Avec un verset, la hauteur minimale suit la LARGEUR de la carte
+          // (proportion 340 × 560, en unités de conteneur) au lieu de la fenêtre
+          // (`vh`), qui laissait un grand vide entre le verset et le logo. Pas
+          // d'`aspect-ratio` : avec `overflow: hidden` il fige la hauteur et
+          // rognerait un contenu long — ici la carte grandit toujours avec lui.
+          // (0,82 × 560 / 340 ≈ 135cqw, la carte faisant 82 % du conteneur.)
+          minHeight: hebrewQuote ? 'min(560px, 135cqw)' : 'clamp(640px, 84vh, 720px)',
           // Padding vertical symétrique : le contenu reste parfaitement centré
           padding: '2.2rem 2rem',
           border: `${V.borders.frame} solid ${V.colors.primary}`,
@@ -160,26 +199,35 @@ export function VintageHero({
           }}
         />
 
-        {/* ── פסוק hébraïque — dans le flux, niché sous l'arrondi du haut ── */}
+        {/* ── פסוק hébraïque — épouse le cintre du double liseré ── */}
         {hebrewQuote ? (
           <div
             style={{
-              width: '100%',
-              display: 'flex',
-              justifyContent: 'center',
+              // Annule le padding de la carte : le SVG couvre toute la largeur
+              // intérieure et partage le repère du cadre (arc concentrique).
+              alignSelf: 'stretch',
+              margin: '-2.2rem -2rem 0',
               flexShrink: 0,
-              marginBottom: '0.2rem',
             }}
           >
             <HebrewVerseArc
               text={hebrewQuote}
               color={V.colors.primary}
-              width={280}
-              rx={126}
-              ry={108}
-              maxFontSize={15}
-              minFontSize={10.5}
-              maxSpread={2}
+              width={VERSE_ARC.width}
+              rx={VERSE_ARC.rx}
+              ry={VERSE_ARC.ry}
+              centerY={VERSE_ARC.centerY}
+              layoutHeight={VERSE_ARC.layoutHeight}
+              maxSpread={VERSE_ARC.maxSpread}
+              maxFontSize={VERSE_ARC.maxFontSize}
+              minFontSize={VERSE_ARC.minFontSize}
+              style={{ width: '100%', height: 'auto', maxWidth: 'none' }}
+              // Verset trop long pour l'arc : ligne centrée, dans le cintre
+              fallbackStyle={{
+                padding: '2.9rem 3.6rem 0.6rem',
+                fontSize: '0.85rem',
+                lineHeight: 1.6,
+              }}
             />
           </div>
         ) : null}

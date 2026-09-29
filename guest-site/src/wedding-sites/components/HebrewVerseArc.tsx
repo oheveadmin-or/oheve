@@ -38,6 +38,20 @@ export type HebrewVerseArcProps = {
   maxSpread?: number;
   /** Petits points ornementaux aux deux extrémités de l'arc */
   dotColor?: string;
+  /**
+   * Ordonnée du centre de l'ellipse dans le repère SVG. Permet de caler l'arc
+   * sur une forme existante (ex. le cintre d'une carte). Défaut : arc collé en
+   * haut du SVG.
+   */
+  centerY?: number;
+  /**
+   * Hauteur réservée dans le flux, en unités SVG. Le reste du dessin déborde
+   * (`overflow: visible`) : le contenu qui suit peut ainsi se nicher dans le
+   * creux de l'arc. Défaut : toute la hauteur du dessin.
+   */
+  layoutHeight?: number;
+  /** Styles propres au repli « ligne centrée » (texte trop long pour l'arc) */
+  fallbackStyle?: CSSProperties;
   opacity?: number;
   style?: CSSProperties;
 };
@@ -56,6 +70,9 @@ export function HebrewVerseArc({
   minFontSize = 10.5,
   maxSpread = 2.0,
   dotColor,
+  centerY,
+  layoutHeight,
+  fallbackStyle,
   opacity = 0.9,
   style,
 }: HebrewVerseArcProps) {
@@ -102,6 +119,7 @@ export function HebrewVerseArc({
           maxWidth: '100%',
           overflowWrap: 'break-word',
           ...style,
+          ...fallbackStyle,
         }}
       >
         {clean}
@@ -110,14 +128,15 @@ export function HebrewVerseArc({
   }
 
   const cx = width / 2;
-  const cy = ry + fs + 6;
+  const cy = centerY ?? ry + fs + 6;
   const h = Math.ceil(cy - ry * Math.cos(spread / 2) + fs * 0.9);
+  const boxH = layoutHeight ?? h;
 
   return (
     <svg
       width={width}
-      height={h}
-      viewBox={`0 0 ${width} ${h}`}
+      height={boxH}
+      viewBox={`0 0 ${width} ${boxH}`}
       aria-label={clean}
       role="img"
       style={{ display: 'block', margin: '0 auto', maxWidth: '100%', overflow: 'visible', ...style }}
