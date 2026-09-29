@@ -9,6 +9,7 @@ import type { ResolvedFamilyColumn } from '../templates/templateParts';
 import { vintageTokens } from '../themes/VintageTheme';
 import { VintageRibbon, VintageDamaskField } from './ornaments/VintageOrnaments';
 import { HebrewVerseArc } from './HebrewVerseArc';
+import { FloralLayer } from '../templates/PatternOverlay';
 
 /**
  * Image de fond floral (baroque bleu sur ivoire). Déposer le fichier dans
@@ -100,10 +101,9 @@ export function VintageHero({
   const nameSize = nameScale === 1 ? V.titleSizes.script : `calc(${V.titleSizes.script} * ${nameScale})`;
   const detectedFloralBg = useFloralBgUrl();
 
-  // Quand une combinaison de couleurs impose son motif, le hero devient
-  // TRANSPARENT : le motif de la combinaison, déjà peint en fond de page,
-  // traverse tout le site d'un seul tenant. Sans ça, le fond baroque bleu
-  // du modèle se superposait au motif choisi (deux fonds empilés).
+  // Quand une combinaison de couleurs fournit son motif, il REMPLACE le fond
+  // baroque bleu du modèle — au même endroit (autour de la carte ovale) et
+  // nulle part ailleurs : le reste de la page ne change que de couleurs.
   const comboFloral = Boolean(theme?.floralPattern);
   const floralBg = comboFloral ? null : detectedFloralBg;
 
@@ -111,7 +111,7 @@ export function VintageHero({
     <div
       style={{
         position: 'relative',
-        backgroundColor: comboFloral ? 'transparent' : V.colors.cream,
+        backgroundColor: V.colors.cream,
         backgroundImage: comboFloral ? undefined : floralBg ? `url('${floralBg}')` : V.backgrounds.paper,
         backgroundSize: floralBg ? '760px auto' : undefined,
         backgroundRepeat: floralBg ? 'repeat' : undefined,
@@ -122,8 +122,9 @@ export function VintageHero({
         overflow: 'hidden',
       }}
     >
-      {/* ─ Fond floral : image réelle si présente, sinon motif SVG dense.
-          Aucun des deux quand la combinaison fournit déjà son motif. ─ */}
+      {/* ─ Fond floral : motif de la combinaison s'il y en a une, sinon image
+          réelle du modèle si présente, sinon motif SVG dense. ─ */}
+      {comboFloral && theme ? <FloralLayer theme={theme} /> : null}
       {!floralBg && !comboFloral && <VintageDamaskField soft={V.colors.primarySoft} deep={V.colors.primary} />}
 
       {/* Cadre ovale double-trait — vertical, façon modèle */}

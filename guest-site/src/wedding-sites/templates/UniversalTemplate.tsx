@@ -10,7 +10,7 @@ import type { WeddingTemplateProps } from '../types';
 import { cardStyleSurface } from './templateCardStyles';
 import { getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
 import { SectionSeparator } from './SectionSeparator';
-import { ThemePattern } from './PatternOverlay';
+import { PatternOverlay } from './PatternOverlay';
 import {
   HeroEditorial,
   HeroSplit,
@@ -123,19 +123,23 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
       className="wedding-template-root wedding-fade-in"
       style={{
         fontFamily: t.fontFamily,
-        backgroundColor: t.floralPattern ? t.backgroundColor : isVintage ? V.backgrounds.page : t.backgroundColor,
-        backgroundImage: !t.floralPattern && isVintage ? V.backgrounds.paper : undefined,
+        backgroundColor: isVintage ? V.backgrounds.page : t.backgroundColor,
+        backgroundImage: isVintage ? V.backgrounds.paper : undefined,
         color: t.textColor,
         minHeight: '100vh',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {/* Fond du thème — motif floral fourni par la combinaison de couleurs
-          (prioritaire) sinon texture SVG générique. Suppressed for vintage's
-          own paper texture, sauf si une combinaison impose un motif floral. */}
-      {(!isVintage || t.floralPattern) && (
-        <ThemePattern theme={t} fallbackColor={t.primaryColor} fallbackOpacity={(t.patternOpacity ?? 0.07) * 0.55} />
+      {/* Global background pattern — suppressed for vintage (paper texture handles ambiance).
+          Le motif floral d'une combinaison n'est PAS peint ici : il habille
+          uniquement la carte d'en-tête (hero), le reste ne change que de couleurs. */}
+      {!isVintage && (
+        <PatternOverlay
+          patternId={t.patternId ?? 'none'}
+          color={t.primaryColor}
+          opacity={(t.patternOpacity ?? 0.07) * 0.55}
+        />
       )}
 
       <PublicStickyNav site={enrichedSite} />

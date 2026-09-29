@@ -173,58 +173,64 @@ export function getPatternStyle(patternId: PatternId, color: string): CSSPropert
 }
 
 /**
- * ThemePattern — couche de fond « pleine page » du thème actif.
+ * FloralLayer — motif floral fourni par la combinaison de couleurs.
  *
- * Quand une combinaison de couleurs fournit `theme.floralPattern` (motif
- * floral fourni, réel — /patterns/xxx.jpg), il remplace le motif SVG
- * générique : image tuilée (jamais déformée), position/opacité/filtre
- * configurables par combinaison, voile léger pour la lisibilité.
- *
- * Sans `floralPattern` (ex. « + Couleurs du modèle »), le comportement
- * historique est inchangé : `PatternOverlay` (texture SVG teintée).
+ * Réservé à la CARTE d'en-tête (hero) : il remplace le décor propre du
+ * modèle à cet endroit précis, et nulle part ailleurs — le reste de la page
+ * ne change que de couleurs. Image tuilée (jamais déformée), position /
+ * opacité / filtre configurables par combinaison, voile léger pour la
+ * lisibilité. Couche en `position: absolute` : le conteneur parent doit être
+ * positionné, et son contenu placé au-dessus (`zIndex` ≥ 1).
  */
-export function ThemePattern({
+export function FloralLayer({ theme }: { theme: WeddingTheme }) {
+  if (!theme.floralPattern) return null;
+  return (
+    <>
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: `url('${theme.floralPattern}')`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: theme.floralTileSize ?? '440px',
+          backgroundPosition: theme.floralPosition ?? 'top center',
+          opacity: theme.floralOpacity ?? 1,
+          filter: theme.floralFilter,
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+      {/* Voile léger : garde le contenu lisible sans masquer le motif */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: withAlpha(theme.backgroundColor, 0.38),
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * HeroPattern — décor du hero : le motif floral de la combinaison s'il y en
+ * a une, sinon la texture SVG du modèle (comportement historique inchangé).
+ */
+export function HeroPattern({
   theme,
-  fallbackColor,
-  fallbackOpacity = 0.07,
+  color,
+  opacity,
 }: {
   theme: WeddingTheme;
-  fallbackColor: string;
-  fallbackOpacity?: number;
+  color: string;
+  opacity?: number;
 }) {
-  if (theme.floralPattern) {
-    return (
-      <>
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: `url('${theme.floralPattern}')`,
-            backgroundRepeat: 'repeat',
-            backgroundSize: theme.floralTileSize ?? '440px',
-            backgroundPosition: theme.floralPosition ?? 'top center',
-            opacity: theme.floralOpacity ?? 1,
-            filter: theme.floralFilter,
-            pointerEvents: 'none',
-            zIndex: 0,
-          }}
-        />
-        {/* Voile léger : garde le contenu lisible sans masquer le motif */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: withAlpha(theme.backgroundColor, 0.38),
-            pointerEvents: 'none',
-            zIndex: 0,
-          }}
-        />
-      </>
-    );
-  }
-  return <PatternOverlay patternId={theme.patternId ?? 'none'} color={fallbackColor} opacity={fallbackOpacity} />;
+  if (theme.floralPattern) return <FloralLayer theme={theme} />;
+  return <PatternOverlay patternId={theme.patternId ?? 'none'} color={color} opacity={opacity ?? theme.patternOpacity ?? 0.07} />;
 }
 
 function withAlpha(hex: string, alpha: number): string {

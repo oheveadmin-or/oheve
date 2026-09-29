@@ -20,7 +20,7 @@ import { TITLE_SIZE_SCALE } from '../types';
 import { sectionLabels } from '../i18n';
 import { formatWeddingDate } from '../utils/date';
 import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
-import { ThemePattern } from './PatternOverlay';
+import { FloralLayer, PatternOverlay } from './PatternOverlay';
 import { SectionSeparator } from './SectionSeparator';
 import { cardStyleSurface } from './templateCardStyles';
 
@@ -236,8 +236,8 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
         containerType: 'inline-size',
       }}
     >
-      {/* Motif de fond du Studio de design — motif floral fourni si la combinaison en définit un */}
-      <ThemePattern theme={t} fallbackColor={stripe} fallbackOpacity={t.patternOpacity ?? 0.07} />
+      {/* Motif de fond du Studio de design */}
+      <PatternOverlay patternId={t.patternId ?? 'none'} color={stripe} opacity={t.patternOpacity ?? 0.07} />
       {/* Le monogramme SVG généré embarque width/height fixes : on le fait
           scaler à la taille choisie dans le builder. */}
       <style>{'.stripes-monogram svg{width:100%;height:auto;display:block;}'}</style>
@@ -245,7 +245,9 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
 
       {/* ── 1. Hero : bande de rayures en HAUT, prénoms au centre, bande en BAS ── */}
       {site.sections.hero && (
-        <header style={{ background: pageBg, padding: 'clamp(1.8rem,5cqw,4rem) clamp(0.9rem,4cqw,2rem)' }}>
+        <header style={{ background: pageBg, padding: 'clamp(1.8rem,5cqw,4rem) clamp(0.9rem,4cqw,2rem)', position: 'relative', overflow: 'hidden' }}>
+          {/* Motif floral de la combinaison — autour de la carte uniquement */}
+          <FloralLayer theme={t} />
           {/* Carte : bande rayée · panneau central propre · bande rayée (miroir).
               minHeight (et non aspect-ratio fixe) → la carte GRANDIT avec le
               contenu au lieu de le rogner en haut/bas. overflow:hidden pour que
@@ -256,6 +258,8 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
               minHeight: 'clamp(280px, 78cqw, 620px)',
               margin: '0 auto',
               background: cardBg,
+              position: 'relative',
+              zIndex: 1,
               display: 'flex',
               alignItems: 'stretch',
               // Espace entre les colonnes latérales et les bandes du centre :

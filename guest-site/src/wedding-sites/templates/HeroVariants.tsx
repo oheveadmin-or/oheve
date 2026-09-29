@@ -7,7 +7,7 @@ import type { WeddingSite } from '../types';
 import { HeroMeta } from './templateParts';
 import { titleFontSize } from './templateCardStyles';
 import { sectionLabels } from '../i18n';
-import { PatternOverlay } from './PatternOverlay';
+import { HeroPattern } from './PatternOverlay';
 
 interface HeroProps {
   site: WeddingSite;
@@ -65,11 +65,7 @@ export function HeroEditorial({ site }: HeroProps) {
         overflow: 'hidden',
       }}
     >
-      <PatternOverlay
-        patternId={t.patternId ?? 'none'}
-        color={t.primaryColor}
-        opacity={t.patternOpacity ?? 0.07}
-      />
+      <HeroPattern theme={t} color={t.primaryColor} />
 
       {/* Top rule */}
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 680, marginBottom: '2.5rem' }}>
@@ -190,11 +186,7 @@ export function HeroSplit({ site }: HeroProps) {
           overflow: 'hidden',
         }}
       >
-        <PatternOverlay
-          patternId={t.patternId ?? 'none'}
-          color={t.primaryColor}
-          opacity={(t.patternOpacity ?? 0.07) * 2}
-        />
+        <HeroPattern theme={t} color={t.primaryColor} opacity={(t.patternOpacity ?? 0.07) * 2} />
         {/* Decorative monogram circle */}
         <div
           style={{
@@ -243,11 +235,7 @@ export function HeroFairepart({ site }: HeroProps) {
         overflow: 'hidden',
       }}
     >
-      <PatternOverlay
-        patternId={t.patternId ?? 'none'}
-        color={t.primaryColor}
-        opacity={t.patternOpacity ?? 0.07}
-      />
+      <HeroPattern theme={t} color={t.primaryColor} />
       {/* Cadre principal */}
       <div
         style={{
@@ -344,7 +332,7 @@ export function HeroMonogramStyle({ site }: HeroProps) {
         overflow: 'hidden',
       }}
     >
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={t.primaryColor} opacity={t.patternOpacity ?? 0.07} />
+      <HeroPattern theme={t} color={t.primaryColor} />
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* SVG or fallback monogram — scaled to 160px regardless of original export size */}
         {site.content?.monogramSvg ? (
@@ -435,7 +423,7 @@ export function HeroLuxe({ site }: HeroProps) {
           pointerEvents: 'none',
         }}
       />
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={t.primaryColor} opacity={t.patternOpacity ?? 0.07} />
+      <HeroPattern theme={t} color={t.primaryColor} />
 
       {/* Outer border */}
       <div
@@ -525,7 +513,7 @@ export function HeroArtDeco({ site }: HeroProps) {
         overflow: 'hidden',
       }}
     >
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={accent} opacity={t.patternOpacity ?? 0.07} />
+      <HeroPattern theme={t} color={accent} />
 
       {/* Geometric corner diamonds */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
@@ -608,7 +596,7 @@ export function HeroMagazine({ site }: HeroProps) {
         overflow: 'hidden',
       }}
     >
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={t.primaryColor} opacity={t.patternOpacity ?? 0.07} />
+      <HeroPattern theme={t} color={t.primaryColor} />
 
       {/* Vertical accent line */}
       <div
@@ -747,7 +735,7 @@ export function HeroRoyal({ site }: HeroProps) {
         overflow: 'hidden',
       }}
     >
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={c} opacity={t.patternOpacity ?? 0.07} />
+      <HeroPattern theme={t} color={c} />
 
       {/* Double outer frame */}
       <div style={{ position: 'absolute', inset: 14, border: `1px solid ${c}33`, pointerEvents: 'none' }} />
@@ -869,7 +857,7 @@ export function HeroGarden({ site }: HeroProps) {
         overflow: 'hidden',
       }}
     >
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={c} opacity={t.patternOpacity ?? 0.07} />
+      <HeroPattern theme={t} color={c} />
       <GardenCorners color={c} />
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 600 }}>
@@ -959,7 +947,7 @@ export function HeroCinematic({ site }: HeroProps) {
       }}
     >
       {/* Pattern at doubled opacity for dramatic effect */}
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={t.primaryColor} opacity={(t.patternOpacity ?? 0.08) * 2} />
+      <HeroPattern theme={t} color={t.primaryColor} opacity={(t.patternOpacity ?? 0.08) * 2} />
 
       {/* Radial vignette */}
       <div
@@ -1064,7 +1052,7 @@ export function HeroLetterpress({ site }: HeroProps) {
         overflow: 'hidden',
       }}
     >
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={t.primaryColor} opacity={t.patternOpacity ?? 0.07} />
+      <HeroPattern theme={t} color={t.primaryColor} />
 
       {/* Letterpress card */}
       <div

@@ -314,10 +314,9 @@ export function vintageTokens(theme?: WeddingTheme): VintageTokens {
     },
     backgrounds: {
       ...VintageTheme.backgrounds,
+      // Fond de page : couleur de la combinaison, grain papier d'origine conservé
+      // (le motif floral, lui, n'habille que la carte d'en-tête).
       page: theme.backgroundColor,
-      // Le motif floral de la combinaison devient le seul fond de la page :
-      // on neutralise le grain papier pour ne pas l'empâter.
-      paper: 'none',
       card: ivory,
       blueSection: theme.primaryColor,
       blueGradient: `linear-gradient(165deg, ${theme.primaryColor} 0%, ${theme.primaryColor}dd 100%)`,

@@ -93,19 +93,9 @@ export function voileTokens(theme: WeddingTheme) {
   const scaled = (base: string, scale: number) =>
     scale === 1 ? base : `calc(${base} * ${scale})`;
 
-  // Une combinaison de couleurs peut fournir son propre motif floral —
-  // il remplace alors le rideau ivoire par défaut, avec un affichage tuilé
-  // (jamais déformé) au lieu de l'étirement 100% 100% du rideau.
-  const hasFloral = Boolean(theme.floralPattern);
-
   return {
     ...VOILE_TOKENS,
-    bgImage: theme.floralPattern ?? VOILE_BG_IMAGE,
-    bgIsFloral: hasFloral,
-    bgSize: hasFloral ? (theme.floralTileSize ?? '440px') : '100% 100%',
-    bgRepeat: hasFloral ? 'repeat' : 'no-repeat',
-    bgPosition: hasFloral ? (theme.floralPosition ?? 'top center') : 'top center',
-    bgFilter: hasFloral ? theme.floralFilter : undefined,
+    bgImage: VOILE_BG_IMAGE,
     colors: {
       /** Fond des cartes (crème translucide déposé sur le rideau) */
       card: withAlpha(theme.cardBackgroundColor || background, 0.9),
