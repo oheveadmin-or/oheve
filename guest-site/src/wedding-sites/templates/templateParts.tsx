@@ -11,6 +11,7 @@ import { deezerTrackId, resolveDeezerPreview } from '../data/musicSuggestions';
 
 import { cardStyleSurface } from './templateCardStyles';
 import { resolveThemeColors } from '../utils/themeColors';
+import { vintageTokens } from '../themes/VintageTheme';
 
 type GrandparentsData = {
   grandfather?: string;
@@ -621,7 +622,9 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     const isVintage = t.style === 'vintage-blue';
     const progCardStyle: CSSProperties = isVintage
       ? {
-          background: '#44597B',
+          // Section pleine couleur du modèle Vintage : bleu canonique par
+          // défaut, couleur de la combinaison quand le couple en choisit une.
+          background: vintageTokens(t).backgrounds.blueSection,
           borderRadius: 22,
           padding: '2rem 1.6rem',
           boxShadow: '0 22px 60px -30px rgba(52,70,97,0.7)',
@@ -971,12 +974,15 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
     return events.filter((e) => (e.date?.trim() || '') === activeDay);
   }, [activeDay, days, events]);
 
-  // Couleurs adaptées au fond bleu vintage
+  // Couleurs adaptées à la section pleine couleur du modèle Vintage — bleu
+  // canonique par défaut, couleurs de la combinaison quand il y en a une.
   const rc = resolveThemeColors(site.theme);
-  const textColor = isVintage ? '#F5F0E4' : site.theme.textColor;
-  const mutedColor = isVintage ? '#C7C2B4' : rc.mutedText;
-  const dotColor = isVintage ? '#D7D2C4' : rc.timeline;
-  const lineColor = isVintage ? '#9FAFC466' : `${rc.timeline}30`;
+  const vt = vintageTokens(site.theme).colors;
+  const hasCombo = Boolean(site.theme.colorCombination);
+  const textColor = isVintage ? vt.onPrimary : site.theme.textColor;
+  const mutedColor = isVintage ? (hasCombo ? vt.onPrimaryMuted : '#C7C2B4') : rc.mutedText;
+  const dotColor = isVintage ? vt.onPrimaryMuted : rc.timeline;
+  const lineColor = isVintage ? `${vt.lineOnPrimary}66` : `${rc.timeline}30`;
   const btnActiveBg = isVintage ? 'rgba(255,255,255,0.18)' : `${site.theme.secondaryColor}44`;
   const btnBg = isVintage ? 'rgba(255,255,255,0.08)' : '#fff';
 
@@ -994,7 +1000,7 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
               type="button"
               onClick={() => setActiveDay(day)}
               style={{
-                border: `1px solid ${isVintage ? '#9FAFC466' : `${rc.border}60`}`,
+                border: `1px solid ${isVintage ? `${vt.lineOnPrimary}66` : `${rc.border}60`}`,
                 borderRadius: 999,
                 padding: '0.35rem 0.75rem',
                 background: activeDay === day ? btnActiveBg : btnBg,

@@ -399,8 +399,11 @@ export function applyThemePreset(theme: WeddingTheme): WeddingTheme {
     cornerDecor: theme.cornerDecor ?? preset.cornerDecor ?? false,
     fontFamily: theme.fontFamily ?? preset.fontFamily ?? theme.fontFamily,
   };
-  // Force canonical colours for vintage-blue regardless of any saved default values
-  if (theme.style === 'vintage-blue') {
+  // Couleurs canoniques du modèle Vintage Bleu — imposées quels que soient les
+  // défauts enregistrés, SAUF quand le couple a choisi une combinaison de
+  // couleurs : dans ce cas c'est la combinaison qui pilote toute la palette
+  // (sinon la carte restait bleue sous un motif floral d'une autre couleur).
+  if (theme.style === 'vintage-blue' && !theme.colorCombination) {
     return {
       ...base,
       backgroundColor: '#F4F3EA',

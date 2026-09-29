@@ -30,7 +30,7 @@ import { VintageHero, VintageFamilies } from '../components/VintageHero';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
 import { VintageCountdown } from '../components/VintageCountdown';
 import { formatWeddingDate } from '../utils/date';
-import { VintageTheme as V } from '../themes/VintageTheme';
+import { vintageTokens } from '../themes/VintageTheme';
 import { VintageRibbon, VintageDivider } from '../components/ornaments/VintageOrnaments';
 
 function ArchedHebrewQuote({ text, color, font }: { text: string; color: string; font: string }) {
@@ -64,6 +64,8 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
 
   const heroStyle = t.heroStyle ?? 'editorial';
   const isVintage = t.style === 'vintage-blue';
+  // Tokens Vintage : palette de la combinaison choisie, sinon identité d'origine
+  const V = vintageTokens(t);
 
   // Carte d'invitation ovale + décompte dédiés au thème Vintage
   const hasTwoNames = !!(site.brideName?.trim() && site.groomName?.trim());
@@ -81,9 +83,9 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         hebrewQuote={site.content?.hebrewQuote}
         theme={t}
       />
-      <VintageCountdown targetDate={site.date} language={site.language} />
+      <VintageCountdown targetDate={site.date} language={site.language} theme={t} />
       {/* Familles — affichées juste sous le décompte */}
-      <VintageFamilies columns={getFamilyColumns(site)} hideTitles />
+      <VintageFamilies columns={getFamilyColumns(site)} hideTitles theme={t} />
     </>
   );
 

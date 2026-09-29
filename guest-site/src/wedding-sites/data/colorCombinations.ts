@@ -31,7 +31,7 @@ export type ColorCombination = {
 /** Taille de tuile commune à tous les motifs fournis (toile délicate, jamais déformée) */
 const TILE = '420px';
 
-export const COLOR_COMBINATIONS: ColorCombination[] = [
+const RAW_COMBINATIONS: ColorCombination[] = [
   {
     name: 'Noir & Or',
     swatch: ['#0B0B0B', '#D4AF37', '#F7F1DE', '#FFFFFF'],
@@ -268,11 +268,23 @@ export const COLOR_COMBINATIONS: ColorCombination[] = [
   },
 ];
 
+/**
+ * Chaque combinaison porte son propre nom dans `theme.colorCombination` :
+ * c'est le signal qui autorise les modèles à couleurs canoniques (Vintage
+ * Bleu) à céder la main à la palette choisie. Injecté ici une seule fois
+ * pour que nom affiché et marqueur ne puissent jamais diverger.
+ */
+export const COLOR_COMBINATIONS: ColorCombination[] = RAW_COMBINATIONS.map((c) => ({
+  ...c,
+  theme: { ...c.theme, colorCombination: c.name },
+}));
+
 /** Tous les rôles de couleur étendus qu'une combinaison peut fixer — remis à
  *  zéro avant chaque application pour qu'une combinaison n'en "hérite"
  *  jamais une autre (ex. revenir à « + Couleurs du modèle » après avoir
  *  choisi « Noir & Or » ne doit garder aucun résidu de motif floral). */
 const EXTENDED_ROLE_FIELDS = [
+  'colorCombination',
   'accentColor',
   'cardBackgroundColor',
   'borderColor',

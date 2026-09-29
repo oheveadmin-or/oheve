@@ -146,6 +146,13 @@ export type WeddingTheme = {
   // ── Rôles de couleur étendus (combinaisons de couleurs) ──────────────────
   // Tous optionnels : absents → dérivés de primary/secondary/background/text
   // par `resolveThemeColors()`, donc aucun preset existant n'est affecté.
+  /**
+   * Nom de la combinaison de couleurs active (ex. « Chocolat & Doré »).
+   * Absent = aucune combinaison → chaque modèle garde son identité d'origine
+   * (« + Couleurs du modèle »). Présent = la combinaison pilote la palette,
+   * y compris sur les modèles à couleurs canoniques comme Vintage Bleu.
+   */
+  colorCombination?: string;
   /** Ornements, détails, séparateurs. Défaut : secondaryColor */
   accentColor?: string;
   /** Fond des cartes (Programme, blocs d'info). Défaut : dérivé de cardStyle */

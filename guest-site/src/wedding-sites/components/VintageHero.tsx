@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import type { WeddingTheme } from '../types';
 import { TITLE_SIZE_SCALE } from '../types';
 import type { ResolvedFamilyColumn } from '../templates/templateParts';
-import { VintageTheme as V } from '../themes/VintageTheme';
+import { vintageTokens } from '../themes/VintageTheme';
 import { VintageRibbon, VintageDamaskField } from './ornaments/VintageOrnaments';
 import { HebrewVerseArc } from './HebrewVerseArc';
 
@@ -64,6 +64,8 @@ export type VintageFamiliesProps = {
   columns: ResolvedFamilyColumn[];
   /** Masque le titre de chaque colonne (comme Éditorial Rayures) — seuls les noms restent visibles */
   hideTitles?: boolean;
+  /** Thème live — pilote la palette quand une combinaison est active */
+  theme?: WeddingTheme;
 };
 
 /** Formate un bloc parents selon la formule choisie (couple / M. / Mme) */
@@ -82,6 +84,9 @@ export function VintageHero({
   // Plafond relevé à 140 : L (250 px) et XL (320 px) restent distincts
   const logoSize = monogramSizePx ? Math.round(Math.min(monogramSizePx * 0.44, 140)) : 52;
 
+  // Couleurs : palette de la combinaison choisie, sinon identité Vintage d'origine
+  const V = vintageTokens(theme);
+
   // Polices pilotées par le builder (Titres / Prénoms), défauts vintage.
   // Le corps garde les petites capitales Cinzel : elles font partie de
   // l'identité du faire-part vintage (le texte des sections suit, lui,
@@ -93,14 +98,21 @@ export function VintageHero({
   };
   const nameScale = TITLE_SIZE_SCALE[theme?.nameSize ?? 'medium'];
   const nameSize = nameScale === 1 ? V.titleSizes.script : `calc(${V.titleSizes.script} * ${nameScale})`;
-  const floralBg = useFloralBgUrl();
+  const detectedFloralBg = useFloralBgUrl();
+
+  // Quand une combinaison de couleurs impose son motif, le hero devient
+  // TRANSPARENT : le motif de la combinaison, déjà peint en fond de page,
+  // traverse tout le site d'un seul tenant. Sans ça, le fond baroque bleu
+  // du modèle se superposait au motif choisi (deux fonds empilés).
+  const comboFloral = Boolean(theme?.floralPattern);
+  const floralBg = comboFloral ? null : detectedFloralBg;
 
   return (
     <div
       style={{
         position: 'relative',
-        background: V.colors.cream,
-        backgroundImage: floralBg ? `url('${floralBg}')` : V.backgrounds.paper,
+        backgroundColor: comboFloral ? 'transparent' : V.colors.cream,
+        backgroundImage: comboFloral ? undefined : floralBg ? `url('${floralBg}')` : V.backgrounds.paper,
         backgroundSize: floralBg ? '760px auto' : undefined,
         backgroundRepeat: floralBg ? 'repeat' : undefined,
         backgroundPosition: 'center top',
@@ -110,8 +122,9 @@ export function VintageHero({
         overflow: 'hidden',
       }}
     >
-      {/* ─ Fond floral : image réelle si présente, sinon motif SVG dense ─ */}
-      {!floralBg && <VintageDamaskField soft={V.colors.primarySoft} deep={V.colors.primary} />}
+      {/* ─ Fond floral : image réelle si présente, sinon motif SVG dense.
+          Aucun des deux quand la combinaison fournit déjà son motif. ─ */}
+      {!floralBg && !comboFloral && <VintageDamaskField soft={V.colors.primarySoft} deep={V.colors.primary} />}
 
       {/* Cadre ovale double-trait — vertical, façon modèle */}
       <div
@@ -353,7 +366,8 @@ export function VintageHero({
  * VintageFamilies — bloc « familles » affiché SOUS le décompte.
  * Colonnes libres (titre + lignes) — même structure que tous les thèmes.
  */
-export function VintageFamilies({ columns, hideTitles }: VintageFamiliesProps) {
+export function VintageFamilies({ columns, hideTitles, theme }: VintageFamiliesProps) {
+  const V = vintageTokens(theme);
   if (!columns.length) return null;
 
   return (

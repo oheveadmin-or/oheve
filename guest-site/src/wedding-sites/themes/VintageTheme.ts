@@ -12,7 +12,21 @@
  * La forme (`VintageThemeTokens`) sert de contrat partagé entre presets.
  */
 
+import type { WeddingTheme } from '../types';
+import { resolveThemeColors } from '../utils/themeColors';
+
 export type VintageThemeTokens = typeof VintageTheme;
+
+/**
+ * Forme renvoyée par `vintageTokens()` : strictement celle de `VintageTheme`,
+ * mais avec `colors` et `backgrounds` élargis en `string` — une combinaison de
+ * couleurs y injecte ses propres valeurs. Tout le reste (polices, tailles,
+ * `textTransform`…) garde ses types littéraux.
+ */
+export type VintageTokens = Omit<VintageThemeTokens, 'colors' | 'backgrounds'> & {
+  colors: Record<keyof VintageThemeTokens['colors'], string>;
+  backgrounds: Record<keyof VintageThemeTokens['backgrounds'], string>;
+};
 
 export const VintageTheme = {
   /** Identifiant + métadonnées du preset */
@@ -259,6 +273,57 @@ export const VintageTheme = {
     gutter: '1.4rem',
   },
 } as const;
+
+/**
+ * Résolveur : rend le preset Vintage sensible à la combinaison de couleurs
+ * choisie par le couple.
+ *
+ * Sans combinaison (« + Couleurs du modèle ») il renvoie `VintageTheme` tel
+ * quel — l'identité bleu poussiéreux du modèle est strictement préservée.
+ * Avec une combinaison, il renvoie EXACTEMENT LA MÊME FORME, mais habillée
+ * de la palette choisie : la carte, les filets, le ruban, les textes et le
+ * décompte suivent, sans qu'aucun composant n'ait à connaître les deux cas.
+ */
+export function vintageTokens(theme?: WeddingTheme): VintageTokens {
+  if (!theme?.colorCombination) return VintageTheme;
+
+  const c = resolveThemeColors(theme);
+  const ivory = theme.cardBackgroundColor || theme.backgroundColor;
+
+  return {
+    ...VintageTheme,
+    colors: {
+      ...VintageTheme.colors,
+      primary: theme.primaryColor,
+      primaryDeep: `${theme.primaryColor}aa`,
+      primaryDeepSolid: theme.primaryColor,
+      primarySoft: c.mutedText,
+      ivory,
+      cream: theme.backgroundColor,
+      taupe: c.accent,
+      taupeSoft: c.accent,
+      ink: theme.textColor,
+      inkMuted: c.mutedText,
+      onPrimary: c.buttonText,
+      // Même encre que `onPrimary`, atténuée — lisible sur la section pleine couleur
+      onPrimaryMuted: `${c.buttonText}b3`,
+      line: c.border,
+      lineOnPrimary: c.accent,
+      fieldBorder: c.border,
+      fieldFocus: theme.primaryColor,
+    },
+    backgrounds: {
+      ...VintageTheme.backgrounds,
+      page: theme.backgroundColor,
+      // Le motif floral de la combinaison devient le seul fond de la page :
+      // on neutralise le grain papier pour ne pas l'empâter.
+      paper: 'none',
+      card: ivory,
+      blueSection: theme.primaryColor,
+      blueGradient: `linear-gradient(165deg, ${theme.primaryColor} 0%, ${theme.primaryColor}dd 100%)`,
+    },
+  };
+}
 
 /**
  * Bridge vers le modèle `WeddingTheme` existant (UniversalTemplate).

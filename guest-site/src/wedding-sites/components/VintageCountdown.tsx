@@ -11,7 +11,8 @@
  * 100 % piloté par VintageTheme — aucune couleur en dur.
  */
 import { useEffect, useState } from 'react';
-import { VintageTheme as V } from '../themes/VintageTheme';
+import { vintageTokens } from '../themes/VintageTheme';
+import type { WeddingTheme } from '../types';
 
 type Props = {
   /** Date cible ISO */
@@ -19,6 +20,8 @@ type Props = {
   /** Accroche au-dessus du décompte */
   eyebrow?: string;
   language?: 'fr' | 'he' | 'en';
+  /** Thème live — pilote la palette quand une combinaison est active */
+  theme?: WeddingTheme;
 };
 
 function useCountdown(iso: string) {
@@ -45,7 +48,8 @@ const LABELS = {
   he: ['ימים', 'שעות', 'דקות', 'שניות'],
 };
 
-export function VintageCountdown({ targetDate, language = 'fr' }: Props) {
+export function VintageCountdown({ targetDate, language = 'fr', theme }: Props) {
+  const V = vintageTokens(theme);
   const c = useCountdown(targetDate);
   const labels = LABELS[language] ?? LABELS.fr;
   const cells = [
