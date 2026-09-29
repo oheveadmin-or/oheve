@@ -14,54 +14,66 @@ export function titleFontSize(titleSize: WeddingSite['theme']['titleSize']): str
 
 type CardOpts = { theme: WeddingSite['theme']; padded?: boolean };
 
+/**
+ * Surface de carte. `theme.cardBackgroundColor`/`borderColor` — quand une
+ * combinaison de couleurs les définit — remplacent le fond/la bordure
+ * calculés ci-dessous, sans toucher le reste (ombre, radius…). Absents
+ * (tous les presets existants), le calcul historique par `cardStyle` reste
+ * strictement identique.
+ */
 export function cardStyleSurface({ theme, padded = true }: CardOpts): CSSProperties {
   const base: CSSProperties = {
     borderRadius: theme.borderRadius,
     padding: padded ? '1.5rem 1.25rem' : undefined,
     transition: 'transform 0.35s ease, box-shadow 0.35s ease',
   };
+  const overrides: CSSProperties = {};
+  if (theme.cardBackgroundColor) overrides.background = theme.cardBackgroundColor;
+  if (theme.borderColor) overrides.borderColor = theme.borderColor;
+  const withOverrides = (style: CSSProperties): CSSProperties => ({ ...style, ...overrides });
+
   if (theme.cardStyle === 'glass') {
-    return {
+    return withOverrides({
       ...base,
       background: 'rgba(255,255,255,0.06)',
       border: '1px solid rgba(255,255,255,0.12)',
       backdropFilter: 'blur(12px)',
-    };
+    });
   }
   if (theme.cardStyle === 'outline') {
-    return { ...base, background: 'transparent', border: `1px solid ${theme.primaryColor}33` };
+    return withOverrides({ ...base, background: 'transparent', border: `1px solid ${theme.primaryColor}33` });
   }
   if (theme.cardStyle === 'shadow') {
-    return {
+    return withOverrides({
       ...base,
       background: theme.backgroundColor === '#faf7f2' ? '#fff' : `${theme.secondaryColor}14`,
       border: `1px solid ${theme.primaryColor}22`,
       boxShadow: `0 16px 48px ${theme.primaryColor}18`,
-    };
+    });
   }
   if (theme.cardStyle === 'premium') {
-    return {
+    return withOverrides({
       ...base,
       background: `linear-gradient(135deg, ${theme.secondaryColor}18 0%, ${theme.backgroundColor} 60%, ${theme.secondaryColor}10 100%)`,
       border: `1px solid ${theme.primaryColor}55`,
       boxShadow: `0 4px 24px ${theme.primaryColor}22, inset 0 1px 0 ${theme.primaryColor}22`,
-    };
+    });
   }
   if (theme.cardStyle === 'double-border') {
-    return {
+    return withOverrides({
       ...base,
       background: theme.backgroundColor || '#FBF8F1',
       border: `1.5px solid ${theme.primaryColor}66`,
       boxShadow: `inset 0 0 0 1.5px ${theme.primaryColor}33, 0 4px 20px -6px ${theme.primaryColor}20`,
-    };
+    });
   }
   if (theme.cardStyle === 'luxe') {
-    return {
+    return withOverrides({
       ...base,
       background: `${theme.secondaryColor}12`,
       border: `1px solid ${theme.primaryColor}66`,
       boxShadow: `0 20px 60px ${theme.primaryColor}25, 0 1px 0 ${theme.primaryColor}44 inset`,
-    };
+    });
   }
-  return { ...base, background: `${theme.secondaryColor}2a`, border: `1px solid ${theme.primaryColor}29` };
+  return withOverrides({ ...base, background: `${theme.secondaryColor}2a`, border: `1px solid ${theme.primaryColor}29` });
 }

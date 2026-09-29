@@ -10,7 +10,7 @@ import type { WeddingTemplateProps } from '../types';
 import { cardStyleSurface } from './templateCardStyles';
 import { getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
 import { SectionSeparator } from './SectionSeparator';
-import { PatternOverlay } from './PatternOverlay';
+import { ThemePattern } from './PatternOverlay';
 import {
   HeroEditorial,
   HeroSplit,
@@ -103,7 +103,7 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
   }[heroStyle] ?? HeroEditorial;
 
   const sep = t.separatorStyle ?? 'none';
-  const sepColor = t.primaryColor;
+  const sepColor = t.accentColor ?? t.primaryColor;
 
   // Photo vedette : même comportement que les thèmes autonomes (Rayures,
   // Voile Ivoire, Cartes) — la 1re photo s'affiche aussi quand la galerie
@@ -121,21 +121,19 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
       className="wedding-template-root wedding-fade-in"
       style={{
         fontFamily: t.fontFamily,
-        background: isVintage ? V.backgrounds.page : t.backgroundColor,
-        backgroundImage: isVintage ? V.backgrounds.paper : undefined,
+        backgroundColor: t.floralPattern ? t.backgroundColor : isVintage ? V.backgrounds.page : t.backgroundColor,
+        backgroundImage: !t.floralPattern && isVintage ? V.backgrounds.paper : undefined,
         color: t.textColor,
         minHeight: '100vh',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {/* Global background pattern — suppressed for vintage (paper texture handles ambiance) */}
-      {!isVintage && (
-        <PatternOverlay
-          patternId={t.patternId ?? 'none'}
-          color={t.primaryColor}
-          opacity={(t.patternOpacity ?? 0.07) * 0.55}
-        />
+      {/* Fond du thème — motif floral fourni par la combinaison de couleurs
+          (prioritaire) sinon texture SVG générique. Suppressed for vintage's
+          own paper texture, sauf si une combinaison impose un motif floral. */}
+      {(!isVintage || t.floralPattern) && (
+        <ThemePattern theme={t} fallbackColor={t.primaryColor} fallbackOpacity={(t.patternOpacity ?? 0.07) * 0.55} />
       )}
 
       <PublicStickyNav site={enrichedSite} />

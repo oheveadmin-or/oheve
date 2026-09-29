@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { PatternId } from '../types';
+import type { PatternId, WeddingTheme } from '../types';
 
 interface PatternOverlayProps {
   patternId: PatternId;
@@ -170,4 +170,66 @@ export function getPatternStyle(patternId: PatternId, color: string): CSSPropert
   const bg = getPatternBackground(patternId, color);
   if (!bg) return {};
   return { backgroundImage: bg };
+}
+
+/**
+ * ThemePattern — couche de fond « pleine page » du thème actif.
+ *
+ * Quand une combinaison de couleurs fournit `theme.floralPattern` (motif
+ * floral fourni, réel — /patterns/xxx.jpg), il remplace le motif SVG
+ * générique : image tuilée (jamais déformée), position/opacité/filtre
+ * configurables par combinaison, voile léger pour la lisibilité.
+ *
+ * Sans `floralPattern` (ex. « + Couleurs du modèle »), le comportement
+ * historique est inchangé : `PatternOverlay` (texture SVG teintée).
+ */
+export function ThemePattern({
+  theme,
+  fallbackColor,
+  fallbackOpacity = 0.07,
+}: {
+  theme: WeddingTheme;
+  fallbackColor: string;
+  fallbackOpacity?: number;
+}) {
+  if (theme.floralPattern) {
+    return (
+      <>
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url('${theme.floralPattern}')`,
+            backgroundRepeat: 'repeat',
+            backgroundSize: theme.floralTileSize ?? '440px',
+            backgroundPosition: theme.floralPosition ?? 'top center',
+            opacity: theme.floralOpacity ?? 1,
+            filter: theme.floralFilter,
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+        {/* Voile léger : garde le contenu lisible sans masquer le motif */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: withAlpha(theme.backgroundColor, 0.38),
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+      </>
+    );
+  }
+  return <PatternOverlay patternId={theme.patternId ?? 'none'} color={fallbackColor} opacity={fallbackOpacity} />;
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((hex || '').trim());
+  if (!m) return hex;
+  const a = Math.max(0, Math.min(255, Math.round(alpha * 255))).toString(16).padStart(2, '0');
+  return `#${m[1]}${m[2]}${m[3]}${a}`;
 }

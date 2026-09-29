@@ -10,6 +10,7 @@ import { sectionLabels } from '../i18n';
 import { deezerTrackId, resolveDeezerPreview } from '../data/musicSuggestions';
 
 import { cardStyleSurface } from './templateCardStyles';
+import { resolveThemeColors } from '../utils/themeColors';
 
 type GrandparentsData = {
   grandfather?: string;
@@ -604,6 +605,7 @@ export function PublicAudioToggle(_props: { site: WeddingSite }) {
 function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeof cardStyleSurface }) {
   const L = sectionLabels(site.language);
   const t = site.theme;
+  const rc = resolveThemeColors(t);
   const blocks: ReactNode[] = [];
 
   if (site.sections.coupleStory && site.content?.coupleStory?.length) {
@@ -723,13 +725,13 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
               marginTop: '0.5rem',
               padding: '0.85rem 2.5rem',
               borderRadius: Math.max(8, t.borderRadius),
-              background: t.primaryColor,
-              color: '#fff',
+              background: rc.button,
+              color: rc.buttonText,
               fontWeight: 700,
               fontSize: '1rem',
               letterSpacing: '0.06em',
               textDecoration: 'none',
-              boxShadow: `0 8px 24px ${t.primaryColor}44`,
+              boxShadow: `0 8px 24px ${rc.button}44`,
               transition: 'transform 160ms',
             }}
           >
@@ -970,10 +972,11 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
   }, [activeDay, days, events]);
 
   // Couleurs adaptées au fond bleu vintage
+  const rc = resolveThemeColors(site.theme);
   const textColor = isVintage ? '#F5F0E4' : site.theme.textColor;
-  const mutedColor = isVintage ? '#C7C2B4' : `${site.theme.textColor}99`;
-  const dotColor = isVintage ? '#D7D2C4' : site.theme.primaryColor;
-  const lineColor = isVintage ? '#9FAFC466' : `${site.theme.primaryColor}30`;
+  const mutedColor = isVintage ? '#C7C2B4' : rc.mutedText;
+  const dotColor = isVintage ? '#D7D2C4' : rc.timeline;
+  const lineColor = isVintage ? '#9FAFC466' : `${rc.timeline}30`;
   const btnActiveBg = isVintage ? 'rgba(255,255,255,0.18)' : `${site.theme.secondaryColor}44`;
   const btnBg = isVintage ? 'rgba(255,255,255,0.08)' : '#fff';
 
@@ -991,7 +994,7 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
               type="button"
               onClick={() => setActiveDay(day)}
               style={{
-                border: `1px solid ${isVintage ? '#9FAFC466' : `${site.theme.primaryColor}60`}`,
+                border: `1px solid ${isVintage ? '#9FAFC466' : `${rc.border}60`}`,
                 borderRadius: 999,
                 padding: '0.35rem 0.75rem',
                 background: activeDay === day ? btnActiveBg : btnBg,
@@ -1026,10 +1029,11 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
 
 function FAQAccordion({ site, items }: { site: WeddingSite; items: { id: string; question: string; answer: string }[] }) {
   const [openIdx, setOpenIdx] = useState<number | null>(0);
+  const rc = resolveThemeColors(site.theme);
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       {items.map((f, idx) => (
-        <article key={f.id || idx} style={{ border: `1px solid ${site.theme.primaryColor}28`, borderRadius: 10, overflow: 'hidden' }}>
+        <article key={f.id || idx} style={{ border: `1px solid ${rc.border}28`, borderRadius: 10, overflow: 'hidden' }}>
           <button
             type="button"
             onClick={() => setOpenIdx((p) => (p === idx ? null : idx))}
@@ -1067,12 +1071,13 @@ function CountdownRow({ site, countdown }: { site: WeddingSite; countdown: { d: 
     { label: site.language === 'fr' ? 'Secondes' : site.language === 'he' ? 'שניות' : 'Seconds', value: pad2(countdown.s) },
   ];
   const inline = `${parts[0].value} ${parts[0].label} ${parts[1].value}:${parts[2].value}:${parts[3].value}`;
+  const rc = resolveThemeColors(site.theme);
   return (
     <div style={{ marginTop: '1rem' }}>
       <p style={{ margin: '0 0 0.55rem', color: site.theme.primaryColor, letterSpacing: '0.14em', fontWeight: 700 }}>{inline}</p>
       <div className="wedding-countdown-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, maxWidth: 420, marginInline: 'auto' }}>
         {parts.map((p) => (
-          <div key={p.label} style={{ border: `1px solid ${site.theme.primaryColor}3a`, borderRadius: 10, padding: '0.55rem 0.35rem', background: `${site.theme.secondaryColor}1a` }}>
+          <div key={p.label} style={{ border: `1px solid ${rc.border}3a`, borderRadius: 10, padding: '0.55rem 0.35rem', background: `${rc.accent}1a` }}>
             <div style={{ fontWeight: 800, color: site.theme.primaryColor }}>{p.value}</div>
             <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.8 }}>{p.label}</div>
           </div>
@@ -1087,8 +1092,9 @@ function pad2(n: number) {
 }
 
 function linkBtn(site: WeddingSite): CSSProperties {
+  const rc = resolveThemeColors(site.theme);
   return {
-    border: `1px solid ${site.theme.primaryColor}55`,
+    border: `1px solid ${rc.border}55`,
     borderRadius: 10,
     padding: '0.4rem 0.65rem',
     textDecoration: 'none',
@@ -1319,25 +1325,26 @@ function JewishEventsSection({
 
 function HotelCard({ hotel: h, site }: { hotel: import('../types').AccommodationItem; site: WeddingSite }) {
   const t = site.theme;
+  const rc = resolveThemeColors(t);
   return (
-    <article style={{ border: `1px solid ${t.primaryColor}25`, borderRadius: 12, padding: '0.85rem', display: 'grid', gap: '0.3rem' }}>
+    <article style={{ border: `1px solid ${rc.border}25`, borderRadius: 12, padding: '0.85rem', display: 'grid', gap: '0.3rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <p style={{ margin: 0, fontWeight: 700, flex: 1 }}>🏨 {h.name || 'Hébergement'}</p>
         {h.stars ? (
-          <span style={{ fontSize: '0.75rem', color: t.primaryColor }}>{'★'.repeat(Math.min(h.stars, 5))}</span>
+          <span style={{ fontSize: '0.75rem', color: rc.icon }}>{'★'.repeat(Math.min(h.stars, 5))}</span>
         ) : null}
       </div>
-      {h.address ? <p style={{ margin: 0, fontSize: '0.88rem', opacity: 0.85 }}>{h.address}</p> : null}
-      {h.description ? <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.6, opacity: 0.82 }}>{h.description}</p> : null}
+      {h.address ? <p style={{ margin: 0, fontSize: '0.88rem', color: rc.mutedText }}>{h.address}</p> : null}
+      {h.description ? <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.6, color: rc.mutedText }}>{h.description}</p> : null}
       {h.distanceOrDuration ? (
-        <p style={{ margin: 0, fontSize: '0.82rem', color: t.primaryColor, fontWeight: 600 }}>{h.distanceOrDuration}</p>
+        <p style={{ margin: 0, fontSize: '0.82rem', color: rc.accent, fontWeight: 600 }}>{h.distanceOrDuration}</p>
       ) : null}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
         {h.googleMapsUrl ? <a href={h.googleMapsUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>📍 Maps</a> : null}
         {h.wazeUrl ? <a href={h.wazeUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>🚗 Waze</a> : null}
         {h.phone ? <a href={`tel:${h.phone}`} style={linkBtn(site)}>📞 Appeler</a> : null}
         {h.bookingUrl ? (
-          <a href={h.bookingUrl} target="_blank" rel="noreferrer" style={{ ...linkBtn(site), background: t.primaryColor, color: '#fff', borderColor: t.primaryColor }}>
+          <a href={h.bookingUrl} target="_blank" rel="noreferrer" style={{ ...linkBtn(site), background: rc.button, color: rc.buttonText, borderColor: rc.button }}>
             Réserver
           </a>
         ) : null}

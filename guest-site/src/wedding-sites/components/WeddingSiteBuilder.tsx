@@ -8,6 +8,7 @@ import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
 import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
+import { applyColorCombination, COLOR_COMBINATIONS, type ColorCombination } from '../data/colorCombinations';
 import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId } from '../data/musicSuggestions';
 import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, adaptPhotoToTheme } from '../services/weddingSiteService';
 import type {
@@ -1333,50 +1334,41 @@ export function WeddingSiteBuilder() {
             {/* ── Couleurs ─────────────────────────────────────────────────── */}
             <p style={{ ...studioSectionLabel, marginTop: '1.25rem' }}>Combinaisons de couleurs</p>
             {(() => {
-              // Couleurs de base du MODÈLE sélectionné — toujours proposées en premier
+              // Couleurs de base du MODÈLE sélectionné — toujours proposées en premier,
+              // comportement inchangé : personnalisation libre, sans motif floral imposé.
               const presetTheme = ALL_STYLE_PRESETS.find((s) => s.id === theme.style)?.theme;
-              const modelPalette = presetTheme?.primaryColor
-                ? [{
+              const modelCombo: ColorCombination | null = presetTheme?.primaryColor
+                ? {
                     name: '✦ Couleurs du modèle',
-                    colors: [presetTheme.primaryColor, presetTheme.secondaryColor ?? presetTheme.primaryColor, presetTheme.backgroundColor ?? '#FFFFFF', presetTheme.textColor ?? '#111111'],
-                    primary: presetTheme.primaryColor,
-                    secondary: presetTheme.secondaryColor ?? presetTheme.primaryColor,
-                    bg: presetTheme.backgroundColor ?? '#FFFFFF',
-                    text: presetTheme.textColor ?? '#111111',
-                  }]
-                : [];
-              const palettes = [
-                ...modelPalette,
-                { name: 'Noir & Or', colors: ['#0B0B0B', '#D4AF37', '#F7F1DE', '#FFFFFF'], primary: '#D4AF37', secondary: '#0B0B0B', bg: '#F7F1DE', text: '#1A1206' },
-                { name: 'Émeraude & Champagne', colors: ['#0F5132', '#D4AF37', '#E3EDE4', '#FFFFFF'], primary: '#0F5132', secondary: '#D4AF37', bg: '#E6F0E7', text: '#0F3D2A' },
-                { name: 'Bleu Nuit & Cuivré', colors: ['#0E2248', '#C97C5D', '#DEE7F2', '#F5EFE6'], primary: '#0E2248', secondary: '#C97C5D', bg: '#E4EBF5', text: '#0E2248' },
-                { name: 'Bordeaux & Or Vieilli', colors: ['#580D1E', '#D4AF37', '#EEC7B7', '#F7F3EE'], primary: '#580D1E', secondary: '#D4AF37', bg: '#F4E4E1', text: '#3D0A14' },
-                { name: 'Vert Sauge & Bronze', colors: ['#8BBF7A', '#7A5A3A', '#DCD2BE', '#FAF7F2'], primary: '#8BBF7A', secondary: '#7A5A3A', bg: '#E7EEE1', text: '#2E3D24' },
-                { name: 'Terracotta & Crème', colors: ['#C65A2E', '#6B6F3C', '#F8E4D8', '#D8BEBC'], primary: '#C65A2E', secondary: '#6B6F3C', bg: '#FAE6DA', text: '#3A2010' },
-                { name: 'Lavande & Gris', colors: ['#9B8BB0', '#BFC2C7', '#EBE5F4', '#FFFFFF'], primary: '#9B8BB0', secondary: '#BFC2C7', bg: '#ECE6F5', text: '#3D3550' },
-                { name: 'Noir & Blanc Marbre', colors: ['#000000', '#D4AF37', '#ECECEC', '#FFFFFF'], primary: '#000000', secondary: '#D4AF37', bg: '#EFEFEF', text: '#111111' },
-                { name: 'Pétrole & Or', colors: ['#005F67', '#D4AF37', '#DFEDED', '#F6F2EA'], primary: '#005F67', secondary: '#D4AF37', bg: '#E0EEEE', text: '#003840' },
-                { name: 'Pêche & Or Rose', colors: ['#D4856A', '#C9956A', '#FBE7DC', '#E7A98D'], primary: '#D4856A', secondary: '#C9956A', bg: '#FCE8DE', text: '#6B3A2A' },
-                { name: 'Olive & Beige', colors: ['#4B5332', '#C9B87A', '#ECEDDF', '#D4C9B6'], primary: '#4B5332', secondary: '#C9B87A', bg: '#EDEEE0', text: '#2E3320' },
-                { name: 'Chocolat & Doré', colors: ['#5A3824', '#D4AF37', '#F0E7DA', '#B8A97B'], primary: '#5A3824', secondary: '#D4AF37', bg: '#F1E8DB', text: '#2E1A0E' },
-                { name: 'Bleu Grisé & Argent', colors: ['#5A7A96', '#A0A8B0', '#E4EBF2', '#FFFFFF'], primary: '#5A7A96', secondary: '#A0A8B0', bg: '#E6EDF4', text: '#2A3A4A' },
-                { name: 'Fuchsia & Prune', colors: ['#8B1050', '#6A0038', '#FADCEA', '#F1C6D2'], primary: '#8B1050', secondary: '#D4AF37', bg: '#FBE1EC', text: '#3A0020' },
-                { name: 'Sable & Bleu Ciel', colors: ['#7AAECC', '#C9B080', '#E4EFF6', '#FFFFFF'], primary: '#7AAECC', secondary: '#C9B080', bg: '#E5F0F7', text: '#2A4A5A' },
-              ];
+                    swatch: [
+                      presetTheme.primaryColor,
+                      presetTheme.secondaryColor ?? presetTheme.primaryColor,
+                      presetTheme.backgroundColor ?? '#FFFFFF',
+                      presetTheme.textColor ?? '#111111',
+                    ],
+                    theme: {
+                      primaryColor: presetTheme.primaryColor,
+                      secondaryColor: presetTheme.secondaryColor ?? presetTheme.primaryColor,
+                      backgroundColor: presetTheme.backgroundColor ?? '#FFFFFF',
+                      textColor: presetTheme.textColor ?? '#111111',
+                    },
+                  }
+                : null;
+              const combos = modelCombo ? [modelCombo, ...COLOR_COMBINATIONS] : COLOR_COMBINATIONS;
               return (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  {palettes.map((p) => {
-                    const isActive = theme.primaryColor === p.primary && theme.secondaryColor === p.secondary;
+                  {combos.map((c) => {
+                    const isActive = theme.primaryColor === c.theme.primaryColor && theme.secondaryColor === c.theme.secondaryColor;
                     return (
                       <button
-                        key={p.name}
-                        onClick={() => setTheme({ ...theme, primaryColor: p.primary, secondaryColor: p.secondary, backgroundColor: p.bg, textColor: p.text })}
+                        key={c.name}
+                        onClick={() => setTheme(applyColorCombination(theme, c))}
                         style={{ border: isActive ? '2px solid #8F947F' : '1.5px solid #e5e7eb', borderRadius: 8, padding: '0.4rem 0.3rem', background: isActive ? '#f5f3ee' : '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
                       >
                         <div style={{ display: 'flex', gap: 2 }}>
-                          {p.colors.map((c, i) => <div key={i} style={{ width: 12, height: 12, borderRadius: '50%', background: c, border: '1px solid rgba(0,0,0,0.1)' }} />)}
+                          {c.swatch.map((color, i) => <div key={i} style={{ width: 12, height: 12, borderRadius: '50%', background: color, border: '1px solid rgba(0,0,0,0.1)' }} />)}
                         </div>
-                        <span style={{ fontSize: '0.48rem', fontWeight: 600, color: '#444', textAlign: 'center', lineHeight: 1.2 }}>{p.name}</span>
+                        <span style={{ fontSize: '0.48rem', fontWeight: 600, color: '#444', textAlign: 'center', lineHeight: 1.2 }}>{c.name}</span>
                       </button>
                     );
                   })}

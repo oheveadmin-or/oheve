@@ -88,8 +88,8 @@ export type EditorialTokens = ReturnType<typeof editorialTokens>;
  * structurelles. Toute couleur absente retombe sur les défauts premium.
  */
 export function editorialTokens(theme: WeddingTheme) {
-  const accent = theme.primaryColor || EDITORIAL_DEFAULTS.accent;
-  const button = theme.secondaryColor || EDITORIAL_DEFAULTS.button;
+  const accent = theme.accentColor || theme.primaryColor || EDITORIAL_DEFAULTS.accent;
+  const button = theme.buttonColor || theme.secondaryColor || EDITORIAL_DEFAULTS.button;
   const background = theme.backgroundColor || EDITORIAL_DEFAULTS.background;
   const text = theme.textColor || EDITORIAL_DEFAULTS.text;
 
@@ -97,18 +97,18 @@ export function editorialTokens(theme: WeddingTheme) {
     ...EDITORIAL_TOKENS,
     colors: {
       /** Fond de page (légèrement plus sombre que les cartes pour les détacher) */
-      page: shade(background, -0.03),
+      page: shade(theme.cardBackgroundColor || background, -0.03),
       /** Fond des cartes */
-      card: background,
+      card: theme.cardBackgroundColor || background,
       text,
-      textMuted: EDITORIAL_DEFAULTS.textMuted,
+      textMuted: theme.mutedTextColor || EDITORIAL_DEFAULTS.textMuted,
       accent,
       button,
       /** Texte sur le bouton — clair par défaut */
-      onButton: '#FFFFFF',
+      onButton: theme.buttonTextColor || '#FFFFFF',
       /** Filets / contours discrets */
-      hairline: `${accent}33`,
-      hairlineStrong: `${accent}66`,
+      hairline: `${theme.borderColor || accent}33`,
+      hairlineStrong: `${theme.borderColor || accent}66`,
     },
     // Trois rôles pilotés par le builder : Prénoms (display), Texte (body),
     // Titres/labels (label). Chaque rôle retombe sur le défaut du preset.

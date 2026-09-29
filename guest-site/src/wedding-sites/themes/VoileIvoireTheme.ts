@@ -81,8 +81,8 @@ export type VoileTokens = ReturnType<typeof voileTokens>;
  * structurelles. Toute couleur absente retombe sur les défauts.
  */
 export function voileTokens(theme: WeddingTheme) {
-  const accent = theme.primaryColor || VOILE_DEFAULTS.accent;
-  const button = theme.secondaryColor || VOILE_DEFAULTS.button;
+  const accent = theme.accentColor || theme.primaryColor || VOILE_DEFAULTS.accent;
+  const button = theme.buttonColor || theme.secondaryColor || VOILE_DEFAULTS.button;
   const background = theme.backgroundColor || VOILE_DEFAULTS.background;
   const text = theme.textColor || VOILE_DEFAULTS.text;
 
@@ -93,21 +93,31 @@ export function voileTokens(theme: WeddingTheme) {
   const scaled = (base: string, scale: number) =>
     scale === 1 ? base : `calc(${base} * ${scale})`;
 
+  // Une combinaison de couleurs peut fournir son propre motif floral —
+  // il remplace alors le rideau ivoire par défaut, avec un affichage tuilé
+  // (jamais déformé) au lieu de l'étirement 100% 100% du rideau.
+  const hasFloral = Boolean(theme.floralPattern);
+
   return {
     ...VOILE_TOKENS,
-    bgImage: VOILE_BG_IMAGE,
+    bgImage: theme.floralPattern ?? VOILE_BG_IMAGE,
+    bgIsFloral: hasFloral,
+    bgSize: hasFloral ? (theme.floralTileSize ?? '440px') : '100% 100%',
+    bgRepeat: hasFloral ? 'repeat' : 'no-repeat',
+    bgPosition: hasFloral ? (theme.floralPosition ?? 'top center') : 'top center',
+    bgFilter: hasFloral ? theme.floralFilter : undefined,
     colors: {
       /** Fond des cartes (crème translucide déposé sur le rideau) */
-      card: withAlpha(background, 0.9),
-      cardSolid: background,
+      card: withAlpha(theme.cardBackgroundColor || background, 0.9),
+      cardSolid: theme.cardBackgroundColor || background,
       text,
-      textMuted: VOILE_DEFAULTS.textMuted,
+      textMuted: theme.mutedTextColor || VOILE_DEFAULTS.textMuted,
       accent,
       button,
-      onButton: '#FFFFFF',
+      onButton: theme.buttonTextColor || '#FFFFFF',
       /** Filets / contours discrets */
-      hairline: `${accent}44`,
-      hairlineStrong: `${accent}88`,
+      hairline: `${theme.borderColor || accent}44`,
+      hairlineStrong: `${theme.borderColor || accent}88`,
     },
     // Trois rôles pilotés par le builder : Texte (body), Prénoms/calligraphie
     // (script), Titres/labels (label). Chaque rôle retombe sur le défaut.

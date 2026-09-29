@@ -20,7 +20,7 @@ import { TITLE_SIZE_SCALE } from '../types';
 import { sectionLabels } from '../i18n';
 import { formatWeddingDate } from '../utils/date';
 import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
-import { PatternOverlay } from './PatternOverlay';
+import { ThemePattern } from './PatternOverlay';
 import { SectionSeparator } from './SectionSeparator';
 import { cardStyleSurface } from './templateCardStyles';
 
@@ -236,8 +236,8 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
         containerType: 'inline-size',
       }}
     >
-      {/* Motif de fond du Studio de design */}
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={stripe} opacity={t.patternOpacity ?? 0.07} />
+      {/* Motif de fond du Studio de design — motif floral fourni si la combinaison en définit un */}
+      <ThemePattern theme={t} fallbackColor={stripe} fallbackOpacity={t.patternOpacity ?? 0.07} />
       {/* Le monogramme SVG généré embarque width/height fixes : on le fait
           scaler à la taille choisie dans le builder. */}
       <style>{'.stripes-monogram svg{width:100%;height:auto;display:block;}'}</style>

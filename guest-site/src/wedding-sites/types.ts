@@ -142,6 +142,38 @@ export type WeddingTheme = {
   stripeWidth?: number;
   /** Éditorial Rayures uniquement — opacité des rayures du hero, 0–1 (défaut 1) */
   stripeOpacity?: number;
+
+  // ── Rôles de couleur étendus (combinaisons de couleurs) ──────────────────
+  // Tous optionnels : absents → dérivés de primary/secondary/background/text
+  // par `resolveThemeColors()`, donc aucun preset existant n'est affecté.
+  /** Ornements, détails, séparateurs. Défaut : secondaryColor */
+  accentColor?: string;
+  /** Fond des cartes (Programme, blocs d'info). Défaut : dérivé de cardStyle */
+  cardBackgroundColor?: string;
+  /** Bordures, cadres, boutons secondaires. Défaut : primaryColor */
+  borderColor?: string;
+  /** Fond des boutons RSVP. Défaut : primaryColor */
+  buttonColor?: string;
+  /** Texte des boutons. Défaut : blanc/sombre selon contraste de buttonColor */
+  buttonTextColor?: string;
+  /** Sous-titres, horaires, infos secondaires. Défaut : textColor atténué */
+  mutedTextColor?: string;
+  /** Ligne et points de la timeline/programme. Défaut : primaryColor */
+  timelineColor?: string;
+  /** Icônes et pictogrammes. Défaut : primaryColor */
+  iconColor?: string;
+  /** Teinte dominante du motif floral (référence/CSS filter). Défaut : primaryColor */
+  floralColor?: string;
+  /** URL du motif floral (image de fond indépendante, /patterns/xxx.jpg) */
+  floralPattern?: string;
+  /** background-position du motif floral. Défaut : 'top center' */
+  floralPosition?: string;
+  /** Taille de la tuile du motif (background-size, répété). Défaut : '440px' */
+  floralTileSize?: string;
+  /** Opacité du motif floral, 0–1. Défaut : 1 (l'image porte déjà son propre fond crème) */
+  floralOpacity?: number;
+  /** CSS filter appliqué au motif (teinte de secours quand aucun visuel dédié n'existe) */
+  floralFilter?: string;
 };
 
 export type WeddingSections = {

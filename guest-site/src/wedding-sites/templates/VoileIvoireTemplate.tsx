@@ -468,13 +468,29 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
           backgroundImage: `url('${tk.bgImage}')`,
           // 100% 100% : toute la composition du rideau (drapés des deux côtés
           // + arche) reste visible quel que soit le format d'écran — `cover`
-          // rognait les drapés latéraux sur mobile.
-          backgroundSize: '100% 100%',
-          backgroundPosition: 'top center',
-          backgroundRepeat: 'no-repeat',
+          // rognait les drapés latéraux sur mobile. Un motif floral de
+          // combinaison, lui, est tuilé (répété) pour ne jamais être déformé.
+          backgroundSize: tk.bgSize,
+          backgroundPosition: tk.bgPosition,
+          backgroundRepeat: tk.bgRepeat,
+          filter: tk.bgFilter,
           pointerEvents: 'none',
         }}
       />
+      {tk.bgIsFloral ? (
+        <div
+          aria-hidden
+          style={{
+            position: 'sticky',
+            top: 0,
+            height: '100vh',
+            marginBottom: '-100vh',
+            zIndex: 0,
+            background: `${tk.colors.cardSolid}61`,
+            pointerEvents: 'none',
+          }}
+        />
+      ) : null}
 
       <div style={{ position: 'relative', zIndex: 1, paddingTop: tk.cardGap * 2 }}>
       <PublicStickyNav site={site} />
