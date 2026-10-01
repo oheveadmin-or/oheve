@@ -14,6 +14,7 @@ import {
   updateWeddingSite,
   uploadGalleryPhoto,
 } from './weddingSites.controller';
+import { getShareImage, getSharePreview } from './sharePreview';
 
 // Même stockage disque que les photos prestataires : uploads/photos est déjà
 // servi statiquement par /uploads dans index.ts.
@@ -50,6 +51,9 @@ weddingSitesRoutes.post('/upload-photo', requireAuth, upload.single('photo'), op
 weddingSitesRoutes.post('/adapt-photo', requireAuth, uploadMem.single('photo'), adaptPhotoToTheme);
 // Public : simple résolution d'URL d'aperçu (aucune donnée sensible)
 weddingSitesRoutes.get('/deezer-preview/:id', getDeezerPreview);
+// Aperçu de lien (WhatsApp…) : métadonnées + image aux couleurs du site (clé ?k= requise)
+weddingSitesRoutes.get('/:slug/share-preview', getSharePreview);
+weddingSitesRoutes.get('/:slug/og-image.jpg', getShareImage);
 weddingSitesRoutes.get('/:slug', optionalAuth, getWeddingSiteBySlug);
 weddingSitesRoutes.post('/', requireAuth, createWeddingSite);
 weddingSitesRoutes.patch('/:id', requireAuth, updateWeddingSite);
