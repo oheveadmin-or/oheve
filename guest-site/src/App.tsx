@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import GuestSiteView from '@guest/GuestSiteView';
@@ -9,6 +10,8 @@ import { CookieBanner } from '@guest/components/CookieBanner';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { PrivacyPage, CguPage, SupportPage } from '@guest/legal/LegalPages';
 import PostSharePage from '@guest/share/PostSharePage';
+
+const PresentationPage = lazy(() => import('@guest/presentation/PresentationPage'));
 
 export default function App() {
   return (
@@ -29,6 +32,8 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/cgu" element={<CguPage />} />
         <Route path="/support" element={<SupportPage />} />
+        {/* Présentation globale OHEVE (le PDF en version interactive) — lien à partager aux prestataires */}
+        <Route path="/presentation" element={<Suspense fallback={<div style={{ minHeight: '100vh', background: '#e4dfd7' }} />}><PresentationPage /></Suspense>} />
         {/* Page publique d'un post partagé depuis l'app (avant le catch-all /:slug) */}
         <Route path="/p/:photoId" element={<PostSharePage />} />
         <Route path="/wedding" element={<Navigate to="/wedding/build" replace />} />
