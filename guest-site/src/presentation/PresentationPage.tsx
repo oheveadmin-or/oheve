@@ -15,18 +15,11 @@ const INSTAGRAM_URL = 'https://www.instagram.com/ohevewedding';
 const CONTACT_EMAIL = 'support@ohevewedding.com';
 
 const SECTIONS = [
-  { id: 'qui', label: 'Qui sommes-nous ?' },
   { id: 'problematique', label: 'Problématique' },
   { id: 'solution', label: 'La solution' },
-  { id: 'pourquoi', label: 'Pourquoi OHEVE ?' },
-  { id: 'univers', label: "L'univers OHEVE" },
   { id: 'positionnement', label: 'Positionnement' },
   { id: 'fonctionnalites', label: 'Fonctionnalités' },
-  { id: 'finance', label: 'Projection financière' },
-  { id: 'parcours', label: "Parcours de l'utilisateur" },
-  { id: 'creation', label: 'Création & juridique' },
-  { id: 'acquisition', label: "Stratégie d'acquisition" },
-  { id: 'fidelisation', label: 'Fidélisation' },
+  { id: 'prestataire', label: 'Ce que OHEVE vous apporte' },
   { id: 'vision', label: 'OHEVE dans 5 ans' },
   { id: 'conclusion', label: 'Conclusion' },
 ] as const;
@@ -164,6 +157,11 @@ const ICONS = {
   bell: 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
   sparkle: 'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6',
   crown: 'M3 7l4 4 5-6 5 6 4-4-2 12H5z',
+  calendar: 'M4 5h16v16H4zM4 10h16M9 3v4M15 3v4M8 14h3',
+  chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12zM8.5 12h.01M12 12h.01M15.5 12h.01',
+  chart: 'M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3M20 16V6',
+  shield: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6zM8.5 12l2.5 2.5 4.5-5',
+  trend: 'M3 17l6-6 4 4 8-8M15 7h6v6',
   heart: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z',
 };
 
@@ -183,123 +181,13 @@ function Hero() {
           ))}
         </h1>
         <p className="pz-hero-tag">Application de Mariage</p>
-        <p className="pz-hero-meta">Présentation globale · Attia Odaya &amp; Layani Rachel</p>
+        <p className="pz-hero-meta">Présentation prestataires · Attia Odaya</p>
       </div>
-      <button className="pz-scroll-cue" onClick={() => scrollToId('sommaire')}>
+      <button className="pz-scroll-cue" onClick={() => scrollToId('problematique')}>
         Découvrir
         <i />
       </button>
     </header>
-  );
-}
-
-function Sommaire() {
-  return (
-    <section className="pz-section" id="sommaire">
-      <div className="pz-wrap" style={{ textAlign: 'center' }}>
-        <h2 className="pz-title is-center" style={{ textTransform: 'none' }}>
-          <Split text="Sommaire" />
-        </h2>
-        <p className="pz-sub" data-reveal>
-          Table des matières
-        </p>
-      </div>
-      <div className="pz-toc">
-        {SECTIONS.map((s, i) => (
-          <button key={s.id} className="pz-toc-item" data-reveal style={css({ '--d': `${(i % 7) * 0.06}s` })} onClick={() => scrollToId(s.id)}>
-            <b>{i + 1}.</b>
-            <span>{s.label}</span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-const VALUES = [
-  { name: 'Élégance', text: 'Une expérience haut de gamme pensée dans les moindres détails.' },
-  { name: 'Simplicité', text: 'Rendre accessible une organisation souvent perçue comme complexe.' },
-  { name: 'Confiance', text: 'Créer un environnement sécurisé pour les couples comme pour les prestataires.' },
-  { name: 'Innovation', text: "Réinventer l'expérience du mariage grâce au digital." },
-  { name: 'Bienveillance', text: 'Accompagner chaque couple avec douceur durant cette étape importante de leur vie.' },
-];
-
-function About() {
-  const [value, setValue] = useState(0);
-  // Les valeurs défilent seules tant qu'on ne les touche pas.
-  const [auto, setAuto] = useState(true);
-  useEffect(() => {
-    if (!auto) return;
-    const t = window.setInterval(() => setValue((v) => (v + 1) % VALUES.length), 3200);
-    return () => window.clearInterval(t);
-  }, [auto]);
-
-  return (
-    <section className="pz-section is-sand" id="qui">
-      <div className="pz-wrap pz-about">
-        <Photo src="bouquet.jpg" alt="Mariée tenant un bouquet de roses et d'orchidées blanches" className="pz-about-photo" />
-        <div>
-          <Kicker n={1}>Introduction</Kicker>
-          <h2 className="pz-title is-md">
-            <Split text={'Qui sommes-nous\u00a0?'} />
-          </h2>
-          <p className="pz-sub" data-reveal>
-            L'art d'organiser le plus beau jour d'une vie.
-          </p>
-          <p className="pz-p pz-lead" data-reveal>
-            OHEVE est une application pensée pour centraliser l'ensemble de l'organisation d'un mariage au sein d'une seule plateforme.
-          </p>
-          <p className="pz-p" data-reveal>
-            Budget, planning, invités, tâches, inspirations et prestataires : chaque étape des préparatifs est regroupée dans un espace unique, intuitif et
-            élégant.
-          </p>
-          <p className="pz-p" data-reveal>
-            Grâce à un réseau de professionnels sélectionnés et des fiches enrichies de photos, vidéos, réalisations et avis, les futurs mariés peuvent
-            découvrir, comparer et réserver les prestataires adaptés à leur projet.
-          </p>
-          <p className="pz-p" data-reveal>
-            Notre ambition est simple : permettre aux couples d'organiser leur mariage de A à Z avec sérénité, efficacité et confiance.
-          </p>
-
-          <div className="pz-cards3">
-            <div className="pz-card" data-reveal>
-              <h3>Notre mission</h3>
-              <p className="pz-p" style={{ margin: 0 }}>
-                Simplifier l'organisation du mariage grâce à une solution unique permettant de gérer les prestataires, le budget, les invités, les inspirations et
-                le planning dans un environnement premium et intuitif.
-              </p>
-            </div>
-            <div className="pz-card" data-reveal style={css({ '--d': '0.12s' })}>
-              <h3>Nos valeurs</h3>
-              <div className="pz-values" role="tablist" aria-label="Nos valeurs">
-                {VALUES.map((v, i) => (
-                  <button
-                    key={v.name}
-                    role="tab"
-                    aria-selected={value === i}
-                    className={`pz-chip ${value === i ? 'is-active' : ''}`}
-                    onClick={() => {
-                      setAuto(false);
-                      setValue(i);
-                    }}
-                  >
-                    {v.name}
-                  </button>
-                ))}
-              </div>
-              <p className="pz-value-text" key={value} role="tabpanel">
-                {VALUES[value].text}
-              </p>
-            </div>
-            <div className="pz-card is-quote" data-reveal style={css({ '--d': '0.2s' })}>
-              <p className="pz-quote">
-                « Chaque mariage raconte une histoire unique. Notre mission est de rendre son organisation aussi belle que le jour où elle sera célébrée. »
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -312,7 +200,7 @@ function Problem() {
   return (
     <section className="pz-section pz-problem" id="problematique" data-problem>
       <div className="pz-problem-sticky">
-        <Kicker n={2}>Le constat</Kicker>
+        <Kicker n={1}>Le constat</Kicker>
         <h2 className="pz-title is-center">
           <Split text="Problématique" />
         </h2>
@@ -333,7 +221,7 @@ function Solution() {
   return (
     <section className="pz-section is-sand pz-solution" id="solution">
       <div className="pz-solution-text">
-        <Kicker n={3}>Notre réponse</Kicker>
+        <Kicker n={2}>Notre réponse</Kicker>
         <h2 className="pz-title">
           <Split text="La solution" />
         </h2>
@@ -376,143 +264,6 @@ function Solution() {
   );
 }
 
-const NAME_PARTS = [
-  {
-    word: 'אוהב',
-    label: 'Ohev · aimer',
-    text: "Le nom OHEVE trouve d'abord son origine dans le mot hébreu « Ohev » (אוהב), qui signifie aimer — une valeur fondatrice de tout mariage.",
-  },
-  {
-    word: 'Ève',
-    label: 'La première femme',
-    text: "OHEVE fait également écho à Ève, la première femme de l'histoire, symbole de l'origine du couple, de l'union et de la construction d'une vie à deux.",
-  },
-];
-
-function Why() {
-  const [part, setPart] = useState<number | null>(null);
-  return (
-    <section className="pz-section" id="pourquoi">
-      <div className="pz-wrap">
-        <div style={{ textAlign: 'center' }}>
-          <Kicker n={4}>Le nom</Kicker>
-          <h2 className="pz-title is-center">
-            <Split text={'Pourquoi OHEVE\u00a0?'} />
-          </h2>
-          <p className="pz-p pz-lead" data-reveal style={{ margin: '0 auto' }}>
-            Le nom OHEVE puise son inspiration dans plusieurs symboliques fortes.
-          </p>
-        </div>
-
-        <div className="pz-hebrew" data-reveal>
-          {NAME_PARTS.map((p, i) => (
-            <div key={p.label} style={{ display: 'contents' }}>
-              {i > 0 && <span className="pz-hebrew-plus">+</span>}
-              <button
-                className={`pz-hebrew-card ${part === i ? 'is-active' : ''}`}
-                onMouseEnter={() => setPart(i)}
-                onFocus={() => setPart(i)}
-                onClick={() => setPart(i)}
-                aria-pressed={part === i}
-              >
-                <strong lang={i === 0 ? 'he' : 'fr'}>{p.word}</strong>
-                <em>{p.label}</em>
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="pz-hebrew-result" aria-live="polite">
-          <p className="pz-p pz-lead pz-value-text" key={part ?? 'all'} style={{ margin: '0 auto' }}>
-            {part === null
-              ? "À travers ce nom, l'application célèbre l'amour, l'engagement et le commencement d'un nouveau chapitre de vie. Survolez les deux symboles ci-dessus."
-              : NAME_PARTS[part].text}
-          </p>
-        </div>
-        <p className="pz-p" data-reveal style={{ textAlign: 'center', margin: '-2rem auto 4rem' }}>
-          OHEVE n'est donc pas seulement une plateforme d'organisation ; c'est une marque pensée pour accompagner les futurs mariés dans l'une des aventures
-          les plus importantes de leur histoire.
-        </p>
-
-        <div className="pz-concepts">
-          {[
-            { src: 'concept-1.jpg', alt: 'Menu de mariage vert sauge noué d’un ruban blanc' },
-            { src: 'concept-2.jpg', alt: 'Mains des mariés entrelacées, manche en dentelle' },
-            { src: 'concept-3.jpg', alt: 'Enveloppes vert sauge scellées à la cire dorée' },
-          ].map((c, i) => (
-            <div key={c.src} data-reveal style={css({ '--d': `${i * 0.12}s` })}>
-              <Tilt>
-                <figure className="pz-concept">
-                  <div className="pz-concept-img">
-                    <img src={`${IMG}/${c.src}`} alt={c.alt} loading="lazy" />
-                  </div>
-                  <figcaption>Concept {i + 1}</figcaption>
-                </figure>
-              </Tilt>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-const PALETTE = [
-  { hex: '#EFE8DC', name: 'Ivoire', ink: '#6c6257' },
-  { hex: '#D6CCBC', name: 'Lin', ink: '#5c5248' },
-  { hex: '#A3AE8F', name: 'Sauge', ink: '#fff' },
-  { hex: '#6B7A5E', name: 'Olivier', ink: '#fff' },
-  { hex: '#4A5844', name: 'Forêt', ink: '#fff' },
-];
-
-function Universe({ onToast }: { onToast: (msg: string) => void }) {
-  const [hover, setHover] = useState<string | null>(null);
-  const copy = (hex: string, name: string) => {
-    navigator.clipboard?.writeText(hex).then(
-      () => onToast(`${name} ${hex} copié`),
-      () => onToast(hex),
-    );
-  };
-  return (
-    <section className="pz-section is-sand" id="univers">
-      <div className="pz-wrap pz-two" style={{ alignItems: 'start' }}>
-        <div>
-          <Kicker n={5}>Identité</Kicker>
-          <h2 className="pz-title">
-            <Split text="L'univers OHEVE" />
-          </h2>
-          <div className="pz-rule" />
-          <p className="pz-p pz-lead" data-reveal>
-            OHEVE incarne une vision élégante et intemporelle du mariage.
-          </p>
-          <p className="pz-p" data-reveal>
-            Son identité visuelle s'appuie sur des teintes naturelles, des typographies raffinées et des matières nobles inspirées du luxe discret. Chaque
-            élément a été pensé pour transmettre douceur, confiance et émotion, tout en reflétant l'excellence des moments les plus précieux.
-          </p>
-          <div className="pz-swatches" data-reveal>
-            {PALETTE.map((p) => (
-              <button
-                key={p.hex}
-                className="pz-swatch"
-                style={{ background: p.hex, color: p.ink }}
-                onMouseEnter={() => setHover(`${p.name} · ${p.hex}`)}
-                onMouseLeave={() => setHover(null)}
-                onClick={() => copy(p.hex, p.name)}
-                aria-label={`Copier la couleur ${p.name} ${p.hex}`}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-          <div className="pz-swatch-hint">{hover ?? 'La palette OHEVE — touchez une couleur pour copier son code.'}</div>
-        </div>
-        <div className="pz-board pz-curtain" data-reveal="zoom">
-          <img src={`${IMG}/univers.jpg`} alt="Planche d'identité OHEVE : logo Oe, palette sauge et matières naturelles" loading="lazy" />
-        </div>
-      </div>
-    </section>
-  );
-}
-
 const MIND_NODES = [
   { label: 'Gestion complète du mariage', x: 30, y: 13 },
   { label: 'Suivi du budget en temps réel', x: 70, y: 13 },
@@ -529,7 +280,7 @@ function Positioning() {
   return (
     <section className="pz-section" id="positionnement">
       <div className="pz-wrap">
-        <Kicker n={6}>Notre place</Kicker>
+        <Kicker n={3}>Notre place</Kicker>
         <h2 className="pz-title">
           <Split text="Positionnement" />
         </h2>
@@ -833,7 +584,7 @@ function Features() {
   return (
     <section className="pz-section is-sand" id="fonctionnalites">
       <div className="pz-wrap">
-        <Kicker n={7}>L'application</Kicker>
+        <Kicker n={4}>L'application</Kicker>
         <h2 className="pz-title">
           <Split text="Fonctionnalités" />
         </h2>
@@ -882,410 +633,79 @@ function Features() {
   );
 }
 
-const COMMISSIONS = [
-  { name: 'Photographe', v: 8 },
-  { name: 'DJ', v: 10 },
-  { name: 'Coiffeur / Maquilleuse', v: 8 },
-  { name: 'Coordinateur Jour J', v: 8 },
-  { name: 'Fleuriste', v: 5 },
+const BENEFITS = [
+  { icon: 'users', t: 'De nouveaux clients qualifiés', p: 'grâce à une visibilité auprès de futurs mariés.' },
+  { icon: 'star', t: 'Une présence digitale premium', p: 'avec une fiche professionnelle (photos, vidéos, avis, réseaux sociaux…).' },
+  { icon: 'calendar', t: 'Une gestion simplifiée', p: 'des demandes, devis, réservations et disponibilités.' },
+  { icon: 'chat', t: 'Une communication centralisée', p: 'avec les couples (chat, documents, notifications).' },
+  { icon: 'chart', t: 'Un tableau de bord', p: 'pour suivre les performances (vues, clics, demandes, réservations).' },
+  { icon: 'sparkle', t: 'Une mise en avant marketing', p: 'via OHEVE (sélections, inspirations, réseaux sociaux).' },
+  { icon: 'shield', t: 'Une image de confiance', p: 'grâce aux profils vérifiés et aux avis authentifiés.' },
+  { icon: 'trend', t: "Un développement du chiffre d'affaires", p: 'en transformant plus facilement les demandes en réservations.' },
+] as const;
+
+const FUNNEL = [
+  { name: 'Vues', v: 1240 },
+  { name: 'Clics', v: 380 },
+  { name: 'Demandes', v: 46 },
+  { name: 'Réservations', v: 18 },
 ];
 
-function Finance() {
-  const [mode, setMode] = useState<0 | 1>(0);
-  const [ref, inView] = useInView<HTMLDivElement>(0.3);
-  const switchRef = useRef<HTMLDivElement>(null);
-  const [thumb, setThumb] = useState({ left: 4, width: 0 });
-  useEffect(() => {
-    const measure = () => {
-      const btn = switchRef.current?.querySelectorAll('button')[mode] as HTMLElement | undefined;
-      if (btn) setThumb({ left: btn.offsetLeft, width: btn.offsetWidth });
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [mode]);
-
+function FunnelRow({ name, v, max, active, i }: { name: string; v: number; max: number; active: boolean; i: number }) {
+  const n = useCountUp(v, active, 1400 + i * 200);
   return (
-    <section className="pz-section" id="finance">
-      <div className="pz-wrap" style={{ textAlign: 'center' }}>
-        <Kicker n={8}>Modèle économique</Kicker>
-        <h2 className="pz-title is-center">
-          <Split text="Projection financière" />
-        </h2>
-        <div className="pz-switch" ref={switchRef} role="tablist" data-reveal>
-          <span className="pz-switch-thumb" style={{ left: thumb.left, width: thumb.width }} />
-          <button role="tab" aria-selected={mode === 0} className={mode === 0 ? 'is-active' : ''} onClick={() => setMode(0)}>
-            Prestataires
-          </button>
-          <button role="tab" aria-selected={mode === 1} className={mode === 1 ? 'is-active' : ''} onClick={() => setMode(1)}>
-            Abonnement Premium clients
-          </button>
-        </div>
+    <div className="pz-funnel-row">
+      <span>{name}</span>
+      <div className="pz-funnel-track">
+        <div style={css({ width: active ? `${Math.max(6, Math.sqrt(v / max) * 100)}%` : 0, '--d': `${i * 0.15}s` })} />
       </div>
-
-      <div ref={ref}>
-        {mode === 0 ? (
-          <div key="pro">
-            <p className="pz-sub" style={{ textAlign: 'center' }}>
-              Catégorie 1 : commission · Catégorie 2 : abonnement Premium
-            </p>
-            <div className="pz-commission">
-              {COMMISSIONS.map((c, i) => (
-                <div className="pz-col" key={c.name}>
-                  <span className="pz-col-val">{c.v}%</span>
-                  <div className="pz-col-bar" style={css({ height: inView ? `${(c.v / 10) * 70}%` : 0, '--i': i })} />
-                  <span className="pz-col-name">{c.name}</span>
-                </div>
-              ))}
-            </div>
-            <p className="pz-fin-note">Les mêmes taux par métier s'appliquent aux deux catégories : à la commission, ou dans le cadre de l'abonnement Premium prestataire.</p>
-          </div>
-        ) : (
-          <div className="pz-plans" key="client">
-            <div className="pz-plan" style={css({ '--i': 0 })}>
-              <h3>Premium</h3>
-              <div className="pz-plan-price">70€</div>
-              <p className="pz-p" style={{ margin: 0, maxWidth: 'none' }}>
-                pour l'abonnement premium
-              </p>
-            </div>
-            <div className="pz-plan is-star" style={css({ '--i': 1 })}>
-              <span className="pz-plan-badge">Accompagnement humain</span>
-              <h3>OHEVE Concierge</h3>
-              <div className="pz-plan-price">149€</div>
-              <ul>
-                <li>Aide au budget</li>
-                <li>Recommandations personnalisées</li>
-                <li>Optimisation du planning</li>
-                <li>Aide au choix des prestataires</li>
-              </ul>
-            </div>
-            <div className="pz-plan" style={css({ '--i': 2 })}>
-              <h3>Formule</h3>
-              <div className="pz-plan-price">59€</div>
-              <p className="pz-p" style={{ margin: 0, maxWidth: 'none' }}>
-                à définir
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-const ROAD = [
-  {
-    v: 'V1',
-    t: 'Organisation essentielle',
-    items: ['Dashboard', 'Planning', 'To-Do List', 'Budget', 'Gestion des invités'],
-    goal: 'permettre aux futurs mariés de centraliser leur organisation.',
-  },
-  {
-    v: 'V2',
-    t: 'Prestataires',
-    items: ['Recherche de prestataires', 'Profils détaillés', 'Demandes de devis', 'Favoris'],
-    goal: 'simplifier la recherche et la sélection des professionnels.',
-  },
-  {
-    v: 'V3',
-    t: 'Marketplace',
-    items: ['Réservation directe', 'Paiement sécurisé', 'Gestion des commissions', 'Abonnements prestataires'],
-    goal: 'créer un véritable écosystème mariage.',
-  },
-  {
-    v: 'V4',
-    t: 'Intelligence artificielle',
-    items: ['Assistant IA mariage', 'Recommandations personnalisées', 'Génération automatique de tâches', 'Optimisation du budget'],
-    goal: 'offrir un accompagnement intelligent et sur-mesure.',
-  },
-];
-
-function Roadmap() {
-  return (
-    <section className="pz-section is-sand" id="parcours" data-road>
-      <div className="pz-wrap">
-        <Kicker n={9}>Feuille de route</Kicker>
-        <h2 className="pz-title">
-          <Split text="Parcours de l'utilisateur" />
-        </h2>
-        <div className="pz-road">
-          <div className="pz-road-fill" />
-          {ROAD.map((r, i) => (
-            <div className="pz-step" key={r.v} data-step={i} data-reveal style={css({ '--d': `${i * 0.1}s` })}>
-              <div className="pz-step-num">{i + 1}</div>
-              <h3>
-                <small>{r.v}</small>
-                {r.t}
-              </h3>
-              <ul>
-                {r.items.map((x) => (
-                  <li key={x}>{x}</li>
-                ))}
-              </ul>
-              <p>
-                <b>Objectif :</b> {r.goal}
-              </p>
-            </div>
-          ))}
-        </div>
-        <p className="pz-quote" data-reveal style={{ marginTop: '2rem' }}>
-          Construire aujourd'hui la référence du mariage de demain.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-const PHASES = [
-  { t: 'Étude de marché', items: ['Analyse du marché du mariage', 'Analyse concurrentielle', 'Validation du concept', 'Définition des besoins utilisateurs'] },
-  { t: 'UX / UI Design', items: ['Parcours utilisateur', 'Wireframes', "Design de l'application", 'Prototype interactif'] },
-  { t: 'Développement', items: ['Développement iOS et Android', 'Base de données', "Système d'authentification", 'Intégration des fonctionnalités'] },
-  { t: 'Tests', items: ['Corrections de bugs', 'Optimisation des performances', 'Tests utilisateurs', 'Sécurisation de la plateforme'] },
-  { t: 'Lancement', items: ['Publication App Store', 'Publication Google Play', 'Campagnes marketing', 'Acquisition des premiers utilisateurs'] },
-];
-
-const LEGAL = [
-  {
-    t: "Création et protection de l'entreprise",
-    items: ['Création de la société (SAS ou SASU)', "Dépôt de la marque OHEVE auprès de l'INPI", "Protection du logo et de l'identité visuelle", "Protection de la propriété intellectuelle de l'application"],
-  },
-  {
-    t: 'Conformité numérique',
-    items: ["Conditions Générales d'Utilisation (CGU)", 'Conditions Générales de Vente (CGV)', 'Mentions légales', 'Politique de confidentialité', 'Gestion des cookies', 'Respect du RGPD'],
-  },
-  {
-    t: 'Protection des données',
-    lead: 'OHEVE collecte des données sensibles liées aux mariages :',
-    items: ['Informations personnelles', 'Coordonnées des invités', 'Budgets', 'Informations prestataires'],
-    after: "La plateforme devra garantir la confidentialité, le stockage sécurisé et la protection de l'ensemble des données utilisateurs.",
-  },
-  {
-    t: 'Encadrement des prestataires',
-    items: ['Contrats de partenariat', 'Conditions de référencement', 'Gestion des commissions', 'Gestion des abonnements premium', 'Vérification des informations professionnelles', 'Procédure de déréférencement'],
-  },
-  {
-    t: 'Paiements et transactions',
-    items: ['Paiement sécurisé', 'Gestion des commissions', 'Facturation automatisée', 'Conformité fiscale', 'Lutte contre la fraude'],
-  },
-  {
-    t: 'Assurances et responsabilités',
-    items: ['Assurance Responsabilité Civile Professionnelle', 'Limitation de responsabilité de la plateforme', 'Gestion des litiges utilisateurs/prestataires', 'Procédures de réclamation et médiation'],
-  },
-];
-
-function Creation() {
-  const [phase, setPhase] = useState(0);
-  const [open, setOpen] = useState<number | null>(0);
-  const p = PHASES[phase];
-  return (
-    <section className="pz-section" id="creation">
-      <div className="pz-wrap">
-        <Kicker n={10}>Méthodologie</Kicker>
-        <h2 className="pz-title">
-          <Split text="Étapes de création" />
-        </h2>
-        <p className="pz-sub" data-reveal>
-          De l'idée au lancement
-        </p>
-        <p className="pz-p" data-reveal>
-          Le développement d'OHEVE suit une méthodologie structurée afin de garantir la création d'une application performante, fiable et adaptée aux besoins des
-          futurs mariés.
-        </p>
-        <div className="pz-phases" role="tablist" data-reveal>
-          {PHASES.map((x, i) => (
-            <button key={x.t} role="tab" aria-selected={phase === i} className={`pz-phase ${phase === i ? 'is-active' : ''}`} onClick={() => setPhase(i)} onMouseEnter={() => setPhase(i)}>
-              <small>Phase {i + 1}</small>
-              <span>{x.t}</span>
-            </button>
-          ))}
-        </div>
-        <div className="pz-phase-panel" key={phase} role="tabpanel">
-          <div className="pz-phase-big">0{phase + 1}</div>
-          <div>
-            <p className="pz-sub" style={{ marginBottom: '0.6rem' }}>
-              {p.t}
-            </p>
-            <ul className="pz-list" style={{ margin: 0 }}>
-              {p.items.map((x) => (
-                <li key={x}>{x}</li>
-              ))}
-            </ul>
-            {phase === PHASES.length - 1 && (
-              <p className="pz-p" style={{ marginTop: '1rem', fontStyle: 'italic' }}>
-                Une vision claire, une exécution rigoureuse, un lancement maîtrisé.
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div style={{ marginTop: '6rem' }}>
-          <h2 className="pz-title">
-            <Split text="Aspects juridiques" />
-          </h2>
-          <p className="pz-sub" data-reveal>
-            Un cadre sécurisé pour les utilisateurs et les prestataires
-          </p>
-          <p className="pz-p" data-reveal>
-            Afin de garantir la confiance et la conformité de la plateforme, OHEVE s'appuie sur un ensemble de dispositifs juridiques indispensables à son
-            fonctionnement.
-          </p>
-          <div data-reveal>
-            {LEGAL.map((l, i) => (
-              <div key={l.t} className={`pz-acc ${open === i ? 'is-open' : ''}`}>
-                <button aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>
-                  {l.t}
-                  <i />
-                </button>
-                <div className="pz-acc-body">
-                  <div>
-                    {l.lead && <p>{l.lead}</p>}
-                    <ul>
-                      {l.items.map((x) => (
-                        <li key={x}>{x}</li>
-                      ))}
-                    </ul>
-                    {l.after && <p style={{ marginBottom: '1.2rem' }}>{l.after}</p>}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Mini({ icon, title, children, delay = 0 }: { icon: string; title: string; children: ReactNode; delay?: number }) {
-  return (
-    <div className="pz-mini" data-reveal style={css({ '--d': `${delay}s` })}>
-      <h3>
-        <Icon d={icon} />
-        {title}
-      </h3>
-      {children}
+      <b>{n.toLocaleString('fr-FR')}</b>
     </div>
   );
 }
 
-function Acquisition() {
+function Benefits() {
+  const [ref, inView] = useInView<HTMLDivElement>(0.3);
   return (
-    <>
-      <section className="pz-section" id="acquisition">
-        <div className="pz-wrap pz-split-media">
-          <Photo src="lampe.jpg" alt="Suspension en métal brossé dans un intérieur lumineux" className="pz-tall" />
-          <div>
-            <Kicker n={11}>Croissance</Kicker>
-            <h2 className="pz-title">
-              <Split text="Stratégie d'acquisition" />
-            </h2>
-            <p className="pz-sub" data-reveal>
-              Attirer les premiers utilisateurs et construire une communauté engagée
-            </p>
-            <p className="pz-p" data-reveal>
-              Le lancement d'OHEVE reposera sur une stratégie d'acquisition ciblée, combinant présence digitale, partenariats et recommandation.
-            </p>
-            <div className="pz-grid2">
-              <Mini icon={ICONS.phone} title="Réseaux sociaux">
-                <p style={{ marginBottom: '0.5rem' }}>Instagram et TikTok constitueront les principaux canaux de visibilité de la marque. Contenus prévus :</p>
-                <ul>
-                  <li>Conseils organisation mariage</li>
-                  <li>Inspirations et tendances</li>
-                  <li>Témoignages utilisateurs</li>
-                  <li>Présentation de prestataires</li>
-                  <li>Démonstrations de l'application</li>
-                </ul>
-              </Mini>
-              <Mini icon={ICONS.star} title="Influenceurs mariage" delay={0.08}>
-                <p style={{ marginBottom: '0.5rem' }}>Collaboration avec :</p>
-                <ul>
-                  <li>Créateurs de contenu mariage</li>
-                  <li>Futures mariées influentes</li>
-                  <li>Wedding planners reconnus</li>
-                </ul>
-                <p style={{ marginTop: '0.5rem' }}>
-                  <b>Objectif :</b> accroître rapidement la notoriété d'OHEVE auprès de la cible.
-                </p>
-              </Mini>
-              <Mini icon={ICONS.handshake} title="Partenariats stratégiques" delay={0.12}>
-                <ul>
-                  <li>Wedding planners</li>
-                  <li>Photographes</li>
-                  <li>Domaines et lieux de réception</li>
-                  <li>Traiteurs</li>
-                  <li>Salons du mariage</li>
-                </ul>
-                <p style={{ marginTop: '0.5rem' }}>Ces partenaires deviennent des prescripteurs naturels de la plateforme.</p>
-              </Mini>
-              <Mini icon={ICONS.target} title="Acquisition digitale" delay={0.16}>
-                <ul>
-                  <li>Publicités Instagram &amp; TikTok</li>
-                  <li>Google Ads</li>
-                  <li>Référencement naturel (SEO)</li>
-                  <li>Articles et contenus spécialisés mariage</li>
-                </ul>
-              </Mini>
-              <Mini icon={ICONS.gift} title="Programme de parrainage" delay={0.2}>
-                <p>Les utilisateurs peuvent recommander OHEVE à leurs proches et bénéficier d'avantages exclusifs.</p>
-              </Mini>
+    <section className="pz-section" id="prestataire">
+      <div className="pz-wrap">
+        <Kicker n={5}>Pour vous, prestataires</Kicker>
+        <h2 className="pz-title is-md">
+          <Split text="Ce que OHEVE apporte au prestataire" />
+        </h2>
+        <div className="pz-rule" />
+      </div>
+      <div className="pz-wrap pz-benefits-layout">
+        <div className="pz-benefits">
+          {BENEFITS.map((b, i) => (
+            <div key={b.t} data-reveal style={css({ '--d': `${(i % 2) * 0.08 + Math.floor(i / 2) * 0.06}s` })}>
+              <Tilt className="pz-benefit">
+                <span className="pz-benefit-icon">
+                  <Icon d={ICONS[b.icon]} size={22} />
+                </span>
+                <h3>{b.t}</h3>
+                <p>{b.p}</p>
+              </Tilt>
             </div>
-          </div>
-        </div>
-      </section>
-      <div className="pz-banner" aria-label="Créer une marque forte avant même de créer une audience.">
-        <div className="pz-marquee" aria-hidden="true">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <span key={i}>Créer une marque forte avant même de créer une audience.</span>
           ))}
         </div>
-      </div>
-    </>
-  );
-}
-
-function Loyalty() {
-  return (
-    <section className="pz-section is-sand" id="fidelisation">
-      <div className="pz-wrap pz-split-media is-reverse">
-        <div>
-          <Kicker n={12}>Engagement</Kicker>
-          <h2 className="pz-title">
-            <Split text="Fidélisation" />
-          </h2>
-          <div className="pz-rule" />
-          <p className="pz-sub" data-reveal>
-            Une expérience pensée pour accompagner chaque couple, jusqu'au plus beau jour de leur vie.
-          </p>
-          <div className="pz-grid2">
-            <Mini icon={ICONS.bell} title="Notifications intelligentes">
-              <ul>
-                <li>Rappels automatiques</li>
-                <li>Échéances importantes</li>
-                <li>Alertes budgétaires</li>
-                <li>Suivi des tâches prioritaires</li>
-              </ul>
-            </Mini>
-            <Mini icon={ICONS.sparkle} title="Expérience personnalisée" delay={0.08}>
-              <ul>
-                <li>Recommandations adaptées au projet</li>
-                <li>Suggestions de prestataires</li>
-                <li>Conseils selon l'avancement du mariage</li>
-              </ul>
-            </Mini>
-            <Mini icon={ICONS.gift} title="Programme de parrainage" delay={0.12}>
-              <p>Les utilisateurs peuvent recommander OHEVE à leurs proches et bénéficier d'avantages exclusifs.</p>
-            </Mini>
-            <Mini icon={ICONS.crown} title="Programme ambassadeur" delay={0.16}>
-              <p>Les couples satisfaits deviennent les premiers ambassadeurs de la marque et contribuent à son développement grâce au bouche-à-oreille.</p>
-            </Mini>
-          </div>
-          <div className="pz-goal" data-reveal>
-            <b>Objectif</b>
-            Maintenir un engagement fort tout au long des préparatifs et transformer chaque utilisateur en prescripteur de la plateforme.
+        <div className="pz-benefits-side">
+          <Photo src="chaises.jpg" alt="Deux fauteuils en bois sombre et un ordinateur portable dans une pièce lumineuse" className="pz-tall" />
+          <div ref={ref} className="pz-dash" data-reveal="right">
+            <div className="pz-dash-head">
+              <span>Votre tableau de bord</span>
+              <em>Exemple</em>
+            </div>
+            {FUNNEL.map((f, i) => (
+              <FunnelRow key={f.name} name={f.name} v={f.v} max={FUNNEL[0].v} active={inView} i={i} />
+            ))}
           </div>
         </div>
-        <Photo src="chaises.jpg" alt="Deux fauteuils en bois sombre dans une pièce lumineuse" className="pz-tall" />
+      </div>
+      <div className="pz-wrap">
+        <p className="pz-benefit-motto" data-reveal>
+          Une seule plateforme pour développer son activité, gérer ses demandes et transformer plus de prospects en clients.
+        </p>
       </div>
     </section>
   );
@@ -1301,11 +721,11 @@ const VISION = [
 
 function Vision() {
   return (
-    <section className="pz-section pz-h" id="vision" data-horizontal>
+    <section className="pz-section is-sand pz-h" id="vision" data-horizontal>
       <div className="pz-h-sticky">
         <div className="pz-h-head">
-          <Kicker n={13}>Ambition</Kicker>
-          <h2 className="pz-title" style={{ marginBottom: '0.8rem' }}>
+          <Kicker n={6}>Ambition</Kicker>
+          <h2 className="pz-title is-md" style={{ marginBottom: '0.8rem' }}>
             <Split text={'OHEVE dans 5\u00a0ans…'} />
           </h2>
           <p className="pz-p" data-reveal style={{ maxWidth: '80ch' }}>
@@ -1333,9 +753,9 @@ function Vision() {
 
 function Conclusion() {
   return (
-    <section className="pz-section is-sand" id="conclusion">
+    <section className="pz-section" id="conclusion">
       <div className="pz-wrap">
-        <Kicker n={14}>Pour finir</Kicker>
+        <Kicker n={7}>Pour finir</Kicker>
         <h2 className="pz-title">
           <Split text="Conclusion" />
         </h2>
@@ -1393,7 +813,7 @@ function End({ onShare }: { onShare: () => void }) {
           </button>
         </div>
         <p className="pz-authors" data-reveal>
-          Attia Odaya · Layani Rachel
+          Attia Odaya
         </p>
       </div>
     </section>
@@ -1614,19 +1034,11 @@ export default function PresentationPage() {
 
       <main>
         <Hero />
-        <Sommaire />
-        <About />
         <Problem />
         <Solution />
-        <Why />
-        <Universe onToast={showToast} />
         <Positioning />
         <Features />
-        <Finance />
-        <Roadmap />
-        <Creation />
-        <Acquisition />
-        <Loyalty />
+        <Benefits />
         <Vision />
         <Conclusion />
         <End onShare={share} />
