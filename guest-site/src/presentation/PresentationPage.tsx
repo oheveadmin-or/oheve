@@ -239,7 +239,7 @@ function About() {
         <Photo src="bouquet.jpg" alt="Mariée tenant un bouquet de roses et d'orchidées blanches" className="pz-about-photo" />
         <div>
           <Kicker n={1}>Introduction</Kicker>
-          <h2 className="pz-title">
+          <h2 className="pz-title is-md">
             <Split text={'Qui sommes-nous\u00a0?'} />
           </h2>
           <p className="pz-sub" data-reveal>

@@ -324,6 +324,7 @@
 .pz-split > span {
   display: inline-block;
   overflow: hidden;
+  white-space: nowrap;
   padding-bottom: 0.08em;
 }
 .pz-split > span > span {
@@ -375,6 +376,9 @@
   text-transform: uppercase;
   color: var(--pz-sage);
   margin: 0 0 1.5rem;
+}
+.pz-title.is-md {
+  font-size: clamp(1.9rem, 5.4vw, 4.8rem);
 }
 .pz-title.is-center {
   text-align: center;
