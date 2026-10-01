@@ -8,7 +8,8 @@ import './presentation.css';
  * interactive, à partager aux prestataires depuis Instagram.
  */
 
-const IMG = '/presentation';
+// BASE_URL (« / » sur le site) garde les images trouvables si la page est servie ailleurs qu'à la racine.
+const IMG = `${import.meta.env.BASE_URL}presentation`;
 const APP_STORE_URL = 'https://apps.apple.com/fr/app/oheve/id6785535857';
 const INSTAGRAM_URL = 'https://www.instagram.com/ohevewedding';
 const CONTACT_EMAIL = 'support@ohevewedding.com';
