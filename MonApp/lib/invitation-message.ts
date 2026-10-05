@@ -70,3 +70,24 @@ export function toWhatsAppNumber(phone?: string | null): string | null {
   else if (!raw.startsWith('+') && digits.length === 10 && digits.startsWith('0')) digits = `33${digits.slice(1)}`;
   return digits.length >= 8 ? digits : null;
 }
+
+// ── Suivi des invitations envoyées (par appareil) ───────────────────────────
+
+const SENT_KEY = '@oheve:invitations_sent_v1';
+
+/** Ids d'invités → date d'envoi (ms). */
+export async function loadSentInvitations(): Promise<Record<string, number>> {
+  try {
+    const raw = await AsyncStorage.getItem(SENT_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function markInvitationSent(guestId: string): Promise<Record<string, number>> {
+  const sent = await loadSentInvitations();
+  sent[guestId] = Date.now();
+  try { await AsyncStorage.setItem(SENT_KEY, JSON.stringify(sent)); } catch { /* ignoré */ }
+  return sent;
+}
