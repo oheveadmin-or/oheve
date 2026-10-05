@@ -3,7 +3,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Modal, Pressable,
+  ActivityIndicator, Alert, Modal, Platform, Pressable,
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -38,6 +38,34 @@ const EXPORT_LABELS: Record<PdfExportType, string> = {
   livre: 'Livre_Tables',
   liste: 'Liste_Invites',
 };
+
+// Tous les formats sont mis en page en A4 (595 × 842 pt, @page size:A4 sans
+// marge) : on impose ce format à l'imprimante et au PDF, sinon iOS part sur du
+// Letter américain et décale les pages.
+const A4_PAGE = { width: 595, height: 842, margins: { left: 0, top: 0, right: 0, bottom: 0 } };
+
+/** Web : imprime le HTML dans une iframe cachée (window.print imprimerait l'app). */
+function printHtmlOnWeb(html: string) {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  Object.assign(iframe.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0' });
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow?.document;
+  if (!doc || !iframe.contentWindow) { iframe.remove(); throw new Error('print-unavailable'); }
+  doc.open();
+  doc.write(html);
+  doc.close();
+  const win = iframe.contentWindow;
+  const go = () => {
+    win.focus();
+    win.print();
+    setTimeout(() => iframe.remove(), 1000);
+  };
+  // Laisse le temps aux polices (Google Fonts) de se charger avant d'imprimer.
+  const fonts = (doc as Document & { fonts?: { ready: Promise<unknown> } }).fonts;
+  if (fonts?.ready) fonts.ready.then(() => setTimeout(go, 150), () => go());
+  else setTimeout(go, 500);
+}
 
 // ── Template thumbnail ─────────────────────────────────────────────────────────
 
@@ -129,6 +157,7 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
   const [panelTemplate, setPanelTemplate] = useState<PanelTemplateId>(DEFAULT_PANEL_TEMPLATE);
   const [previewing, setPreviewing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const previewHtml = useMemo(
     () => generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate, preview: true }),
@@ -139,12 +168,7 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
     setExporting(true);
     try {
       const html = generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate });
-      // Les cartes panneau sont dessinées dans un repère A4 fixe (595 × 842 pt) :
-      // on impose ce format à l'impression pour que le PDF soit identique à l'aperçu.
-      const pageSize = selected === 'panneaux'
-        ? { width: 595, height: 842, margins: { left: 0, top: 0, right: 0, bottom: 0 } }
-        : {};
-      const { uri } = await Print.printToFileAsync({ html, base64: false, ...pageSize });
+      const { uri } = await Print.printToFileAsync({ html, base64: false, ...A4_PAGE });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(uri, {
@@ -162,6 +186,20 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
     setExporting(false);
   };
 
+  // Impression directe : ouvre la fenêtre d'impression du téléphone (AirPrint /
+  // Android) ou du navigateur, déjà réglée en A4.
+  const handlePrint = async () => {
+    setPrinting(true);
+    try {
+      const html = generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate });
+      if (Platform.OS === 'web') printHtmlOnWeb(html);
+      else await Print.printAsync({ html, ...A4_PAGE });
+    } catch {
+      Alert.alert('Erreur', 'Impossible de lancer l’impression.');
+    }
+    setPrinting(false);
+  };
+
   if (previewing) {
     return (
       <Modal visible={visible} animationType="slide" onRequestClose={() => setPreviewing(false)}>
@@ -173,11 +211,18 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
             <ThemedText style={styles.previewTitle}>
               {EXPORT_OPTIONS.find((o) => o.type === selected)?.label}
             </ThemedText>
-            <Pressable onPress={handleExport} disabled={exporting} hitSlop={12}>
-              {exporting
-                ? <ActivityIndicator color={C.sauge} size="small" />
-                : <Ionicons name="share-outline" size={22} color={C.saugeDark} />}
-            </Pressable>
+            <View style={styles.previewActions}>
+              <Pressable onPress={handlePrint} disabled={printing} hitSlop={12} accessibilityLabel="Imprimer en A4">
+                {printing
+                  ? <ActivityIndicator color={C.sauge} size="small" />
+                  : <Ionicons name="print-outline" size={22} color={C.saugeDark} />}
+              </Pressable>
+              <Pressable onPress={handleExport} disabled={exporting} hitSlop={12} accessibilityLabel="Exporter en PDF">
+                {exporting
+                  ? <ActivityIndicator color={C.sauge} size="small" />
+                  : <Ionicons name="share-outline" size={22} color={C.saugeDark} />}
+              </Pressable>
+            </View>
           </View>
           <WebView
             originWhitelist={['*']}
@@ -198,7 +243,7 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
       <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
         <View style={styles.handle} />
         <ThemedText style={styles.sheetTitle}>Exporter le plan de table</ThemedText>
-        <ThemedText style={styles.sheetSub}>Choisissez un format, prévisualisez puis exportez en PDF.</ThemedText>
+        <ThemedText style={styles.sheetSub}>Choisissez un format, prévisualisez, puis imprimez en A4 ou exportez en PDF.</ThemedText>
 
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
           {/* Format selector */}
@@ -273,18 +318,28 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
           )}
         </ScrollView>
 
+        <Pressable style={styles.printBtn} onPress={handlePrint} disabled={printing}>
+          {printing ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <>
+              <Ionicons name="print-outline" size={19} color="#fff" />
+              <ThemedText style={styles.exportBtnTxt}>Imprimer en A4</ThemedText>
+            </>
+          )}
+        </Pressable>
         <View style={styles.actions}>
           <Pressable style={styles.previewBtn} onPress={() => setPreviewing(true)}>
             <Ionicons name="eye-outline" size={18} color={C.saugeDark} />
             <ThemedText style={styles.previewBtnTxt}>Prévisualiser</ThemedText>
           </Pressable>
-          <Pressable style={styles.exportBtn} onPress={handleExport} disabled={exporting}>
+          <Pressable style={styles.previewBtn} onPress={handleExport} disabled={exporting}>
             {exporting ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color={C.saugeDark} size="small" />
             ) : (
               <>
-                <Ionicons name="download-outline" size={18} color="#fff" />
-                <ThemedText style={styles.exportBtnTxt}>Exporter PDF</ThemedText>
+                <Ionicons name="download-outline" size={18} color={C.saugeDark} />
+                <ThemedText style={styles.previewBtnTxt}>Exporter PDF</ThemedText>
               </>
             )}
           </Pressable>
@@ -351,15 +406,16 @@ const styles = StyleSheet.create({
   styleBtnLabelOn: { color: C.saugeDark },
   styleBtnDesc: { fontSize: 9, color: C.textLight, marginTop: 2, textAlign: 'center' },
 
-  actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  previewActions: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   previewBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: 14, borderRadius: RADIUS.md, borderWidth: 1.5, borderColor: C.sauge,
   },
   previewBtnTxt: { fontSize: 14, fontWeight: '600', color: C.saugeDark },
-  exportBtn: {
-    flex: 1.4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 14, borderRadius: RADIUS.md, backgroundColor: C.sauge,
+  printBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 15, borderRadius: RADIUS.md, backgroundColor: C.sauge, marginTop: 12,
   },
   exportBtnTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
   previewRoot: { flex: 1, backgroundColor: C.ivoire },

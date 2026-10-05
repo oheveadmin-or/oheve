@@ -16,6 +16,7 @@ import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
+import { MADRICHIM_HATAN, MADRICHOT_KALA, MIKVES } from '@/data/officiants';
 import { prestatairesApi } from '@/services/auth/api';
 
 // Mapping : slug de l'écran → catégories backend (un slug peut matcher plusieurs valeurs)
@@ -48,6 +49,20 @@ const LABELS: Record<string, string> = {
   planner:     'Wedding Planner',
   animation:   'Animation',
 };
+
+// Mariage juif : l'essentiel de la catégorie, ce sont les guides et services
+// religieux référencés dans l'app. Ils passent avant les prestataires inscrits,
+// pour que la page ne soit jamais vide.
+const JEWISH_GUIDES = [
+  { key: 'kala', emoji: '👰', titre: 'Madrichot Kala', sous: `${MADRICHOT_KALA.length} madrichot en France & Israël`, href: '/(app)/rabbins?tab=kala' },
+  { key: 'hatan', emoji: '🤵', titre: 'Madrichim Hatan', sous: `${MADRICHIM_HATAN.length} madrichim référencés`, href: '/(app)/rabbins?tab=hatan' },
+  { key: 'mikve', emoji: '💧', titre: 'Mikvés', sous: `${MIKVES.length} mikvés, adresse et itinéraire`, href: '/(app)/rabbins?tab=mikve' },
+  { key: 'chabbat', emoji: '🕯️', titre: 'Chabbat Hattan', sous: 'Organiser le chabbat avant le mariage', href: '/(app)/chabbat-hattan' },
+] as const;
+
+// Mots qui signalent un prestataire casher même hors catégorie « juif »
+// (traiteur casher, pâtissier sous surveillance…).
+const KOSHER_WORDS = ['casher', 'cacher', 'kasher', 'kosher', 'beth din', 'beit din', 'loubavitch', 'glatt'];
 
 type SortKey = 'none' | 'prix_asc' | 'prix_desc' | 'note_desc';
 
@@ -105,9 +120,12 @@ export default function CategoryProvidersScreen() {
       .then((res) => {
         if (!res?.success || !Array.isArray(res.data)) return;
         const cats = SLUG_TO_CATEGORIES[slug] ?? [slug];
-        const filtered = (res.data as Provider[]).filter((p) =>
-          cats.some((c) => p.category?.toLowerCase().includes(c))
-        );
+        const filtered = (res.data as Provider[]).filter((p) => {
+          if (cats.some((c) => p.category?.toLowerCase().includes(c))) return true;
+          if (slug !== 'juif') return false;
+          const text = `${p.business_name ?? ''} ${p.description ?? ''}`.toLowerCase();
+          return KOSHER_WORDS.some((w) => text.includes(w));
+        });
         setAllProviders(filtered);
       })
       .catch(() => {})
@@ -142,6 +160,7 @@ export default function CategoryProvidersScreen() {
   }, [allProviders, search, sortKey, cityFilter]);
 
   const label = LABELS[slug] ?? slug;
+  const isJuif = slug === 'juif';
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -163,7 +182,9 @@ export default function CategoryProvidersScreen() {
       <View style={styles.wrap}>
         <ThemedText style={styles.title}>{label}</ThemedText>
         <ThemedText style={styles.subtitle}>
-          {loading ? 'Chargement…' : `${filtered.length} prestataire${filtered.length !== 1 ? 's' : ''} trouvé${filtered.length !== 1 ? 's' : ''}`}
+          {isJuif
+            ? 'Guides, officiants, mikvés & prestataires casher'
+            : loading ? 'Chargement…' : `${filtered.length} prestataire${filtered.length !== 1 ? 's' : ''} trouvé${filtered.length !== 1 ? 's' : ''}`}
         </ThemedText>
 
         {/* Barre de recherche */}
@@ -171,7 +192,7 @@ export default function CategoryProvidersScreen() {
           <Ionicons name="search" size={16} color={C.textLight} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder={`Rechercher un·e ${label.toLowerCase()}...`}
+            placeholder={isJuif ? 'Rechercher un prestataire casher...' : `Rechercher un·e ${label.toLowerCase()}...`}
             placeholderTextColor={C.textLight}
             value={search}
             onChangeText={setSearch}
@@ -228,13 +249,49 @@ export default function CategoryProvidersScreen() {
         </ScrollView>
 
         {/* Liste */}
-        {loading ? (
-          <View style={styles.emptyBox}>
-            <ActivityIndicator color={C.sauge} size="large" />
-          </View>
-        ) : (
-          <ScrollView style={styles.list} showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
-            {filtered.length === 0 ? (
+        <ScrollView style={styles.list} showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
+          {isJuif && (
+            <>
+              <ThemedText style={styles.sectionTitle}>Guides & services religieux</ThemedText>
+              {JEWISH_GUIDES.map((g) => (
+                <Pressable
+                  key={g.key}
+                  style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
+                  onPress={() => router.push(g.href as never)}
+                >
+                  <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
+                    <ThemedText style={{ fontSize: 24, lineHeight: 30 }}>{g.emoji}</ThemedText>
+                  </View>
+                  <View style={styles.cardBody}>
+                    <ThemedText style={styles.cardTitle}>{g.titre}</ThemedText>
+                    <ThemedText style={styles.cardCateg}>{g.sous}</ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={C.textLight} />
+                </Pressable>
+              ))}
+              <ThemedText style={[styles.sectionTitle, { marginTop: 14 }]}>
+                Prestataires casher{!loading && filtered.length > 0 ? ` (${filtered.length})` : ''}
+              </ThemedText>
+            </>
+          )}
+
+          {loading ? (
+            <View style={styles.emptyBox}>
+              <ActivityIndicator color={C.sauge} size="large" />
+            </View>
+          ) : filtered.length === 0 ? (
+            isJuif ? (
+              <View style={styles.juifEmpty}>
+                <ThemedText style={styles.emptyText}>
+                  {search.trim() || cityFilter
+                    ? 'Aucun prestataire casher ne correspond à ta recherche.'
+                    : 'Les traiteurs, DJ et photographes casher arrivent bientôt. En attendant, retrouve tous les prestataires dans l’onglet Prestataires.'}
+                </ThemedText>
+                <Pressable style={styles.juifEmptyBtn} onPress={() => router.push('/(app)/(tabs)/providers' as never)}>
+                  <ThemedText style={styles.juifEmptyBtnText}>Voir tous les prestataires</ThemedText>
+                </Pressable>
+              </View>
+            ) : (
               <View style={styles.emptyBox}>
                 <Ionicons name="search-outline" size={32} color={C.textLight} />
                 <ThemedText style={styles.emptyText}>Aucun prestataire trouvé</ThemedText>
@@ -242,42 +299,42 @@ export default function CategoryProvidersScreen() {
                   Soyez le premier à vous inscrire dans cette catégorie
                 </ThemedText>
               </View>
-            ) : (
-              filtered.map((p) => (
-                <Pressable
-                  key={p.user_id}
-                  style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push(`/(app)/providers/${p.user_id}` as never)}
-                >
-                  {(p.avatar_url ?? p.cover_url) ? (
-                    <Image source={{ uri: p.avatar_url ?? p.cover_url }} style={styles.cardThumb} contentFit="cover" />
-                  ) : (
-                    <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
-                      <Ionicons name="business-outline" size={22} color={C.sauge} />
-                    </View>
-                  )}
-                  <View style={styles.cardBody}>
-                    <ThemedText style={styles.cardTitle}>{p.business_name}</ThemedText>
-                    <ThemedText style={styles.cardCateg}>
-                      {p.category ? p.category.charAt(0).toUpperCase() + p.category.slice(1) : '—'} · {p.location_city ?? '—'}
-                    </ThemedText>
-                    <View style={styles.ratingRow}>
-                      <Ionicons name="star" size={11} color="#F5A623" />
-                      <ThemedText style={styles.ratingText}>{Number(p.rating ?? 0).toFixed(1)}</ThemedText>
-                      {p.price_min != null && (
-                        <>
-                          <ThemedText style={styles.dot}>·</ThemedText>
-                          <ThemedText style={styles.ratingText}>À partir de {p.price_min} €</ThemedText>
-                        </>
-                      )}
-                    </View>
+            )
+          ) : (
+            filtered.map((p) => (
+              <Pressable
+                key={p.user_id}
+                style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
+                onPress={() => router.push(`/(app)/providers/${p.user_id}` as never)}
+              >
+                {(p.avatar_url ?? p.cover_url) ? (
+                  <Image source={{ uri: p.avatar_url ?? p.cover_url }} style={styles.cardThumb} contentFit="cover" />
+                ) : (
+                  <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
+                    <Ionicons name="business-outline" size={22} color={C.sauge} />
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={C.textLight} />
-                </Pressable>
-              ))
-            )}
-          </ScrollView>
-        )}
+                )}
+                <View style={styles.cardBody}>
+                  <ThemedText style={styles.cardTitle}>{p.business_name}</ThemedText>
+                  <ThemedText style={styles.cardCateg}>
+                    {p.category ? p.category.charAt(0).toUpperCase() + p.category.slice(1) : '—'} · {p.location_city ?? '—'}
+                  </ThemedText>
+                  <View style={styles.ratingRow}>
+                    <Ionicons name="star" size={11} color="#F5A623" />
+                    <ThemedText style={styles.ratingText}>{Number(p.rating ?? 0).toFixed(1)}</ThemedText>
+                    {p.price_min != null && (
+                      <>
+                        <ThemedText style={styles.dot}>·</ThemedText>
+                        <ThemedText style={styles.ratingText}>À partir de {p.price_min} €</ThemedText>
+                      </>
+                    )}
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={C.textLight} />
+              </Pressable>
+            ))
+          )}
+        </ScrollView>
       </View>
     </ScreenLayout>
   );
@@ -324,6 +381,13 @@ const styles = StyleSheet.create({
   listContent: { gap: 10, paddingBottom: 32 },
   emptyBox: { alignItems: 'center', paddingTop: 48, gap: 12 },
   emptyText: { fontSize: 14, color: C.textLight, textAlign: 'center' },
+  sectionTitle: { fontSize: 13, fontWeight: '700', color: C.textMid, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4 },
+  juifEmpty: {
+    alignItems: 'center', gap: 12, padding: 18,
+    borderRadius: RADIUS.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
+  },
+  juifEmptyBtn: { backgroundColor: C.sauge, borderRadius: RADIUS.pill, paddingHorizontal: 18, paddingVertical: 10 },
+  juifEmptyBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
