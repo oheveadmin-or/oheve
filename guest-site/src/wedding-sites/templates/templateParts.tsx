@@ -262,7 +262,12 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   const { hasMusic, playing, toggle, requestPlay } = useMusicPlayer(site.content?.musicUrl);
   useEffect(() => {
     if (!hasMusic || playing) return;
-    const start = () => requestPlay();
+    const start = (e: Event) => {
+      // Le tap sur la pastille musique est géré par son propre onClick
+      // (sinon pointerdown relance la musique juste avant que le clic la coupe).
+      if (e.target instanceof Element && e.target.closest('[data-music-toggle]')) return;
+      requestPlay();
+    };
     window.addEventListener('pointerdown', start);
     window.addEventListener('touchstart', start, { passive: true });
     window.addEventListener('keydown', start);
@@ -279,6 +284,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   const musicBtn = hasMusic ? (
     <button
       type="button"
+      data-music-toggle
       onClick={toggle}
       aria-label={playing ? 'Couper la musique' : 'Activer la musique'}
       title={playing ? 'Couper la musique' : 'Activer la musique'}
@@ -471,6 +477,10 @@ function useMusicPlayer(url: string | undefined) {
   // Intention d'autoplay : posée au 1er geste de l'invité. Si l'extrait n'est pas
   // encore résolu, on la retient et la lecture démarre dès qu'il l'est.
   const wantPlayRef = useRef(false);
+  // L'invité a coupé la musique avec le bouton : on ne relance PLUS l'autoplay
+  // (avant, le moindre scroll / tap après la pause relançait la musique →
+  // « le bouton ne coupe pas la musique »).
+  const userPausedRef = useRef(false);
 
   const startPlayback = () => {
     const s = srcRef.current;
@@ -478,9 +488,18 @@ function useMusicPlayer(url: string | undefined) {
     if (!ref.current) {
       const audio = new Audio(s);
       audio.loop = true;
+      // État synchronisé sur l'élément audio lui-même (pause système iOS,
+      // fin de lecture…) plutôt que sur la seule promesse de play().
+      audio.addEventListener('play', () => setPlaying(true));
+      audio.addEventListener('pause', () => setPlaying(false));
       ref.current = audio;
     }
     ref.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+  };
+
+  const stopPlayback = () => {
+    ref.current?.pause();
+    setPlaying(false);
   };
 
   useEffect(() => {
@@ -488,19 +507,23 @@ function useMusicPlayer(url: string | undefined) {
     ref.current = null;
     setPlaying(false);
     wantPlayRef.current = false;
+    userPausedRef.current = false;
     srcRef.current = null;
     if (!trimmed) { setLoading(false); return; }
     const id = deezerTrackId(trimmed);
-    if (id == null) { srcRef.current = trimmed; return; }
     let cancelled = false;
-    setLoading(true);
-    resolveDeezerPreview(id).then((resolved) => {
-      if (cancelled) return;
-      srcRef.current = resolved;
-      setLoading(false);
-      // Un geste a déjà demandé la lecture avant la résolution → on démarre.
-      if (wantPlayRef.current && resolved) startPlayback();
-    });
+    if (id == null) {
+      srcRef.current = trimmed;
+    } else {
+      setLoading(true);
+      resolveDeezerPreview(id).then((resolved) => {
+        if (cancelled) return;
+        srcRef.current = resolved;
+        setLoading(false);
+        // Un geste a déjà demandé la lecture avant la résolution → on démarre.
+        if (wantPlayRef.current && !userPausedRef.current && resolved) startPlayback();
+      });
+    }
     return () => {
       cancelled = true;
       ref.current?.pause();
@@ -509,19 +532,22 @@ function useMusicPlayer(url: string | undefined) {
   }, [trimmed]);
 
   const toggle = () => {
-    if (playing && ref.current) {
-      ref.current.pause();
-      setPlaying(false);
+    const isPlaying = !!ref.current && !ref.current.paused;
+    if (isPlaying) {
+      userPausedRef.current = true;
       wantPlayRef.current = false;
+      stopPlayback();
       return;
     }
+    userPausedRef.current = false;
     wantPlayRef.current = true;
     startPlayback();
   };
 
   /** Demande la lecture (autoplay) : joue maintenant si prêt, sinon dès que résolu. */
   const requestPlay = () => {
-    if (playing) return;
+    if (userPausedRef.current) return;
+    if (ref.current && !ref.current.paused) return;
     wantPlayRef.current = true;
     startPlayback();
   };
