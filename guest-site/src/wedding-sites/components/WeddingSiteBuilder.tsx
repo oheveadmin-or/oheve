@@ -10,7 +10,7 @@ import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '
 import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
 import { applyColorCombination, COLOR_COMBINATIONS, type ColorCombination } from '../data/colorCombinations';
 import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId } from '../data/musicSuggestions';
-import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, adaptPhotoToTheme } from '../services/weddingSiteService';
+import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, uploadWeddingMusic, adaptPhotoToTheme } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
   CardStyle,
@@ -249,6 +249,32 @@ export function WeddingSiteBuilder() {
       setGalleryError((prev) =>
         [prev, `Échec de l'envoi : ${failed.join(', ')}`].filter(Boolean).join(' · '),
       );
+  }
+
+  // ── Musique : envoi d'un morceau complet (les extraits Deezer font 30 s) ────
+  const musicInputRef = useRef<HTMLInputElement | null>(null);
+  const [musicUploading, setMusicUploading] = useState(false);
+  const [musicError, setMusicError] = useState<string | null>(null);
+
+  async function handleMusicUpload(file: File) {
+    setMusicError(null);
+    if (!file.type.startsWith('audio/')) {
+      setMusicError('Format invalide — envoyez un fichier audio (MP3, M4A…).');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setMusicError('Fichier trop volumineux (15 Mo max).');
+      return;
+    }
+    setMusicUploading(true);
+    try {
+      const url = await uploadWeddingMusic(file);
+      setContent((c) => ({ ...c, musicUrl: url }));
+    } catch (err) {
+      setMusicError(err instanceof Error && err.message ? err.message : "Échec de l'envoi de la musique.");
+    } finally {
+      setMusicUploading(false);
+    }
   }
 
   // ── Galerie : ré-adaptation IA au thème ─────────────────────────────────────
@@ -1694,7 +1720,7 @@ export function WeddingSiteBuilder() {
                 ))}
               </select>
               <span style={{ fontSize: '0.72rem', color: '#8a8378', fontWeight: 400, marginTop: 2 }}>
-                Extrait 30 s joué en boucle sur le site. {musicLabelForUrl(content.musicUrl)
+                Extrait de 30 s (limite Deezer) joué en boucle. Pour la chanson en entier, envoyez votre fichier MP3 ci-dessous. {musicLabelForUrl(content.musicUrl)
                   ? `Sélection : ${musicLabelForUrl(content.musicUrl)}.`
                   : ''}
               </span>
@@ -1702,6 +1728,29 @@ export function WeddingSiteBuilder() {
             <span style={{ fontSize: '0.72rem', color: '#8a8378', fontWeight: 400 }}>
               🔊 La musique se lance automatiquement sur la carte (aperçu compris) dès que vous cliquez. Choisissez « — Choisir une chanson — » pour la couper.
             </span>
+            <div style={{ display: 'grid', gap: 6 }}>
+              <span style={{ ...lab, display: 'block' }}>…ou votre chanson complète (MP3, M4A — 15 Mo max)</span>
+              <input
+                ref={musicInputRef}
+                type="file"
+                accept="audio/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (f) void handleMusicUpload(f);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => musicInputRef.current?.click()}
+                disabled={musicUploading}
+                style={{ ...inp, cursor: musicUploading ? 'wait' : 'pointer', textAlign: 'center', background: '#FAFAF7' }}
+              >
+                {musicUploading ? 'Envoi en cours…' : '🎵 Envoyer un fichier audio'}
+              </button>
+              {musicError ? <span style={{ fontSize: '0.75rem', color: '#b42318' }}>{musicError}</span> : null}
+            </div>
             <label style={lab}>
               …ou votre propre URL .mp3
               <input
