@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import type { WeddingSite } from '../types';
 
 import { formatWeddingDate } from '../utils/date';
+import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
 import { sectionLabels } from '../i18n';
 import { deezerTrackId, resolveDeezerPreview } from '../data/musicSuggestions';
 
@@ -730,7 +731,12 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     }
   }
   if (site.sections.jewishSection) {
-    const jevents = (site.content?.jewishEvents ?? []).filter((e) => e.enabled);
+    const jevents = sortEventsChronologically(
+      (site.content?.jewishEvents ?? []).filter((e) => e.enabled),
+      (e) => e.date,
+      (e) => e.time,
+      weddingYear(site.date),
+    );
     if (jevents.length) {
       blocks.push(
         <section id="jewish-section" key="jewish-section" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
@@ -982,11 +988,17 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
   // affichée telle quelle, sans passer par le `dayLabel` dérivé des rsvpEvents
   // qui ne se mettait jamais à jour visuellement) — même logique que Stripes.
   const jewishEvts = (site.content?.jewishEvents ?? []).filter((e) => e.enabled);
-  const events: TimelineItem[] = jewishEvts.length
-    ? jewishEvts.map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.date, description: e.description }))
-    : (site.rsvpForm?.events ?? [])
-        .filter((e) => e.enabled)
-        .map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.dayLabel, description: e.shortDescription }));
+  // Affiché dans l'ordre chronologique des dates/heures saisies (pas l'ordre d'activation).
+  const events: TimelineItem[] = sortEventsChronologically(
+    jewishEvts.length
+      ? jewishEvts.map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.date, description: e.description }))
+      : (site.rsvpForm?.events ?? [])
+          .filter((e) => e.enabled)
+          .map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.dayLabel, description: e.shortDescription })),
+    (e) => e.date,
+    (e) => e.time,
+    weddingYear(site.date),
+  );
   const days = Array.from(new Set(events.map((e) => e.date?.trim() || '').filter(Boolean)));
   const [activeDay, setActiveDay] = useState(days[0] ?? '');
 

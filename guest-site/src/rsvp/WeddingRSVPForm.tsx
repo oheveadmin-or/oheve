@@ -15,6 +15,7 @@ import { submitRSVPAnswer } from './rsvpService';
 import { useWeddingTheme } from './useWeddingTheme';
 
 import type { WeddingSite } from '../wedding-sites/types';
+import { orderRsvpEventsByProgram, weddingYear } from '../wedding-sites/utils/eventOrder';
 
 export function WeddingRSVPForm({
   site,
@@ -31,6 +32,10 @@ export function WeddingRSVPForm({
   const lang = site.language;
   const S = useMemo(() => rsvpStrings(lang), [lang]);
   const settings = normalizeSettings(form);
+  const orderedEvents = useMemo(
+    () => orderRsvpEventsByProgram(form.events, site.content?.jewishEvents, weddingYear(site.date)),
+    [form.events, site.content?.jewishEvents, site.date],
+  );
 
   const [draft, setDraft] = useState<RSVPAnswer>({
     firstname: '',
@@ -253,7 +258,7 @@ export function WeddingRSVPForm({
         {form.events.filter((ev) => ev.enabled).length > 0 ? (
           <div style={{ marginTop: '1.25rem', borderTop: `1px solid ${ui.primaryColor}33`, paddingTop: '1rem' }}>
             <p style={{ ...ui.heading, textAlign }}>{S.sectionEvents}</p>
-            {form.events
+            {orderedEvents
               .filter((ev) => ev.enabled && (ev.askAttendance || ev.askGuestCount))
               .map((ev) => {
                 const a = draft.events[ev.id];
