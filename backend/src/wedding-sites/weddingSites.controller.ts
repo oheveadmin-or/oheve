@@ -200,6 +200,20 @@ export async function uploadGalleryPhoto(req: Request, res: Response): Promise<v
   });
 }
 
+/** Musique de fond envoyée par le couple (morceau complet, pas d'extrait 30 s). */
+export async function uploadWeddingMusic(req: Request, res: Response): Promise<void> {
+  if (!req.file) {
+    res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
+    return;
+  }
+  const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
+  const host = req.headers['x-forwarded-host'] ?? req.get('host');
+  res.status(201).json({
+    success: true,
+    data: { url: `${protocol}://${host}/uploads/music/${req.file.filename}` },
+  });
+}
+
 /**
  * Ré-adapte une photo à l'ambiance du thème via l'IA (Gemini). Reçoit l'image
  * en multipart (champ `photo`), le `style` et une `palette` JSON optionnelle,

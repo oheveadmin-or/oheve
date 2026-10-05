@@ -367,6 +367,25 @@ export async function uploadGalleryPhoto(file: File): Promise<string> {
   return blobToDataUrl(await compressImage(file, 1280, 0.8));
 }
 
+/**
+ * Upload la musique de fond (morceau complet MP3/M4A) et retourne son URL
+ * publique — les extraits Deezer, eux, sont limités à 30 s.
+ */
+export async function uploadWeddingMusic(file: File): Promise<string> {
+  const url = apiUrl('/api/wedding-sites/upload-music');
+  if (url === null) throw new Error('Connexion au serveur impossible');
+  if (!import.meta.env.DEV && !_authToken) throw new Error(AUTH_REQUIRED_MSG);
+  const form = new FormData();
+  form.append('music', file, file.name);
+  const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: form }).catch(() => null);
+  if (res?.ok) {
+    const json = (await res.json()) as { success: boolean; data?: { url: string } };
+    if (json.success && json.data?.url) return json.data.url;
+  }
+  if (res && (res.status === 401 || res.status === 403)) throw new Error(AUTH_REQUIRED_MSG);
+  throw new Error(res ? await readApiError(res) : 'Connexion au serveur impossible');
+}
+
 export type AdaptPalette = { background?: string; text?: string; accent?: string };
 
 /**

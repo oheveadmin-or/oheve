@@ -116,16 +116,33 @@ function muralPages(data: SeatingPlanData): string {
   const { tables, guests, wedding } = data;
   const wname = wedding.weddingTitle || wedding.coupleName || '';
 
-  // Regrouper par pages de 12 tables max
-  const PER_PAGE = 12;
+  // Pages remplies rangée par rangée selon la hauteur réelle des tables
+  // (nombre d'invités) : 12 tables fixes par page débordaient du A4 dès
+  // ~8 invités par table et cassaient l'affiche sur plusieurs feuilles.
+  const cols = tables.length <= 4 ? 2 : 3;
+  const BUDGET = 800;
+  const rowHeight = (row: SeatingTable[]) =>
+    8 + 62 + Math.max(1, ...row.map((t) => tableGuests(t, guests).length)) * 20;
+  const pageGroups: { start: number; group: SeatingTable[]; tall: boolean }[] = [];
+  let start = 0;
+  let group: SeatingTable[] = [];
+  let used = 0;
+  for (let i = 0; i < tables.length; i += cols) {
+    const row = tables.slice(i, i + cols);
+    const h = rowHeight(row);
+    if (group.length > 0 && used + h > BUDGET) {
+      pageGroups.push({ start, group, tall: used > BUDGET });
+      start = i; group = []; used = 0;
+    }
+    group.push(...row);
+    used += h;
+  }
+  pageGroups.push({ start, group, tall: used > BUDGET });
   let html = '';
 
-  for (let p = 0; p < Math.max(1, Math.ceil(tables.length / PER_PAGE)); p++) {
-    const group = tables.slice(p * PER_PAGE, (p + 1) * PER_PAGE);
-    const cols = group.length <= 4 ? 2 : 3;
-
-    const blocks = group.map((t, gi) => {
-      const idx = p * PER_PAGE + gi;
+  pageGroups.forEach(({ start: first, group: grp, tall }, p) => {
+    const blocks = grp.map((t, gi) => {
+      const idx = first + gi;
       const ag = tableGuests(t, guests);
       const occupied = ag.reduce((s, g) => s + g.guestCount, 0);
       const color = ac(idx);
@@ -141,7 +158,7 @@ function muralPages(data: SeatingPlanData): string {
       </div>`;
     }).join('');
 
-    html += `<div class="page" style="padding:12mm 12mm 18mm;background:${T.ivoire};min-height:100vh;position:relative;">
+    html += `<div class="page" style="padding:12mm 12mm 18mm;background:${T.ivoire};${tall ? 'min-height:297mm' : 'height:297mm;overflow:hidden'};position:relative;">
       ${corners()}
       <div style="text-align:center;margin-bottom:14px;">
         <div style="font-size:7.5px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${T.sauge};margin-bottom:8px;">Mariage</div>
@@ -161,7 +178,7 @@ function muralPages(data: SeatingPlanData): string {
 
       ${ftr(wname, p > 0 ? `Plan mural — page ${p + 1}` : 'Plan mural')}
     </div>`;
-  }
+  });
 
   return html;
 }
@@ -396,6 +413,13 @@ function livrePages(data: SeatingPlanData): string {
 
 // ── 7. LISTE COMPACTE EN COLONNES ─────────────────────────────────────────────
 
+// Hauteurs estimées (px CSS, A4 = 1123 px de haut) pour paginer la liste
+// nous-mêmes : laissé au navigateur, un bloc trop haut pour la page partait en
+// entier sur la suivante et laissait l'en-tête seul sur une page blanche.
+const LISTE_PAGE_BUDGET = 860;
+const LISTE_LINE_H = 19;
+const listeBlockHeight = (lines: number) => 42 + Math.max(lines, 1) * LISTE_LINE_H;
+
 function listePages(data: SeatingPlanData): string {
   const { tables, guests, wedding } = data;
   const wname = wedding.weddingTitle || wedding.coupleName || '';
@@ -409,37 +433,81 @@ function listePages(data: SeatingPlanData): string {
       ? ag.map((g) => `<div style="font-size:10.5px;padding:2px 0;color:${T.textMid};">• ${esc(g.name)} <span style="color:${T.textLight};font-size:9px;">(${g.guestCount})</span></div>`).join('')
       : `<div style="font-size:10px;color:${T.textLight};font-style:italic;">—</div>`;
 
-    return `<div style="break-inside:avoid;margin-bottom:10px;padding:10px 12px;background:#fff;border-radius:10px;border-left:3px solid ${color};">
+    return {
+      height: listeBlockHeight(ag.length),
+      html: `<div style="break-inside:avoid;margin-bottom:10px;padding:10px 12px;background:#fff;border-radius:10px;border-left:3px solid ${color};">
       <div style="font-size:11px;font-weight:700;color:${T.textDark};margin-bottom:4px;">
         <span style="color:${color};">Table ${idx + 1}</span> — ${esc(t.name)}
         <span style="font-weight:400;color:${T.textLight};font-size:9px;margin-left:6px;">${occupied}/${t.seats} · ${shapeLabel(t.shape)}</span>
       </div>
       ${lines}
-    </div>`;
-  }).join('');
+    </div>`,
+    };
+  });
+
+  // Deux colonnes remplies tour à tour (la plus courte d'abord) ; nouvelle page
+  // dès qu'un bloc dépasserait le bas de la page.
+  type ListePage = { cols: [string[], string[]]; h: [number, number] };
+  const pages: ListePage[] = [];
+  let cur: ListePage = { cols: [[], []], h: [0, 0] };
+  for (const b of blocks) {
+    const c = cur.h[0] <= cur.h[1] ? 0 : 1;
+    if (cur.h[c] > 0 && cur.h[c] + b.height > LISTE_PAGE_BUDGET) {
+      const other = 1 - c;
+      if (cur.h[other] + b.height <= LISTE_PAGE_BUDGET) {
+        cur.cols[other].push(b.html); cur.h[other] += b.height; continue;
+      }
+      pages.push(cur);
+      cur = { cols: [[], []], h: [0, 0] };
+    }
+    const col = cur.h[0] <= cur.h[1] ? 0 : 1;
+    cur.cols[col].push(b.html);
+    cur.h[col] += b.height;
+  }
 
   const unassigned = guests.filter((g) => !tables.some((t) => t.guestIds.includes(g.id)));
+  const unassignedHtml = unassigned.length > 0
+    ? `<div style="margin-top:2px;padding:10px 12px;background:${T.errorPale};border-radius:10px;border-left:3px solid ${T.error};break-inside:avoid;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${T.error};margin-bottom:6px;">Non placés (${unassigned.length})</div>
+          <div style="column-count:3;column-gap:12px;">
+          ${unassigned.map((g) => `<div style="font-size:10.5px;color:${T.textMid};padding:1px 0;">• ${esc(g.name)} (${g.guestCount})</div>`).join('')}
+          </div>
+        </div>`
+    : '';
+  const unassignedH = unassigned.length > 0 ? 40 + Math.ceil(unassigned.length / 3) * 18 : 0;
+  let unassignedOwnPage = false;
+  if (unassignedH > 0 && Math.max(cur.h[0], cur.h[1]) + unassignedH > LISTE_PAGE_BUDGET && (cur.h[0] > 0 || cur.h[1] > 0)) {
+    unassignedOwnPage = true;
+  }
+  pages.push(cur);
 
-  return `<div class="page" style="padding:14mm 14mm 18mm;background:${T.ivoire};min-height:100vh;position:relative;">
-    <div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid ${T.saugePale};display:flex;justify-content:space-between;align-items:flex-end;">
+  const header = (cont: boolean) => `<div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid ${T.saugePale};display:flex;justify-content:space-between;align-items:flex-end;">
       <div>
-        <div style="font-size:8px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${T.sauge};margin-bottom:3px;">Liste des invités</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${T.sauge};margin-bottom:3px;">Liste des invités${cont ? ' (suite)' : ''}</div>
         <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:${T.textDark};">${wedding.coupleName ? esc(wedding.coupleName) : 'Plan de table'}</div>
       </div>
       <div style="text-align:right;font-size:9px;color:${T.textLight};">${s.tableCount} tables · ${s.assignedPeople}/${s.totalPeople} invités placés</div>
-    </div>
+    </div>`;
 
-    <div style="column-count:2;column-gap:12px;">${blocks}</div>
-
-    ${unassigned.length > 0
-      ? `<div style="margin-top:12px;padding:10px 12px;background:${T.errorPale};border-radius:10px;border-left:3px solid ${T.error};">
-          <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${T.error};margin-bottom:6px;">Non placés (${unassigned.length})</div>
-          ${unassigned.map((g) => `<div style="font-size:10.5px;color:${T.textMid};padding:1px 0;">• ${esc(g.name)} (${g.guestCount})</div>`).join('')}
-        </div>`
-      : ''}
-
+  // Hauteur fixe A4 pour une pagination exacte ; seule une table géante (plus
+  // haute qu'une page à elle seule) a le droit de déborder sur la suivante.
+  const pageHtml = (body: string, idx: number, tall = false) => `<div class="page" style="padding:14mm 14mm 18mm;background:${T.ivoire};${tall ? 'min-height:297mm' : 'height:297mm;overflow:hidden'};position:relative;">
+    ${header(idx > 0)}
+    ${body}
     ${ftr(wname, 'Liste par table')}
   </div>`;
+
+  let html = pages.map((pg, idx) => {
+    const isLast = idx === pages.length - 1;
+    const grid = `<div style="display:flex;gap:12px;align-items:flex-start;">
+      <div style="flex:1;min-width:0;">${pg.cols[0].join('')}</div>
+      <div style="flex:1;min-width:0;">${pg.cols[1].join('')}</div>
+    </div>`;
+    const tall = Math.max(pg.h[0], pg.h[1]) > LISTE_PAGE_BUDGET;
+    return pageHtml(grid + (isLast && !unassignedOwnPage ? unassignedHtml : ''), idx, tall);
+  }).join('');
+  if (unassignedOwnPage) html += pageHtml(unassignedHtml, pages.length, unassignedH > LISTE_PAGE_BUDGET);
+  return html;
 }
 
 

@@ -13,6 +13,7 @@ import {
   issueBuilderToken,
   updateWeddingSite,
   uploadGalleryPhoto,
+  uploadWeddingMusic,
 } from './weddingSites.controller';
 import { getShareImage, getSharePreview } from './sharePreview';
 
@@ -38,6 +39,21 @@ const uploadMem = multer({
   fileFilter: imageOnly,
 });
 
+// Musique de fond : morceau COMPLET envoyé par le couple (les extraits Deezer
+// sont limités à 30 s). Stocké dans uploads/music, servi par /uploads.
+const musicStorage = multer.diskStorage({
+  destination: path.join(process.cwd(), 'uploads', 'music'),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.mp3';
+    cb(null, `music_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
+  },
+});
+const audioOnly = (_req: unknown, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  if (file.mimetype.startsWith('audio/')) cb(null, true);
+  else cb(new Error('Type de fichier refusé : envoyez un fichier audio (MP3, M4A…)'));
+};
+const uploadMusic = multer({ storage: musicStorage, limits: { fileSize: 15 * 1024 * 1024 }, fileFilter: audioOnly });
+
 export const weddingSitesRoutes = Router();
 
 weddingSitesRoutes.get('/check-slug', checkSlugAvailable);
@@ -48,6 +64,7 @@ weddingSitesRoutes.get('/builder-token', requireAuth, issueBuilderToken);
 // Le builder web reçoit le token via ?token= depuis l'app — plus aucune
 // écriture anonyme possible (avant : n'importe qui pouvait modifier un site par id).
 weddingSitesRoutes.post('/upload-photo', requireAuth, upload.single('photo'), optimizeUploadedImage(), uploadGalleryPhoto);
+weddingSitesRoutes.post('/upload-music', requireAuth, uploadMusic.single('music'), uploadWeddingMusic);
 weddingSitesRoutes.post('/adapt-photo', requireAuth, uploadMem.single('photo'), adaptPhotoToTheme);
 // Public : simple résolution d'URL d'aperçu (aucune donnée sensible)
 weddingSitesRoutes.get('/deezer-preview/:id', getDeezerPreview);
