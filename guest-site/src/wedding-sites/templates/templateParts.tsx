@@ -488,6 +488,17 @@ function useMusicPlayer(url: string | undefined) {
     if (!ref.current) {
       const audio = new Audio(s);
       audio.loop = true;
+      // Extraits Deezer (30 s) : fondu d'entrée/sortie à chaque tour de boucle
+      // pour éviter la coupure sèche. Sans effet sur un morceau complet envoyé
+      // par le couple (le fondu n'intervient qu'aux extrémités du fichier).
+      const FADE = 2.5;
+      audio.addEventListener('timeupdate', () => {
+        const d = audio.duration;
+        if (!Number.isFinite(d) || d <= FADE * 2) return;
+        const tIn = audio.currentTime;
+        const v = Math.min(1, tIn / FADE, (d - tIn) / FADE);
+        try { audio.volume = Math.max(0.05, v); } catch { /* iOS : volume en lecture seule */ }
+      });
       // État synchronisé sur l'élément audio lui-même (pause système iOS,
       // fin de lecture…) plutôt que sur la seule promesse de play().
       audio.addEventListener('play', () => setPlaying(true));
