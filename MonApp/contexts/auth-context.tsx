@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { API_ENDPOINTS } from '@/constants/config';
 
@@ -48,6 +49,19 @@ export function isPrestaSubActive(status?: string | null): boolean {
 }
 
 const STORAGE_KEY = '@wedding_auth_v2';
+
+/** Date d'expiration (ms) d'un JWT, ou null si illisible. */
+function jwtExpiryMs(token?: string | null): number | null {
+  try {
+    const part = token?.split('.')[1];
+    if (!part || typeof globalThis.atob !== 'function') return null;
+    const json = globalThis.atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    const exp = (JSON.parse(json) as { exp?: number }).exp;
+    return typeof exp === 'number' ? exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
 
 // Identifiant Apple opaque ("000416.fd0b41…2305") utilisé par erreur comme
 // nom sur d'anciens comptes "Masquer mon email" — on ne l'affiche jamais.
@@ -149,6 +163,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(stored);
         setLoading(false);
 
+        // Marque le refresh en cours : le renouvellement automatique (plus bas)
+        // ne doit pas réutiliser le même refresh token en parallèle.
+        refreshingRef.current = true;
         const res = await fetch(API_ENDPOINTS.refresh, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -178,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // Erreur réseau : on garde la session stockée.
       } finally {
+        refreshingRef.current = false;
         setLoading(false);
       }
     })();
@@ -229,6 +247,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshingRef.current = false;
     }
   }, [user, signOut]);
+
+  // Renouvellement automatique du jeton d'accès (valable 1 h) : avant, rien
+  // ne le renouvelait pendant l'utilisation → au bout d'une heure, toutes les
+  // requêtes échouaient (« Session expirée », écran Site Mariage revenu au
+  // formulaire de création…). On le renouvelle 5 min avant l'expiration et à
+  // chaque retour au premier plan s'il expire bientôt.
+  useEffect(() => {
+    if (!user?.accessToken || !user.refreshToken) return;
+    const token = user.accessToken;
+    const expiresSoon = () => {
+      const exp = jwtExpiryMs(token);
+      return exp == null || exp - Date.now() < 10 * 60_000;
+    };
+    const exp = jwtExpiryMs(token);
+    const delay = exp ? Math.max(exp - Date.now() - 5 * 60_000, 5_000) : 45 * 60_000;
+    const timer = setTimeout(() => { refreshAccessToken(); }, delay);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && expiresSoon()) refreshAccessToken();
+    });
+    return () => { clearTimeout(timer); sub.remove(); };
+  }, [user?.accessToken, user?.refreshToken, refreshAccessToken]);
 
   const updateUser = useCallback(async (updates: Partial<AuthUser>) => {
     if (!user) return;

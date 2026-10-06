@@ -46,10 +46,14 @@ function makeSlug(bride: string, groom: string): string {
 
 export default function SiteMariageScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, refreshAccessToken } = useAuth();
 
   const [mySite, setMySite] = useState<MySite | null>(null);
   const [loading, setLoading] = useState(true);
+  // Échec du chargement (session, réseau) : on NE montre PAS le formulaire de
+  // création — le couple a peut-être déjà un site (sinon il le recréait).
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [brideName, setBrideName] = useState('');
   const [groomName, setGroomName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -59,15 +63,31 @@ export default function SiteMariageScreen() {
 
   useEffect(() => {
     if (!user?.accessToken) { setLoading(false); return; }
-    fetch(API_ENDPOINTS.mySites, {
-      headers: { Authorization: `Bearer ${user.accessToken}` },
-    })
-      .then((r) => r.json())
-      .then((json: { success: boolean; data?: MySite[] }) => {
-        if (json.success && json.data && json.data.length > 0) setMySite(json.data[0]);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    let alive = true;
+    setLoading(true);
+    setLoadFailed(false);
+    (async () => {
+      try {
+        let res = await fetch(API_ENDPOINTS.mySites, {
+          headers: { Authorization: `Bearer ${user.accessToken}` },
+        });
+        // Jeton expiré : on le renouvelle et on réessaie une fois
+        if (res.status === 401) {
+          const fresh = await refreshAccessToken();
+          if (!fresh) { if (alive) setLoadFailed(true); return; }
+          res = await fetch(API_ENDPOINTS.mySites, { headers: { Authorization: `Bearer ${fresh}` } });
+        }
+        if (!res.ok) { if (alive) setLoadFailed(true); return; }
+        const json = (await res.json()) as { success: boolean; data?: MySite[] };
+        if (!alive) return;
+        if (!json.success) setLoadFailed(true);
+        else if (json.data && json.data.length > 0) setMySite(json.data[0]);
+      } catch {
+        if (alive) setLoadFailed(true);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
 
     fetch(API_ENDPOINTS.weddingBuilderToken, {
       headers: { Authorization: `Bearer ${user.accessToken}` },
@@ -77,7 +97,10 @@ export default function SiteMariageScreen() {
         if (json?.token) setBuilderToken(json.token);
       })
       .catch(() => {});
-  }, [user?.accessToken]);
+    return () => { alive = false; };
+    // refreshAccessToken change à chaque renouvellement : ne pas relancer pour ça
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.accessToken, reloadKey]);
 
   const builderUrl = mySite
     ? `${API_ENDPOINTS.weddingSitePublicBase}/${mySite.slug}/build?token=${builderToken ?? user?.accessToken ?? ''}`
@@ -137,8 +160,9 @@ export default function SiteMariageScreen() {
         }
         // 403 = already has a site (not a slug conflict)
         if (res.status === 403) {
-          Alert.alert('Site existant', json.message ?? 'Vous avez déjà un site mariage.');
+          // Le compte a déjà un site : on l'affiche au lieu d'un message d'erreur
           setCreating(false);
+          setReloadKey((k) => k + 1);
           return;
         }
         if (res.status !== 409) {
@@ -179,6 +203,23 @@ export default function SiteMariageScreen() {
           {loading ? (
             <View style={styles.center}>
               <ActivityIndicator size="large" color={C.sauge} />
+            </View>
+
+          ) : loadFailed && !mySite ? (
+            <View style={styles.createCard}>
+              <View style={styles.createHero}>
+                <View style={styles.iconCircle}>
+                  <Ionicons name="cloud-offline-outline" size={28} color={C.sauge} />
+                </View>
+                <ThemedText style={styles.createTitle}>Impossible de charger votre site</ThemedText>
+                <ThemedText style={styles.createSub}>
+                  Vérifiez votre connexion puis réessayez. Votre site et votre lien ne sont pas perdus.
+                </ThemedText>
+              </View>
+              <Pressable style={styles.createBtn} onPress={() => setReloadKey((k) => k + 1)}>
+                <Ionicons name="refresh" size={18} color="#fff" />
+                <ThemedText style={styles.createBtnTxt}>Réessayer</ThemedText>
+              </Pressable>
             </View>
 
           ) : mySite ? (
