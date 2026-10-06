@@ -1725,7 +1725,7 @@ export function WeddingSiteBuilder() {
                 ))}
               </select>
               <span style={{ fontSize: '0.72rem', color: '#8a8378', fontWeight: 400, marginTop: 2 }}>
-                Extrait de 30 s (limite Deezer) joué en boucle. Pour la chanson en entier, envoyez votre fichier MP3 ci-dessous. {musicLabelForUrl(content.musicUrl)
+                Deezer ne fournit que 30 s (le passage le plus connu, souvent le refrain), jouées en boucle avec un fondu. Pour la chanson EN ENTIER, envoyez votre fichier MP3 ci-dessous. {musicLabelForUrl(content.musicUrl)
                   ? `Sélection : ${musicLabelForUrl(content.musicUrl)}.`
                   : ''}
               </span>
