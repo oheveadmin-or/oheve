@@ -33,6 +33,7 @@ import { PhotosRepository } from './prestataires/photos.repository';
 import { prestataireSubscriptionRoutes } from './prestataire-subscription';
 import { premiumRoutes } from './premium';
 import { iapRoutes } from './iap';
+import { googleIapRoutes } from './iap/google';
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -130,6 +131,7 @@ app.use('/api/rsvp', rsvpRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/premium', premiumRoutes);
 app.use('/api/iap', iapRoutes);
+app.use('/api/iap', googleIapRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/guests', guestsRoutes);
 app.use('/api/planning', planningRoutes);

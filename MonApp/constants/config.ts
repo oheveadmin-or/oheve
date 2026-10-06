@@ -193,6 +193,7 @@ export const API_ENDPOINTS = {
   premiumStatus: `${API_BASE_URL}/api/premium/status`,
   // Achats Apple In-App Purchase (iOS — Guideline 3.1.1)
   iapVerify: `${API_BASE_URL}/api/iap/verify`,
+  iapVerifyGoogle: `${API_BASE_URL}/api/iap/verify-google`,
   // Abonnement Prestataire (39,99€/mois, 6 mois offerts aux 200 premiers)
   prestaSubOffer: `${API_BASE_URL}/api/prestataire-subscription/offer`,
   prestaSubStart: `${API_BASE_URL}/api/prestataire-subscription/start`,

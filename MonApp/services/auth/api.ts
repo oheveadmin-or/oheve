@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 import { API_ENDPOINTS } from '@/constants/config';
 
 // ── Requêtes robustes ─────────────────────────────────────────────────────────
@@ -572,6 +573,15 @@ export const iapApi = {
   // serveur, qui vérifie la signature et active le droit (premium / abo presta).
   verify: (accessToken: string, jws: string) =>
     post(API_ENDPOINTS.iapVerify, { jws }, accessToken),
+  // Android : purchaseToken Google Play, vérifié par le serveur via la Play
+  // Developer API (puis « acknowledge » de l'achat).
+  verifyGoogle: (accessToken: string, productId: string, purchaseToken: string) =>
+    post(API_ENDPOINTS.iapVerifyGoogle, { productId, purchaseToken }, accessToken),
+  /** Vérifie un achat du store de la plateforme courante. */
+  verifyPurchase: (accessToken: string, purchase: { productId?: string | null; purchaseToken?: string | null }) =>
+    Platform.OS === 'android'
+      ? post(API_ENDPOINTS.iapVerifyGoogle, { productId: purchase.productId, purchaseToken: purchase.purchaseToken }, accessToken)
+      : post(API_ENDPOINTS.iapVerify, { jws: purchase.purchaseToken }, accessToken),
 };
 
 // ── Abonnement Prestataire (39,99€/mois, 6 mois offerts aux 200 premiers) ─────
