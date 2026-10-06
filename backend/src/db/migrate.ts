@@ -1,3 +1,4 @@
+import { CREATE_USER_AVATARS, migrateDiskAvatarsToDb } from '../avatars/avatarStore';
 import { pool } from '../config/database';
 
 // ── users ────────────────────────────────────────────────────────────────────
@@ -566,6 +567,9 @@ export async function runMigrations(): Promise<void> {
     await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS profile_views INTEGER NOT NULL DEFAULT 0`);
     // ── Vidéos dans le portfolio / les reels ────────────────────────────────────
     await pool.query(`ALTER TABLE prestataire_photos ADD COLUMN IF NOT EXISTS media_type VARCHAR(10) NOT NULL DEFAULT 'image'`);
+    // ── Photos de profil persistantes (en base, pas sur le disque éphémère) ────
+    await pool.query(CREATE_USER_AVATARS);
+    await migrateDiskAvatarsToDb().catch((err) => console.error('❌ Import avatars:', (err as Error).message));
 
     console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp, payments, stripe_connect, devis, reservations, calendar, admin, photo_likes, photo_comments)');
   } catch (err) {

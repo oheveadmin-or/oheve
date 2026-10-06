@@ -17,6 +17,7 @@ import { startReminderScheduler } from './calendar/reminder';
 import { connexionInscriptionRoutes } from './connexion-inscription';
 import { guestsRoutes } from './guests';
 import { planningRoutes } from './planning';
+import { serveAvatar } from './avatars/avatarStore';
 import { runMigrations } from './db/migrate';
 import { pool } from './config/database';
 import { messagingRoutes } from './messaging';
@@ -89,6 +90,9 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Trop de requêtes, réessaie dans 15 minutes.' },
 });
+// Photos de profil (lues en base) : montées AVANT le limiteur global — ce sont
+// des images affichées partout (profil, messagerie), pas des appels d'API.
+app.get('/api/auth/avatar-file/:userId', serveAvatar);
 app.use('/api/', globalLimiter);
 
 // Rate limit strict sur les endpoints sensibles (OTP, connexion, reset)

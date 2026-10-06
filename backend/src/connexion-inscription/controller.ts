@@ -25,6 +25,7 @@ import {
   verifyGoogleIdToken,
   verifySupabaseAccessToken,
 } from '../auth/socialVerify';
+import { avatarPublicUrl, mimeForFile, saveAvatar } from '../avatars/avatarStore';
 import { ConnexionInscriptionRepository } from './repository';
 
 // 10 rounds (minimum OWASP) : 12 prenait >1 s sur le vCPU partagé Railway et
@@ -604,12 +605,13 @@ export class ConnexionInscriptionController {
       return res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
     }
     try {
-      const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
-      const host = req.headers['x-forwarded-host'] ?? req.get('host');
-      const avatarUrl = `${protocol}://${host}/uploads/avatars/${req.file.filename}`;
+      // Stockée en base : le disque du serveur est effacé à chaque déploiement.
+      const data = await fs.promises.readFile(req.file.path);
+      await saveAvatar(req.auth!.sub, data, mimeForFile(req.file.path, req.file.mimetype));
+      try { fs.unlinkSync(req.file.path); } catch { /* ignoré */ }
+      const avatarUrl = avatarPublicUrl(req, req.auth!.sub);
       const updated = await repo.updateProfile(req.auth!.sub, { avatar_url: avatarUrl });
       if (!updated) {
-        fs.unlinkSync(req.file.path);
         return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
       }
       return res.status(200).json({ success: true, data: { avatar_url: avatarUrl } });
