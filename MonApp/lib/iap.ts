@@ -1,11 +1,13 @@
 /**
- * Achats intégrés Apple (StoreKit) via expo-iap — iOS uniquement.
+ * Achats intégrés via expo-iap : Apple StoreKit (iOS) et Google Play Billing
+ * (Android).
  *
  * Apple refuse les apps qui vendent des biens numériques (premium couple,
  * abonnement prestataire) avec un autre système de paiement que l'In-App
  * Purchase (Guideline 3.1.1). Sur iOS, on passe donc par StoreKit ; Stripe
- * reste utilisé sur Android/web et pour payer les prestataires (services
- * physiques, autorisés par Apple).
+ * reste utilisé sur le web et pour payer les prestataires (services
+ * physiques, autorisés par Apple). Google Play impose la même règle sur
+ * Android : premium et abonnement prestataire passent par Play Billing.
  *
  * Chargement défensif (même pattern que FeedVideo) : sur un binaire construit
  * sans le module natif expo-iap (ancien build TestFlight), on n'importe rien
@@ -15,7 +17,7 @@
 import { Platform } from 'react-native';
 
 let iapSdk: typeof import('expo-iap') | null = null;
-if (Platform.OS === 'ios') {
+if (Platform.OS === 'ios' || Platform.OS === 'android') {
   try {
     iapSdk = require('expo-iap');
   } catch {
@@ -23,8 +25,40 @@ if (Platform.OS === 'ios') {
   }
 }
 
-/** true si le binaire embarque StoreKit (build récent) ET qu'on est sur iOS. */
+/** true si le binaire embarque expo-iap (build récent) sur iOS ou Android. */
 export const iapAvailable = !!iapSdk?.useIAP;
+
+/** Nom du store à afficher à l'utilisateur. */
+export const STORE_NAME = Platform.OS === 'android' ? 'Google Play' : "l'App Store";
+export const STORE_NAME_CAP = Platform.OS === 'android' ? 'Google Play' : "L'App Store";
+/** Où l'utilisateur gère/annule ses abonnements. */
+export const STORE_SUBSCRIPTIONS_PATH = Platform.OS === 'android'
+  ? 'Google Play → Paiements et abonnements → Abonnements'
+  : 'Réglages → Abonnements';
+
+/** Requête d'achat pour les deux stores (expo-iap choisit selon la plateforme). */
+export function storePurchaseRequest(sku: string) {
+  return { apple: { sku }, google: { skus: [sku] } };
+}
+
+/**
+ * Requête d'abonnement. Sur Android, Play Billing exige l'offerToken d'une
+ * offre de l'abonnement : on prend l'offre avec période d'essai gratuite si elle
+ * existe (les mois offerts), sinon le forfait de base.
+ */
+export function storeSubscriptionRequest(
+  sku: string,
+  product: { subscriptionOfferDetailsAndroid?: { offerId?: string | null; offerToken: string; pricingPhases?: { pricingPhaseList?: { priceAmountMicros?: string | number }[] } }[] | null } | null,
+) {
+  const offers = product?.subscriptionOfferDetailsAndroid ?? [];
+  const isFree = (o: (typeof offers)[number]) =>
+    (o.pricingPhases?.pricingPhaseList ?? []).some((p) => Number(p.priceAmountMicros ?? 1) === 0);
+  const offer = offers.find((o) => o.offerId && isFree(o)) ?? offers.find((o) => !o.offerId) ?? offers[0];
+  return {
+    apple: { sku },
+    google: { skus: [sku], ...(offer ? { subscriptionOffers: [{ sku, offerToken: offer.offerToken }] } : {}) },
+  };
+}
 
 /** SDK expo-iap ou null — toujours tester `iapAvailable` avant. */
 export function getIapSdk() {
@@ -72,10 +106,10 @@ export function describeIapError(error: { code?: string; message?: string } | nu
   switch (error?.code) {
     case 'sku-not-found':
     case 'skuNotFound':
-      return "Cet achat n'est pas disponible sur votre compte App Store pour le moment. Réessayez dans un instant.";
+      return "Cet achat n'est pas disponible sur votre compte " + (Platform.OS === 'android' ? 'Google Play' : 'App Store') + " pour le moment. Réessayez dans un instant.";
     case 'network-error':
     case 'service-error':
-      return "L'App Store est momentanément injoignable. Vérifiez votre connexion et réessayez.";
+      return `${STORE_NAME_CAP} est momentanément injoignable. Vérifiez votre connexion et réessayez.`;
     case 'item-unavailable':
       return "Cet achat n'est pas disponible dans votre pays.";
     case 'deferred-payment':
@@ -89,4 +123,4 @@ export function describeIapError(error: { code?: string; message?: string } | nu
 
 /** Message affiché quand Apple ne renvoie aucun produit après plusieurs essais. */
 export const IAP_UNAVAILABLE_MESSAGE =
-  "L'App Store n'a pas pu charger l'offre pour le moment. Vérifiez votre connexion, puis réessayez.";
+  `${STORE_NAME_CAP} n'a pas pu charger l'offre pour le moment. Vérifiez votre connexion, puis réessayez.`;

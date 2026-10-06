@@ -83,7 +83,9 @@ export function PurchaseLegal({
         <ThemedText style={s.note}>
           {Platform.OS === 'ios'
             ? 'Le paiement est débité sur votre compte Apple à la confirmation de l\'achat. L\'abonnement se renouvelle automatiquement au même tarif sauf résiliation au moins 24 h avant la fin de la période en cours. Gérez ou résiliez votre abonnement dans Réglages → votre nom → Abonnements.'
-            : 'L\'abonnement se renouvelle automatiquement au même tarif à chaque échéance, sauf résiliation avant la fin de la période en cours. Résiliation possible à tout moment depuis « Mon abonnement ».'}
+            : Platform.OS === 'android'
+              ? 'Le paiement est débité sur votre compte Google Play à la confirmation de l\'achat. L\'abonnement se renouvelle automatiquement au même tarif sauf résiliation avant la fin de la période en cours. Gérez ou résiliez votre abonnement dans Google Play → Paiements et abonnements → Abonnements.'
+              : 'L\'abonnement se renouvelle automatiquement au même tarif à chaque échéance, sauf résiliation avant la fin de la période en cours. Résiliation possible à tout moment depuis « Mon abonnement ».'}
         </ThemedText>
       ) : null}
 

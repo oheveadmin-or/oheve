@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as XLSX from 'xlsx';
 
@@ -25,6 +25,13 @@ import {
   type GuestStatus,
   type StoredGuest as Guest,
 } from '@/lib/guests-store';
+import {
+  buildInvitationMessage,
+  DEFAULT_INVITATION_TEMPLATE,
+  loadInvitationTemplate,
+  saveInvitationTemplate,
+  toWhatsAppNumber,
+} from '@/lib/invitation-message';
 
 type GuestFilter = 'all' | GuestStatus;
 
@@ -235,7 +242,8 @@ export default function GuestsScreen() {
   // couple partage TOUJOURS le bon lien (fini les mauvais liens importés).
 
   type SiteInviteLink = { id: string; label: string; token: string };
-  const [mySiteLinks, setMySiteLinks] = useState<{ slug: string; accessKey?: string | null; inviteLinks: SiteInviteLink[] } | null>(null);
+  type MySite = { slug: string; accessKey?: string | null; inviteLinks?: SiteInviteLink[]; coupleName?: string; brideName?: string; groomName?: string };
+  const [mySiteLinks, setMySiteLinks] = useState<{ slug: string; accessKey?: string | null; inviteLinks: SiteInviteLink[]; coupleName: string } | null>(null);
 
   useEffect(() => {
     if (!user?.accessToken) return;
@@ -243,10 +251,16 @@ export default function GuestsScreen() {
       headers: { Authorization: `Bearer ${user.accessToken}` },
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { success?: boolean; data?: { slug: string; accessKey?: string | null; inviteLinks?: SiteInviteLink[] }[] } | null) => {
+      .then((json: { success?: boolean; data?: MySite[] } | null) => {
         const site = json?.data?.[0];
         if (site?.slug) {
-          setMySiteLinks({ slug: site.slug, accessKey: site.accessKey, inviteLinks: (site.inviteLinks ?? []).filter((l) => l.token) });
+          const names = [site.brideName, site.groomName].map((n) => (n ?? '').trim()).filter(Boolean);
+          setMySiteLinks({
+            slug: site.slug,
+            accessKey: site.accessKey,
+            inviteLinks: (site.inviteLinks ?? []).filter((l) => l.token),
+            coupleName: names.length === 2 ? `${names[0]} & ${names[1]}` : (site.coupleName ?? '').trim() || names[0] || '',
+          });
           if (!weddingSlug) setWeddingSlug(site.slug);
         }
       })
@@ -255,10 +269,54 @@ export default function GuestsScreen() {
   }, [user?.accessToken]);
 
   const siteBaseUrl = ENDPOINTS.weddingSitePublicBase;
-  const shareInviteLink = async (url: string, label?: string) => {
+  // ── Message d'invitation (nom de l'invité + texte + lien) ───────────────────
+  const [inviteTemplate, setInviteTemplate] = useState(DEFAULT_INVITATION_TEMPLATE);
+  const [templateDraft, setTemplateDraft] = useState('');
+  const [templateModalVisible, setTemplateModalVisible] = useState(false);
+  useEffect(() => { loadInvitationTemplate().then(setInviteTemplate); }, []);
+
+  const mainSiteUrl = mySiteLinks
+    ? `${siteBaseUrl}/${mySiteLinks.slug}${mySiteLinks.accessKey ? `?k=${mySiteLinks.accessKey}` : ''}`
+    : '';
+  const inviteMessage = (link: string, guestName?: string) =>
+    buildInvitationMessage(inviteTemplate, { guestName, link, coupleName: mySiteLinks?.coupleName });
+
+  const shareInviteLink = async (url: string) => {
     try {
-      await Share.share({ message: label ? `${label} — ${url}` : url });
+      await Share.share({ message: inviteMessage(url) });
     } catch { /* annulé */ }
+  };
+
+  /** Lien d'un invité : celui de son groupe s'il existe (même libellé), sinon le site principal. */
+  const guestInviteUrl = (guest: Guest): string => {
+    if (!mySiteLinks) return '';
+    const group = guest.group?.trim().toLowerCase();
+    const link = group ? mySiteLinks.inviteLinks.find((l) => l.label?.trim().toLowerCase() === group) : undefined;
+    return link ? `${siteBaseUrl}/${mySiteLinks.slug}/invite/${link.token}` : mainSiteUrl;
+  };
+
+  /** Envoie l'invitation personnalisée : directement dans WhatsApp si on a son numéro. */
+  const sendGuestInvitation = async (guest: Guest) => {
+    const url = guestInviteUrl(guest);
+    if (!url) return;
+    const message = inviteMessage(url, guest.name);
+    const number = toWhatsAppNumber(guest.phone);
+    if (number) {
+      const wa = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+      try { await Linking.openURL(wa); return; } catch { /* WhatsApp absent : partage classique */ }
+    }
+    try { await Share.share({ message }); } catch { /* annulé */ }
+  };
+
+  const openTemplateEditor = () => {
+    setTemplateDraft(inviteTemplate);
+    setTemplateModalVisible(true);
+  };
+  const saveTemplate = async () => {
+    const next = templateDraft.trim() ? templateDraft : DEFAULT_INVITATION_TEMPLATE;
+    setInviteTemplate(next);
+    setTemplateModalVisible(false);
+    await saveInvitationTemplate(next);
   };
   const copyInviteLink = async (url: string) => {
     await Clipboard.setStringAsync(url);
@@ -598,7 +656,7 @@ export default function GuestsScreen() {
 
             {/* La clé ?k= rend le lien privé : sans elle le serveur bloque la page */}
             {(() => {
-              const mainUrl = `${siteBaseUrl}/${mySiteLinks.slug}${mySiteLinks.accessKey ? `?k=${mySiteLinks.accessKey}` : ''}`;
+              const mainUrl = mainSiteUrl;
               return (
                 <View style={styles.inviteLinkRow}>
                   <View style={{ flex: 1 }}>
@@ -626,12 +684,27 @@ export default function GuestsScreen() {
                   <Pressable hitSlop={8} onPress={() => copyInviteLink(url)}>
                     <Ionicons name="copy-outline" size={17} color="#7A8A72" />
                   </Pressable>
-                  <Pressable hitSlop={8} onPress={() => shareInviteLink(url, l.label)}>
+                  <Pressable hitSlop={8} onPress={() => shareInviteLink(url)}>
                     <Ionicons name="share-outline" size={17} color="#7A8A72" />
                   </Pressable>
                 </View>
               );
             })}
+
+            {/* Message d'invitation envoyé avec le lien */}
+            <Pressable style={styles.inviteMessageRow} onPress={openTemplateEditor}>
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#7A8A72" />
+              <View style={{ flex: 1 }}>
+                <ThemedText style={styles.inviteLinkLabel}>Message d’invitation</ThemedText>
+                <ThemedText style={styles.inviteLinkUrl} numberOfLines={2}>
+                  {inviteMessage('…', 'Madame Rachelle Layani').replace(/\s+/g, ' ')}
+                </ThemedText>
+              </View>
+              <ThemedText style={styles.inviteMessageEdit}>Modifier</ThemedText>
+            </Pressable>
+            <ThemedText style={styles.inviteLinksHint}>
+              Appuyez sur l’avion en papier d’un invité pour lui envoyer ce message personnalisé avec son nom.
+            </ThemedText>
           </View>
         )}
 
@@ -687,6 +760,11 @@ export default function GuestsScreen() {
                   )}
                   {guest.fromRSVP && <ThemedText style={styles.rsvpBadge}>RSVP site</ThemedText>}
                 </View>
+                {mySiteLinks && (
+                  <Pressable onPress={() => sendGuestInvitation(guest)} hitSlop={8} style={styles.guestDeleteBtn} accessibilityLabel={`Envoyer l'invitation à ${guest.name}`}>
+                    <Ionicons name="paper-plane-outline" size={15} color="#7A8A72" />
+                  </Pressable>
+                )}
                 <Pressable onPress={() => onDeleteGuest(guest.id)} hitSlop={8} style={styles.guestDeleteBtn}>
                   <Ionicons name="trash-outline" size={14} color="#d1d5db" />
                 </Pressable>
@@ -701,6 +779,41 @@ export default function GuestsScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Modal : message d'invitation */}
+      <Modal visible={templateModalVisible} animationType="fade" transparent onRequestClose={() => setTemplateModalVisible(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setTemplateModalVisible(false)} />
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalCenter}>
+            <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+              <View style={styles.modalCard}>
+                <ThemedText style={styles.modalTitle}>Message d’invitation</ThemedText>
+                <ThemedText style={styles.inviteLinksHint}>
+                  {'{invité}'} = nom de l’invité · {'{lien}'} = lien de votre site · {'{mariés}'} = vos prénoms
+                </ThemedText>
+                <TextInput
+                  style={[styles.modalInput, styles.templateInput]}
+                  value={templateDraft}
+                  onChangeText={setTemplateDraft}
+                  multiline
+                  textAlignVertical="top"
+                />
+                <Pressable onPress={() => setTemplateDraft(DEFAULT_INVITATION_TEMPLATE)} hitSlop={6}>
+                  <ThemedText style={styles.inviteMessageEdit}>Revenir au message par défaut</ThemedText>
+                </Pressable>
+                <View style={[styles.modalActions, { marginTop: 10 }]}>
+                  <Pressable style={styles.modalBtnSecondary} onPress={() => setTemplateModalVisible(false)}>
+                    <ThemedText style={styles.modalBtnSecondaryText}>Annuler</ThemedText>
+                  </Pressable>
+                  <Pressable style={styles.modalBtnPrimary} onPress={saveTemplate}>
+                    <ThemedText style={styles.modalBtnPrimaryText}>Enregistrer</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
       {/* Add guest modal */}
       <Modal visible={modalVisible} animationType="fade" transparent onRequestClose={() => setModalVisible(false)}>
@@ -842,6 +955,12 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
 
   guestDeleteBtn: { padding: 4 },
+  inviteMessageRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderTopWidth: 1, borderTopColor: '#EFE8DD', paddingTop: 8, marginTop: 2,
+  },
+  inviteMessageEdit: { fontSize: 12, fontWeight: '700', color: '#7A8A72' },
+  templateInput: { minHeight: 260, maxHeight: 380, fontSize: 13, lineHeight: 18, marginTop: 8 },
   listContent: { gap: 4, paddingBottom: 2 },
   guestCard: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#E2D9CC', width: '100%', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 0 },
   guestCardPressed: { opacity: 0.92 },

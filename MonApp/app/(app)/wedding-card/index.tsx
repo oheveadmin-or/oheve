@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
@@ -16,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { InvitationSender } from '@/components/invitation-sender';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
@@ -57,7 +57,6 @@ export default function SiteMariageScreen() {
   const [brideName, setBrideName] = useState('');
   const [groomName, setGroomName] = useState('');
   const [creating, setCreating] = useState(false);
-  const [copied, setCopied] = useState(false);
   // Jeton longue durée (30 j) pour la WebView du builder — évite l'expiration
   // « Session expirée » en pleine conception. Fallback : access token.
   const [builderToken, setBuilderToken] = useState<string | null>(null);
@@ -147,7 +146,7 @@ export default function SiteMariageScreen() {
         }
         // 403 = already has a site (not a slug conflict)
         if (res.status === 403) {
-          Alert.alert('Site existant', json.message ?? 'Vous avez déjà un site mariage.');
+          // Le compte a déjà un site : on l'affiche au lieu d'un message d'erreur
           setCreating(false);
           // Le site existe déjà : on le recharge pour réafficher le lien.
           setLoading(true);
@@ -168,13 +167,6 @@ export default function SiteMariageScreen() {
     }
     Alert.alert('Erreur', 'Ce lien est déjà pris. Essayez avec des prénoms légèrement différents.');
     setCreating(false);
-  }
-
-  async function handleCopy() {
-    if (!builderUrl) return;
-    await Clipboard.setStringAsync(builderUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -233,46 +225,32 @@ export default function SiteMariageScreen() {
                 {mySite.coupleName || `${mySite.brideName} & ${mySite.groomName}`}
               </ThemedText>
 
-              <ThemedText style={styles.linkLabel}>Votre lien unique</ThemedText>
-              <View style={styles.linkBox}>
-                <Ionicons name="link" size={14} color={C.sauge} />
-                <ThemedText style={styles.linkText} numberOfLines={2} selectable>
-                  oheve.pages.dev/wedding/{mySite.slug}/build
-                </ThemedText>
-              </View>
-
+              {/* Le lien /build contient un jeton de connexion : on ne l'affiche
+                  plus et on ne le copie plus (il ne doit jamais être partagé). */}
               <View style={styles.actions}>
-                <Pressable style={styles.btnOutline} onPress={handleCopy}>
-                  <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color={C.sauge} />
-                  <ThemedText style={styles.btnOutlineTxt}>
-                    {copied ? 'Copié !' : 'Copier le lien'}
-                  </ThemedText>
-                </Pressable>
+                {publicUrl && (
+                  <Pressable style={styles.btnOutline} onPress={() => Linking.openURL(publicUrl)}>
+                    <Ionicons name="eye-outline" size={16} color={C.sauge} />
+                    <ThemedText style={styles.btnOutlineTxt}>Voir le site</ThemedText>
+                  </Pressable>
+                )}
 
                 <Pressable
                   style={styles.btnFill}
                   onPress={() => builderUrl && Linking.openURL(builderUrl)}
                 >
-                  <Ionicons name="open-outline" size={16} color="#fff" />
+                  <Ionicons name="color-palette-outline" size={16} color="#fff" />
                   <ThemedText style={styles.btnFillTxt}>Personnaliser</ThemedText>
                 </Pressable>
               </View>
 
-              {publicUrl && (
-                <Pressable style={styles.viewPublicRow} onPress={() => Linking.openURL(publicUrl)}>
-                  <Ionicons name="eye-outline" size={14} color={C.textLight} />
-                  <ThemedText style={styles.viewPublicTxt}>Voir le site public</ThemedText>
-                </Pressable>
-              )}
-
               <View style={styles.infoBox}>
                 <Ionicons name="information-circle-outline" size={15} color={C.sauge} />
                 <ThemedText style={styles.infoTxt}>
-                  Ouvrez le lien dans votre navigateur pour personnaliser le design, ajouter vos événements et créer des liens d'invitation.
+                  « Personnaliser » ouvre l’éditeur : design, événements, liens d’invitation. Ensuite, envoyez votre carte ci-dessous.
                 </ThemedText>
               </View>
             </View>
-
           ) : (
             /* ── Pas encore de site : formulaire de création ── */
             <View style={styles.createCard}>
@@ -340,6 +318,14 @@ export default function SiteMariageScreen() {
               </View>
             </View>
           )}
+
+          {!loading && mySite && (
+            <InvitationSender
+              slug={mySite.slug}
+              accessKey={mySite.accessKey}
+              coupleName={mySite.coupleName || [mySite.brideName, mySite.groomName].filter(Boolean).join(' & ')}
+            />
+          )}
         </ScrollView>
       </View>
     </KeyboardAvoidingView>
@@ -374,13 +360,6 @@ const styles = StyleSheet.create({
   },
   badgeTxt: { fontSize: 12, fontWeight: '700', color: '#16a34a' },
   coupleTitle: { fontSize: 24, fontWeight: '800', color: C.textDark },
-  linkLabel: { fontSize: 11, fontWeight: '700', color: C.textLight, textTransform: 'uppercase', letterSpacing: 0.8 },
-  linkBox: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
-    backgroundColor: C.saugePale, borderRadius: RADIUS.sm,
-    padding: 12,
-  },
-  linkText: { flex: 1, fontSize: 13, color: C.saugeDark, fontWeight: '600', lineHeight: 20 },
   actions: { flexDirection: 'row', gap: 10 },
   btnOutline: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -392,11 +371,6 @@ const styles = StyleSheet.create({
     backgroundColor: C.sauge, borderRadius: RADIUS.sm, paddingVertical: 11,
   },
   btnFillTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  viewPublicRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    justifyContent: 'center', paddingVertical: 4,
-  },
-  viewPublicTxt: { fontSize: 13, color: C.textLight },
   infoBox: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: C.saugePale, borderRadius: RADIUS.sm, padding: 12,
