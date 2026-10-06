@@ -190,7 +190,7 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
       >
         <SectionSeparator style={sep} color={sepColor} />
 
-        {/* Photo vedette (1re photo de la galerie ou photo du lieu) */}
+        {/* Photo vedette (1re photo de la galerie ou photo du lieu) — rien si aucune photo */}
         {featuredPhoto ? (
           <section className="wedding-fade-in" style={{ margin: '1.5rem auto 2rem', maxWidth: 620, textAlign: 'center' }}>
             <img
@@ -206,27 +206,6 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
                 boxShadow: `0 22px 60px -30px ${t.primaryColor}88`,
               }}
             />
-          </section>
-        ) : isVintage ? (
-          <section className="wedding-fade-in" style={{ margin: '1.5rem auto 2rem', maxWidth: 620, textAlign: 'center' }}>
-            <div
-              style={{
-                width: '100%',
-                aspectRatio: '4 / 3',
-                borderRadius: Math.max(6, t.borderRadius),
-                border: `1px dashed ${V.colors.line}`,
-                background: 'rgba(0,0,0,0.02)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: V.colors.inkMuted,
-                fontFamily: V.fonts.body,
-                fontSize: '0.78rem',
-                letterSpacing: '0.06em',
-              }}
-            >
-              Votre photo apparaîtra ici
-            </div>
           </section>
         ) : null}
 
