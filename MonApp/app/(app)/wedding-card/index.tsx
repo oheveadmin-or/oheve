@@ -50,6 +50,10 @@ export default function SiteMariageScreen() {
 
   const [mySite, setMySite] = useState<MySite | null>(null);
   const [loading, setLoading] = useState(true);
+  // Échec du chargement du site existant (réseau, serveur) : on n'affiche PAS
+  // le formulaire de création, sinon le couple croit avoir perdu son lien.
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [brideName, setBrideName] = useState('');
   const [groomName, setGroomName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -60,14 +64,16 @@ export default function SiteMariageScreen() {
 
   useEffect(() => {
     if (!user?.accessToken) { setLoading(false); return; }
+    setLoadError(false);
     fetch(API_ENDPOINTS.mySites, {
       headers: { Authorization: `Bearer ${user.accessToken}` },
     })
-      .then((r) => r.json())
-      .then((json: { success: boolean; data?: MySite[] }) => {
-        if (json.success && json.data && json.data.length > 0) setMySite(json.data[0]);
+      .then(async (r) => {
+        const json = (await r.json().catch(() => null)) as { success: boolean; data?: MySite[] } | null;
+        if (!r.ok || !json?.success) { setLoadError(true); return; }
+        if (json.data && json.data.length > 0) setMySite(json.data[0]);
       })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
 
     fetch(API_ENDPOINTS.weddingBuilderToken, {
@@ -78,7 +84,10 @@ export default function SiteMariageScreen() {
         if (json?.token) setBuilderToken(json.token);
       })
       .catch(() => {});
-  }, [user?.accessToken]);
+    // reloadKey : bouton « Réessayer ». Pas de dépendance au token lui-même :
+    // son renouvellement automatique ne doit pas recharger l'écran.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, reloadKey]);
 
   const builderUrl = mySite
     ? `${API_ENDPOINTS.weddingSitePublicBase}/${mySite.slug}/build?token=${builderToken ?? user?.accessToken ?? ''}`
@@ -140,6 +149,9 @@ export default function SiteMariageScreen() {
         if (res.status === 403) {
           Alert.alert('Site existant', json.message ?? 'Vous avez déjà un site mariage.');
           setCreating(false);
+          // Le site existe déjà : on le recharge pour réafficher le lien.
+          setLoading(true);
+          setReloadKey((k) => k + 1);
           return;
         }
         if (res.status !== 409) {
@@ -187,6 +199,26 @@ export default function SiteMariageScreen() {
           {loading ? (
             <View style={styles.center}>
               <ActivityIndicator size="large" color={C.sauge} />
+            </View>
+
+          ) : loadError && !mySite ? (
+            <View style={styles.createCard}>
+              <View style={styles.createHero}>
+                <View style={styles.iconCircle}>
+                  <Ionicons name="cloud-offline-outline" size={28} color={C.sauge} />
+                </View>
+                <ThemedText style={styles.createTitle}>Impossible de charger votre site</ThemedText>
+                <ThemedText style={styles.createSub}>
+                  Votre lien n’est pas perdu. Vérifiez votre connexion puis réessayez.
+                </ThemedText>
+              </View>
+              <Pressable
+                style={styles.btnFill}
+                onPress={() => { setLoading(true); setReloadKey((k) => k + 1); }}
+              >
+                <Ionicons name="refresh" size={16} color="#fff" />
+                <ThemedText style={styles.btnFillTxt}>Réessayer</ThemedText>
+              </Pressable>
             </View>
 
           ) : mySite ? (

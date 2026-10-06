@@ -117,12 +117,15 @@ type PrestProfile = {
 
 // ── Instagram-style prestataire profile ─────────────────────────────────────
 function PrestataireInstaProfile() {
-  const { user, signOut, updateUser } = useAuth();
+  const { user, signOut, updateUser, refreshAccessToken } = useAuth();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<PrestProfile | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  // URL d'avatar morte (fichier disparu côté serveur) : on affiche l'initiale
+  // plutôt qu'un rond vide.
+  const [avatarBroken, setAvatarBroken] = useState<string | null>(null);
   const [msgCount, setMsgCount] = useState(0);
   const [settingsModal, setSettingsModal] = useState(false);
 
@@ -166,7 +169,13 @@ function PrestataireInstaProfile() {
     try {
       // Champ 'avatar' : la route backend attend uploadAvatar.single('avatar').
       // Sans ce nom, uploadFile envoie sous 'photo' → fichier ignoré, avatar jamais enregistré.
-      const res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri, 'avatar');
+      let res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri, 'avatar');
+      // Token expiré (l'envoi de fichier ne passe pas par fetch) : on le
+      // renouvelle et on renvoie la photo une fois.
+      if (!res?.success && /session expir|authentification requise/i.test(res?.message ?? '')) {
+        const fresh = await refreshAccessToken();
+        if (fresh) res = await uploadFile(API_ENDPOINTS.avatar, fresh, result.assets[0].uri, 'avatar');
+      }
       if (res?.success && res.data?.avatar_url) {
         await updateUser({ avatar_url: res.data.avatar_url as string });
       } else {
@@ -306,8 +315,13 @@ function PrestataireInstaProfile() {
         <View style={instaStyles.profileBlock}>
           {/* Avatar — photo de profil affichée aussi côté client */}
           <Pressable style={instaStyles.avatarWrap} onPress={pickAvatar}>
-            {(user?.avatar_url ?? coverPhoto?.url) ? (
-              <Image source={{ uri: user?.avatar_url ?? coverPhoto!.url }} style={instaStyles.avatarImg} contentFit="cover" />
+            {(user?.avatar_url ?? coverPhoto?.url) && avatarBroken !== (user?.avatar_url ?? coverPhoto?.url) ? (
+              <Image
+                source={{ uri: user?.avatar_url ?? coverPhoto!.url }}
+                style={instaStyles.avatarImg}
+                contentFit="cover"
+                onError={() => setAvatarBroken(user?.avatar_url ?? coverPhoto?.url ?? null)}
+              />
             ) : (
               <View style={instaStyles.avatarFallback}>
                 <ThemedText style={instaStyles.avatarLetter}>{avatarLetter}</ThemedText>
@@ -589,8 +603,11 @@ function PrestataireInstaProfile() {
 
 // ── Generic client profile ───────────────────────────────────────────────────
 function ClientProfile() {
-  const { user, signOut, updateUser } = useAuth();
+  const { user, signOut, updateUser, refreshAccessToken } = useAuth();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  // URL d'avatar morte (fichier disparu côté serveur) : on affiche l'initiale
+  // plutôt qu'un rond vide.
+  const [avatarBroken, setAvatarBroken] = useState<string | null>(null);
   const role = user?.role ?? 'client';
   const roleColor = ROLE_COLORS[role] ?? C.textLight;
   const coupleName = getCoupleDisplayName(user);
@@ -622,7 +639,13 @@ function ClientProfile() {
     try {
       // Champ 'avatar' : la route backend attend uploadAvatar.single('avatar').
       // Sans ce nom, uploadFile envoie sous 'photo' → fichier ignoré, avatar jamais enregistré.
-      const res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri, 'avatar');
+      let res = await uploadFile(API_ENDPOINTS.avatar, user!.accessToken!, result.assets[0].uri, 'avatar');
+      // Token expiré (l'envoi de fichier ne passe pas par fetch) : on le
+      // renouvelle et on renvoie la photo une fois.
+      if (!res?.success && /session expir|authentification requise/i.test(res?.message ?? '')) {
+        const fresh = await refreshAccessToken();
+        if (fresh) res = await uploadFile(API_ENDPOINTS.avatar, fresh, result.assets[0].uri, 'avatar');
+      }
       if (res?.success && res.data?.avatar_url) {
         await updateUser({ avatar_url: res.data.avatar_url as string });
       } else {
@@ -646,8 +669,13 @@ function ClientProfile() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
           <Pressable style={styles.avatarWrap} onPress={pickAvatar} disabled={uploadingAvatar}>
-            {user?.avatar_url ? (
-              <Image source={{ uri: user.avatar_url }} style={styles.avatarImg} contentFit="cover" />
+            {user?.avatar_url && avatarBroken !== user.avatar_url ? (
+              <Image
+                source={{ uri: user.avatar_url }}
+                style={styles.avatarImg}
+                contentFit="cover"
+                onError={() => setAvatarBroken(user.avatar_url ?? null)}
+              />
             ) : (
               <View style={[styles.avatar, { backgroundColor: C.saugePale }]}>
                 <ThemedText style={[styles.avatarTxt, { color: C.saugeDark }]}>
