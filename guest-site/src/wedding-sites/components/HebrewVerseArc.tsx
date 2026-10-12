@@ -7,20 +7,48 @@
  * selon le navigateur (testé sur Voile Ivoire/Universal), ce qui donnait un
  * verset mal aligné ou tronqué selon l'appareil.
  *
- * La taille de police n'est PAS choisie indépendamment de l'étalement
- * angulaire : elle est calculée pour que `n` glyphes tiennent exactement
- * dans `maxSpread` radians, sans jamais se chevaucher, quelle que soit la
- * longueur (ou la densité, verset sans espaces) du texte saisi. Si même la
+ * Les lettres (avec leur niqqoud) sont espacées selon leur chasse réelle
+ * approximative et réparties à pas constant le long de la courbe (abscisse
+ * curviligne), pour que les mots restent lisibles et régulièrement espacés.
+ * La taille de police est calculée pour que le verset tienne dans
+ * `maxSpread` radians, quelle que soit sa longueur. Si même la
  * police minimale lisible ne suffit plus à éviter le chevauchement (texte
  * extrême), on abandonne l'arc pour une ligne centrée classique — jamais
  * tronqué, jamais superposé.
  */
 import type { CSSProperties } from 'react';
 
-function stripNikud(text: string): string {
-  // Retire les téamim/niqqoud (points-voyelles et cantillation U+0591–U+05C7)
-  return text.replace(/[֑-ׇ]/g, '');
+/**
+ * Découpe le verset en grappes « lettre + niqqoud/téamim » (U+0591–U+05C7) :
+ * les points-voyelles restent attachés à leur lettre au lieu d'être placés
+ * (et tournés) comme des caractères à part.
+ */
+function toClusters(text: string): string[] {
+  const out: string[] = [];
+  for (const ch of Array.from(text)) {
+    if (/[\u0591-\u05C7]/.test(ch) && out.length && out[out.length - 1] !== ' ') out[out.length - 1] += ch;
+    else if (!/[\u0591-\u05C7]/.test(ch)) out.push(ch);
+  }
+  return out;
 }
+
+/**
+ * Chasse approximative de chaque lettre (en em, police serif hébraïque) :
+ * les lettres étroites (י ו ן) prennent moins de place que מ ש א…, sinon
+ * le verset paraît « troué » et les mots ne se distinguent plus.
+ */
+const NARROW = new Set(['י', 'ו', 'ן', '׳', "'", '.', ',']);
+const MEDIUM = new Set(['ג', 'ז', 'נ']);
+function advanceEm(cluster: string): number {
+  const base = cluster[0];
+  if (base === ' ') return 0.34;
+  if (NARROW.has(base)) return 0.3;
+  if (MEDIUM.has(base)) return 0.42;
+  if (base === 'ר' || base === 'ד' || base === 'ך') return 0.54;
+  return 0.6;
+}
+/** Interlettrage léger ajouté entre deux grappes (em). */
+const TRACKING_EM = 0.05;
 
 export type HebrewVerseArcProps = {
   text: string;
@@ -56,9 +84,6 @@ export type HebrewVerseArcProps = {
   style?: CSSProperties;
 };
 
-/** Avance angulaire moyenne d'un glyphe hébreu, en fraction de son corps de police, sur le rayon moyen. */
-const GLYPH_PACK_FACTOR = 0.62;
-
 export function HebrewVerseArc({
   text,
   color,
@@ -76,31 +101,42 @@ export function HebrewVerseArc({
   opacity = 0.9,
   style,
 }: HebrewVerseArcProps) {
-  const clean = stripNikud(text).trim();
+  const clean = text.trim().replace(/\s+/g, ' ');
   if (!clean) return null;
 
-  const chars = Array.from(clean);
-  const n = chars.length;
+  const clusters = toClusters(clean);
   const arcRx = rx ?? width / 2 - 24;
-  const gaps = Math.max(1, n - 1);
+  const halfMax = maxSpread / 2;
 
-  // Rayon de courbure local au bout de l'arc (φ = maxSpread/2) — c'est là,
-  // pas au centre, que les glyphes sont le plus serrés sur une ellipse
-  // aplatie (arcRx ≫ ry) : le rayon effectif y chute vers ry. En dérivant
-  // la police sur ce pire cas (plutôt qu'une moyenne rx/ry), l'espacement
-  // réel reste ≥ au budget partout sur l'arc, jamais seulement « en moyenne ».
-  const halfSpread = maxSpread / 2;
-  const rPack = Math.sqrt(
-    (arcRx * Math.cos(halfSpread)) ** 2 + (ry * Math.sin(halfSpread)) ** 2
-  );
+  // Longueur d'arc cumulée de l'ellipse, échantillonnée de φ = 0 à halfMax.
+  // Sur une ellipse aplatie (rx ≫ ry) un pas d'angle constant ne donne PAS un
+  // pas de longueur constant : on place donc les lettres en abscisse curviligne.
+  const STEPS = 400;
+  const arcLen: number[] = [0];
+  for (let k = 1; k <= STEPS; k++) {
+    const p = (halfMax * (k - 0.5)) / STEPS;
+    const ds = Math.hypot(arcRx * Math.cos(p), ry * Math.sin(p)) * (halfMax / STEPS);
+    arcLen.push(arcLen[k - 1] + ds);
+  }
+  /** Angle φ ≥ 0 tel que la longueur d'arc de 0 à φ vaille s. */
+  const phiAt = (s: number) => {
+    const sign = s < 0 ? -1 : 1;
+    const a = Math.abs(s);
+    let k = 1;
+    while (k < STEPS && arcLen[k] < a) k++;
+    const t = (a - arcLen[k - 1]) / Math.max(1e-6, arcLen[k] - arcLen[k - 1]);
+    return sign * ((k - 1 + Math.min(1, t)) * halfMax) / STEPS;
+  };
 
-  // Taille de police qui fait tenir PILE les n glyphes dans maxSpread radians —
-  // dérivée de l'angle disponible, jamais choisie indépendamment de lui.
-  const fsForSpread = (maxSpread * rPack) / (gaps * GLYPH_PACK_FACTOR);
+  // Largeur totale du verset (en em) : chasse de chaque grappe + interlettrage.
+  const advances = clusters.map(advanceEm);
+  const totalEm = advances.reduce((a, b) => a + b, 0) + TRACKING_EM * Math.max(0, clusters.length - 1);
+
+  // Taille de police qui fait tenir le verset dans l'étalement maximal.
+  const fsForSpread = (2 * arcLen[STEPS]) / totalEm;
   const fs = Math.min(maxFontSize, Math.max(minFontSize, fsForSpread));
-  // Même base (gaps, rPack) que fsForSpread : par construction, fs <= fsForSpread
-  // garantit spread <= maxSpread, donc jamais de chevauchement résiduel.
-  const spread = Math.min(maxSpread, (gaps * fs * GLYPH_PACK_FACTOR) / rPack);
+  const halfLen = Math.min(arcLen[STEPS], (totalEm * fs) / 2);
+  const spread = 2 * phiAt(halfLen);
 
   // Même à la police minimale, le texte est trop dense pour tenir sans se
   // chevaucher : on renonce à l'arc plutôt que de superposer des lettres.
@@ -131,6 +167,8 @@ export function HebrewVerseArc({
   const cy = centerY ?? ry + fs + 6;
   const h = Math.ceil(cy - ry * Math.cos(spread / 2) + fs * 0.9);
   const boxH = layoutHeight ?? h;
+  // Points ornementaux un peu au-delà de la 1re et de la dernière lettre
+  const dotPhi = phiAt(halfLen + fs * 0.45);
 
   return (
     <svg
@@ -144,42 +182,48 @@ export function HebrewVerseArc({
       {dotColor ? (
         <>
           <circle
-            cx={cx - arcRx * Math.sin(spread / 2)}
-            cy={cy - ry * Math.cos(spread / 2)}
+            cx={cx - arcRx * Math.sin(dotPhi)}
+            cy={cy - ry * Math.cos(dotPhi) - fs * 0.3}
             r="2.5"
             fill={dotColor}
             opacity="0.6"
           />
           <circle
-            cx={cx + arcRx * Math.sin(spread / 2)}
-            cy={cy - ry * Math.cos(spread / 2)}
+            cx={cx + arcRx * Math.sin(dotPhi)}
+            cy={cy - ry * Math.cos(dotPhi) - fs * 0.3}
             r="2.5"
             fill={dotColor}
             opacity="0.6"
           />
         </>
       ) : null}
-      {chars.map((ch, i) => {
-        if (ch === ' ') return null; // l'espace garde son créneau, rien à dessiner
-        // RTL : 1er caractère à droite (+spread/2) → dernier à gauche (−spread/2)
-        const phi = n === 1 ? 0 : spread / 2 - (i * spread) / (n - 1);
-        const x = cx + arcRx * Math.sin(phi);
-        const y = cy - ry * Math.cos(phi);
-        // Inclinaison = tangente de l'ellipse au point (et non l'angle polaire)
-        const rot = (Math.atan2(ry * Math.sin(phi), arcRx * Math.cos(phi)) * 180) / Math.PI;
-        return (
-          <text
-            key={i}
-            x={x}
-            y={y}
-            fill={color}
-            transform={`rotate(${rot.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)})`}
-            style={{ fontFamily: font, fontSize: `${fs}px`, opacity, textAnchor: 'middle' }}
-          >
-            {ch}
-          </text>
-        );
-      })}
+      {(() => {
+        // RTL : la 1re grappe démarre à droite (+halfLen) et l'on avance vers la gauche.
+        let cursor = halfLen;
+        return clusters.map((cl, i) => {
+          const adv = advances[i] * fs;
+          const mid = cursor - adv / 2;
+          cursor -= adv + TRACKING_EM * fs;
+          if (cl === ' ') return null; // l'espace garde sa place, rien à dessiner
+          const phi = phiAt(mid);
+          const x = cx + arcRx * Math.sin(phi);
+          const y = cy - ry * Math.cos(phi);
+          // Inclinaison = tangente de l'ellipse au point (et non l'angle polaire)
+          const rot = (Math.atan2(ry * Math.sin(phi), arcRx * Math.cos(phi)) * 180) / Math.PI;
+          return (
+            <text
+              key={i}
+              x={x}
+              y={y}
+              fill={color}
+              transform={`rotate(${rot.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)})`}
+              style={{ fontFamily: font, fontSize: `${fs}px`, opacity, textAnchor: 'middle' }}
+            >
+              {cl}
+            </text>
+          );
+        });
+      })()}
     </svg>
   );
 }

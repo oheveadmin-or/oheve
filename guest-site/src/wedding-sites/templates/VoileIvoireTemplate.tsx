@@ -84,7 +84,7 @@ function VoileHebrewArc({ tk, text }: { tk: VoileTokens; text: string }) {
         font={`'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', ${tk.fonts.body}, serif`}
         width={500}
         rx={226}
-        ry={46}
+        ry={66}
         maxFontSize={32}
         minFontSize={12}
         maxSpread={2.0}

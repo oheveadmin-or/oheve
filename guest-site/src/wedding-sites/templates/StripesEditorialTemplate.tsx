@@ -19,6 +19,7 @@ import type { WeddingTemplateProps } from '../types';
 import { TITLE_SIZE_SCALE } from '../types';
 import { sectionLabels } from '../i18n';
 import { formatWeddingDate } from '../utils/date';
+import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
 import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
 import { FloralLayer, PatternOverlay } from './PatternOverlay';
 import { SectionSeparator } from './SectionSeparator';
@@ -130,7 +131,8 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
     mapsUrl?: string;
     wazeUrl?: string;
   };
-  const scheduleItems: ScheduleItem[] =
+  // Affiché dans l'ordre chronologique des dates/heures saisies (pas l'ordre d'activation).
+  const scheduleItems: ScheduleItem[] = sortEventsChronologically<ScheduleItem>(
     jewishEvts.length > 0
       ? jewishEvts.map((e) => ({
           id: e.id,
@@ -149,7 +151,11 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
           day: e.dayLabel,
           place: e.place,
           description: e.shortDescription,
-        }));
+        })),
+    (e) => e.day,
+    (e) => e.time,
+    weddingYear(site.date),
+  );
 
   const hasSchedule = site.sections.program && scheduleItems.length > 0;
 
