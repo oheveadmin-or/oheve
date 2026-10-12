@@ -133,6 +133,7 @@ export const IAP_SKUS = {
 
 export const API_ENDPOINTS = {
   health: `${API_BASE_URL}/api/health`,
+  appConfig: `${API_BASE_URL}/api/health/app-config`,
   // Auth
   sendOtp: `${API_BASE_URL}/api/auth/send-otp`,
   inscription: `${API_BASE_URL}/api/auth/inscription`,

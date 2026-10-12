@@ -15,6 +15,7 @@ import { API_ENDPOINTS } from '@/constants/config';
 import { request } from '@/services/auth/api';
 import { useSocialAuth } from '@/hooks/use-social-auth';
 import { useAppleAuthAvailable } from '@/hooks/use-apple-auth-available';
+import { useLoginOptions } from '@/hooks/use-login-options';
 import { trialLabel, usePrestaOffer } from '@/lib/presta-offer';
 
 const ROLES: { key: UserRole; label: string; icon: string; desc: string; soon?: boolean }[] = [
@@ -46,6 +47,7 @@ export default function RegisterScreen() {
     if (isNew) { router.replace('/(onboarding)/setup'); } else { router.replace('/(app)/(tabs)'); }
   };
   const { signInWithGoogle, signInWithApple } = useSocialAuth(handleAfterSocialSignIn);
+  const loginOptions = useLoginOptions();
   const appleAvailable = useAppleAuthAvailable();
 
   const handleRegister = async () => {
@@ -139,7 +141,7 @@ export default function RegisterScreen() {
           <ThemedText style={styles.sub}>Commencez votre plus belle histoire ✨</ThemedText>
 
           {/* Social buttons */}
-          {appleAvailable && (
+          {appleAvailable && loginOptions.apple_login && (
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
@@ -148,10 +150,12 @@ export default function RegisterScreen() {
               onPress={signInWithApple}
             />
           )}
-          <Pressable style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.8 }]} onPress={signInWithGoogle}>
-            <Ionicons name="logo-google" size={18} color="#4285F4" />
-            <ThemedText style={styles.googleBtnText}>Continuer avec Google</ThemedText>
-          </Pressable>
+          {loginOptions.google_login && (
+            <Pressable style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.8 }]} onPress={signInWithGoogle}>
+              <Ionicons name="logo-google" size={18} color="#4285F4" />
+              <ThemedText style={styles.googleBtnText}>Continuer avec Google</ThemedText>
+            </Pressable>
+          )}
 
           <View style={styles.divRow}>
             <View style={styles.divLine} />

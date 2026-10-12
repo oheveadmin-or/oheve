@@ -9,7 +9,11 @@
     "ios": "expo start --ios --localhost",
     "ios:lan": "expo start --ios --lan",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "check:release": "node ./scripts/check-release.js",
+    "eas-build-pre-install": "node ./scripts/check-release.js",
+    "release:update": "node ./scripts/check-release.js && npx eas-cli update --channel production",
+    "release:build": "node ./scripts/check-release.js && npx eas-cli build -p ios --profile production --auto-submit"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.0",
