@@ -55,6 +55,114 @@ premiumRoutes.post('/purchase', requireAuth, async (req: Request, res: Response)
   }
 });
 
+// ── Android : paiement sur la page Stripe Checkout (navigateur) ─────────────
+// Le SDK Stripe natif (champ carte) fermait l'app Android à l'ouverture de
+// l'écran de paiement. Sur Android, on ouvre donc la page de paiement hébergée
+// par Stripe dans le navigateur : aucun code Stripe natif ne tourne dans l'app.
+
+// POST /api/premium/checkout — crée la session Stripe Checkout
+premiumRoutes.post('/checkout', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.auth!.sub;
+
+    const existing = await pool.query(`SELECT premium, email FROM users WHERE id=$1`, [userId]);
+    if (existing.rows[0]?.premium) {
+      return res.json({ success: true, data: { already_premium: true } });
+    }
+    const email: string = existing.rows[0]?.email ?? '';
+
+    // Page de retour servie par ce serveur (Stripe n'accepte que des URL https),
+    // qui renvoie ensuite vers l'app.
+    const returnUrl = `https://${req.get('host')}/api/premium/checkout/return`;
+    const metadata = { user_id: String(userId), product: 'oheve_premium', user_email: email };
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [{
+        quantity: 1,
+        price_data: {
+          currency: 'eur',
+          unit_amount: PREMIUM_PRICE_CENTS,
+          product_data: { name: 'Oheve Premium', description: 'Accès complet — paiement unique' },
+        },
+      }],
+      customer_email: email || undefined,
+      client_reference_id: String(userId),
+      metadata,
+      // Mêmes métadonnées sur le PaymentIntent : le webhook et la réparation
+      // automatique (reconcilePremiumFromStripe) le reconnaissent comme avant.
+      payment_intent_data: { description: 'Oheve Premium — Accès complet paiement unique', metadata },
+      success_url: `${returnUrl}?status=success`,
+      cancel_url: `${returnUrl}?status=cancel`,
+    });
+
+    return res.json({ success: true, data: { url: session.url, session_id: session.id } });
+  } catch (err: any) {
+    console.error('premium/checkout error:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/premium/checkout/return — fin du paiement : retour dans l'app
+premiumRoutes.get('/checkout/return', (req: Request, res: Response) => {
+  const status = req.query.status === 'success' ? 'success' : 'cancel';
+  const appUrl = `monapp://premium-checkout?status=${status}`;
+  const message = status === 'success'
+    ? 'Paiement reçu ✅ Vous pouvez revenir dans l\'app Oheve.'
+    : 'Paiement annulé. Vous pouvez revenir dans l\'app Oheve.';
+  res.set('Content-Type', 'text/html; charset=utf-8').send(`<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="0;url=${appUrl}">
+<title>Oheve</title></head>
+<body style="font-family:sans-serif;text-align:center;padding:48px 24px;background:#F6F2EA;color:#3D3A35">
+<p style="font-size:18px">${message}</p>
+<p><a href="${appUrl}" style="display:inline-block;margin-top:16px;padding:14px 24px;border-radius:14px;background:#8F947F;color:#fff;text-decoration:none;font-weight:700">Retour à l'app</a></p>
+</body></html>`);
+});
+
+// POST /api/premium/checkout/confirm — vérifie la session Checkout auprès de
+// Stripe et active le premium (sans attendre le webhook).
+premiumRoutes.post('/checkout/confirm', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.auth!.sub;
+  const sessionId = String((req.body as { session_id?: string })?.session_id ?? '').trim();
+  if (!sessionId) {
+    return res.status(400).json({ success: false, message: 'session_id requis' });
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.metadata?.product !== 'oheve_premium') {
+      return res.status(400).json({ success: false, message: 'Paiement non lié à Oheve Premium.' });
+    }
+    if (String(session.metadata?.user_id ?? '') !== String(userId)) {
+      return res.status(403).json({ success: false, message: 'Ce paiement ne vous appartient pas.' });
+    }
+    if (session.payment_status !== 'paid') {
+      return res.status(402).json({ success: false, message: 'Paiement non confirmé.' });
+    }
+
+    const piId = typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null;
+
+    await pool.query(
+      `UPDATE users SET
+         premium = true,
+         premium_purchased_at = COALESCE(premium_purchased_at, NOW()),
+         premium_stripe_payment_intent_id = COALESCE($1, premium_stripe_payment_intent_id)
+       WHERE id = $2`,
+      [piId, userId]
+    );
+
+    return res.json({ success: true, data: { premium: true } });
+  } catch (err: any) {
+    console.error('premium/checkout/confirm error:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // POST /api/premium/confirm — active le premium immédiatement après un paiement
 // réussi, sans attendre le webhook Stripe (qui peut ne jamais arriver si mal
 // configuré sur Railway → le site publié restait bloqué « activer Premium »

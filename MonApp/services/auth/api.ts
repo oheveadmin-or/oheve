@@ -564,6 +564,14 @@ export const premiumApi = {
 
   status: (accessToken: string) =>
     get(API_ENDPOINTS.premiumStatus, accessToken),
+
+  // Android : crée la page de paiement Stripe Checkout (ouverte dans le
+  // navigateur) puis vérifie la session une fois le client revenu dans l'app.
+  checkout: (accessToken: string) =>
+    post(API_ENDPOINTS.premiumCheckout, {}, accessToken),
+
+  confirmCheckout: (accessToken: string, sessionId: string) =>
+    post(API_ENDPOINTS.premiumCheckoutConfirm, { session_id: sessionId }, accessToken),
 };
 
 // ── Achats Apple In-App Purchase (iOS — Guideline 3.1.1) ─────────────────────

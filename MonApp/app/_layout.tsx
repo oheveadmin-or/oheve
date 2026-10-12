@@ -19,6 +19,7 @@ function RootNavigator() {
       <Stack.Screen name="(onboarding)" />
       <Stack.Screen name="(app)" />
       <Stack.Screen name="(boutique)" />
+      <Stack.Screen name="premium-checkout" options={{ animation: 'none' }} />
     </Stack>
   );
 }

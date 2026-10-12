@@ -192,6 +192,9 @@ export const API_ENDPOINTS = {
   premiumPurchase: `${API_BASE_URL}/api/premium/purchase`,
   premiumConfirm: `${API_BASE_URL}/api/premium/confirm`,
   premiumStatus: `${API_BASE_URL}/api/premium/status`,
+  // Android : paiement Premium sur la page Stripe Checkout (navigateur)
+  premiumCheckout: `${API_BASE_URL}/api/premium/checkout`,
+  premiumCheckoutConfirm: `${API_BASE_URL}/api/premium/checkout/confirm`,
   // Achats Apple In-App Purchase (iOS — Guideline 3.1.1)
   iapVerify: `${API_BASE_URL}/api/iap/verify`,
   // Abonnement Prestataire (39,99€/mois, 6 mois offerts aux 200 premiers)
