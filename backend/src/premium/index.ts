@@ -43,6 +43,10 @@ premiumRoutes.post('/purchase', requireAuth, async (req: Request, res: Response)
         payment_intent_id: intent.id,
         amount_cents: PREMIUM_PRICE_CENTS,
         currency: 'eur',
+        // Clé publique Stripe (pk_…) : filet de sécurité pour l'app Android si
+        // EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY n'a pas été injectée au build.
+        // Elle doit être du même mode (test/live) que STRIPE_SECRET_KEY.
+        publishable_key: process.env.STRIPE_PUBLISHABLE_KEY ?? null,
       },
     });
   } catch (err: any) {

@@ -400,6 +400,7 @@ function PremiumScreenStripe() {
           description: 'Oheve Premium — Accès complet',
           product_id: 'oheve_premium',
           client_secret: res.data.client_secret,
+          publishable_key: res.data.publishable_key ?? '',
         },
       });
     } catch (err: any) {
