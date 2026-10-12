@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Platform, Pressable,
@@ -361,6 +362,51 @@ function PremiumScreenStripe() {
 
   const alreadyPremium = user?.premium === true || user?.role === 'admin';
 
+  /**
+   * Android : paiement sur la page Stripe Checkout, dans le navigateur. Le champ
+   * carte Stripe natif fermait l'app Android ; ici, aucun code Stripe natif ne
+   * tourne dans l'app. Au retour, le serveur vérifie la session auprès de Stripe.
+   */
+  const purchaseWithCheckout = async (accessToken: string) => {
+    const res = await premiumApi.checkout(accessToken);
+    if (!res?.success) {
+      Alert.alert('Paiement indisponible', res?.message ?? 'Réessayez dans un instant.');
+      return;
+    }
+    if (res.data?.already_premium) {
+      await updateUser({ premium: true });
+      Alert.alert('Déjà Premium !', 'Votre accès Premium est actif.');
+      router.back();
+      return;
+    }
+    const { url, session_id: sessionId } = res.data ?? {};
+    if (!url || !sessionId) {
+      Alert.alert('Paiement indisponible', 'Réessayez dans un instant.');
+      return;
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(url, 'monapp://premium-checkout');
+
+    // Qu'il soit revenu par le bouton ou en fermant la page, on demande au
+    // serveur si le paiement a bien eu lieu.
+    const confirm = await premiumApi.confirmCheckout(accessToken, sessionId);
+    if (confirm?.success) {
+      await updateUser({ premium: true, premium_purchased_at: new Date().toISOString() });
+      Alert.alert('✅ Bienvenue dans Oheve Premium !', 'Toutes les fonctionnalités sont maintenant débloquées.', [
+        { text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') },
+      ]);
+      return;
+    }
+    const returnedAfterPayment = result.type === 'success' && result.url.includes('status=success');
+    if (returnedAfterPayment || confirm?.networkError) {
+      Alert.alert(
+        'Paiement en cours de vérification',
+        'Si vous avez payé, votre accès Premium sera activé dans quelques instants. Rouvrez cet écran pour vérifier.',
+      );
+    }
+    // Sinon : paiement annulé ou page fermée sans payer → rien à afficher.
+  };
+
   const handlePurchase = async () => {
     if (!user?.accessToken) {
       router.push('/(auth)/login');
@@ -379,6 +425,11 @@ function PremiumScreenStripe() {
 
     setLoading(true);
     try {
+      if (Platform.OS === 'android') {
+        await purchaseWithCheckout(user.accessToken);
+        return;
+      }
+
       const res = await premiumApi.purchase(user.accessToken);
       if (!res.success) throw new Error(res.message ?? 'Erreur');
 
@@ -400,6 +451,7 @@ function PremiumScreenStripe() {
           description: 'Oheve Premium — Accès complet',
           product_id: 'oheve_premium',
           client_secret: res.data.client_secret,
+          publishable_key: res.data.publishable_key ?? '',
         },
       });
     } catch (err: any) {

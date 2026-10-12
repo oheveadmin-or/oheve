@@ -15,6 +15,8 @@ export function StripeProvider({ children }: { children: ReactNode; publishableK
   return <>{children}</>;
 }
 
+export async function initStripe(_params: { publishableKey: string; merchantIdentifier?: string }) {}
+
 export function CardField({ style }: { style?: StyleProp<ViewStyle>; [key: string]: unknown }) {
   return (
     <View style={[styles.box, style]}>

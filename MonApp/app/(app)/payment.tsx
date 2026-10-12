@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { CardField, StripeProvider, useConfirmPayment } from '@stripe/stripe-react-native';
+import { CardField, initStripe, useConfirmPayment } from '@stripe/stripe-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View,
 } from 'react-native';
@@ -15,6 +15,46 @@ import { addExpense, resolveCategoryKey } from '@/lib/budget-store';
 import { premiumApi } from '@/services/auth/api';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
+
+type StripeState = 'loading' | 'ready' | 'missing-key' | 'error';
+
+/**
+ * Initialise Stripe AVANT d'afficher le champ carte. Avec <StripeProvider>,
+ * l'init partait en arrière-plan pendant que le CardField natif se montait :
+ * sur Android, sans clé (variable EAS absente du build) ou avant la fin de
+ * l'init, l'écran restait entièrement blanc, sans aucun message.
+ */
+function useStripeInit(serverKey?: string) {
+  const key = STRIPE_PUBLISHABLE_KEY || serverKey || '';
+  const [initState, setInitState] = useState<Exclude<StripeState, 'missing-key'>>('loading');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!key) return;
+    let cancelled = false;
+    initStripe({ publishableKey: key, merchantIdentifier: 'merchant.com.oheve.app' })
+      .then(() => {
+        if (!cancelled) setInitState('ready');
+      })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        setErrorMsg(err?.message ?? null);
+        setInitState('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [key, attempt]);
+
+  const retry = () => {
+    setInitState('loading');
+    setAttempt((n) => n + 1);
+  };
+
+  const state: StripeState = key ? initState : 'missing-key';
+  return { state, errorMsg, retry };
+}
 
 function PaymentForm({
   prestataireId,
@@ -220,7 +260,9 @@ export default function PaymentScreen() {
     conversation_id?: string;
     product_id?: string;
     client_secret?: string;
+    publishable_key?: string;
   }>();
+  const stripe = useStripeInit(params.publishable_key);
 
   const amountCents = parseInt(params.amount_cents ?? '0', 10);
   const currency = params.currency ?? 'eur';
@@ -234,19 +276,42 @@ export default function PaymentScreen() {
   }
 
   return (
-    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
-      <View style={[styles.root, { paddingTop: insets.top }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="arrow-back" size={22} color={C.saugeDark} />
-          </Pressable>
-          <ThemedText style={styles.headerTitle}>
-            {params.product_id === 'oheve_premium' ? 'Oheve Premium' : 'Contribution sécurisée'}
-          </ThemedText>
-          <View style={{ width: 22 }} />
-        </View>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="arrow-back" size={22} color={C.saugeDark} />
+        </Pressable>
+        <ThemedText style={styles.headerTitle}>
+          {params.product_id === 'oheve_premium' ? 'Oheve Premium' : 'Contribution sécurisée'}
+        </ThemedText>
+        <View style={{ width: 22 }} />
+      </View>
 
+      {stripe.state !== 'ready' ? (
+        <View style={styles.status}>
+          {stripe.state === 'loading' ? (
+            <>
+              <ActivityIndicator color={C.sauge} />
+              <ThemedText style={styles.statusTxt}>Préparation du paiement sécurisé…</ThemedText>
+            </>
+          ) : (
+            <>
+              <Ionicons name="alert-circle-outline" size={32} color={C.textLight} />
+              <ThemedText style={styles.statusTxt}>
+                {stripe.state === 'missing-key'
+                  ? 'Le paiement par carte n\'est pas encore configuré dans cette version de l\'app. Réessayez plus tard ou contactez le support Oheve.'
+                  : `Impossible d'initialiser le paiement sécurisé.${stripe.errorMsg ? `\n${stripe.errorMsg}` : ''}`}
+              </ThemedText>
+              {stripe.state === 'error' ? (
+                <Pressable hitSlop={8} onPress={stripe.retry}>
+                  <ThemedText style={styles.retryTxt}>Réessayer</ThemedText>
+                </Pressable>
+              ) : null}
+            </>
+          )}
+        </View>
+      ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
           <PaymentForm
             prestataireId={parseInt(params.prestataire_id, 10)}
@@ -260,8 +325,8 @@ export default function PaymentScreen() {
             prefetchedClientSecret={params.client_secret}
           />
         </ScrollView>
-      </View>
-    </StripeProvider>
+      )}
+    </View>
   );
 }
 
@@ -274,6 +339,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 17, fontWeight: '700', color: C.textDark },
   scroll: { padding: 20, gap: 16 },
+  status: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
+  statusTxt: { fontSize: 14, color: C.textMid, textAlign: 'center', lineHeight: 20 },
+  retryTxt: { fontSize: 14, fontWeight: '700', color: C.sauge, textDecorationLine: 'underline' },
   form: { gap: 16 },
   summaryCard: {
     backgroundColor: '#fff', borderRadius: RADIUS.lg,
