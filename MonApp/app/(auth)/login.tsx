@@ -18,6 +18,7 @@ import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { useSocialAuth } from '@/hooks/use-social-auth';
 import { useAppleAuthAvailable } from '@/hooks/use-apple-auth-available';
+import { useLoginOptions } from '@/hooks/use-login-options';
 import { useResponsive } from '@/hooks/use-responsive';
 import { authApi } from '@/services/auth/api';
 
@@ -34,6 +35,7 @@ export default function LoginScreen() {
     if (isNew) { router.replace('/(onboarding)/setup'); } else { router.replace('/(app)/(tabs)'); }
   };
   const { signInWithGoogle, signInWithApple } = useSocialAuth(handleAfterSocialSignIn);
+  const loginOptions = useLoginOptions();
   const appleAvailable = useAppleAuthAvailable();
 
   const handleConnexion = async () => {
@@ -134,7 +136,7 @@ export default function LoginScreen() {
           </ThemedText>
 
           {/* Apple — caché dans Expo Go */}
-          {appleAvailable && (
+          {appleAvailable && loginOptions.apple_login && (
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
@@ -144,14 +146,16 @@ export default function LoginScreen() {
             />
           )}
 
-          {/* Google */}
-          <Pressable
-            style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.8 }]}
-            onPress={signInWithGoogle}
-          >
-            <Ionicons name="logo-google" size={18} color="#4285F4" />
-            <ThemedText style={styles.googleBtnText}>Continuer avec Google</ThemedText>
-          </Pressable>
+          {/* Google — masquable depuis le serveur (DISABLE_GOOGLE_LOGIN) */}
+          {loginOptions.google_login && (
+            <Pressable
+              style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.8 }]}
+              onPress={signInWithGoogle}
+            >
+              <Ionicons name="logo-google" size={18} color="#4285F4" />
+              <ThemedText style={styles.googleBtnText}>Continuer avec Google</ThemedText>
+            </Pressable>
+          )}
 
           {/* Divider */}
           <View style={styles.dividerRow}>
