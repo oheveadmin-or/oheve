@@ -45,10 +45,10 @@ export interface SocialCredential {
 // webClientId sert d'« audience » de l'id_token : c'est LUI que le backend valide.
 // iosClientId identifie l'app iOS auprès de Google.
 // Web Client ID (non secret) : audience de l'id_token validée par le backend
-// (doit être identique à GOOGLE_WEB_CLIENT_ID sur Railway).
-const GOOGLE_WEB_CLIENT_ID =
-  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
-  '328961509377-l7nsr4oaqnc180bmrtmd7h76bncadu04.apps.googleusercontent.com';
+// (doit être identique à GOOGLE_WEB_CLIENT_ID sur Railway). Figé, comme l'iOS
+// Client ID : les deux doivent venir du MÊME projet Google Cloud, et une valeur
+// .env locale périmée (autre projet) suffisait à faire échouer chaque connexion.
+const GOOGLE_WEB_CLIENT_ID = '328961509377-l7nsr4oaqnc180bmrtmd7h76bncadu04.apps.googleusercontent.com';
 // ⚠️ Sur iOS, si iosClientId est absent (variable non définie dans le build EAS)
 // ou ne correspond pas à l'iosUrlScheme déclaré dans app.json, le SDK Google lève
 // une exception NATIVE au signIn() → l'app se ferme net (impossible à catcher en JS).
@@ -105,7 +105,11 @@ export async function getGoogleCredential(): Promise<SocialCredential | null> {
         return null;
       }
     }
-    Alert.alert('Erreur Google', 'Connexion Google impossible. Réessaie.');
+    // Détail technique affiché en petit : sans lui, impossible de diagnostiquer
+    // un échec Google sur le téléphone d'un utilisateur.
+    const e = err as { code?: string | number; message?: string };
+    const detail = [e?.code, e?.message].filter(Boolean).join(' – ').slice(0, 200);
+    Alert.alert('Erreur Google', `Connexion Google impossible. Réessaie.${detail ? `\n\n(${detail})` : ''}`);
     return null;
   }
 }
