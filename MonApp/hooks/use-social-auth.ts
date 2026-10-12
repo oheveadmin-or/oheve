@@ -44,7 +44,11 @@ export interface SocialCredential {
 // Configuration Google Sign-In native (une seule fois au chargement du module).
 // webClientId sert d'« audience » de l'id_token : c'est LUI que le backend valide.
 // iosClientId identifie l'app iOS auprès de Google.
-const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+// Web Client ID (non secret) : audience de l'id_token validée par le backend
+// (doit être identique à GOOGLE_WEB_CLIENT_ID sur Railway).
+const GOOGLE_WEB_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+  '328961509377-l7nsr4oaqnc180bmrtmd7h76bncadu04.apps.googleusercontent.com';
 // ⚠️ Sur iOS, si iosClientId est absent (variable non définie dans le build EAS)
 // ou ne correspond pas à l'iosUrlScheme déclaré dans app.json, le SDK Google lève
 // une exception NATIVE au signIn() → l'app se ferme net (impossible à catcher en JS).
