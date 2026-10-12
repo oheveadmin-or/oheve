@@ -45,13 +45,18 @@ export interface SocialCredential {
 // webClientId sert d'« audience » de l'id_token : c'est LUI que le backend valide.
 // iosClientId identifie l'app iOS auprès de Google.
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
-const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
+// ⚠️ Sur iOS, si iosClientId est absent (variable non définie dans le build EAS)
+// ou ne correspond pas à l'iosUrlScheme déclaré dans app.json, le SDK Google lève
+// une exception NATIVE au signIn() → l'app se ferme net (impossible à catcher en JS).
+// L'iOS Client ID n'est pas un secret : on le fige ici, aligné sur app.json
+// (iosUrlScheme = "com.googleusercontent.apps.<id>" ↔ "<id>.apps.googleusercontent.com").
+const GOOGLE_IOS_CLIENT_ID = '328961509377-jh9p68eq9o11d3700atgga34u9vartlq.apps.googleusercontent.com';
 const isGoogleConfigured = Boolean(GOOGLE_WEB_CLIENT_ID) && GoogleSignin != null;
 
 if (isGoogleConfigured) {
   GoogleSignin!.configure({
     webClientId: GOOGLE_WEB_CLIENT_ID,
-    iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
     // On veut l'id_token pour le vérifier côté serveur
     offlineAccess: false,
   });
