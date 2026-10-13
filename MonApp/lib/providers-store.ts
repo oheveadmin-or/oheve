@@ -3,6 +3,7 @@
  * Persiste via AsyncStorage pour survivre aux rechargements de l'app.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert, Platform } from 'react-native';
 
 import { bootstrapScope, pushScope, readCache } from './planning-sync';
 
@@ -115,4 +116,24 @@ export function isProviderInHome(id: string): boolean {
 export function removeProviderFromHome(id: string): void {
   myProvidersStore.delete(id);
   _persistHomeProviders();
+}
+
+/**
+ * Demande confirmation avant de retirer un prestataire de « Mes prestataires ».
+ * Sur le web, `Alert.alert` n'affiche pas de boutons : on passe par `confirm`.
+ */
+export function confirmRemoveProvider(provider: Pick<ProviderContact, 'id' | 'nom'>, onRemoved?: () => void): void {
+  const remove = () => {
+    removeProviderFromHome(provider.id);
+    onRemoved?.();
+  };
+  const message = `Retirer ${provider.nom} de vos prestataires ?`;
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.confirm(message)) remove();
+    return;
+  }
+  Alert.alert('Retirer le prestataire', message, [
+    { text: 'Annuler', style: 'cancel' },
+    { text: 'Retirer', style: 'destructive', onPress: remove },
+  ]);
 }

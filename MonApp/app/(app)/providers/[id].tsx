@@ -30,6 +30,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { calendarApi, prestatairesApi } from '@/services/auth/api';
 import {
   addProviderToHome,
+  confirmRemoveProvider,
   getProviderContact,
   isProviderInHome,
   type ProviderContact,
@@ -428,6 +429,16 @@ export default function ProviderDetailScreen() {
                   {added ? 'Ajouté à mes prestataires' : 'Ajouter à mes prestataires'}
                 </ThemedText>
               </Pressable>
+
+              {added && id && (
+                <Pressable
+                  style={styles.removeBtn}
+                  onPress={() => confirmRemoveProvider({ id, nom: display.nom }, () => setAdded(false))}
+                >
+                  <Ionicons name="trash-outline" size={20} color={C.error} />
+                  <ThemedText style={styles.removeBtnText}>Retirer de mes prestataires</ThemedText>
+                </Pressable>
+              )}
             </AnimatedView>
           )}
         </View>
@@ -775,6 +786,18 @@ const styles = StyleSheet.create({
   },
   addBtnDone: { backgroundColor: C.textLight, shadowColor: C.textLight },
   addBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  removeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 14,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: C.error,
+    backgroundColor: C.errorPale,
+  },
+  removeBtnText: { color: C.error, fontSize: 15, fontWeight: '700' },
 
   // Modal plein écran
   modalOverlay: {

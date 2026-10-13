@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -19,7 +19,14 @@ import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
-import { type ProviderContact, saveProviderContact } from '@/lib/providers-store';
+import {
+  addProviderToHome,
+  confirmRemoveProvider,
+  getHomeProviders,
+  loadHomeProviders,
+  type ProviderContact,
+  saveProviderContact,
+} from '@/lib/providers-store';
 import { prestatairesApi } from '@/services/auth/api';
 import { computeMatch, type WeddingProfile } from '@/services/matching';
 
@@ -80,7 +87,14 @@ export default function ProvidersScreen() {
   const [formVille, setFormVille] = useState('');
   const [formInstagram, setFormInstagram] = useState('');
   const [formCateg, setFormCateg] = useState('photographe');
-  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  // « Mes prestataires » : ceux que le couple a choisis (synchronisés avec le compte).
+  const [myProviders, setMyProviders] = useState<ProviderContact[]>(getHomeProviders());
+
+  const refreshMyProviders = useCallback(() => setMyProviders(getHomeProviders()), []);
+
+  useFocusEffect(useCallback(() => {
+    loadHomeProviders().then(refreshMyProviders).catch(() => {});
+  }, [refreshMyProviders]));
 
   useEffect(() => {
     prestatairesApi.list(user?.accessToken)
@@ -117,7 +131,17 @@ export default function ProvidersScreen() {
       .catch(() => {});
   }, [user?.accessToken, user?.wedding_city]);
 
-  const toggleFavorite = (id: string) => setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
+  const isChosen = (id: string) => myProviders.some((p) => p.id === id);
+
+  const toggleChosen = (p: ProviderContact) => {
+    if (isChosen(p.id)) {
+      confirmRemoveProvider(p, refreshMyProviders);
+      return;
+    }
+    const { id, nom, categorie, ville, note, telephone, email, adresse, instagram, coverUrl, avatarUrl } = p;
+    addProviderToHome({ id, nom, categorie, ville, note, telephone, email, adresse, instagram, coverUrl, avatarUrl });
+    refreshMyProviders();
+  };
 
   const openModal = () => {
     setFormNom(''); setFormTelephone(''); setFormEmail('');
@@ -187,6 +211,54 @@ export default function ProvidersScreen() {
           </View>
         </View>
 
+        {/* Mes prestataires — choisis par le couple, supprimables */}
+        <View style={styles.sectionRow}>
+          <ThemedText style={[styles.sectionTitle, { marginBottom: 0 }]}>Mes prestataires</ThemedText>
+          {myProviders.length > 0 && (
+            <ThemedText style={styles.myCount}>{myProviders.length}</ThemedText>
+          )}
+        </View>
+        {myProviders.length === 0 ? (
+          <View style={styles.myEmpty}>
+            <Ionicons name="heart-outline" size={22} color={C.sauge} />
+            <ThemedText style={styles.myEmptyText}>
+              Aucun prestataire choisi. Touchez « Choisir » ou le cœur sur un prestataire pour l’ajouter ici.
+            </ThemedText>
+          </View>
+        ) : (
+          <View style={styles.myList}>
+            {myProviders.map((p) => (
+              <Pressable
+                key={p.id}
+                style={styles.recentCard}
+                onPress={() => router.push(`/(app)/providers/${p.id}` as never)}
+              >
+                {(p.coverUrl ?? p.avatarUrl) ? (
+                  <Image source={{ uri: p.coverUrl ?? p.avatarUrl }} style={styles.recentIcon} contentFit="cover" />
+                ) : (
+                  <View style={[styles.recentIcon, { alignItems: 'center', justifyContent: 'center' }]}>
+                    <Ionicons name="business-outline" size={22} color={C.saugeDark} />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <ThemedText style={styles.recentName} numberOfLines={1}>{p.nom}</ThemedText>
+                  <ThemedText style={styles.recentMeta} numberOfLines={1}>
+                    {p.categorie}{p.ville ? ` · ${p.ville}` : ''}
+                  </ThemedText>
+                </View>
+                <Pressable
+                  style={styles.deleteBtn}
+                  onPress={() => confirmRemoveProvider(p, refreshMyProviders)}
+                  hitSlop={6}
+                  accessibilityLabel={`Supprimer ${p.nom} de mes prestataires`}
+                >
+                  <Ionicons name="trash-outline" size={18} color={C.error} />
+                </Pressable>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         {/* Catégories principales */}
         <ThemedText style={styles.sectionTitle}>Catégories principales</ThemedText>
         <View style={styles.categoriesGrid}>
@@ -237,11 +309,15 @@ export default function ProvidersScreen() {
                         <Ionicons name="business-outline" size={36} color={C.saugeDark} />
                       </View>
                     )}
-                    <Pressable style={styles.heartBtn} onPress={() => toggleFavorite(p.id)}>
+                    <Pressable
+                      style={styles.heartBtn}
+                      onPress={() => toggleChosen(p)}
+                      accessibilityLabel={isChosen(p.id) ? 'Retirer de mes prestataires' : 'Ajouter à mes prestataires'}
+                    >
                       <Ionicons
-                        name={favorites[p.id] ? 'heart' : 'heart-outline'}
+                        name={isChosen(p.id) ? 'heart' : 'heart-outline'}
                         size={16}
-                        color={favorites[p.id] ? C.error : C.textLight}
+                        color={isChosen(p.id) ? C.error : C.textLight}
                       />
                     </Pressable>
                     <View style={styles.providerCardBody}>
@@ -293,7 +369,20 @@ export default function ProvidersScreen() {
                     </View>
                   )}
                 </View>
-                <ThemedText style={styles.voirTout}>Voir</ThemedText>
+                <Pressable
+                  style={[styles.chooseBtn, isChosen(p.id) && styles.chooseBtnActive]}
+                  onPress={() => toggleChosen(p)}
+                  hitSlop={6}
+                >
+                  <Ionicons
+                    name={isChosen(p.id) ? 'checkmark' : 'add'}
+                    size={14}
+                    color={isChosen(p.id) ? C.textInvert : C.sauge}
+                  />
+                  <ThemedText style={[styles.chooseBtnText, isChosen(p.id) && styles.chooseBtnTextActive]}>
+                    {isChosen(p.id) ? 'Choisi' : 'Choisir'}
+                  </ThemedText>
+                </Pressable>
               </Pressable>
             ))}
           </>
@@ -465,6 +554,32 @@ const styles = StyleSheet.create({
   },
   recentName: { fontSize: 15, fontWeight: '700', color: C.textDark },
   recentMeta: { fontSize: 12, color: C.textLight, marginTop: 2 },
+
+  // Mes prestataires
+  myCount: {
+    fontSize: 12, fontWeight: '700', color: C.saugeDark,
+    backgroundColor: C.saugePale, borderRadius: RADIUS.pill,
+    paddingHorizontal: 8, paddingVertical: 2, overflow: 'hidden',
+  },
+  myList: { marginBottom: 14 },
+  myEmpty: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
+    borderRadius: RADIUS.md, padding: 14, marginBottom: 24,
+  },
+  myEmptyText: { flex: 1, fontSize: 13, color: C.textLight },
+  deleteBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: C.errorPale, alignItems: 'center', justifyContent: 'center',
+  },
+  chooseBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1, borderColor: C.sauge, borderRadius: RADIUS.pill,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  chooseBtnActive: { backgroundColor: C.sauge },
+  chooseBtnText: { fontSize: 12, fontWeight: '700', color: C.sauge },
+  chooseBtnTextActive: { color: C.textInvert },
 
   // FAB
   addBtn: {

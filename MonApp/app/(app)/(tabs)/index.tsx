@@ -19,7 +19,7 @@ import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
 import { placeWithPreposition, weddingPlace } from '@/lib/place-utils';
 import { getGuests, loadGuests, subscribeGuests } from '@/lib/guests-store';
 import { getTodoTasks, loadTodoTasks, setTodoTasks, subscribeTodo, type TodoTask } from '@/lib/todo-store';
-import { getHomeProviders, loadHomeProviders, type ProviderContact } from '@/lib/providers-store';
+import { confirmRemoveProvider, getHomeProviders, loadHomeProviders, type ProviderContact } from '@/lib/providers-store';
 import { useHomeDashboardStore } from '@/stores/use-home-dashboard-store';
 import { MADRICHIM_HATAN, MADRICHOT_KALA, MIKVES } from '@/data/officiants';
 import { getTotalSpent, getTotalBudget, subscribeBudget } from '@/lib/budget-store';
@@ -617,7 +617,18 @@ export default function DashboardScreen() {
                             <ThemedText style={styles.vendorRatingText}>{p.note.toFixed(1)}</ThemedText>
                           </View>
                         )}
-                        <Ionicons name="chevron-forward" size={14} color={C.textLight} />
+                        <Pressable
+                          style={styles.vendorRemoveBtn}
+                          hitSlop={8}
+                          accessibilityLabel={`Supprimer ${p.nom} de mes prestataires`}
+                          onPress={() => confirmRemoveProvider(p, () => {
+                            const restants = getHomeProviders();
+                            setHomeProviders(restants);
+                            if (venueProvider?.id !== undefined && String(venueProvider.id) === p.id) setVenueProvider(null);
+                          })}
+                        >
+                          <Ionicons name="trash-outline" size={15} color={C.error} />
+                        </Pressable>
                       </Pressable>
                     );
                   })}
@@ -1109,5 +1120,9 @@ const styles = StyleSheet.create({
   vendorName: { fontSize: 14, fontWeight: '700', color: C.textDark },
   vendorMeta: { fontSize: 12, color: C.textLight, marginTop: 1 },
   vendorRating: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  vendorRemoveBtn: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: C.errorPale, alignItems: 'center', justifyContent: 'center',
+  },
   vendorRatingText: { fontSize: 12, color: C.textMid, fontWeight: '600' },
 });
