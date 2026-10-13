@@ -64,6 +64,28 @@ function runFfmpeg(args: string[], timeoutMs: number): Promise<void> {
 }
 
 /**
+ * Codec vidéo et format de pixels du fichier (« hevc », « yuv420p10le »…),
+ * lus dans la sortie de `ffmpeg -i` (ffprobe n'est pas embarqué).
+ */
+function probeVideo(filePath: string): Promise<{ codec: string | null; pixFmt: string | null }> {
+  const bin = getFfmpeg();
+  if (!bin) return Promise.resolve({ codec: null, pixFmt: null });
+  return new Promise((resolve) => {
+    const proc = spawn(bin, ['-hide_banner', '-i', filePath], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let stderr = '';
+    proc.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    const timer = setTimeout(() => proc.kill('SIGKILL'), 15_000);
+    const done = () => {
+      clearTimeout(timer);
+      const m = stderr.match(/Stream #[^\n]*Video: (\w+)[^,\n]*(?:\([^)]*\))?[^,\n]*, (\w+)/);
+      resolve({ codec: m?.[1] ?? null, pixFmt: m?.[2] ?? null });
+    };
+    proc.on('error', done);
+    proc.on('close', done);
+  });
+}
+
+/**
  * Optimise une vidéo pour la lecture en streaming progressif.
  *
  * Le vrai problème des vidéos iPhone n'est pas seulement leur poids : dans un
@@ -72,8 +94,10 @@ function runFfmpeg(args: string[], timeoutMs: number): Promise<void> {
  * d'où plusieurs secondes de spinner. `-movflags +faststart` le déplace en tête,
  * la lecture démarre alors après quelques centaines de Ko.
  *
- * - fichier léger  → remux sans réencodage (quelques secondes, aucune perte)
- * - fichier lourd  → réencodage 720p H.264/AAC (le feed n'affiche jamais plus)
+ * - fichier léger H.264 8 bits → remux sans réencodage (rapide, sans perte)
+ * - fichier lourd, ou en HEVC/H.265, ou 10 bits (HDR iPhone) → réencodage
+ *   H.264 yuv420p : l'iPhone qui a filmé lit le HEVC, mais beaucoup d'Android
+ *   et d'anciens téléphones non → reel noir / page blanche chez les clients.
  *
  * Retourne le nouveau chemin (extension `.mp4`) ou `null` si rien n'a été fait.
  * Toute erreur laisse l'original intact : une vidéo lourde vaut mieux qu'aucune.
@@ -88,9 +112,14 @@ export async function optimizeVideoFile(filePath: string): Promise<string | null
 
   try {
     const original = await fs.promises.stat(filePath);
+    const { codec, pixFmt } = await probeVideo(filePath);
+    const incompatible =
+      (codec !== null && codec !== 'h264') ||
+      (pixFmt !== null && pixFmt !== 'yuv420p' && pixFmt !== 'yuvj420p');
     const heavy = original.size > HEAVY_BYTES;
+    const transcode = heavy || incompatible;
 
-    const args = heavy
+    const args = transcode
       ? [
           '-i', filePath,
           // Plafonne le CÔTÉ LE PLUS LONG à 1280 : plafonner la largeur
@@ -113,15 +142,16 @@ export async function optimizeVideoFile(filePath: string): Promise<string | null
           '-y', tmpPath,
         ];
 
-    await runFfmpeg(args, heavy ? TRANSCODE_TIMEOUT_MS : REMUX_TIMEOUT_MS);
+    await runFfmpeg(args, transcode ? TRANSCODE_TIMEOUT_MS : REMUX_TIMEOUT_MS);
 
     const out = await fs.promises.stat(tmpPath);
     if (out.size === 0) throw new Error('sortie ffmpeg vide');
 
     // Le remux peut légèrement grossir le fichier (index déplacé en tête) : on
     // le garde quand même, le gain au démarrage de lecture prime. En revanche
-    // un réencodage plus lourd que l'original n'a aucun intérêt.
-    if (heavy && out.size >= original.size) {
+    // un réencodage plus lourd que l'original n'a aucun intérêt — sauf quand il
+    // sert à rendre la vidéo lisible partout.
+    if (heavy && !incompatible && out.size >= original.size) {
       await fs.promises.unlink(tmpPath).catch(() => {});
       return null;
     }
@@ -129,7 +159,7 @@ export async function optimizeVideoFile(filePath: string): Promise<string | null
     if (finalPath !== filePath) await fs.promises.unlink(filePath).catch(() => {});
     await fs.promises.rename(tmpPath, finalPath);
     logger.info(
-      { from: original.size, to: out.size, mode: heavy ? 'transcode' : 'remux' },
+      { from: original.size, to: out.size, codec, pixFmt, mode: transcode ? 'transcode' : 'remux' },
       `🎬 ${path.basename(finalPath)} optimisée`,
     );
     return finalPath;
@@ -175,7 +205,7 @@ export async function optimizeExistingVideos(
 ): Promise<void> {
   if (!getFfmpeg()) return;
   const dir = path.join(process.cwd(), 'uploads', 'photos');
-  const manifestPath = path.join(process.cwd(), 'uploads', '.video-optim-manifest.json');
+  const manifestPath = path.join(process.cwd(), 'uploads', '.video-optim-manifest-v2.json');
 
   let done: Set<string>;
   try {

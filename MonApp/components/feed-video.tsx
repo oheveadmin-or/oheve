@@ -65,6 +65,9 @@ function NativeFeedVideo({
   // Tant que la vidéo n'a pas assez de données, on ne montre pas un écran noir
   // vide : miniature (si déjà en cache) + indicateur de chargement.
   const [ready, setReady] = useState(false);
+  // Fichier introuvable / format illisible sur cet appareil : message clair
+  // plutôt qu'un écran noir qui fait croire à un bug de l'app.
+  const [failed, setFailed] = useState(false);
   const [poster, setPoster] = useState<string | null>(posterUri ?? null);
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
@@ -91,10 +94,12 @@ function NativeFeedVideo({
   useEffect(() => {
     const sub = player.addListener('statusChange', ({ status }) => {
       setReady(status === 'readyToPlay' || status === 'error');
+      setFailed(status === 'error');
     });
     // Le lecteur peut déjà être prêt avant l'abonnement (vidéo en cache).
     const t = setTimeout(() => {
       setReady(player.status === 'readyToPlay' || player.status === 'error');
+      setFailed(player.status === 'error');
     }, 0);
     return () => { clearTimeout(t); sub.remove(); };
   }, [player]);
@@ -131,7 +136,13 @@ function NativeFeedVideo({
           <ActivityIndicator size="small" color="rgba(255,255,255,0.9)" />
         </View>
       )}
-      {showSoundToggle && (
+      {failed && (
+        <View style={[StyleSheet.absoluteFill, fvStyles.fallback]} pointerEvents="none">
+          <Ionicons name="videocam-off-outline" size={34} color="rgba(255,255,255,0.8)" />
+          <ThemedText style={fvStyles.fallbackTxt}>Vidéo indisponible</ThemedText>
+        </View>
+      )}
+      {showSoundToggle && !failed && (
         <Pressable style={fvStyles.soundBtn} onPress={() => setMuted((m) => !m)} hitSlop={10}>
           <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={17} color="#fff" />
         </Pressable>

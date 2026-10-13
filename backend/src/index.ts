@@ -30,6 +30,7 @@ import { healthRoutes } from './routes/health.routes';
 import { subscriptionRoutes } from './subscriptions';
 import { optimizeExistingUploads } from './utils/image-optim';
 import { optimizeExistingVideos } from './utils/video-optim';
+import { backfillStoredFiles, restoreMissingUploads } from './utils/persistent-uploads';
 import { PhotosRepository } from './prestataires/photos.repository';
 import { prestataireSubscriptionRoutes } from './prestataire-subscription';
 import { premiumRoutes } from './premium';
@@ -116,6 +117,7 @@ app.use(express.json({ limit: '2mb' }));
 // Les fichiers uploadés ont un nom unique (jamais réécrits sous le même nom) :
 // cache long + immutable → l'app ne retélécharge pas les mêmes photos à chaque
 // affichage du feed / d'un portfolio.
+app.use('/uploads', restoreMissingUploads());
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
   maxAge: '30d',
   immutable: true,
@@ -196,6 +198,12 @@ runMigrations()
     optimizeExistingVideos((oldName, newName) => photosRepo.renameFilename(oldName, newName))
       .catch(err => {
         logger.warn({ err }, 'Optimisation des vidéos existantes échouée');
+      })
+      // Puis sauvegarde en base de tout ce qui est encore sur le disque : le
+      // prochain redéploiement n'effacera plus rien.
+      .then(() => backfillStoredFiles())
+      .catch(err => {
+        logger.warn({ err }, 'Sauvegarde en base des uploads existants échouée');
       });
   })
   .catch(err => {

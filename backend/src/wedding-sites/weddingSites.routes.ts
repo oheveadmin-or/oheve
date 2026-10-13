@@ -3,6 +3,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { optionalAuth, requireAuth } from '../middleware/requireAuth';
 import { optimizeUploadedImage } from '../utils/image-optim';
+import { persistUploadedFile } from '../utils/persistent-uploads';
 import {
   adaptPhotoToTheme,
   checkSlugAvailable,
@@ -62,8 +63,8 @@ weddingSitesRoutes.get('/builder-token', requireAuth, issueBuilderToken);
 // Sécurité : création, modification et upload exigent un compte authentifié.
 // Le builder web reçoit le token via ?token= depuis l'app — plus aucune
 // écriture anonyme possible (avant : n'importe qui pouvait modifier un site par id).
-weddingSitesRoutes.post('/upload-photo', requireAuth, upload.single('photo'), optimizeUploadedImage(), uploadGalleryPhoto);
-weddingSitesRoutes.post('/upload-music', requireAuth, uploadMusic.single('music'), uploadWeddingMusic);
+weddingSitesRoutes.post('/upload-photo', requireAuth, upload.single('photo'), optimizeUploadedImage(), persistUploadedFile(), uploadGalleryPhoto);
+weddingSitesRoutes.post('/upload-music', requireAuth, uploadMusic.single('music'), persistUploadedFile(), uploadWeddingMusic);
 weddingSitesRoutes.post('/adapt-photo', requireAuth, uploadMem.single('photo'), adaptPhotoToTheme);
 // Public : simple résolution d'URL d'aperçu (aucune donnée sensible)
 weddingSitesRoutes.get('/deezer-preview/:id', getDeezerPreview);

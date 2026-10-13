@@ -1,4 +1,5 @@
 import { CREATE_USER_AVATARS, migrateDiskAvatarsToDb } from '../avatars/avatarStore';
+import { CREATE_STORED_FILES } from '../utils/persistent-uploads';
 import { pool } from '../config/database';
 
 // ── users ────────────────────────────────────────────────────────────────────
@@ -570,6 +571,8 @@ export async function runMigrations(): Promise<void> {
     // ── Photos de profil persistantes (en base, pas sur le disque éphémère) ────
     await pool.query(CREATE_USER_AVATARS);
     await migrateDiskAvatarsToDb().catch((err) => console.error('❌ Import avatars:', (err as Error).message));
+    // ── Photos, vidéos (reels), pièces jointes, musique : copie en base ────────
+    await pool.query(CREATE_STORED_FILES);
 
     console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp, payments, stripe_connect, devis, reservations, calendar, admin, photo_likes, photo_comments)');
   } catch (err) {
