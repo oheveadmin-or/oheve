@@ -3,6 +3,7 @@ import fs from 'fs';
 import { Request, Response } from 'express';
 import { PhotosRepository } from './photos.repository';
 import { isPrestaSubActive } from '../prestataire-subscription';
+import { filterAvailable, forgetFile } from '../utils/persistent-uploads';
 
 const repo = new PhotosRepository();
 
@@ -17,7 +18,12 @@ export class PhotosController {
     try {
       const limit = Math.min(parseInt(req.query.limit as string || '50', 10), 100);
       const offset = parseInt(req.query.offset as string || '0', 10);
-      const rows = await repo.findFeedPhotos(limit, offset, req.auth?.sub);
+      // Les posts dont le fichier a été perdu (anciens redéploiements) sont
+      // masqués : sinon les clients voient des tuiles grises / reels noirs.
+      const rows = await filterAvailable(
+        await repo.findFeedPhotos(limit, offset, req.auth?.sub),
+        (p) => `photos/${p.filename}`,
+      );
       const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
       const host = req.headers['x-forwarded-host'] ?? req.get('host');
       const withUrl = rows.map((p) => ({
@@ -95,7 +101,10 @@ export class PhotosController {
       if (prestataireId === null) {
         return res.status(200).json({ success: true, data: [] });
       }
-      const photos = await repo.findByPrestataire(prestataireId);
+      const photos = await filterAvailable(
+        await repo.findByPrestataire(prestataireId),
+        (p) => `photos/${p.filename}`,
+      );
       const withUrl = photos.map((p) => ({ ...p, url: buildPhotoUrl(req, p.filename) }));
       return res.status(200).json({ success: true, data: withUrl });
     } catch (err) {
@@ -225,6 +234,7 @@ export class PhotosController {
       // Supprimer le fichier physique
       const filePath = path.join(process.cwd(), 'uploads', 'photos', deleted.filename);
       try { fs.unlinkSync(filePath); } catch { /* ignoré si déjà supprimé */ }
+      await forgetFile(`photos/${deleted.filename}`);
       return res.status(200).json({ success: true });
     } catch (err) {
       console.error('deletePhoto:', err);

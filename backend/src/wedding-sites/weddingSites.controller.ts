@@ -5,6 +5,7 @@ import { weddingSitesRepo } from './weddingSites.repository';
 import { adaptPhotoWithGemini, buildAdaptPrompt, isPhotoAIEnabled } from './photoAdapt';
 import { signBuilderToken } from '../auth/jwt';
 import { reconcilePremiumFromStripe } from '../premium';
+import { persistFile } from '../utils/persistent-uploads';
 
 function rowToSite(
   row: Awaited<ReturnType<typeof weddingSitesRepo.findBySlug>>,
@@ -249,6 +250,7 @@ export async function adaptPhotoToTheme(req: Request, res: Response): Promise<vo
     const dir = path.join(process.cwd(), 'uploads', 'photos');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, filename), Buffer.from(data, 'base64'));
+    await persistFile(path.join(dir, filename)).catch((err) => console.error('adaptPhotoToTheme persist:', err));
 
     const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
     const host = req.headers['x-forwarded-host'] ?? req.get('host');
