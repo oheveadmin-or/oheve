@@ -41,8 +41,10 @@ export function isPrestaSubActive(status?: string | null): boolean {
 // Abonnement souscrit via Apple In-App Purchase (iOS) : presta_sub_id est de la
 // forme 'apple:<originalTransactionId>' (voir src/iap). Il n'est PAS géré par
 // Stripe : renouvellement et résiliation passent par l'App Store.
+// Idem pour Google Play Billing (Android) : 'google:<id>' (voir src/iap/google).
+// Les deux sont des abonnements « store », hors Stripe.
 export function isAppleSub(subId?: string | null): boolean {
-  return !!subId && subId.startsWith('apple:');
+  return !!subId && (subId.startsWith('apple:') || subId.startsWith('google:'));
 }
 
 // ── Offre de lancement : attribution des 200 places ─────────────────────────
@@ -483,7 +485,9 @@ prestataireSubscriptionRoutes.post('/cancel', requireAuth, async (req: Request, 
       // Impossible côté serveur : Apple gère la résiliation.
       return res.status(400).json({
         success: false,
-        message: 'Abonnement souscrit via l\'App Store — résiliez-le depuis Réglages → Apple ID → Abonnements sur votre iPhone.',
+        message: row.presta_sub_id.startsWith('google:')
+          ? 'Abonnement souscrit via Google Play — résiliez-le depuis Google Play → Paiements et abonnements → Abonnements.'
+          : 'Abonnement souscrit via l\'App Store — résiliez-le depuis Réglages → Apple ID → Abonnements sur votre iPhone.',
       });
     }
     const sub = await stripe.subscriptions.update(row.presta_sub_id, { cancel_at_period_end: true });

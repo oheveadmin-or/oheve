@@ -165,6 +165,9 @@ export function WeddingSiteBuilder() {
   // Clé privée du site : les liens invités doivent inclure ?k=<clé> sinon la
   // page publique est bloquée par le serveur (site non devinable par slug).
   const [publishedKey, setPublishedKey] = useState<string | null>(null);
+  // Jetons d'invitation réellement enregistrés côté serveur : un lien ajouté
+  // ou modifié n'est valide qu'après « Enregistrer » (sinon page bloquée).
+  const [savedInviteTokens, setSavedInviteTokens] = useState<string[]>([]);
   // Sans jeton (visiteur web sans l'app) : mode découverte — on laisse composer
   // mais la publication est réservée aux comptes Oheve (le serveur la refuse
   // de toute façon : autant l'afficher clairement).
@@ -410,6 +413,7 @@ export function WeddingSiteBuilder() {
       if (site.rsvpForm) setRsvpForm(site.rsvpForm);
       setHideSignature(site.hideSignature === true);
       if (site.inviteLinks?.length) setInviteLinks(site.inviteLinks);
+      setSavedInviteTokens((site.inviteLinks ?? []).map((l) => l.token).filter(Boolean));
       if (site.date) {
         try {
           const d = new Date(site.date);
@@ -583,6 +587,7 @@ export function WeddingSiteBuilder() {
       setPublishedSlug(row.slug);
       if (row.accessKey) setPublishedKey(row.accessKey);
       setInviteLinks(row.inviteLinks ?? finalInviteLinks);
+      setSavedInviteTokens((row.inviteLinks ?? finalInviteLinks).map((l) => l.token).filter(Boolean));
       // Comme avant : une fois le site publié, les prénoms sont verrouillés
       // (ils définissent le site et son slug).
       setNamesLocked(true);
@@ -1954,8 +1959,12 @@ export function WeddingSiteBuilder() {
             ) : null}
 
             {inviteLinks.map((link, idx) => {
-              const previewSlug = draft.slug || 'votre-site';
-              const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/wedding/${previewSlug}/invite/${link.token}`;
+              // Toujours l'adresse RÉELLE du site une fois publié : le slug du
+              // brouillon (déduit des prénoms) peut différer (« odaya-et-tehila »
+              // au lieu de « odaya-tehila ») et donnait un lien mort.
+              const linkSlug = publishedSlug || draft.slug || 'votre-site';
+              const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/wedding/${linkSlug}/invite/${link.token}`;
+              const linkSaved = !!publishedSlug && savedInviteTokens.includes(link.token);
               return (
                 <div key={link.id} style={{ border: `1px solid ${link.token ? '#a3e635' : '#E4E7DC'}`, borderRadius: 12, padding: '0.85rem', marginBottom: 10 }}>
                   <div style={{ display: 'grid', gap: 8 }}>
@@ -2023,7 +2032,11 @@ export function WeddingSiteBuilder() {
                         </button>
                       </div>
                     </label>
-                    {link.token ? (
+                    {link.token && !linkSaved ? (
+                      <div style={{ background: '#fffbeb', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.78rem', color: '#92400e', border: '1px solid #fcd34d' }}>
+                        ⏳ <strong>Lien pas encore actif</strong> — cliquez sur « Enregistrer » en bas de la page pour l’activer, puis copiez-le.
+                      </div>
+                    ) : link.token ? (
                       <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.78rem', wordBreak: 'break-all', color: '#166534', border: '1px solid #86efac' }}>
                         🔗 <strong>{link.label || 'Lien'} :</strong>
                         <br />

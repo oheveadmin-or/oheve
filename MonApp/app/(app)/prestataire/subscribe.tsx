@@ -14,7 +14,8 @@ import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import {
   describeIapError, getIapSdk, iapAvailable, IAP_UNAVAILABLE_MESSAGE,
-  loadIapProduct, type IapProductState,
+  loadIapProduct, STORE_NAME, STORE_NAME_CAP, STORE_SUBSCRIPTIONS_PATH, storeSubscriptionRequest,
+  type IapProductState,
 } from '@/lib/iap';
 import {
   trialLabel, trialLabelLong, usePrestaOffer, type PrestaOffer,
@@ -127,23 +128,22 @@ function SkipLater() {
   );
 }
 
-// ── iOS : abonnement via Apple In-App Purchase (Guideline 3.1.1) ─────────────
+// ── iOS / Android : abonnement via le store (Apple IAP / Google Play Billing) ─
 function SubscribeIos() {
   const insets = useSafeAreaInsets();
   const { user, updateUser } = useAuth();
   const offer = usePrestaOffer();
   const [submitting, setSubmitting] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const [product, setProduct] = useState<{ id: string; displayPrice?: string } | null>(null);
+  const [product, setProduct] = useState<{ id: string; displayPrice?: string; subscriptionOfferDetailsAndroid?: unknown } | null>(null);
   const [storeState, setStoreState] = useState<IapProductState>('loading');
 
   const sdk = getIapSdk()!;
 
   /** Vérifie l'abonnement côté serveur puis débloque l'espace prestataire. */
-  const grantFromPurchase = async (purchase: { purchaseToken?: string | null }): Promise<boolean> => {
-    const jws = purchase.purchaseToken;
-    if (!jws || !user?.accessToken) return false;
-    const res = await iapApi.verify(user.accessToken, jws);
+  const grantFromPurchase = async (purchase: { productId?: string | null; purchaseToken?: string | null }): Promise<boolean> => {
+    if (!purchase.purchaseToken || !user?.accessToken) return false;
+    const res = await iapApi.verifyPurchase(user.accessToken, purchase);
     if (!res?.success) {
       Alert.alert('Activation impossible', res?.message ?? 'Réessayez dans un instant.');
       return false;
@@ -169,7 +169,7 @@ function SubscribeIos() {
           await finishTransaction({ purchase, isConsumable: false });
           Alert.alert(
             '🎉 Bienvenue !',
-            `Vos ${offer.trialMonths} premiers mois sont offerts. Le renouvellement est géré par l'App Store — annulable à tout moment dans Réglages → Abonnements.`,
+            `Vos ${offer.trialMonths} premiers mois sont offerts. Le renouvellement est géré par ${STORE_NAME} — annulable à tout moment dans ${STORE_SUBSCRIPTIONS_PATH}.`,
             [{ text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') }],
           );
         }
@@ -191,7 +191,7 @@ function SubscribeIos() {
    * produit inconnu de StoreKit (source de l'erreur « SKU not found »).
    */
   const loadProduct = useCallback(async () => {
-    const found = await loadIapProduct<{ id: string; displayPrice?: string }>(
+    const found = await loadIapProduct<{ id: string; displayPrice?: string; subscriptionOfferDetailsAndroid?: unknown }>(
       sdk.fetchProducts, IAP_SKUS.prestaMonthly, 'subs',
     );
     setProduct(found);
@@ -214,7 +214,7 @@ function SubscribeIos() {
   const handleSubscribe = async () => {
     if (!user?.accessToken) return;
     if (!connected) {
-      Alert.alert('App Store indisponible', 'Impossible de joindre l\'App Store. Réessayez dans un instant.');
+      Alert.alert(`${STORE_NAME_CAP} indisponible`, `Impossible de joindre ${STORE_NAME}. Réessayez dans un instant.`);
       return;
     }
     setSubmitting(true);
@@ -226,7 +226,7 @@ function SubscribeIos() {
     }
     try {
       await requestPurchase({
-        request: { apple: { sku: IAP_SKUS.prestaMonthly } },
+        request: storeSubscriptionRequest(IAP_SKUS.prestaMonthly, product as Parameters<typeof storeSubscriptionRequest>[1]),
         type: 'subs',
       });
       // Résultat traité dans onPurchaseSuccess / onPurchaseError.
@@ -244,7 +244,7 @@ function SubscribeIos() {
       const purchases = await sdk.getAvailablePurchases();
       const subPurchase = (purchases ?? []).find((p) => p.productId === IAP_SKUS.prestaMonthly);
       if (!subPurchase) {
-        Alert.alert('Aucun abonnement trouvé', 'Aucun abonnement Oheve n\'est associé à ce compte Apple.');
+        Alert.alert('Aucun abonnement trouvé', `Aucun abonnement Oheve n'est associé à ce compte ${Platform.OS === 'android' ? 'Google' : 'Apple'}.`);
         return;
       }
       const granted = await grantFromPurchase(subPurchase);
@@ -306,7 +306,7 @@ function SubscribeIos() {
         <View style={styles.secureRow}>
           <Ionicons name="shield-checkmark-outline" size={14} color={C.textLight} />
           <ThemedText style={styles.secureTxt}>
-            Abonnement géré par l'App Store · Annulable à tout moment
+            Abonnement géré par {STORE_NAME} · Annulable à tout moment
           </ThemedText>
         </View>
 
@@ -512,6 +512,9 @@ export default function PrestataireSubscribeScreen() {
   if (Platform.OS === 'ios') {
     return iapAvailable ? <SubscribeIos /> : <SubscribeIosUpdateRequired />;
   }
+  // Android : Google Play impose sa facturation pour les abonnements numériques.
+  // (Ancien binaire sans expo-iap → formulaire Stripe historique.)
+  if (Platform.OS === 'android' && iapAvailable) return <SubscribeIos />;
   return (
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
       <SubscribeForm />

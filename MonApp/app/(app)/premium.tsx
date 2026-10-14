@@ -15,7 +15,7 @@ import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import {
   describeIapError, getIapSdk, iapAvailable, IAP_UNAVAILABLE_MESSAGE,
-  loadIapProduct, type IapProductState,
+  loadIapProduct, STORE_NAME, STORE_NAME_CAP, storePurchaseRequest, type IapProductState,
 } from '@/lib/iap';
 import { iapApi, premiumApi } from '@/services/auth/api';
 
@@ -202,7 +202,7 @@ function PremiumBody({
   );
 }
 
-// ── iOS : achat via Apple In-App Purchase (Guideline 3.1.1) ──────────────────
+// ── iOS / Android : achat via le store (Apple IAP 3.1.1 / Google Play Billing) ─
 function PremiumScreenIos() {
   const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -214,10 +214,9 @@ function PremiumScreenIos() {
   const sdk = getIapSdk()!;
 
   /** Vérifie l'achat côté serveur puis débloque le premium dans l'app. */
-  const grantFromPurchase = async (purchase: { purchaseToken?: string | null }): Promise<boolean> => {
-    const jws = purchase.purchaseToken;
-    if (!jws || !user?.accessToken) return false;
-    const res = await iapApi.verify(user.accessToken, jws);
+  const grantFromPurchase = async (purchase: { productId?: string | null; purchaseToken?: string | null }): Promise<boolean> => {
+    if (!purchase.purchaseToken || !user?.accessToken) return false;
+    const res = await iapApi.verifyPurchase(user.accessToken, purchase);
     if (!res?.success) {
       Alert.alert('Activation impossible', res?.message ?? 'Réessayez dans un instant.');
       return false;
@@ -290,7 +289,7 @@ function PremiumScreenIos() {
       return;
     }
     if (!connected) {
-      Alert.alert('App Store indisponible', 'Impossible de joindre l\'App Store. Réessayez dans un instant.');
+      Alert.alert(`${STORE_NAME_CAP} indisponible`, `Impossible de joindre ${STORE_NAME}. Réessayez dans un instant.`);
       return;
     }
     setLoading(true);
@@ -303,7 +302,7 @@ function PremiumScreenIos() {
     }
     try {
       await requestPurchase({
-        request: { apple: { sku: IAP_SKUS.premium } },
+        request: storePurchaseRequest(IAP_SKUS.premium),
         type: 'in-app',
       });
       // Résultat traité dans onPurchaseSuccess / onPurchaseError.
@@ -325,7 +324,7 @@ function PremiumScreenIos() {
       const purchases = await sdk.getAvailablePurchases();
       const premiumPurchase = (purchases ?? []).find((p) => p.productId === IAP_SKUS.premium);
       if (!premiumPurchase) {
-        Alert.alert('Aucun achat trouvé', 'Aucun achat Oheve Premium n\'est associé à ce compte Apple.');
+        Alert.alert('Aucun achat trouvé', `Aucun achat Oheve Premium n'est associé à ce compte ${Platform.OS === 'android' ? 'Google' : 'Apple'}.`);
         return;
       }
       const granted = await grantFromPurchase(premiumPurchase);
@@ -343,7 +342,7 @@ function PremiumScreenIos() {
   return (
     <PremiumBody
       priceLabel={priceLabel}
-      trustLabel="Paiement unique · Sécurisé par l'App Store"
+      trustLabel={`Paiement unique · Sécurisé par ${STORE_NAME}`}
       loading={loading}
       alreadyPremium={alreadyPremium}
       onPurchase={handlePurchase}
@@ -473,8 +472,9 @@ function PremiumScreenStripe() {
 }
 
 export default function PremiumScreen() {
-  // Sur iOS, les biens numériques doivent passer par l'In-App Purchase Apple.
-  if (Platform.OS === 'ios' && iapAvailable) return <PremiumScreenIos />;
+  // iOS et Android : les biens numériques doivent passer par le store
+  // (In-App Purchase Apple / Google Play Billing).
+  if ((Platform.OS === 'ios' || Platform.OS === 'android') && iapAvailable) return <PremiumScreenIos />;
   return <PremiumScreenStripe />;
 }
 
