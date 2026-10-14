@@ -32,6 +32,7 @@ import {
   addProviderToHome,
   getProviderContact,
   isProviderInHome,
+  removeProviderFromHome,
   type ProviderContact,
 } from '@/lib/providers-store';
 
@@ -119,6 +120,9 @@ export default function ProviderDetailScreen() {
   }, [id, user]);
 
   const coverPhoto = photos.find((p) => p.is_cover) ?? photos[0];
+  const coverImage = coverPhoto?.media_type === 'video'
+    ? photos.find((p) => p.media_type !== 'video')
+    : coverPhoto;
   // Photo de profil ronde : avatar réel du prestataire sinon la photo de
   // couverture / 1re photo — même logique que le profil vu côté prestataire,
   // pour que la photo de profil s'affiche toujours côté client.
@@ -175,11 +179,27 @@ export default function ProviderDetailScreen() {
         adresse: display.adresse,
         instagram: display.instagram,
       }),
-      coverUrl: coverPhoto?.url ?? existing?.coverUrl,
+      // Une vidéo ne s'affiche pas comme image : on garde la première photo.
+      coverUrl: coverImage?.url ?? existing?.coverUrl,
       avatarUrl: avatarUrl ?? existing?.avatarUrl,
     };
     addProviderToHome(providerForHome);
     setAdded(true);
+  };
+
+  const handleRemoveFromHome = () => {
+    if (!id) return;
+    Alert.alert(
+      'Retirer ce prestataire',
+      `Retirer ${display?.nom ?? 'ce prestataire'} de mes prestataires ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Retirer', style: 'destructive',
+          onPress: () => { removeProviderFromHome(id); setAdded(false); },
+        },
+      ],
+    );
   };
 
   const instagramUrl = (handle: string) => {
@@ -420,12 +440,11 @@ export default function ProviderDetailScreen() {
 
               <Pressable
                 style={[styles.addBtn, added && styles.addBtnDone]}
-                onPress={handleAddToHome}
-                disabled={added}
+                onPress={added ? handleRemoveFromHome : handleAddToHome}
               >
-                <Ionicons name={added ? 'checkmark-circle' : 'add-circle'} size={22} color="#fff" />
+                <Ionicons name={added ? 'remove-circle-outline' : 'add-circle'} size={22} color="#fff" />
                 <ThemedText style={styles.addBtnText}>
-                  {added ? 'Ajouté à mes prestataires' : 'Ajouter à mes prestataires'}
+                  {added ? 'Retirer de mes prestataires' : 'Ajouter à mes prestataires'}
                 </ThemedText>
               </Pressable>
             </AnimatedView>

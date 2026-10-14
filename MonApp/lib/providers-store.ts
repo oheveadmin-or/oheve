@@ -116,3 +116,13 @@ export function removeProviderFromHome(id: string): void {
   myProvidersStore.delete(id);
   _persistHomeProviders();
 }
+
+/** Met à jour la fiche d'un prestataire épinglé (ex. nouvelle photo de couverture). */
+export function updateHomeProvider(id: string, patch: Partial<ProviderContact>): void {
+  const existant = myProvidersStore.get(id);
+  if (!existant) return;
+  const changed = (Object.keys(patch) as (keyof ProviderContact)[]).some((k) => patch[k] !== existant[k]);
+  if (!changed) return;
+  myProvidersStore.set(id, { ...existant, ...patch });
+  _persistHomeProviders();
+}
