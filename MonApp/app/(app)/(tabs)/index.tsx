@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 
@@ -19,7 +19,13 @@ import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
 import { placeWithPreposition, weddingPlace } from '@/lib/place-utils';
 import { getGuests, loadGuests, subscribeGuests } from '@/lib/guests-store';
 import { getTodoTasks, loadTodoTasks, setTodoTasks, subscribeTodo, type TodoTask } from '@/lib/todo-store';
-import { getHomeProviders, loadHomeProviders, type ProviderContact } from '@/lib/providers-store';
+import {
+  getHomeProviders,
+  loadHomeProviders,
+  removeProviderFromHome,
+  updateHomeProvider,
+  type ProviderContact,
+} from '@/lib/providers-store';
 import { useHomeDashboardStore } from '@/stores/use-home-dashboard-store';
 import { MADRICHIM_HATAN, MADRICHOT_KALA, MIKVES } from '@/data/officiants';
 import { getTotalSpent, getTotalBudget, subscribeBudget } from '@/lib/budget-store';
@@ -89,7 +95,7 @@ function statusLabel(status: 'reserve' | 'attente' | 'devis') {
   return 'Devis reçu';
 }
 
-type ProviderPhoto = { id: number; url: string; is_cover: boolean; prestataire_name?: string; prestataire_id?: number };
+type ProviderPhoto = { id: number; url: string; is_cover: boolean; media_type?: 'image' | 'video'; prestataire_name?: string; prestataire_id?: number };
 
 function weatherCodeToDesc(code: number): string {
   if (code === 0) return 'Ciel dégagé ☀️';
@@ -204,20 +210,52 @@ export default function DashboardScreen() {
         return;
       }
       const venueId = venueFromHome.id ? parseInt(venueFromHome.id, 10) : undefined;
-      setVenueProvider({ name: venueFromHome.nom, photoUrl: venueFromHome.coverUrl, id: venueId });
+      setVenueProvider({
+        name: venueFromHome.nom,
+        photoUrl: venueFromHome.coverUrl ?? venueFromHome.avatarUrl,
+        id: venueId,
+      });
       // Photo de couverture à jour du compte prestataire (le cache local peut
-      // dater d'avant un changement de photo côté prestataire).
+      // dater d'avant un changement de photo, ou d'un ajout sans photo).
       if (!accessToken || !venueId || Number.isNaN(venueId)) return;
+      let photoUrl: string | undefined;
       try {
         const photosRes = await prestatairesApi.getPhotos(accessToken, venueId);
-        if (!photosRes?.success || !Array.isArray(photosRes.data) || photosRes.data.length === 0) return;
-        const cover = photosRes.data.find((ph: { is_cover?: boolean }) => ph.is_cover) ?? photosRes.data[0];
-        if (cover?.url) {
-          setVenueProvider({ name: venueFromHome.nom, photoUrl: cover.url, id: venueId });
+        if (photosRes?.success && Array.isArray(photosRes.data)) {
+          // Une vidéo ne s'affiche pas en fond : couverture si c'est une image,
+          // sinon la première image de la galerie.
+          const images = (photosRes.data as ProviderPhoto[]).filter((ph) => ph.media_type !== 'video' && ph.url);
+          photoUrl = (images.find((ph) => ph.is_cover) ?? images[0])?.url;
         }
-      } catch { /* on garde la photo du cache */ }
+      } catch { /* on tente le profil */ }
+      if (!photoUrl) {
+        // Sans photo en galerie : la photo de profil du prestataire.
+        try {
+          const profileRes = await prestatairesApi.getById(accessToken, venueId);
+          photoUrl = profileRes?.data?.avatar_url ?? undefined;
+        } catch { /* on garde le cache */ }
+      }
+      if (photoUrl) {
+        setVenueProvider({ name: venueFromHome.nom, photoUrl, id: venueId });
+        updateHomeProvider(venueFromHome.id, { coverUrl: photoUrl });
+        setHomeProviders(getHomeProviders());
+      }
     });
   }, [loadAppointments, accessToken]));
+
+  const confirmRemoveProvider = useCallback((p: ProviderContact) => {
+    Alert.alert('Retirer ce prestataire', `Retirer ${p.nom} de mes prestataires ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Retirer', style: 'destructive',
+        onPress: () => {
+          removeProviderFromHome(p.id);
+          setHomeProviders(getHomeProviders());
+          setVenueProvider((v) => (v?.id !== undefined && String(v.id) === p.id ? null : v));
+        },
+      },
+    ]);
+  }, []);
 
   useEffect(() => {
     if (!user?.accessToken) return;
@@ -617,7 +655,14 @@ export default function DashboardScreen() {
                             <ThemedText style={styles.vendorRatingText}>{p.note.toFixed(1)}</ThemedText>
                           </View>
                         )}
-                        <Ionicons name="chevron-forward" size={14} color={C.textLight} />
+                        <Pressable
+                          hitSlop={8}
+                          style={styles.vendorRemoveBtn}
+                          onPress={() => confirmRemoveProvider(p)}
+                          accessibilityLabel={`Retirer ${p.nom}`}
+                        >
+                          <Ionicons name="trash-outline" size={16} color={C.error} />
+                        </Pressable>
                       </Pressable>
                     );
                   })}
@@ -1045,6 +1090,7 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: C.sauge, alignItems: 'center', justifyContent: 'center',
   },
+  vendorRemoveBtn: { padding: 4, marginLeft: 2 },
   venueCard: {
     width: '100%', height: 160, borderRadius: RADIUS.xl,
     overflow: 'hidden', position: 'relative',
