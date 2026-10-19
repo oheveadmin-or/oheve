@@ -2,6 +2,34 @@ import { CREATE_USER_AVATARS, migrateDiskAvatarsToDb } from '../avatars/avatarSt
 import { CREATE_STORED_FILES } from '../utils/persistent-uploads';
 import { pool } from '../config/database';
 
+// ── RLS ──────────────────────────────────────────────────────────────────────
+// Le backend se connecte via DATABASE_URL (rôle postgres) qui ignore le RLS ;
+// l'app n'utilise le SDK Supabase que pour l'auth. Toute table du schéma public
+// est donc fermée aux clés anon/authenticated : RLS activé + policy « deny all »
+// sur les tables qui n'en ont aucune (y compris celles créées plus tard).
+// rsvp_answers : l'ancienne policy INSERT « true » (jamais utilisée, les RSVP
+// passent par l'API) est remplacée par un refus.
+const ENABLE_RLS_ON_ALL_TABLES = `
+  DO $$
+  DECLARE t record;
+  BEGIN
+    IF to_regclass('public.rsvp_answers') IS NOT NULL THEN
+      DROP POLICY IF EXISTS "rsvp_answers_public_insert" ON public.rsvp_answers;
+    END IF;
+    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+      EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename);
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = t.tablename AND cmd IN ('ALL', 'INSERT')
+      ) THEN
+        EXECUTE format(
+          'CREATE POLICY %I ON public.%I FOR ALL USING (false) WITH CHECK (false)',
+          left(t.tablename, 40) || '_no_direct_access', t.tablename
+        );
+      END IF;
+    END LOOP;
+  END $$;
+`;
+
 // ── users ────────────────────────────────────────────────────────────────────
 const CREATE_USERS = `
   CREATE TABLE IF NOT EXISTS users (
@@ -573,6 +601,8 @@ export async function runMigrations(): Promise<void> {
     await migrateDiskAvatarsToDb().catch((err) => console.error('❌ Import avatars:', (err as Error).message));
     // ── Photos, vidéos (reels), pièces jointes, musique : copie en base ────────
     await pool.query(CREATE_STORED_FILES);
+    // ── Sécurité Supabase : RLS sur toutes les tables du schéma public ─────────
+    await pool.query(ENABLE_RLS_ON_ALL_TABLES);
 
     console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp, payments, stripe_connect, devis, reservations, calendar, admin, photo_likes, photo_comments)');
   } catch (err) {

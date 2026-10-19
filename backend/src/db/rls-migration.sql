@@ -327,20 +327,42 @@ CREATE POLICY "wedding_sites_no_direct_write_update" ON wedding_sites FOR UPDATE
 CREATE POLICY "wedding_sites_no_direct_write_delete" ON wedding_sites FOR DELETE USING (false);
 
 
--- ── 22. rsvp_answers (INSERT public, lecture bloquée) ─────────
--- Les invités soumettent leur RSVP sans compte (anon INSERT).
--- La lecture des réponses est réservée au backend.
+-- ── 22. rsvp_answers (aucun accès direct) ─────────────────────
+-- Les invités soumettent leur RSVP via l'API backend : pas besoin
+-- d'INSERT anon (l'ancienne policy WITH CHECK (true) est retirée).
 ALTER TABLE rsvp_answers ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "rsvp_answers_public_insert"       ON rsvp_answers;
+DROP POLICY IF EXISTS "rsvp_answers_no_direct_insert"    ON rsvp_answers;
 DROP POLICY IF EXISTS "rsvp_answers_no_direct_read_select" ON rsvp_answers;
 DROP POLICY IF EXISTS "rsvp_answers_no_direct_update"    ON rsvp_answers;
 DROP POLICY IF EXISTS "rsvp_answers_no_direct_delete"    ON rsvp_answers;
 
-CREATE POLICY "rsvp_answers_public_insert"       ON rsvp_answers FOR INSERT WITH CHECK (true);
+CREATE POLICY "rsvp_answers_no_direct_insert"    ON rsvp_answers FOR INSERT WITH CHECK (false);
 CREATE POLICY "rsvp_answers_no_direct_read_select" ON rsvp_answers FOR SELECT USING (false);
 CREATE POLICY "rsvp_answers_no_direct_update"    ON rsvp_answers FOR UPDATE USING (false);
 CREATE POLICY "rsvp_answers_no_direct_delete"    ON rsvp_answers FOR DELETE USING (false);
+
+
+-- ── 23. Toutes les autres tables (wedding_guests, wedding_planning,
+--        user_auth_providers, user_avatars, stored_files, et futures)
+-- RLS activé + « deny all » sur chaque table sans policy.
+-- (Même bloc que ENABLE_RLS_ON_ALL_TABLES dans migrate.ts.)
+DO $$
+DECLARE t record;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename);
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = t.tablename AND cmd IN ('ALL', 'INSERT')
+    ) THEN
+      EXECUTE format(
+        'CREATE POLICY %I ON public.%I FOR ALL USING (false) WITH CHECK (false)',
+        left(t.tablename, 40) || '_no_direct_access', t.tablename
+      );
+    END IF;
+  END LOOP;
+END $$;
 
 
 -- ── Vérification post-migration ────────────────────────────────
