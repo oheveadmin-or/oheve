@@ -1,3 +1,4 @@
+-- ⚠️ OBSOLÈTE : utiliser backend/src/db/rls-lockdown.sql (couvre toutes les tables).
 -- ============================================================
 -- Migration RLS — idempotente (safe to run multiple times)
 --
