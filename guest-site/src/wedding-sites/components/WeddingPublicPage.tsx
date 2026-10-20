@@ -8,6 +8,7 @@ import { getWeddingSiteBySlug, setSiteAccessKey } from '../services/weddingSiteS
 import type { WeddingSite } from '../types';
 import { defaultWeddingSections, defaultWeddingTheme } from '../types';
 import { getTemplateByTheme } from '../utils/template-selector';
+import { filterSiteForInvite, getActiveInviteToken, setActiveInviteToken } from '../utils/inviteFilter';
 
 export function WeddingPublicPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -20,6 +21,8 @@ export function WeddingPublicPage() {
   // Captée avant le fetch (et mémorisée pour les navigations internes → /rsvp).
   const accessKey = searchParams.get('k');
   if (accessKey) setSiteAccessKey(accessKey);
+  // Lien général (?k=) : on oublie un éventuel lien d'invitation de groupe ouvert avant.
+  if (accessKey && slug) setActiveInviteToken(slug, null);
 
   useEffect(() => {
     const s = slug ?? '';
@@ -153,9 +156,11 @@ export function WeddingPublicPage() {
   }
 
   const Template = getTemplateByTheme(site.theme, site.language);
+  // Invité arrivé par un lien de groupe : programme et cérémonies filtrés comme son RSVP.
+  const visibleSite = filterSiteForInvite(site, getActiveInviteToken(site.slug));
   return (
     <>
-      <Template site={site} />
+      <Template site={visibleSite} />
       {!site.hideSignature && (
         <footer style={footerStyle}>
           <a href="mailto:support@ohevewedding.com" style={footerLinkStyle}>
