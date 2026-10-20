@@ -534,9 +534,9 @@ export function WeddingSiteBuilder() {
       if (!isValidUrl(value)) errors.push(`${label} : URL invalide (doit commencer par https://).`);
     }
 
-    // Musique : accepte une piste Deezer (liste) OU une URL .mp3 https://
+    // Musique : accepte une piste Deezer (liste), un lien YouTube OU une URL .mp3 https://
     if (!isValidMusicUrl(content.musicUrl))
-      errors.push('Lien musique : choisissez une chanson dans la liste ou collez une URL .mp3 (https://).');
+      errors.push('Lien musique : choisissez une chanson dans la liste ou collez un lien YouTube / une URL .mp3 (https://).');
 
     (content.galleryPhotos ?? []).forEach((u, i) => {
       if (!/^https?:\/\/\S+/.test(u) && !u.startsWith('data:image/'))
@@ -1725,7 +1725,7 @@ export function WeddingSiteBuilder() {
                 ))}
               </select>
               <span style={{ fontSize: '0.72rem', color: '#8a8378', fontWeight: 400, marginTop: 2 }}>
-                Deezer ne fournit que 30 s (le passage le plus connu, souvent le refrain), jouées en boucle avec un fondu. Pour la chanson EN ENTIER, envoyez votre fichier MP3 ci-dessous. {musicLabelForUrl(content.musicUrl)
+                La chanson est jouée EN ENTIER dans un petit lecteur YouTube : elle démarre au milieu (le passage le plus connu), continue jusqu'au bout puis reprend du début. Si YouTube n'est pas disponible, l'extrait Deezer de 30 s prend le relais. {musicLabelForUrl(content.musicUrl)
                   ? `Sélection : ${musicLabelForUrl(content.musicUrl)}.`
                   : ''}
               </span>
@@ -1757,10 +1757,10 @@ export function WeddingSiteBuilder() {
               {musicError ? <span style={{ fontSize: '0.75rem', color: '#b42318' }}>{musicError}</span> : null}
             </div>
             <label style={lab}>
-              …ou votre propre URL .mp3
+              …ou un lien YouTube / votre propre URL .mp3
               <input
                 style={inp}
-                placeholder="https://…/musique.mp3"
+                placeholder="https://youtu.be/… ou https://…/musique.mp3"
                 value={deezerTrackId(content.musicUrl) != null ? '' : (content.musicUrl ?? '')}
                 onChange={(e) => setContent((c) => ({ ...c, musicUrl: e.target.value }))}
               />

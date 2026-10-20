@@ -6,7 +6,12 @@
  * expire en ~24 h). Le champ `musicUrl` du site prend la forme `deezer:<id>` ;
  * l'aperçu MP3 30 s est résolu à la volée au moment de la lecture via
  * `resolveDeezerPreview` (JSONP → pas de souci CORS). Le couple peut aussi
- * coller sa propre URL .mp3 directe.
+ * coller sa propre URL .mp3 directe, ou un lien YouTube.
+ *
+ * `youtubeId` : la même chanson sur YouTube. Quand il est présent, la carte la
+ * joue EN ENTIER via le lecteur YouTube intégré (voir youtubeMusic.ts) ;
+ * l'extrait Deezer ne sert plus que de secours (vidéo non intégrable, iPhone
+ * qui bloque la lecture auto…).
  */
 
 export type MusicSuggestion = {
@@ -14,32 +19,34 @@ export type MusicSuggestion = {
   id: number;
   title: string;
   artist: string;
+  /** ID de la vidéo YouTube de la même chanson (lecture complète) */
+  youtubeId?: string;
 };
 
 /** Préfixe de schéma utilisé dans `content.musicUrl` pour une piste Deezer. */
 export const DEEZER_SCHEME = 'deezer:';
 
 export const MUSIC_SUGGESTIONS: MusicSuggestion[] = [
-  { id: 2299667255, title: 'בסוף אנחנו נתחתן', artist: 'Adir Getz' },
-  { id: 2723237792, title: 'בואי בשלום', artist: 'Alliel' },
-  { id: 100431306, title: 'Boei Kala', artist: 'Gad Elbaz' },
-  { id: 109094410, title: 'Birkat Chupa', artist: 'Ohad Moskowitz' },
-  { id: 1892007337, title: 'Mi Adir', artist: 'Daniel Ben Haim' },
+  { id: 2299667255, title: 'בסוף אנחנו נתחתן', artist: 'Adir Getz', youtubeId: '-mYY0ZpzXRQ' },
+  { id: 2723237792, title: 'בואי בשלום', artist: 'Alliel', youtubeId: 'yhWr69Y96uQ' },
+  { id: 100431306, title: 'Boei Kala', artist: 'Gad Elbaz', youtubeId: 'p0EKBX8vVPA' },
+  { id: 109094410, title: 'Birkat Chupa', artist: 'Ohad Moskowitz', youtubeId: 'wfoWe5C8bwk' },
+  { id: 1892007337, title: 'Mi Adir', artist: 'Daniel Ben Haim', youtubeId: 'L240Yu0_SmY' },
   { id: 109898594, title: 'Asher Bara', artist: 'Eli Zion' },
-  { id: 118243878, title: 'Yismach Chatani', artist: 'Meir Green' },
+  { id: 118243878, title: 'Yismach Chatani', artist: 'Meir Green', youtubeId: 'A8RPqBFcEAg' },
   { id: 108563234, title: 'Mimaamakim', artist: 'Itzik Dadya' },
-  { id: 620773182, title: 'ניגון ארבע בבות', artist: 'Hilik Frank' },
-  { id: 1405775002, title: 'חתונה של השמחות', artist: 'Dudu Aharon' },
-  { id: 1390863842, title: 'חתונת השמחות (רמיקס)', artist: 'Regev Hod' },
-  { id: 384581701, title: 'חתונת השנה', artist: 'Itay Levy' },
-  { id: 886644942, title: 'יש חתונה פה', artist: 'Itzik Eshel' },
-  { id: 2670262182, title: 'רק שלך', artist: 'Lior Narkis' },
-  { id: 691745952, title: 'תיתן לה פרחים', artist: 'Omer Adam' },
-  { id: 737305972, title: 'מזל', artist: 'Eyal Golan' },
-  { id: 2008887127, title: 'אהבה כמו שלנו (קיסריה Live)', artist: 'Sarit Hadad' },
-  { id: 1086787242, title: 'אישתי', artist: 'Maor Edri' },
-  { id: 2420120435, title: 'אהיה שלך לעד', artist: 'Dudi Buzaglo' },
-  { id: 90977509, title: 'גיבור של אמא', artist: 'Moshe Peretz' },
+  { id: 620773182, title: 'ניגון ארבע בבות', artist: 'Hilik Frank', youtubeId: 'HDrvxGTtcjE' },
+  { id: 1405775002, title: 'חתונה של השמחות', artist: 'Dudu Aharon', youtubeId: '7G6sfJsdnTI' },
+  { id: 1390863842, title: 'חתונת השמחות (רמיקס)', artist: 'Regev Hod', youtubeId: 'xlyiP3xSRS4' },
+  { id: 384581701, title: 'חתונת השנה', artist: 'Itay Levy', youtubeId: 'tCBtH_OpEmg' },
+  { id: 886644942, title: 'יש חתונה פה', artist: 'Itzik Eshel', youtubeId: 'R0Mgk-8GhZs' },
+  { id: 2670262182, title: 'רק שלך', artist: 'Lior Narkis', youtubeId: '6nkOouibBwk' },
+  { id: 691745952, title: 'תיתן לה פרחים', artist: 'Omer Adam', youtubeId: 'mrFDtpqO19w' },
+  { id: 737305972, title: 'מזל', artist: 'Eyal Golan', youtubeId: '8XbWkz3CD9s' },
+  { id: 2008887127, title: 'אהבה כמו שלנו (קיסריה Live)', artist: 'Sarit Hadad', youtubeId: 'iWXHITPfWD4' },
+  { id: 1086787242, title: 'אישתי', artist: 'Maor Edri', youtubeId: 'iLTWqFtpPdg' },
+  { id: 2420120435, title: 'אהיה שלך לעד', artist: 'Dudi Buzaglo', youtubeId: 'qnDjomnJZfU' },
+  { id: 90977509, title: 'גיבור של אמא', artist: 'Moshe Peretz', youtubeId: '0ThgAUQiz_0' },
 ];
 
 /** Libellé lisible « Titre — Artiste » pour une valeur `deezer:<id>`. */
@@ -49,6 +56,11 @@ export function musicLabelForUrl(url: string | undefined): string | null {
   if (id == null) return null;
   const s = MUSIC_SUGGESTIONS.find((m) => m.id === id);
   return s ? `${s.title} — ${s.artist}` : `Deezer #${id}`;
+}
+
+/** ID YouTube associé à une piste Deezer de la playlist (sinon null). */
+export function youtubeIdForDeezer(trackId: number): string | null {
+  return MUSIC_SUGGESTIONS.find((m) => m.id === trackId)?.youtubeId ?? null;
 }
 
 /** Extrait l'ID Deezer d'une valeur `deezer:<id>` (sinon null). */
