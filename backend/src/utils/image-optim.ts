@@ -96,6 +96,46 @@ export function optimizeUploadedImage(maxDim: number = MAX_DIM) {
 
 export const optimizeAvatarUpload = () => optimizeUploadedImage(AVATAR_MAX_DIM);
 
+function isHeic(filePath: string, mimetype?: string): boolean {
+  if (mimetype === 'image/heic' || mimetype === 'image/heif') return true;
+  const ext = path.extname(filePath).toLowerCase();
+  return ext === '.heic' || ext === '.heif';
+}
+
+/**
+ * Middleware à placer juste après multer (avant optimizeUploadedImage) :
+ * convertit une photo HEIC/HEIF (format iPhone/Mac) en JPEG. Chrome, Firefox et
+ * Android ne savent pas afficher le HEIC → image cassée sur le site. Le sharp
+ * précompilé ne décode pas le HEVC, d'où heic-convert (décodeur WASM pur JS).
+ * req.file pointe ensuite vers le .jpg ; en cas d'échec l'original est gardé.
+ */
+export function convertHeicUpload() {
+  return async (req: Request, _res: Response, next: NextFunction) => {
+    const file = req.file;
+    if (!file?.path || !isHeic(file.path, file.mimetype)) return next();
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const heicConvert = require('heic-convert') as (opts: {
+        buffer: Buffer;
+        format: 'JPEG' | 'PNG';
+        quality?: number;
+      }) => Promise<ArrayBuffer>;
+      const input = await fs.promises.readFile(file.path);
+      const out = Buffer.from(await heicConvert({ buffer: input, format: 'JPEG', quality: 0.9 }));
+      const jpgPath = file.path.replace(/\.[^./\\]*$/, '') + '.jpg';
+      await fs.promises.writeFile(jpgPath, out);
+      if (jpgPath !== file.path) await fs.promises.unlink(file.path).catch(() => {});
+      file.path = jpgPath;
+      file.filename = path.basename(jpgPath);
+      file.mimetype = 'image/jpeg';
+      file.size = out.length;
+    } catch (err) {
+      logger.warn({ err, filePath: file.path }, 'Conversion HEIC → JPEG échouée');
+    }
+    next();
+  };
+}
+
 /**
  * Passage unique sur les images déjà uploadées (avant l'ajout de la
  * compression) : lancé en tâche de fond au démarrage. Un manifeste évite de

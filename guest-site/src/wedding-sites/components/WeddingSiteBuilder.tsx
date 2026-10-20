@@ -34,6 +34,7 @@ import { defaultWeddingSections, defaultWeddingTheme } from '../types';
 import { getPatternStyle } from '../templates/PatternOverlay';
 import { getFamilyColumns } from '../templates/templateParts';
 import { mergeDateAndTimeToIso } from '../utils/date';
+import { jewishRsvpId } from '../utils/inviteFilter';
 import { generateSlugFromDisplayName, slugify } from '../utils/slug';
 import { applyThemePreset } from '../templates/themePresets';
 
@@ -125,10 +126,6 @@ function SepMini({ id, color }: { id: SeparatorStyle; color: string }) {
 }
 
 /** ID stable dans rsvpForm.events pour chaque type d'événement juif */
-function jewishRsvpId(type: JewishWeddingEvent['type']) {
-  return `jewish-${type}`;
-}
-
 const JEWISH_META: Record<JewishWeddingEvent['type'], { emoji: string; label: string }> = {
   'henne':          { emoji: '🌸', label: 'Henné' },
   'mairie':         { emoji: '🏛️', label: 'Mairie' },
@@ -224,7 +221,7 @@ export function WeddingSiteBuilder() {
 
   async function handleGalleryUpload(allFiles: File[]) {
     setGalleryError(null);
-    // Rejette d'emblée les formats non-image (PDF, vidéo, HEIC non supporté…)
+    // Rejette d'emblée les formats non-image (PDF, vidéo…) — le HEIC est converti en JPEG par le serveur
     const files = allFiles.filter((f) => f.type.startsWith('image/'));
     const invalid = allFiles.filter((f) => !f.type.startsWith('image/'));
     if (invalid.length) {

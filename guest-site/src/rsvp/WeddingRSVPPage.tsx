@@ -7,6 +7,12 @@ import { createDefaultRSVPForm } from './types';
 
 import { useRSVPBundle } from './useRSVPForm';
 import { setSiteAccessKey } from '../wedding-sites/services/weddingSiteService';
+import {
+  filterRsvpFormEvents,
+  getActiveInviteToken,
+  inviteEventIds,
+  setActiveInviteToken,
+} from '../wedding-sites/utils/inviteFilter';
 
 export function WeddingRSVPPage() {
   const { slug, token } = useParams<{ slug: string; token?: string }>();
@@ -16,6 +22,9 @@ export function WeddingRSVPPage() {
   const keyParam = searchParams.get('k');
   if (token) setSiteAccessKey(token);
   else if (keyParam) setSiteAccessKey(keyParam);
+  // Mémorise le lien de groupe pour que « ← Site du mariage » montre le même programme filtré.
+  if (slug && token) setActiveInviteToken(slug, token);
+  else if (slug && keyParam) setActiveInviteToken(slug, null);
 
   const { site, form, loading, err } = useRSVPBundle(slug);
 
@@ -37,31 +46,11 @@ export function WeddingRSVPPage() {
 
   const baseForm = form ?? createDefaultRSVPForm(site.id);
 
-  // Resolve which events to show from token or ?events= param
-  let filteredForm = baseForm;
+  // Événements visibles : lien d'invitation (dans l'URL ou mémorisé depuis le site), sinon ?events=
   const eventsParam = searchParams.get('events');
-
-  if (token && site.inviteLinks) {
-    const link = site.inviteLinks.find((l) => l.token === token);
-    if (link && link.eventIds.length > 0) {
-      filteredForm = {
-        ...baseForm,
-        events: baseForm.events.map((e) => ({
-          ...e,
-          enabled: link.eventIds.includes(e.id) ? e.enabled : false,
-        })),
-      };
-    }
-  } else if (eventsParam) {
-    const ids = eventsParam.split(',').map((s) => s.trim());
-    filteredForm = {
-      ...baseForm,
-      events: baseForm.events.map((e) => ({
-        ...e,
-        enabled: ids.includes(e.id) ? e.enabled : false,
-      })),
-    };
-  }
+  const linkIds = inviteEventIds(site, token ?? getActiveInviteToken(site.slug));
+  const ids = linkIds ?? (eventsParam ? eventsParam.split(',').map((s) => s.trim()) : null);
+  const filteredForm = ids ? filterRsvpFormEvents(baseForm, ids) : baseForm;
 
   return <WeddingRSVPForm slugHint={slug ?? site.slug} site={site} form={filteredForm} />;
 }
