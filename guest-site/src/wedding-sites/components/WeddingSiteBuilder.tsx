@@ -224,7 +224,7 @@ export function WeddingSiteBuilder() {
 
   async function handleGalleryUpload(allFiles: File[]) {
     setGalleryError(null);
-    // Rejette d'emblée les formats non-image (PDF, vidéo, HEIC non supporté…)
+    // Rejette d'emblée les formats non-image (PDF, vidéo…) — le HEIC est converti en JPEG par le serveur
     const files = allFiles.filter((f) => f.type.startsWith('image/'));
     const invalid = allFiles.filter((f) => !f.type.startsWith('image/'));
     if (invalid.length) {
