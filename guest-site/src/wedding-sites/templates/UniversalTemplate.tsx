@@ -241,7 +241,7 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
           )
         ) : null}
 
-        {/* Textes du site (mémoire + famille) — rendu vintage dédié */}
+        {/* Textes du site (mémoire + famille) — rendu vintage dédié, sinon carte simple */}
         {isVintage && (site.content?.texts?.familyText?.trim() || site.content?.texts?.memorialText?.trim()) ? (
           <section style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
             <VintageRibbon width={100} color={V.colors.primary} style={{ marginBottom: '0.7rem' }} />
@@ -278,6 +278,21 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
                 {site.content.texts.memorialText}
               </p>
             ) : null}
+          </section>
+        ) : !isVintage && (site.content?.texts?.familyText?.trim() || site.content?.texts?.memorialText?.trim()) ? (
+          <section style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div style={cardStyleSurface({ theme: t })}>
+              {site.content?.texts?.familyText?.trim() ? (
+                <p style={{ margin: 0, lineHeight: 1.75, whiteSpace: 'pre-wrap', fontSize: '1rem' }}>
+                  {site.content.texts.familyText}
+                </p>
+              ) : null}
+              {site.content?.texts?.memorialText?.trim() ? (
+                <p style={{ margin: site.content?.texts?.familyText?.trim() ? '0.9rem 0 0' : 0, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontSize: '0.92rem', fontStyle: 'italic', opacity: 0.85 }}>
+                  {site.content.texts.memorialText}
+                </p>
+              ) : null}
+            </div>
           </section>
         ) : null}
 
