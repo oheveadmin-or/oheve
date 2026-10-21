@@ -78,7 +78,7 @@ export const EXPORT_OPTIONS: { type: PdfExportType; label: string; desc: string;
   {
     type: 'complet',
     label: 'PDF Complet',
-    desc: 'Couverture + liste + livre des tables (tout en un)',
+    desc: 'Couverture + liste + livre des tables + cartes panneau (tout en un)',
     icon: 'document-text-outline',
   },
 ];

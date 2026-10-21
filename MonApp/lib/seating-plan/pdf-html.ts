@@ -624,9 +624,12 @@ export function generateSeatingPlanHtml(
       pages += panneauxPages(data, cardStyle, panelTemplate);
       break;
     case 'complet':
+      // « Tout en un » : les cartes panneau (format phare) en font partie —
+      // elles manquaient au PDF complet.
       pages += coverPage(data);
       pages += listePages(data);
       pages += livrePages(data);
+      if (data.tables.length) pages += panneauxPages(data, cardStyle, panelTemplate);
       break;
     case 'mural':
       pages += muralPages(data);

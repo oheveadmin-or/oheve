@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import type { WeddingTheme } from '../types';
 import { TITLE_SIZE_SCALE } from '../types';
 import type { ResolvedFamilyColumn } from '../templates/templateParts';
+import { monogramMarkup } from '../templates/templateParts';
 import { vintageTokens } from '../themes/VintageTheme';
 import { VintageRibbon, VintageDamaskField } from './ornaments/VintageOrnaments';
 import { HebrewVerseArc } from './HebrewVerseArc';
@@ -268,9 +269,7 @@ export function VintageHero({
                 flexShrink: 0,
               }}
               dangerouslySetInnerHTML={{
-                __html: monogramSvg
-                  .replace(/width="[^"]*"/, 'width="100%"')
-                  .replace(/height="[^"]*"/, 'height="100%"'),
+                __html: monogramMarkup(monogramSvg),
               }}
             />
           ) : (

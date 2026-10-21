@@ -149,6 +149,18 @@ const DEFAULT_JEWISH_EVENTS: { type: JewishWeddingEvent['type']; label: string; 
   { type: 'depart', label: 'Au revoir des invités', emoji: '👋', optional: true },
 ];
 
+/** Liens du menu des invités que le couple peut masquer (ids d'ancre du site). */
+const NAV_LINK_OPTIONS: { id: string; label: string }[] = [
+  { id: 'couple-story', label: 'Notre histoire' },
+  { id: 'program', label: 'Programme' },
+  { id: 'jewish-section', label: 'Événements' },
+  { id: 'location', label: 'Lieux' },
+  { id: 'accommodations', label: 'Hébergements' },
+  { id: 'rsvp', label: 'RSVP' },
+  { id: 'faq', label: 'FAQ' },
+  { id: 'gift-registry', label: 'Liste de cadeaux' },
+];
+
 const initialDate = (): { date: string; time: string } => ({ date: '', time: '' });
 
 export function WeddingSiteBuilder() {
@@ -1052,6 +1064,12 @@ export function WeddingSiteBuilder() {
               Une colonne par famille, affichée élégamment sur le site. Ajoutez des lignes et
               écrivez-les librement (« M. et Mme Attia », « Mamie Simone »…) — aucun intitulé imposé.
             </p>
+            {theme.style === 'stripes-editorial' && (
+              <p style={{ fontSize: '0.78rem', color: '#8a8060', background: '#fffdf5', border: '1px solid #e7dfc9', borderRadius: 10, padding: '0.55rem 0.75rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
+                ℹ️ Le thème Éditorial Rayures n'affiche pas le titre des colonnes : seules les lignes
+                apparaissent (une famille sans ligne affiche son titre à la place).
+              </p>
+            )}
             {(content.familyColumns ?? []).map((col, ci) => (
               <div key={col.id} style={{ border: '1px solid #E4E7DC', borderRadius: 12, padding: '0.75rem', marginBottom: 10, background: '#FBFBF9' }}>
                 <label style={lab}>
@@ -1114,6 +1132,8 @@ export function WeddingSiteBuilder() {
               primaryColor={theme.primaryColor}
               backgroundColor={theme.backgroundColor}
               initialStyle={content.monogramStyle}
+              initialSizePx={content.monogramSizePx}
+              initialCustomLogoUrl={content.monogramSvg}
               onSelect={(svg, style, sizePx) => setContent((c) => ({ ...c, monogramSvg: svg, monogramStyle: style, monogramSizePx: sizePx }))}
             />
             {content.monogramSvg ? (
@@ -1390,6 +1410,10 @@ export function WeddingSiteBuilder() {
                     return (
                       <button
                         key={c.name}
+                        // type="button" : sans lui, le clic soumettait le <form> du
+                        // builder → le navigateur remontait la page jusqu'au premier
+                        // champ obligatoire vide (« Prénom marié »).
+                        type="button"
                         onClick={() => setTheme(applyColorCombination(theme, c))}
                         style={{ border: isActive ? '2px solid #8F947F' : '1.5px solid #e5e7eb', borderRadius: 8, padding: '0.4rem 0.3rem', background: isActive ? '#f5f3ee' : '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
                       >
@@ -1578,6 +1602,39 @@ export function WeddingSiteBuilder() {
                   );
                 })}
               </div>
+              {/* Liens du menu : masquage manuel + bascule automatique après le mariage */}
+              {(theme.navStyle ?? 'horizontal') !== 'minimal' && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <span style={{ fontSize: '0.74rem', color: '#6b7280', display: 'block', marginBottom: '0.4rem' }}>
+                    Liens affichés dans le menu (si la section est active)
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem 0.9rem' }}>
+                    {NAV_LINK_OPTIONS.map(({ id, label }) => (
+                      <label key={id} style={{ ...chk, fontSize: '0.8rem' }}>
+                        <input
+                          type="checkbox"
+                          checked={!(theme.navHidden ?? []).includes(id)}
+                          onChange={(e) =>
+                            setTheme((t) => {
+                              const rest = (t.navHidden ?? []).filter((h) => h !== id);
+                              return { ...t, navHidden: e.target.checked ? rest : [...rest, id] };
+                            })
+                          }
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  <label style={{ ...chk, fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!theme.navAutoAfterWedding}
+                      onChange={(e) => setTheme((t) => ({ ...t, navAutoAfterWedding: e.target.checked }))}
+                    />
+                    Adapter le menu après le mariage (retire RSVP, Programme, Hébergements ; ajoute la Galerie)
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* ── Signature « © Oheve Wedding » en bas de page ── */}

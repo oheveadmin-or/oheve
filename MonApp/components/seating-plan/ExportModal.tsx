@@ -270,7 +270,7 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
           })}
 
           {/* ── Panneau template gallery ── */}
-          {selected === 'panneaux' && (
+          {(selected === 'panneaux' || selected === 'complet') && (
             <View style={styles.galleryBox}>
               <View style={styles.galleryHeader}>
                 <ThemedText style={styles.galleryTitle}>Choisir un modèle</ThemedText>

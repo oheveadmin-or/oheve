@@ -797,6 +797,11 @@ type FullProps = {
   backgroundColor?: string;
   /** Style déjà enregistré, pour ré-ouvrir sur la bonne sélection. */
   initialStyle?: string;
+  /** Taille déjà enregistrée (px) — sinon la réouverture repassait en M et
+   *  écrasait la taille choisie (ex. XL) dès le montage. */
+  initialSizePx?: number;
+  /** Logo importé déjà enregistré (data URL), pour pouvoir encore le redimensionner. */
+  initialCustomLogoUrl?: string;
   onSelect?: (svgString: string, style: string, sizePx: number) => void;
 };
 
@@ -807,6 +812,8 @@ export function MonogramGenerator({
   primaryColor = '#6b6b4f',
   backgroundColor = '#faf7f2',
   initialStyle,
+  initialSizePx,
+  initialCustomLogoUrl,
   onSelect,
 }: FullProps) {
   const i1 = initial(brideName, 'A');
@@ -820,10 +827,17 @@ export function MonogramGenerator({
       ? initialStyle
       : 'm01',
   );
-  const [size, setSize] = useState<SizeKey>('m');
+  const [size, setSize] = useState<SizeKey>(() => {
+    if (!initialSizePx) return 'm';
+    // Taille enregistrée → clé la plus proche (XS 96 … XL 320).
+    return (Object.keys(SIZES) as SizeKey[]).reduce((best, k) =>
+      Math.abs(SIZES[k].px - initialSizePx) < Math.abs(SIZES[best].px - initialSizePx) ? k : best, 'm' as SizeKey);
+  });
   const [group, setGroup] = useState<string>('Tous');
   const [copied, setCopied] = useState(false);
-  const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
+  const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(
+    initialStyle === CUSTOM_ID && initialCustomLogoUrl?.startsWith('data:') ? initialCustomLogoUrl : null,
+  );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

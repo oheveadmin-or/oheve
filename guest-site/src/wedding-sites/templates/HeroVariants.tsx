@@ -4,7 +4,7 @@
  */
 import type { CSSProperties } from 'react';
 import type { WeddingSite } from '../types';
-import { HeroMeta } from './templateParts';
+import { HeroMeta, monogramMarkup } from './templateParts';
 import { titleFontSize } from './templateCardStyles';
 import { sectionLabels } from '../i18n';
 import { HeroPattern } from './PatternOverlay';
@@ -339,9 +339,7 @@ export function HeroMonogramStyle({ site }: HeroProps) {
           <div
             style={{ width: 160, height: 160, marginBottom: '2rem' }}
             dangerouslySetInnerHTML={{
-              __html: site.content.monogramSvg
-                .replace(/width="[^"]*"/, 'width="100%"')
-                .replace(/height="[^"]*"/, 'height="100%"'),
+              __html: monogramMarkup(site.content.monogramSvg),
             }}
           />
         ) : (

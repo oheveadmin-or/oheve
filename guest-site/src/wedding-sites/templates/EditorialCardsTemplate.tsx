@@ -23,7 +23,7 @@ import { editorialTokens } from '../themes/EditorialCardsTheme';
 import type { EditorialTokens } from '../themes/EditorialCardsTheme';
 import { EditorialDivider, EditorialIcon } from './EditorialCardIcons';
 import type { EditorialIconKey } from './EditorialCardIcons';
-import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, monogramMarkup, PublicStickyNav, renderOptionalSections } from './templateParts';
 import type { ResolvedFamilyColumn } from './templateParts';
 
 /** Icône décorative par défaut du modèle (le client pourra la changer). */
@@ -180,9 +180,7 @@ function HeroCard({
                 marginBottom: '0.6rem',
               }}
               dangerouslySetInnerHTML={{
-                __html: monogramSvg
-                  .replace(/width="[^"]*"/, 'width="100%"')
-                  .replace(/height="[^"]*"/, 'height="100%"'),
+                __html: monogramMarkup(monogramSvg),
               }}
             />
           ) : (

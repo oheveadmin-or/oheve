@@ -21,7 +21,7 @@ import { voileTokens } from '../themes/VoileIvoireTheme';
 import type { VoileTokens } from '../themes/VoileIvoireTheme';
 import { VoileFrame, VoileDivider } from './VoileOrnaments';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
-import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, monogramMarkup, PublicStickyNav, renderOptionalSections } from './templateParts';
 import type { ResolvedFamilyColumn } from './templateParts';
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -162,9 +162,7 @@ function HeroCard({
               color: tk.colors.accent,
             }}
             dangerouslySetInnerHTML={{
-              __html: monogramSvg
-                .replace(/width="[^"]*"/, 'width="100%"')
-                .replace(/height="[^"]*"/, 'height="100%"'),
+              __html: monogramMarkup(monogramSvg),
             }}
           />
         ) : null}

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { Link } from 'react-router-dom';
 
-import type { WeddingSite } from '../types';
+import type { WeddingSite, WeddingTheme } from '../types';
 
 import { formatWeddingDate } from '../utils/date';
 import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
@@ -91,7 +91,7 @@ export function FamilyColumnsRow({
   bodyFontFamily,
   titleVariant = 'caps',
   titleSize,
-  lineSize = '0.95rem',
+  lineSize,
   hideTitles = false,
 }: {
   columns: ResolvedFamilyColumn[];
@@ -106,7 +106,17 @@ export function FamilyColumnsRow({
   /** Masque les noms de famille (titres) tout en gardant la mise en page en colonnes */
   hideTitles?: boolean;
 }) {
-  if (!columns.length) return null;
+  // Titres masqués : une famille saisie avec son seul titre (aucune ligne)
+  // restait une colonne VIDE → on affiche alors son titre comme ligne.
+  const cols = hideTitles
+    ? columns
+        .map((col) => (col.lines.length ? col : { ...col, lines: col.title ? [col.title] : [] }))
+        .filter((col) => col.lines.length)
+    : columns;
+  if (!cols.length) return null;
+  // 3 colonnes sur téléphone : texte légèrement réduit pour éviter de couper
+  // les noms au milieu d'un mot (4 colonnes passent en 2 × 2, voir plus bas).
+  const lineFontSize = lineSize ?? (cols.length === 3 ? 'clamp(0.8rem, 2.9cqw, 0.95rem)' : '0.95rem');
   const titleStyle: CSSProperties =
     titleVariant === 'script'
       ? { fontFamily: titleFontFamily, fontSize: titleSize ?? '1.55rem', lineHeight: 1.15, margin: 0, color: textColor }
@@ -115,16 +125,23 @@ export function FamilyColumnsRow({
   // colonne courte ne doit jamais retomber seule, centrée, sur sa propre
   // ligne — toutes les colonnes restent alignées sur une seule rangée et se
   // partagent l'espace disponible.
+  // Exception : 4 colonnes sur un écran étroit (< 520 px de conteneur) → grille
+  // 2 × 2 complète, sinon chaque colonne ne faisait que ~80 px sur iPhone.
   return (
+    <>
+    {cols.length === 4 ? (
+      <style>{'@container (max-width: 520px){.family-cols-4{grid-template-columns:repeat(2,minmax(0,1fr))!important;row-gap:1.4rem!important}.family-cols-4>:nth-child(odd){border-inline-start:none!important;padding-inline-start:0!important}}'}</style>
+    ) : null}
     <div
+      className={`family-cols-${cols.length}`}
       style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))`,
         alignItems: 'stretch',
         gap: 'clamp(0.8rem, 3cqw, 2.5rem)',
       }}
     >
-      {columns.map((col, i) => {
+      {cols.map((col, i) => {
         const showTitle = !hideTitles && !!col.title;
         return (
           <div
@@ -140,7 +157,7 @@ export function FamilyColumnsRow({
               {col.lines.map((line, j) => (
                 <p
                   key={j}
-                  style={{ margin: '0.18rem 0', fontFamily: bodyFontFamily, fontSize: lineSize, fontWeight: 500, lineHeight: 1.55, color: textColor, overflowWrap: 'anywhere' }}
+                  style={{ margin: '0.18rem 0', fontFamily: bodyFontFamily, fontSize: lineFontSize, fontWeight: 500, lineHeight: 1.55, color: textColor, overflowWrap: 'break-word', hyphens: 'auto' }}
                 >
                   {line}
                 </p>
@@ -150,6 +167,7 @@ export function FamilyColumnsRow({
         );
       })}
     </div>
+    </>
   );
 }
 
@@ -174,6 +192,19 @@ export function SectionBlock({
       <div style={cardStyleSurface({ theme: t })}>{children}</div>
     </section>
   );
+}
+
+/**
+ * HTML du logo pour un rendu via dangerouslySetInnerHTML, mis à 100 % de son
+ * conteneur. Un logo IMPORTÉ est une data URL (PNG/JPG/WebP/SVG) et non du
+ * balisage SVG : injecté tel quel, il s'affichait comme du texte
+ * « data:image/png;base64,… » au lieu de l'image.
+ */
+export function monogramMarkup(svg: string): string {
+  if (svg.startsWith('data:')) {
+    return `<img src="${svg.replace(/"/g, '%22')}" alt="Monogramme" style="width:100%;height:100%;object-fit:contain;display:block" />`;
+  }
+  return svg.replace(/width="[^"]*"/, 'width="100%"').replace(/height="[^"]*"/, 'height="100%"');
 }
 
 export function HeroMonogram({ site }: { site: WeddingSite }) {
@@ -247,6 +278,36 @@ export function renderOptionalSections(site: WeddingSite, useCard: typeof cardSt
   return <OptionalSections site={site} useCard={useCard} />;
 }
 
+/** Liens qui n'ont plus de sens une fois le mariage passé. */
+const NAV_BEFORE_WEDDING_ONLY = ['rsvp', 'accommodations', 'program', 'jewish-section'];
+
+/** Le mariage est passé : à partir du lendemain de la date (marge pour la soirée). */
+export function isWeddingPast(dateIso: string | undefined, now = Date.now()): boolean {
+  const d = dateIso ? new Date(dateIso).getTime() : NaN;
+  return Number.isFinite(d) && now > d + 24 * 3600 * 1000;
+}
+
+/**
+ * Menu des invités : liens masqués à la main dans le builder, puis — si
+ * l'option est active — bascule automatique après le mariage (plus de RSVP /
+ * hébergements / programme ; la Galerie apparaît).
+ */
+export function filterNavAnchors<T extends { id: string }>(
+  anchors: T[],
+  theme: Pick<WeddingTheme, 'navHidden' | 'navAutoAfterWedding'>,
+  dateIso: string | undefined,
+  now = Date.now(),
+): T[] {
+  const hidden = new Set(theme.navHidden ?? []);
+  const past = !!theme.navAutoAfterWedding && isWeddingPast(dateIso, now);
+  return anchors.filter((a) => {
+    if (hidden.has(a.id)) return false;
+    if (past) return !NAV_BEFORE_WEDDING_ONLY.includes(a.id);
+    // Avant le mariage, la Galerie reste hors du menu (comportement historique).
+    return a.id !== 'gallery';
+  });
+}
+
 export function PublicStickyNav({ site }: { site: WeddingSite }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [visible, setVisible] = useState(true);
@@ -313,7 +374,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   const hasFaq = site.sections.faq && (site.content?.faq ?? []).length > 0;
   const hasLocation = site.sections.location && !!(site.content?.venue?.name || site.content?.venue?.address || site.venue || site.city);
 
-  const anchors = [
+  const allAnchors = [
     site.sections.coupleStory && (site.content?.coupleStory?.length ?? 0) > 0 ? { id: 'couple-story', label: L.coupleStory } : null,
     site.sections.program ? { id: 'program', label: L.program } : null,
     site.sections.jewishSection && (site.content?.jewishEvents ?? []).some((e) => e.enabled) ? { id: 'jewish-section', label: L.jewishSection } : null,
@@ -322,7 +383,9 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
     site.sections.rsvp ? { id: 'rsvp', label: L.rsvp } : null,
     hasFaq ? { id: 'faq', label: L.faq } : null,
     site.sections.giftRegistry && site.content?.giftRegistry ? { id: 'gift-registry', label: L.giftRegistry } : null,
+    site.sections.gallery && (site.content?.galleryPhotos ?? []).some(Boolean) ? { id: 'gallery', label: L.gallery } : null,
   ].filter(Boolean) as { id: string; label: string }[];
+  const anchors = filterNavAnchors(allAnchors, t, site.date);
 
   useEffect(() => {
     const onScroll = () => {
@@ -804,7 +867,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     const photos = (site.content?.galleryPhotos ?? []).filter(Boolean);
     if (photos.length) {
       blocks.push(
-        <section key="gal" className="wedding-fade-in" style={{ marginTop: '2.5rem' }}>
+        <section id="gallery" key="gal" className="wedding-fade-in" style={{ marginTop: '2.5rem', scrollMarginTop: 88 }}>
           <SectionHeading label={L.gallery} color={t.primaryColor} theme={t} />
           <PhotoGallery site={site} photos={photos} />
         </section>

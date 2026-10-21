@@ -138,6 +138,11 @@ export type WeddingTheme = {
   cornerDecor?: boolean;
   /** Navigation style shown to guests on the public site */
   navStyle?: 'horizontal' | 'hamburger' | 'minimal';
+  /** Liens du menu masqués à la main par le couple (ids d'ancre : 'rsvp', 'program'…) */
+  navHidden?: string[];
+  /** Après la date du mariage : le menu retire RSVP / Hébergements / Programme
+   *  et propose la Galerie (si elle a des photos). */
+  navAutoAfterWedding?: boolean;
   /** Éditorial Rayures uniquement — largeur d'une rayure du hero, en px (défaut 8) */
   stripeWidth?: number;
   /** Éditorial Rayures uniquement — opacité des rayures du hero, 0–1 (défaut 1) */

@@ -183,8 +183,18 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
   const stripeW = Math.max(1, Math.round(t.stripeWidth ?? 8));           // largeur d'une barre (px)
   const stripeAlpha = Math.min(1, Math.max(0, t.stripeOpacity ?? 1));    // opacité 0–1
   const stripeCol = `color-mix(in srgb, ${stripe} ${Math.round(stripeAlpha * 100)}%, transparent)`;
-  // Tuile palindromique : demi-gap · barre · demi-gap (période = 2·gap + barre).
-  const stripeBandBg = `repeating-linear-gradient(to right, transparent 0, transparent ${stripeW}px, ${stripeCol} ${stripeW}px, ${stripeCol} ${stripeW * 2}px, transparent ${stripeW * 2}px, transparent ${stripeW * 3}px)`;
+  // Tuile palindromique : gap · barre · gap (période = 3 × barre), répétée en
+  // `round` : un nombre ENTIER de tuiles (légèrement ajustées) remplit la
+  // bande → bords symétriques, rythme régulier et aucune barre coupée, quelle
+  // que soit la largeur. (L'ancien repeating-linear-gradient partait toujours du
+  // bord gauche — `background-position: center` est sans effet sans
+  // `background-size` — d'où une barre tronquée à droite dès 8-9 px.)
+  const stripeBandStyle = {
+    // Arrêts en % (et non en px) : la barre suit l'ajustement de la tuile.
+    backgroundImage: `linear-gradient(to right, transparent 33.333%, ${stripeCol} 33.333%, ${stripeCol} 66.667%, transparent 66.667%)`,
+    backgroundSize: `${stripeW * 3}px 100%`,
+    backgroundRepeat: 'round no-repeat',
+  } as const;
   // Colonnes latérales : EXACTEMENT 2 longues barres verticales (pleine hauteur).
   // Barres rendues en <div> explicites (largeur fixe) et NON en dégradé répété :
   // un repeating-linear-gradient ajoute une frange d'anti-aliasing à la frontière
@@ -290,8 +300,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
               style={{
                 flex: '0 0 auto',
                 height: 'clamp(44px, 15cqw, 82px)',
-                backgroundImage: stripeBandBg,
-                backgroundPosition: 'center',
+                ...stripeBandStyle,
               }}
             />
 
@@ -386,8 +395,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
               style={{
                 flex: '0 0 auto',
                 height: 'clamp(44px, 15cqw, 82px)',
-                backgroundImage: stripeBandBg,
-                backgroundPosition: 'center',
+                ...stripeBandStyle,
               }}
             />
             </div>
