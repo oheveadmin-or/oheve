@@ -192,13 +192,39 @@ export function HeroMonogram({ site }: { site: WeddingSite }) {
   );
 }
 
+/** Textes du corps : texte principal, texte famille, « À la mémoire de… ». */
+export function hasSiteBodyTexts(site: WeddingSite): boolean {
+  return !!(site.mainText?.trim() || site.content?.texts?.familyText?.trim() || site.content?.texts?.memorialText?.trim());
+}
+
+/**
+ * Rendu partagé des textes du corps (dans la carte du modèle). Toujours
+ * affiché, que la section hero ou « Message aux invités » soit active ou non
+ * — avant, selon ces réglages, le texte principal disparaissait ou était doublé.
+ */
+export function SiteBodyTexts({ site, style }: { site: WeddingSite; style?: CSSProperties }) {
+  const main = site.mainText?.trim();
+  const family = site.content?.texts?.familyText?.trim();
+  const memorial = site.content?.texts?.memorialText?.trim();
+  const base: CSSProperties = { margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap', ...style };
+  return (
+    <>
+      {main ? <p style={base}>{site.mainText}</p> : null}
+      {family ? <p style={{ ...base, marginTop: main ? '0.9rem' : 0, fontSize: '0.95em' }}>{site.content!.texts!.familyText}</p> : null}
+      {memorial ? (
+        <p style={{ ...base, marginTop: main || family ? '0.9rem' : 0, fontSize: '0.9em', fontStyle: 'italic', opacity: 0.85 }}>
+          {site.content!.texts!.memorialText}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export function HeroMeta({ site }: { site: WeddingSite }) {
   const line = [formatWeddingDate(site.date, site.language), site.city, site.venue].filter(Boolean).join(' · ');
   const countdown = useCountdown(site.date);
 
   const familyColumns = getFamilyColumns(site);
-  const hasMemorial = !!site.content?.texts?.memorialText?.trim();
-  const hasFamilyText = !!site.content?.texts?.familyText?.trim();
 
   return (
     <>
@@ -212,21 +238,6 @@ export function HeroMeta({ site }: { site: WeddingSite }) {
       {site.welcomeText ? (
         <p style={{ marginTop: '1.25rem', fontSize: '1.1rem', maxWidth: 520, marginInline: 'auto', lineHeight: 1.65 }}>
           {site.welcomeText}
-        </p>
-      ) : null}
-      {site.mainText ? (
-        <p style={{ marginTop: '1rem', fontSize: '1.05rem', maxWidth: 560, marginInline: 'auto', lineHeight: 1.75, fontStyle: 'italic', opacity: 0.9 }}>
-          {site.mainText}
-        </p>
-      ) : null}
-      {hasMemorial ? (
-        <p style={{ marginTop: '0.75rem', fontSize: '0.9rem', opacity: 0.82, fontStyle: 'italic' }}>
-          {site.content!.texts!.memorialText}
-        </p>
-      ) : null}
-      {hasFamilyText ? (
-        <p style={{ marginTop: '0.75rem', fontSize: '0.95rem', opacity: 0.92, lineHeight: 1.6 }}>
-          {site.content!.texts!.familyText}
         </p>
       ) : null}
       {familyColumns.length ? (

@@ -1,7 +1,7 @@
 import type { WeddingTemplateProps } from '../types';
 import { sectionLabels } from '../i18n';
 import { cardStyleSurface } from './templateCardStyles';
-import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, SiteBodyTexts, hasSiteBodyTexts } from './templateParts';
 
 export function TelAvivTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
@@ -61,11 +61,6 @@ export function TelAvivTemplate({ site }: WeddingTemplateProps) {
               {site.groomName}
             </h1>
             <HeroMeta site={site} />
-            {site.welcomeText && (
-              <p style={{ marginTop: '1.5rem', fontSize: '1rem', lineHeight: 1.6, opacity: 0.7, maxWidth: 380 }}>
-                {site.welcomeText}
-              </p>
-            )}
           </div>
 
           {/* Right — solid accent block */}
@@ -84,9 +79,9 @@ export function TelAvivTemplate({ site }: WeddingTemplateProps) {
       ) : null}
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '3rem 2rem 5rem' }}>
-        {!site.sections.guestMessage && site.mainText ? (
+        {hasSiteBodyTexts(site) ? (
           <div style={{ ...cardStyleSurface({ theme: t }), borderLeft: `4px solid ${accent}`, borderRadius: 0 }}>
-            <p style={{ margin: 0, lineHeight: 1.85, whiteSpace: 'pre-wrap' }}>{site.mainText}</p>
+            <SiteBodyTexts site={site} style={{ lineHeight: 1.85, whiteSpace: 'pre-wrap' }} />
           </div>
         ) : null}
         {renderOptionalSections(site, cardStyleSurface)}

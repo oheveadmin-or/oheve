@@ -496,14 +496,6 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
         />
       ) : null}
 
-      {site.date ? (
-        <CountdownCard tk={tk} targetDate={site.date} language={site.language} title={L.countdownTitle} />
-      ) : null}
-
-      <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} />
-
-      {featuredPhoto ? <PhotoCard tk={tk} src={featuredPhoto} /> : null}
-
       {/* Mot d'accueil principal */}
       {site.mainText ? (
         <Card tk={tk}>
@@ -538,6 +530,15 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
           ) : null}
         </Card>
       ) : null}
+
+      {site.date ? (
+        <CountdownCard tk={tk} targetDate={site.date} language={site.language} title={L.countdownTitle} />
+      ) : null}
+
+      <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} />
+
+      {featuredPhoto ? <PhotoCard tk={tk} src={featuredPhoto} /> : null}
+
 
       {/* Sections fonctionnelles (Programme, Lieu, RSVP, Galerie, FAQ…) */}
       <div style={{ width: tk.cardWidth, margin: '0 auto' }}>

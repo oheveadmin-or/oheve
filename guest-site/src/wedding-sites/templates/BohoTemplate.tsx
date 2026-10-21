@@ -1,7 +1,7 @@
 import type { WeddingTemplateProps } from '../types';
 import { sectionLabels } from '../i18n';
 import { cardStyleSurface, titleFontSize } from './templateCardStyles';
-import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, SiteBodyTexts, hasSiteBodyTexts } from './templateParts';
 
 export function BohoTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
@@ -78,28 +78,13 @@ export function BohoTemplate({ site }: WeddingTemplateProps) {
           <div style={{ color: accent, margin: '1rem 0', fontSize: '1.4rem' }}>— ✦ —</div>
 
           <HeroMeta site={site} />
-
-          {site.welcomeText && (
-            <p
-              style={{
-                maxWidth: 480,
-                margin: '1.5rem auto 0',
-                fontSize: '1.05rem',
-                lineHeight: 1.7,
-                opacity: 0.8,
-                fontStyle: 'italic',
-              }}
-            >
-              {site.welcomeText}
-            </p>
-          )}
         </header>
       ) : null}
 
       <div style={{ maxWidth: 820, margin: '0 auto', padding: '2rem 1.5rem 5rem' }}>
-        {!site.sections.guestMessage && site.mainText ? (
+        {hasSiteBodyTexts(site) ? (
           <div style={{ ...cardStyleSurface({ theme: t }), textAlign: 'center', borderRadius: t.borderRadius }}>
-            <p style={{ margin: 0, lineHeight: 1.85, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>{site.mainText}</p>
+            <SiteBodyTexts site={site} style={{ lineHeight: 1.85, whiteSpace: 'pre-wrap', fontStyle: 'italic' }} />
           </div>
         ) : null}
         {renderOptionalSections(site, cardStyleSurface)}
