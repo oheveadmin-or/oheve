@@ -2,12 +2,12 @@
  * 8 structurally distinct hero layouts.
  * Each one has a different composition, not just different colors.
  */
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { WeddingSite } from '../types';
 import { HeroMeta } from './templateParts';
 import { titleFontSize } from './templateCardStyles';
-import { sectionLabels } from '../i18n';
 import { HeroPattern } from './PatternOverlay';
+import { HebrewVerseArc } from '../components/HebrewVerseArc';
 
 interface HeroProps {
   site: WeddingSite;
@@ -71,12 +71,56 @@ function MonogramBox({ svg, size, style }: { svg: string; size: number; style?: 
   );
 }
 
+/**
+ * פסוק hébraïque en arc, intégré DANS la carte du hero (à la place de
+ * l'ancien « Avec joie ») et dimensionné selon la largeur de chaque style.
+ * Rien n'est rendu sans verset.
+ */
+function HeroVerse({ site, width = 340, style }: { site: WeddingSite; width?: number; style?: CSSProperties }) {
+  // Largeur RÉELLE disponible dans la carte : l'arc est dessiné à cette taille
+  // (et non dessiné large puis réduit, ce qui rendait les lettres minuscules
+  // dans les cartes étroites sur téléphone).
+  const text = site.content?.hebrewQuote?.trim();
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [avail, setAvail] = useState(width);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const update = () => setAvail(Math.max(160, Math.min(width, Math.floor(el.clientWidth))));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [width, !!text]);
+
+  if (!text) return null;
+  const t = site.theme;
+  return (
+    <div ref={boxRef} style={{ width: '100%', maxWidth: width, margin: '0 auto 1.5rem', ...style }}>
+      <HebrewVerseArc
+        text={text}
+        color={t.primaryColor}
+        dotColor={t.primaryColor}
+        font={`'Frank Ruhl Libre', 'Noto Serif Hebrew', 'SBL Hebrew', ${t.fontFamily}, serif`}
+        width={avail}
+        rx={avail / 2 - 12}
+        ry={Math.round(avail * 0.11)}
+        maxFontSize={20}
+        minFontSize={12}
+        // Carte étroite : arc plus ouvert pour garder une police lisible
+        maxSpread={avail < 300 ? 2.7 : 2.2}
+        opacity={0.85}
+        fallbackStyle={{ fontSize: '15px', lineHeight: 1.7 }}
+      />
+    </div>
+  );
+}
+
 // ─── 1. Editorial ────────────────────────────────────────────────────────────
 // Structuré : bloc de gauche avec titre, séparateur vertical, bloc de droite avec date
 
 export function HeroEditorial({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
 
   return (
     <header
@@ -94,15 +138,14 @@ export function HeroEditorial({ site }: HeroProps) {
     >
       <HeroPattern theme={t} color={t.primaryColor} />
 
-      {/* Top rule */}
+      {/* Top rule + verset */}
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 680, marginBottom: '2.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: site.content?.hebrewQuote?.trim() ? '1.5rem' : 0 }}>
           <div style={{ flex: 1, height: 1, background: t.primaryColor, opacity: 0.3 }} />
-          <span style={{ fontSize: '0.55rem', letterSpacing: '0.55em', textTransform: 'uppercase', color: t.primaryColor, opacity: 0.7 }}>
-            {L.heroKicker}
-          </span>
+          <div style={{ width: 5, height: 5, background: t.primaryColor, transform: 'rotate(45deg)', opacity: 0.5 }} />
           <div style={{ flex: 1, height: 1, background: t.primaryColor, opacity: 0.3 }} />
         </div>
+        <HeroVerse site={site} width={420} style={{ marginBottom: 0 }} />
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 680 }}>
@@ -154,7 +197,6 @@ export function HeroEditorial({ site }: HeroProps) {
 
 export function HeroSplit({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
 
   return (
     <header
@@ -175,17 +217,7 @@ export function HeroSplit({ site }: HeroProps) {
           position: 'relative',
         }}
       >
-        <p
-          style={{
-            fontSize: '0.6rem',
-            letterSpacing: '0.4em',
-            textTransform: 'uppercase',
-            color: t.primaryColor,
-            marginBottom: '1.5rem',
-          }}
-        >
-          {L.heroKicker}
-        </p>
+        <HeroVerse site={site} width={300} style={{ margin: '0 0 1.5rem' }} />
         <h1
           style={{
             fontSize: `clamp(2rem, 5cqw, 4rem)`,
@@ -248,7 +280,6 @@ export function HeroSplit({ site }: HeroProps) {
 
 export function HeroFairepart({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
 
   return (
     <header
@@ -269,7 +300,8 @@ export function HeroFairepart({ site }: HeroProps) {
           position: 'relative',
           zIndex: 1,
           border: `1px solid ${t.primaryColor}55`,
-          padding: '3.5rem 3rem',
+          // Marges latérales réduites sur téléphone (verset et prénoms plus lisibles)
+          padding: '3.5rem clamp(1.25rem, 6cqw, 3rem)',
           maxWidth: 540,
           width: '100%',
           textAlign: 'center',
@@ -286,18 +318,7 @@ export function HeroFairepart({ site }: HeroProps) {
         />
         {t.cornerDecor && <CornerDecor color={t.primaryColor} size={32} />}
 
-        <p
-          style={{
-            fontSize: '0.58rem',
-            letterSpacing: '0.45em',
-            textTransform: 'uppercase',
-            color: t.primaryColor,
-            marginBottom: '1.5rem',
-            opacity: 0.9,
-          }}
-        >
-          {L.heroKicker}
-        </p>
+        <HeroVerse site={site} width={320} />
 
         <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem', opacity: 0.7, fontStyle: 'italic' }}>
           {site.content?.parentsBride?.father || site.content?.parentsBride?.mother
@@ -343,7 +364,6 @@ export function HeroFairepart({ site }: HeroProps) {
 
 export function HeroMonogramStyle({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
 
   return (
     <header
@@ -393,9 +413,7 @@ export function HeroMonogramStyle({ site }: HeroProps) {
           </div>
         )}
 
-        <p style={{ fontSize: '0.58rem', letterSpacing: '0.45em', textTransform: 'uppercase', color: t.primaryColor, marginBottom: '1rem', opacity: 0.8 }}>
-          {L.heroKicker}
-        </p>
+        <HeroVerse site={site} width={360} />
         <h1
           style={{
             fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 84, 0.55),
@@ -418,7 +436,6 @@ export function HeroMonogramStyle({ site }: HeroProps) {
 
 export function HeroLuxe({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
 
   return (
     <header
@@ -457,17 +474,7 @@ export function HeroLuxe({ site }: HeroProps) {
       {t.cornerDecor && <CornerDecor color={t.primaryColor} />}
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 640 }}>
-        <p
-          style={{
-            fontSize: '0.6rem',
-            letterSpacing: '0.6em',
-            textTransform: 'uppercase',
-            color: t.primaryColor,
-            marginBottom: '2rem',
-          }}
-        >
-          {L.heroKicker}
-        </p>
+        <HeroVerse site={site} width={380} style={{ marginBottom: '2rem' }} />
 
         <h1
           style={{
@@ -516,7 +523,6 @@ export function HeroLuxe({ site }: HeroProps) {
 
 export function HeroArtDeco({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
   const accent = t.primaryColor;
 
   return (
@@ -552,9 +558,7 @@ export function HeroArtDeco({ site }: HeroProps) {
           <div style={{ flex: 1, height: 1, background: accent }} />
         </div>
 
-        <p style={{ fontSize: '0.55rem', letterSpacing: '0.55em', textTransform: 'uppercase', color: accent, marginBottom: '1.5rem' }}>
-          {L.heroKicker}
-        </p>
+        <HeroVerse site={site} width={380} />
 
         <h1
           style={{
@@ -602,7 +606,6 @@ export function HeroArtDeco({ site }: HeroProps) {
 
 export function HeroMagazine({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
 
   return (
     <header
@@ -632,17 +635,7 @@ export function HeroMagazine({ site }: HeroProps) {
       />
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto', width: '100%', padding: '0 3rem 0 5rem' }}>
-        <p
-          style={{
-            fontSize: '0.6rem',
-            letterSpacing: '0.5em',
-            textTransform: 'uppercase',
-            color: t.primaryColor,
-            marginBottom: '1rem',
-          }}
-        >
-          {L.heroKicker}
-        </p>
+        <HeroVerse site={site} width={340} style={{ margin: '0 0 1rem' }} />
         <h1
           style={{
             fontSize: fitNames('clamp(3rem, 8cqw, 5.5rem)', [site.brideName, site.groomName], 66, 0.62),
@@ -668,7 +661,6 @@ export function HeroMagazine({ site }: HeroProps) {
 
 export function HeroMinimal({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
 
   return (
     <header
@@ -683,9 +675,7 @@ export function HeroMinimal({ site }: HeroProps) {
         position: 'relative',
       }}
     >
-      <p style={{ fontSize: '0.7rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: t.primaryColor, marginBottom: '3rem', opacity: 0.6 }}>
-        {L.heroKicker}
-      </p>
+      <HeroVerse site={site} width={360} style={{ marginBottom: '2.5rem' }} />
       <h1
         style={{
           fontSize: fitNames('clamp(1.8rem, 5cqw, 3rem)', [site.brideName, site.groomName], 84, 0.6),
@@ -738,7 +728,6 @@ function RoyalCornerSVG({ color, rotation }: { color: string; rotation: number }
 
 export function HeroRoyal({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
   const c = t.primaryColor;
 
   return (
@@ -782,13 +771,8 @@ export function HeroRoyal({ site }: HeroProps) {
           <RoyalSeal color={c} size={80} />
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1.75rem 0 1rem' }}>
-          <div style={{ flex: 1, height: 1, background: c, opacity: 0.5 }} />
-          <p style={{ fontSize: '0.52rem', letterSpacing: '0.55em', textTransform: 'uppercase', color: c, margin: 0 }}>
-            {L.heroKicker}
-          </p>
-          <div style={{ flex: 1, height: 1, background: c, opacity: 0.5 }} />
-        </div>
+        <HeroVerse site={site} width={360} style={{ margin: '1.75rem auto 0.5rem' }} />
+        <div style={{ height: '1.25rem' }} />
 
         <h1 style={{ fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 76, 0.6), fontWeight: 700, color: t.textColor, margin: '0 0 0.25rem', lineHeight: 1.1, fontStyle: 'italic' }}>
           {site.brideName}
@@ -863,7 +847,6 @@ function GardenCorners({ color }: { color: string }) {
 
 export function HeroGarden({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
   const c = t.primaryColor;
   const wreathSize = 148;
 
@@ -916,9 +899,7 @@ export function HeroGarden({ site }: HeroProps) {
           )}
         </div>
 
-        <p style={{ fontSize: '0.58rem', letterSpacing: '0.42em', textTransform: 'uppercase', color: c, marginBottom: '1.25rem', opacity: 0.8 }}>
-          {L.heroKicker}
-        </p>
+        <HeroVerse site={site} width={360} style={{ marginBottom: '1.25rem' }} />
 
         <h1
           style={{
@@ -959,7 +940,6 @@ export function HeroGarden({ site }: HeroProps) {
 
 export function HeroCinematic({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
 
   return (
     <header
@@ -988,18 +968,7 @@ export function HeroCinematic({ site }: HeroProps) {
       />
 
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 860, textAlign: 'center' }}>
-        <p
-          style={{
-            fontSize: '0.5rem',
-            letterSpacing: '0.85em',
-            textTransform: 'uppercase',
-            color: t.primaryColor,
-            marginBottom: '2rem',
-            opacity: 0.9,
-          }}
-        >
-          {L.heroKicker}
-        </p>
+        <HeroVerse site={site} width={420} style={{ marginBottom: '2rem' }} />
         {/* Both names at equal visual weight */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
           <h1
@@ -1053,7 +1022,6 @@ export function HeroCinematic({ site }: HeroProps) {
 
 export function HeroLetterpress({ site }: HeroProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
 
   return (
     <header
@@ -1078,7 +1046,7 @@ export function HeroLetterpress({ site }: HeroProps) {
           width: '100%',
           background: t.backgroundColor,
           borderRadius: Math.max(4, t.borderRadius),
-          padding: '3.5rem 3.5rem 3rem',
+          padding: '3.5rem clamp(1.25rem, 6cqw, 3.5rem) 3rem',
           textAlign: 'center',
           boxShadow: [
             `0 1px 2px ${t.primaryColor}20`,
@@ -1099,14 +1067,16 @@ export function HeroLetterpress({ site }: HeroProps) {
             <div style={{ width: 6, height: 6, background: t.primaryColor, transform: 'rotate(45deg)', opacity: 0.7 }} />
             <div style={{ flex: 1, height: 2, background: t.primaryColor, opacity: 0.5 }} />
           </div>
-          <p style={{ fontSize: '0.52rem', letterSpacing: '0.55em', textTransform: 'uppercase', color: t.primaryColor, margin: '0.75rem 0 0', opacity: 0.85 }}>
-            {L.heroKicker}
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center', marginTop: '0.75rem' }}>
-            <div style={{ flex: 1, height: 1, background: t.primaryColor, opacity: 0.3 }} />
-            <div style={{ width: 4, height: 4, background: t.primaryColor, transform: 'rotate(45deg)', opacity: 0.45 }} />
-            <div style={{ flex: 1, height: 1, background: t.primaryColor, opacity: 0.3 }} />
-          </div>
+          {site.content?.hebrewQuote?.trim() ? (
+            <>
+              <HeroVerse site={site} width={300} style={{ margin: '1rem auto 0' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center', marginTop: '0.75rem' }}>
+                <div style={{ flex: 1, height: 1, background: t.primaryColor, opacity: 0.3 }} />
+                <div style={{ width: 4, height: 4, background: t.primaryColor, transform: 'rotate(45deg)', opacity: 0.45 }} />
+                <div style={{ flex: 1, height: 1, background: t.primaryColor, opacity: 0.3 }} />
+              </div>
+            </>
+          ) : null}
         </div>
 
         {/* Embossed monogram — le monogramme du couple remplace les initiales s'il existe */}

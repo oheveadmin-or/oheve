@@ -138,8 +138,9 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
       {/* ♫ Musique — lecture automatique, sans bouton (démarre au 1er geste) */}
       <HiddenAutoMusic url={site.content?.musicUrl} />
 
-      {/* Verset hébraïque en arc — affiché ici sauf pour vintage (intégré dans la carte) */}
-      {site.content?.hebrewQuote && !isVintage ? (
+      {/* Verset hébraïque en arc : intégré DANS la carte du hero (HeroVariants,
+          VintageHero). Ici seulement en secours quand la section hero est masquée. */}
+      {site.content?.hebrewQuote && !isVintage && !site.sections.hero ? (
         <ArchedHebrewQuote
           text={site.content.hebrewQuote}
           color={t.primaryColor}
