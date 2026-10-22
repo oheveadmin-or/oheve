@@ -496,14 +496,6 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
         />
       ) : null}
 
-      {site.date ? (
-        <CountdownCard tk={tk} targetDate={site.date} language={site.language} title={L.countdownTitle} />
-      ) : null}
-
-      <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} />
-
-      {featuredPhoto ? <PhotoCard tk={tk} src={featuredPhoto} /> : null}
-
       {/* Mot d'accueil principal */}
       {site.mainText ? (
         <Card tk={tk}>
@@ -522,6 +514,31 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
           </p>
         </Card>
       ) : null}
+
+      {/* Textes du site : famille + « À la mémoire de… » */}
+      {site.content?.texts?.familyText?.trim() || site.content?.texts?.memorialText?.trim() ? (
+        <Card tk={tk}>
+          {site.content?.texts?.familyText?.trim() ? (
+            <p style={{ margin: 0, fontFamily: tk.fonts.body, fontSize: '1rem', lineHeight: 1.9, color: tk.colors.text, textAlign: 'center', whiteSpace: 'pre-wrap' }}>
+              {site.content.texts.familyText}
+            </p>
+          ) : null}
+          {site.content?.texts?.memorialText?.trim() ? (
+            <p style={{ margin: site.content?.texts?.familyText?.trim() ? '0.9rem 0 0' : 0, fontFamily: tk.fonts.body, fontSize: '0.92rem', fontStyle: 'italic', lineHeight: 1.7, color: tk.colors.text, opacity: 0.85, textAlign: 'center', whiteSpace: 'pre-wrap' }}>
+              {site.content.texts.memorialText}
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {site.date ? (
+        <CountdownCard tk={tk} targetDate={site.date} language={site.language} title={L.countdownTitle} />
+      ) : null}
+
+      <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} />
+
+      {featuredPhoto ? <PhotoCard tk={tk} src={featuredPhoto} /> : null}
+
 
       {/* Sections fonctionnelles (Programme, Lieu, RSVP, Galerie, FAQ…) */}
       <div style={{ width: tk.cardWidth, margin: '0 auto' }}>

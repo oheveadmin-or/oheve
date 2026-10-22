@@ -1,6 +1,6 @@
 import type { WeddingTemplateProps } from '../types';
 import { cardStyleSurface, titleFontSize } from './templateCardStyles';
-import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, SiteBodyTexts, hasSiteBodyTexts } from './templateParts';
 
 export function ModernMinimalTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
@@ -46,9 +46,9 @@ export function ModernMinimalTemplate({ site }: WeddingTemplateProps) {
         ) : null}
 
         <div>
-          {!site.sections.guestMessage && site.mainText ? (
+          {hasSiteBodyTexts(site) ? (
             <div style={{ ...cardStyleSurface({ theme: t }), border: `1px solid ${t.textColor}18` }}>
-              <p style={{ margin: 0, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{site.mainText}</p>
+              <SiteBodyTexts site={site} style={{ lineHeight: 1.75, whiteSpace: 'pre-wrap' }} />
             </div>
           ) : null}
           {renderOptionalSections(site, cardStyleSurface)}

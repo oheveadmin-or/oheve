@@ -1,7 +1,7 @@
 import type { WeddingTemplateProps } from '../types';
 import { sectionLabels } from '../i18n';
 import { cardStyleSurface, titleFontSize } from './templateCardStyles';
-import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, SiteBodyTexts, hasSiteBodyTexts } from './templateParts';
 
 export function ClassicElegantTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
@@ -56,9 +56,9 @@ export function ClassicElegantTemplate({ site }: WeddingTemplateProps) {
           </header>
         ) : null}
 
-        {!site.sections.guestMessage && site.mainText ? (
+        {hasSiteBodyTexts(site) ? (
           <div style={{ ...cardStyleSurface({ theme: t }), textAlign: site.language === 'he' ? 'right' : 'left' }}>
-            <p style={{ margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap', fontSize: '1.05rem' }}>{site.mainText}</p>
+            <SiteBodyTexts site={site} style={{ lineHeight: 1.8, whiteSpace: 'pre-wrap', fontSize: '1.05rem' }} />
           </div>
         ) : null}
 

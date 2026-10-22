@@ -8,7 +8,8 @@ import type { WeddingSite } from '../types';
 import { formatWeddingDate } from '../utils/date';
 import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
 import { sectionLabels } from '../i18n';
-import { deezerTrackId, resolveDeezerPreview } from '../data/musicSuggestions';
+import { deezerTrackId, resolveDeezerPreview, youtubeIdForDeezer } from '../data/musicSuggestions';
+import { YT_PLAYER_SIZE, YT_STATE, defaultStartSeconds, loadYouTubeApi, parseYouTubeUrl, type YTPlayer } from '../data/youtubeMusic';
 
 import { cardStyleSurface } from './templateCardStyles';
 import { resolveThemeColors } from '../utils/themeColors';
@@ -191,13 +192,39 @@ export function HeroMonogram({ site }: { site: WeddingSite }) {
   );
 }
 
+/** Textes du corps : texte principal, texte famille, « À la mémoire de… ». */
+export function hasSiteBodyTexts(site: WeddingSite): boolean {
+  return !!(site.mainText?.trim() || site.content?.texts?.familyText?.trim() || site.content?.texts?.memorialText?.trim());
+}
+
+/**
+ * Rendu partagé des textes du corps (dans la carte du modèle). Toujours
+ * affiché, que la section hero ou « Message aux invités » soit active ou non
+ * — avant, selon ces réglages, le texte principal disparaissait ou était doublé.
+ */
+export function SiteBodyTexts({ site, style }: { site: WeddingSite; style?: CSSProperties }) {
+  const main = site.mainText?.trim();
+  const family = site.content?.texts?.familyText?.trim();
+  const memorial = site.content?.texts?.memorialText?.trim();
+  const base: CSSProperties = { margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap', ...style };
+  return (
+    <>
+      {main ? <p style={base}>{site.mainText}</p> : null}
+      {family ? <p style={{ ...base, marginTop: main ? '0.9rem' : 0, fontSize: '0.95em' }}>{site.content!.texts!.familyText}</p> : null}
+      {memorial ? (
+        <p style={{ ...base, marginTop: main || family ? '0.9rem' : 0, fontSize: '0.9em', fontStyle: 'italic', opacity: 0.85 }}>
+          {site.content!.texts!.memorialText}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export function HeroMeta({ site }: { site: WeddingSite }) {
   const line = [formatWeddingDate(site.date, site.language), site.city, site.venue].filter(Boolean).join(' · ');
   const countdown = useCountdown(site.date);
 
   const familyColumns = getFamilyColumns(site);
-  const hasMemorial = !!site.content?.texts?.memorialText?.trim();
-  const hasFamilyText = !!site.content?.texts?.familyText?.trim();
 
   return (
     <>
@@ -211,21 +238,6 @@ export function HeroMeta({ site }: { site: WeddingSite }) {
       {site.welcomeText ? (
         <p style={{ marginTop: '1.25rem', fontSize: '1.1rem', maxWidth: 520, marginInline: 'auto', lineHeight: 1.65 }}>
           {site.welcomeText}
-        </p>
-      ) : null}
-      {site.mainText ? (
-        <p style={{ marginTop: '1rem', fontSize: '1.05rem', maxWidth: 560, marginInline: 'auto', lineHeight: 1.75, fontStyle: 'italic', opacity: 0.9 }}>
-          {site.mainText}
-        </p>
-      ) : null}
-      {hasMemorial ? (
-        <p style={{ marginTop: '0.75rem', fontSize: '0.9rem', opacity: 0.82, fontStyle: 'italic' }}>
-          {site.content!.texts!.memorialText}
-        </p>
-      ) : null}
-      {hasFamilyText ? (
-        <p style={{ marginTop: '0.75rem', fontSize: '0.95rem', opacity: 0.92, lineHeight: 1.6 }}>
-          {site.content!.texts!.familyText}
         </p>
       ) : null}
       {familyColumns.length ? (
@@ -260,7 +272,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   // flottant `position: fixed` — celui-ci « sortait de l'écran » dès qu'un
   // ancêtre pose un `transform`/`container-type` (aperçu iPhone du builder,
   // cartes en `containerType: inline-size`…), qui redéfinit son point d'ancrage.
-  const { hasMusic, playing, toggle, requestPlay } = useMusicPlayer(site.content?.musicUrl);
+  const { hasMusic, playing, toggle, requestPlay, ytCard } = useMusicPlayer(site.content?.musicUrl, site.theme.primaryColor);
   useEffect(() => {
     if (!hasMusic || playing) return;
     const start = (e: Event) => {
@@ -359,6 +371,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
           </a>
           {musicBtn}
         </div>
+        {ytCard}
       </nav>
     );
   }
@@ -396,6 +409,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
             ))}
           </div>
         ) : null}
+        {ytCard}
       </nav>
     );
   }
@@ -455,6 +469,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
           ))}
         </div>
       ) : null}
+      {ytCard}
     </nav>
   );
 }
@@ -463,11 +478,20 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
  * Hook lecteur musique partagé. L'URL MP3 est pré-résolue au chargement :
  * iOS n'autorise `play()` que DANS le geste utilisateur — résoudre Deezer au
  * moment du clic faisait échouer la lecture en silence sur iPhone/iPad.
+ *
+ * Chanson de la playlist (ou lien collé) disponible sur YouTube → lecture de
+ * la chanson ENTIÈRE dans le lecteur YouTube intégré, démarrée vers le milieu
+ * (le passage connu) puis jouée jusqu'au bout et reprise du début. L'extrait
+ * Deezer 30 s reste le secours (vidéo non intégrable, lecture auto bloquée).
  */
-function useMusicPlayer(url: string | undefined) {
+function useMusicPlayer(url: string | undefined, accent = '#8a7350') {
   const trimmed = url?.trim() || '';
-  const [playing, setPlaying] = useState(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [ytPlaying, setYtPlaying] = useState(false);
+  // Mini-lecteur YouTube affiché (YouTube interdit de le cacher pendant la lecture)
+  const [ytVisible, setYtVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const playing = audioPlaying || ytPlaying;
   const ref = useRef<HTMLAudioElement | null>(null);
   // `src` en RÉF (et pas seulement en state) : les écouteurs de geste capturent
   // une closure figée au montage (src encore nul). En lisant `srcRef.current`,
@@ -483,9 +507,28 @@ function useMusicPlayer(url: string | undefined) {
   // « le bouton ne coupe pas la musique »).
   const userPausedRef = useRef(false);
 
-  const startPlayback = () => {
+  const youtube = useMemo(() => {
+    const id = deezerTrackId(trimmed);
+    if (id != null) {
+      const videoId = youtubeIdForDeezer(id);
+      return videoId ? { videoId, start: null } : null;
+    }
+    return parseYouTubeUrl(trimmed);
+  }, [trimmed]);
+  const ytHostRef = useRef<HTMLDivElement | null>(null);
+  const ytRef = useRef<YTPlayer | null>(null);
+  const ytReadyRef = useRef(false);
+  // Vidéo injouable ici (intégration désactivée, retirée…) → extrait audio
+  const ytFailedRef = useRef(false);
+  // Départ « au milieu » appliqué une seule fois (pas à chaque reprise)
+  const ytStartedRef = useRef(false);
+  const audioUnlockedRef = useRef(false);
+  const fallbackTimerRef = useRef<number | undefined>(undefined);
+  const fadeTimerRef = useRef<number | undefined>(undefined);
+
+  const ensureAudio = () => {
     const s = srcRef.current;
-    if (!s) return;
+    if (!s) return null;
     if (!ref.current) {
       const audio = new Audio(s);
       audio.loop = true;
@@ -502,30 +545,95 @@ function useMusicPlayer(url: string | undefined) {
       });
       // État synchronisé sur l'élément audio lui-même (pause système iOS,
       // fin de lecture…) plutôt que sur la seule promesse de play().
-      audio.addEventListener('play', () => setPlaying(true));
-      audio.addEventListener('pause', () => setPlaying(false));
+      audio.addEventListener('play', () => setAudioPlaying(true));
+      audio.addEventListener('pause', () => setAudioPlaying(false));
       ref.current = audio;
     }
-    ref.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    return ref.current;
+  };
+
+  const playAudio = () => {
+    ensureAudio()?.play().catch(() => setAudioPlaying(false));
+  };
+
+  const ytUsable = () => !!youtube && !!ytRef.current && ytReadyRef.current && !ytFailedRef.current;
+
+  const startPlayback = () => {
+    const yt = ytRef.current;
+    if (yt && ytUsable()) {
+      // iPhone : on « déverrouille » l'extrait de secours DANS le geste (muet),
+      // pour pouvoir le lancer sans geste si iOS bloque la lecture YouTube.
+      const a = ensureAudio();
+      if (a && !audioUnlockedRef.current) {
+        a.muted = true;
+        a.play()
+          .then(() => { a.pause(); audioUnlockedRef.current = true; })
+          .catch(() => {})
+          .finally(() => { a.muted = false; });
+      }
+      if (!ytStartedRef.current) yt.setVolume(0); // silence jusqu'au saut au milieu
+      yt.playVideo();
+      setYtVisible(true);
+      window.clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = window.setTimeout(() => {
+        if (userPausedRef.current || yt.getPlayerState() === YT_STATE.PLAYING) return;
+        // Lecture auto refusée (iOS) : l'extrait joue en attendant, et le
+        // mini-lecteur reste affiché → un toucher lance la chanson entière.
+        playAudio();
+      }, 2500);
+      return;
+    }
+    playAudio();
   };
 
   const stopPlayback = () => {
+    window.clearTimeout(fallbackTimerRef.current);
     ref.current?.pause();
-    setPlaying(false);
+    ytRef.current?.pauseVideo();
+    setAudioPlaying(false);
+    setYtPlaying(false);
+    setYtVisible(false);
+  };
+
+  /** Fondu d'entrée du lecteur YouTube (0 → 100 en ~2,5 s). */
+  const fadeInYouTube = (yt: YTPlayer) => {
+    window.clearInterval(fadeTimerRef.current);
+    let v = 0;
+    fadeTimerRef.current = window.setInterval(() => {
+      v = Math.min(100, v + 8);
+      try { yt.setVolume(v); } catch { /* lecteur détruit */ }
+      if (v >= 100) window.clearInterval(fadeTimerRef.current);
+    }, 200);
+  };
+
+  /** Saute vers le milieu de la chanson (durée parfois connue un peu après le départ). */
+  const jumpToStart = (yt: YTPlayer, start: number | null, tries = 0) => {
+    const d = yt.getDuration();
+    if (start == null && !(d > 0) && tries < 6) {
+      window.setTimeout(() => jumpToStart(yt, start, tries + 1), 300);
+      return;
+    }
+    const at = start ?? defaultStartSeconds(d);
+    if (at > 0) yt.seekTo(at, true);
+    fadeInYouTube(yt);
   };
 
   useEffect(() => {
     ref.current?.pause();
     ref.current = null;
-    setPlaying(false);
+    setAudioPlaying(false);
+    setYtPlaying(false);
+    setYtVisible(false);
     wantPlayRef.current = false;
     userPausedRef.current = false;
+    audioUnlockedRef.current = false;
     srcRef.current = null;
     if (!trimmed) { setLoading(false); return; }
     const id = deezerTrackId(trimmed);
     let cancelled = false;
     if (id == null) {
-      srcRef.current = trimmed;
+      // Lien YouTube collé : pas d'extrait audio de secours
+      srcRef.current = youtube ? null : trimmed;
     } else {
       setLoading(true);
       resolveDeezerPreview(id).then((resolved) => {
@@ -533,19 +641,84 @@ function useMusicPlayer(url: string | undefined) {
         srcRef.current = resolved;
         setLoading(false);
         // Un geste a déjà demandé la lecture avant la résolution → on démarre.
-        if (wantPlayRef.current && !userPausedRef.current && resolved) startPlayback();
+        if (wantPlayRef.current && !userPausedRef.current && resolved && !ytUsable()) startPlayback();
       });
     }
+
+    // ── Lecteur YouTube (chanson entière) ──────────────────────────────────
+    ytReadyRef.current = false;
+    ytFailedRef.current = false;
+    ytStartedRef.current = false;
+    if (youtube && ytHostRef.current) {
+      const host = ytHostRef.current;
+      void loadYouTubeApi().then((YT) => {
+        if (cancelled) return;
+        if (!YT) { ytFailedRef.current = true; return; }
+        const el = document.createElement('div');
+        host.appendChild(el);
+        const yt = new YT.Player(el, {
+          width: YT_PLAYER_SIZE,
+          height: YT_PLAYER_SIZE,
+          videoId: youtube.videoId,
+          playerVars: { playsinline: 1, rel: 0, controls: 1, fs: 0, iv_load_policy: 3 },
+          events: {
+            onReady: () => {
+              if (cancelled) return;
+              ytReadyRef.current = true;
+              if (wantPlayRef.current && !userPausedRef.current) startPlayback();
+            },
+            onStateChange: (e) => {
+              if (cancelled) return;
+              if (e.data === YT_STATE.PLAYING) {
+                // Lecture YouTube effective (aussi quand l'invité touche la vidéo) :
+                // la chanson entière remplace l'extrait de secours.
+                window.clearTimeout(fallbackTimerRef.current);
+                userPausedRef.current = false;
+                ref.current?.pause();
+                setYtPlaying(true);
+                setYtVisible(true);
+                if (!ytStartedRef.current) {
+                  ytStartedRef.current = true;
+                  jumpToStart(yt, youtube.start);
+                }
+              } else if (e.data === YT_STATE.ENDED) {
+                // Fin de la chanson (démarrée au milieu) → on reprend du début :
+                // les invités entendent ensuite toute la chanson.
+                yt.seekTo(0, true);
+                yt.playVideo();
+              } else if (e.data === YT_STATE.PAUSED) {
+                setYtPlaying(false);
+              }
+            },
+            onError: () => {
+              if (cancelled) return;
+              ytFailedRef.current = true;
+              window.clearTimeout(fallbackTimerRef.current);
+              setYtPlaying(false);
+              setYtVisible(false);
+              if (wantPlayRef.current && !userPausedRef.current) playAudio();
+            },
+          },
+        });
+        ytRef.current = yt;
+      });
+    }
+
     return () => {
       cancelled = true;
+      window.clearTimeout(fallbackTimerRef.current);
+      window.clearInterval(fadeTimerRef.current);
       ref.current?.pause();
       ref.current = null;
+      try { ytRef.current?.destroy(); } catch { /* déjà détruit */ }
+      ytRef.current = null;
+      if (ytHostRef.current) ytHostRef.current.innerHTML = '';
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trimmed]);
 
   const toggle = () => {
-    const isPlaying = !!ref.current && !ref.current.paused;
-    if (isPlaying) {
+    if (playing || (ytVisible && !ytFailedRef.current)) {
       userPausedRef.current = true;
       wantPlayRef.current = false;
       stopPlayback();
@@ -558,13 +731,62 @@ function useMusicPlayer(url: string | undefined) {
 
   /** Demande la lecture (autoplay) : joue maintenant si prêt, sinon dès que résolu. */
   const requestPlay = () => {
-    if (userPausedRef.current) return;
-    if (ref.current && !ref.current.paused) return;
+    if (userPausedRef.current || playing) return;
+    if (wantPlayRef.current && ytVisible) return; // démarrage YouTube déjà en cours
     wantPlayRef.current = true;
     startPlayback();
   };
 
-  return { hasMusic: !!trimmed, loading, playing, toggle, requestPlay };
+  // Mini-lecteur YouTube : toujours monté (le lecteur doit exister avant le
+  // geste de l'invité), visible seulement pendant la lecture.
+  const ytCard = youtube ? (
+    <div
+      style={{
+        position: 'absolute',
+        top: 'calc(100% + 8px)',
+        right: 12,
+        width: YT_PLAYER_SIZE,
+        height: YT_PLAYER_SIZE,
+        zIndex: 61,
+        borderRadius: 14,
+        boxShadow: '0 14px 36px -14px rgba(0,0,0,0.45)',
+        background: '#000',
+        opacity: ytVisible ? 1 : 0,
+        visibility: ytVisible ? 'visible' : 'hidden',
+        pointerEvents: ytVisible ? 'auto' : 'none',
+        transition: 'opacity 200ms ease',
+      }}
+    >
+      <div ref={ytHostRef} style={{ width: '100%', height: '100%', borderRadius: 14, overflow: 'hidden' }} />
+      <button
+        type="button"
+        data-music-toggle
+        onClick={toggle}
+        aria-label="Couper la musique"
+        title="Couper la musique"
+        style={{
+          position: 'absolute',
+          top: -10,
+          right: -10,
+          width: 26,
+          height: 26,
+          borderRadius: '50%',
+          border: `1px solid ${accent}66`,
+          background: '#fff',
+          color: accent,
+          fontSize: '0.8rem',
+          lineHeight: 1,
+          padding: 0,
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px -4px rgba(0,0,0,0.35)',
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  ) : null;
+
+  return { hasMusic: !!trimmed, loading, playing, toggle, requestPlay, ytCard };
 }
 
 /**
@@ -584,36 +806,39 @@ export function InlineMusicPlayer({
   fontFamily?: string;
   style?: CSSProperties;
 }) {
-  const { hasMusic, loading, playing, toggle } = useMusicPlayer(url);
+  const { hasMusic, loading, playing, toggle, ytCard } = useMusicPlayer(url, accent);
   if (!hasMusic) return null;
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        border: `1px solid ${accent}66`,
-        borderRadius: 999,
-        padding: '0.45rem 1.1rem',
-        background: playing ? `${accent}1e` : 'transparent',
-        color: textColor ?? accent,
-        fontFamily,
-        fontSize: '0.74rem',
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        fontWeight: 600,
-        cursor: 'pointer',
-        // Reste cliquable dans l'aperçu du builder (template en pointerEvents: none)
-        pointerEvents: 'auto',
-        ...style,
-      }}
-    >
-      <span aria-hidden style={{ fontSize: '0.95rem', lineHeight: 1 }}>{playing ? '❚❚' : '♫'}</span>
-      {loading ? '…' : playing ? 'Pause' : 'Notre musique'}
-    </button>
+    <span style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        onClick={toggle}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          border: `1px solid ${accent}66`,
+          borderRadius: 999,
+          padding: '0.45rem 1.1rem',
+          background: playing ? `${accent}1e` : 'transparent',
+          color: textColor ?? accent,
+          fontFamily,
+          fontSize: '0.74rem',
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          fontWeight: 600,
+          cursor: 'pointer',
+          // Reste cliquable dans l'aperçu du builder (template en pointerEvents: none)
+          pointerEvents: 'auto',
+          ...style,
+        }}
+      >
+        <span aria-hidden style={{ fontSize: '0.95rem', lineHeight: 1 }}>{playing ? '❚❚' : '♫'}</span>
+        {loading ? '…' : playing ? 'Pause' : 'Notre musique'}
+      </button>
+      {ytCard}
+    </span>
   );
 }
 

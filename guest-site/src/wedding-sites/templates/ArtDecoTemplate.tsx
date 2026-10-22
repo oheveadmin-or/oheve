@@ -1,7 +1,7 @@
 import type { WeddingTemplateProps } from '../types';
 import { sectionLabels } from '../i18n';
 import { cardStyleSurface, titleFontSize } from './templateCardStyles';
-import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, SiteBodyTexts, hasSiteBodyTexts } from './templateParts';
 
 const GEO_BORDER = (color: string) => ({
   border: `1px solid ${color}`,
@@ -105,9 +105,9 @@ export function ArtDecoTemplate({ site }: WeddingTemplateProps) {
       ) : null}
 
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '2rem 1.5rem 5rem' }}>
-        {!site.sections.guestMessage && site.mainText ? (
+        {hasSiteBodyTexts(site) ? (
           <div style={{ ...cardStyleSurface({ theme: t }), textAlign: 'center', ...GEO_BORDER(`${accent}44`) }}>
-            <p style={{ margin: 0, lineHeight: 1.85, whiteSpace: 'pre-wrap' }}>{site.mainText}</p>
+            <SiteBodyTexts site={site} style={{ lineHeight: 1.85, whiteSpace: 'pre-wrap' }} />
           </div>
         ) : null}
         {renderOptionalSections(site, cardStyleSurface)}
