@@ -8,10 +8,10 @@
  * `resolveDeezerPreview` (JSONP → pas de souci CORS). Le couple peut aussi
  * coller sa propre URL .mp3 directe, ou un lien YouTube.
  *
- * `youtubeId` : la même chanson sur YouTube. Quand il est présent, la carte la
- * joue EN ENTIER via le lecteur YouTube intégré (voir youtubeMusic.ts) ;
- * l'extrait Deezer ne sert plus que de secours (vidéo non intégrable, iPhone
- * qui bloque la lecture auto…).
+ * `mp3Url` : la chanson COMPLÈTE hébergée par Oheve (fichier audio). Quand
+ * elle est présente, la carte la joue en entier, démarrée vers le milieu ;
+ * sinon c'est l'extrait Deezer de 30 s qui tourne en boucle. Aucun lecteur
+ * vidéo n'est affiché : la musique reste invisible (pastille 🔊/🔇 seulement).
  */
 
 export type MusicSuggestion = {
@@ -19,34 +19,34 @@ export type MusicSuggestion = {
   id: number;
   title: string;
   artist: string;
-  /** ID de la vidéo YouTube de la même chanson (lecture complète) */
-  youtubeId?: string;
+  /** Chanson complète (MP3 hébergé) — lue à la place de l'extrait 30 s */
+  mp3Url?: string;
 };
 
 /** Préfixe de schéma utilisé dans `content.musicUrl` pour une piste Deezer. */
 export const DEEZER_SCHEME = 'deezer:';
 
 export const MUSIC_SUGGESTIONS: MusicSuggestion[] = [
-  { id: 2299667255, title: 'בסוף אנחנו נתחתן', artist: 'Adir Getz', youtubeId: '-mYY0ZpzXRQ' },
-  { id: 2723237792, title: 'בואי בשלום', artist: 'Alliel', youtubeId: 'yhWr69Y96uQ' },
-  { id: 100431306, title: 'Boei Kala', artist: 'Gad Elbaz', youtubeId: 'p0EKBX8vVPA' },
-  { id: 109094410, title: 'Birkat Chupa', artist: 'Ohad Moskowitz', youtubeId: 'wfoWe5C8bwk' },
-  { id: 1892007337, title: 'Mi Adir', artist: 'Daniel Ben Haim', youtubeId: 'L240Yu0_SmY' },
+  { id: 2299667255, title: 'בסוף אנחנו נתחתן', artist: 'Adir Getz' },
+  { id: 2723237792, title: 'בואי בשלום', artist: 'Alliel' },
+  { id: 100431306, title: 'Boei Kala', artist: 'Gad Elbaz' },
+  { id: 109094410, title: 'Birkat Chupa', artist: 'Ohad Moskowitz' },
+  { id: 1892007337, title: 'Mi Adir', artist: 'Daniel Ben Haim' },
   { id: 109898594, title: 'Asher Bara', artist: 'Eli Zion' },
-  { id: 118243878, title: 'Yismach Chatani', artist: 'Meir Green', youtubeId: 'A8RPqBFcEAg' },
+  { id: 118243878, title: 'Yismach Chatani', artist: 'Meir Green' },
   { id: 108563234, title: 'Mimaamakim', artist: 'Itzik Dadya' },
-  { id: 620773182, title: 'ניגון ארבע בבות', artist: 'Hilik Frank', youtubeId: 'HDrvxGTtcjE' },
-  { id: 1405775002, title: 'חתונה של השמחות', artist: 'Dudu Aharon', youtubeId: '7G6sfJsdnTI' },
-  { id: 1390863842, title: 'חתונת השמחות (רמיקס)', artist: 'Regev Hod', youtubeId: 'xlyiP3xSRS4' },
-  { id: 384581701, title: 'חתונת השנה', artist: 'Itay Levy', youtubeId: 'tCBtH_OpEmg' },
-  { id: 886644942, title: 'יש חתונה פה', artist: 'Itzik Eshel', youtubeId: 'R0Mgk-8GhZs' },
-  { id: 2670262182, title: 'רק שלך', artist: 'Lior Narkis', youtubeId: '6nkOouibBwk' },
-  { id: 691745952, title: 'תיתן לה פרחים', artist: 'Omer Adam', youtubeId: 'mrFDtpqO19w' },
-  { id: 737305972, title: 'מזל', artist: 'Eyal Golan', youtubeId: '8XbWkz3CD9s' },
-  { id: 2008887127, title: 'אהבה כמו שלנו (קיסריה Live)', artist: 'Sarit Hadad', youtubeId: 'iWXHITPfWD4' },
-  { id: 1086787242, title: 'אישתי', artist: 'Maor Edri', youtubeId: 'iLTWqFtpPdg' },
-  { id: 2420120435, title: 'אהיה שלך לעד', artist: 'Dudi Buzaglo', youtubeId: 'qnDjomnJZfU' },
-  { id: 90977509, title: 'גיבור של אמא', artist: 'Moshe Peretz', youtubeId: '0ThgAUQiz_0' },
+  { id: 620773182, title: 'ניגון ארבע בבות', artist: 'Hilik Frank' },
+  { id: 1405775002, title: 'חתונה של השמחות', artist: 'Dudu Aharon' },
+  { id: 1390863842, title: 'חתונת השמחות (רמיקס)', artist: 'Regev Hod' },
+  { id: 384581701, title: 'חתונת השנה', artist: 'Itay Levy' },
+  { id: 886644942, title: 'יש חתונה פה', artist: 'Itzik Eshel' },
+  { id: 2670262182, title: 'רק שלך', artist: 'Lior Narkis' },
+  { id: 691745952, title: 'תיתן לה פרחים', artist: 'Omer Adam' },
+  { id: 737305972, title: 'מזל', artist: 'Eyal Golan' },
+  { id: 2008887127, title: 'אהבה כמו שלנו (קיסריה Live)', artist: 'Sarit Hadad' },
+  { id: 1086787242, title: 'אישתי', artist: 'Maor Edri' },
+  { id: 2420120435, title: 'אהיה שלך לעד', artist: 'Dudi Buzaglo' },
+  { id: 90977509, title: 'גיבור של אמא', artist: 'Moshe Peretz' },
 ];
 
 /** Libellé lisible « Titre — Artiste » pour une valeur `deezer:<id>`. */
@@ -58,9 +58,24 @@ export function musicLabelForUrl(url: string | undefined): string | null {
   return s ? `${s.title} — ${s.artist}` : `Deezer #${id}`;
 }
 
-/** ID YouTube associé à une piste Deezer de la playlist (sinon null). */
-export function youtubeIdForDeezer(trackId: number): string | null {
-  return MUSIC_SUGGESTIONS.find((m) => m.id === trackId)?.youtubeId ?? null;
+/** MP3 complet associé à une piste Deezer de la playlist (sinon null). */
+export function fullTrackForDeezer(trackId: number): string | null {
+  return MUSIC_SUGGESTIONS.find((m) => m.id === trackId)?.mp3Url ?? null;
+}
+
+/** Lien YouTube : plus pris en charge (le lecteur vidéo ne peut pas être caché). */
+export function isYouTubeUrl(url: string | undefined): boolean {
+  return /(^|\/\/)(www\.|m\.|music\.)?(youtube\.com|youtu\.be)\//i.test(url?.trim() ?? '');
+}
+
+/**
+ * Point de départ d'une chanson complète : vers le MILIEU (≈ 40 %, là où tombe
+ * en général le refrain) pour que les invités entendent tout de suite le
+ * passage connu ; la chanson continue ensuite jusqu'au bout puis reprend du début.
+ */
+export function defaultStartSeconds(duration: number): number {
+  if (!Number.isFinite(duration) || duration < 90) return 0;
+  return Math.round(Math.min(Math.max(duration * 0.4, 30), duration - 60));
 }
 
 /** Extrait l'ID Deezer d'une valeur `deezer:<id>` (sinon null). */

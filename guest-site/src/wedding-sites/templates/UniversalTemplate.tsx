@@ -155,25 +155,10 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         />
       ) : null}
 
-      {/* Hero section — wrapped in relative container for optional monogram overlay */}
+      {/* Hero section — le monogramme est rendu UNE seule fois, dans le hero lui-même */}
       {site.sections.hero ? (
         <div style={{ position: 'relative' }}>
           {isVintage ? VintageHeroSection : <HeroComponent site={enrichedSite} />}
-          {/* Monogram overlay — shown on all hero styles except 'monogram' (already inline there)
-              and except Vintage (le monogramme est déjà intégré dans la carte ovale) */}
-          {!isVintage && enrichedSite.content?.monogramSvg && heroStyle !== 'monogram' && (() => {
-            const svgAdapted = enrichedSite.content!.monogramSvg!
-              .replace(/width="[^"]*"/, 'width="100%"')
-              .replace(/height="[^"]*"/, 'height="100%"');
-            return (
-              <div style={{ position: 'absolute', zIndex: 10, pointerEvents: 'none', top: '1.5rem', left: '50%', transform: 'translateX(-50%)' }}>
-                <div
-                  style={{ width: 100, height: 100 }}
-                  dangerouslySetInnerHTML={{ __html: svgAdapted }}
-                />
-              </div>
-            );
-          })()}
         </div>
       ) : null}
 

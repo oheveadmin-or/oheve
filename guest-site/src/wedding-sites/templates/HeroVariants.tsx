@@ -44,6 +44,33 @@ function CornerDecor({ color, size = 40 }: { color: string; size?: number }) {
   );
 }
 
+/**
+ * Taille des prénoms bornée pour que le mot le plus long tienne sur la largeur
+ * disponible (`widthCqw`, en % du conteneur). Sans ça, `overflow-wrap: anywhere`
+ * (index.css) coupait les prénoms longs au milieu (« Alexandr-ine »).
+ * `charEm` = largeur moyenne d'un caractère en em (plus large en capitales).
+ */
+function fitNames(base: string, names: string[], widthCqw: number, charEm = 0.58): string {
+  const longest = Math.max(
+    4,
+    ...names.flatMap((n) => (n || '').split(/\s+/)).flatMap((w) => w.split('-').map((s, i, a) => s.length + (i < a.length - 1 ? 1 : 0))),
+  );
+  return `min(${base}, ${(widthCqw / (longest * charEm)).toFixed(2)}cqw)`;
+}
+
+/** Monogramme SVG du couple redimensionné dans une boîte carrée. */
+function MonogramBox({ svg, size, style }: { svg: string; size: number; style?: CSSProperties }) {
+  if (svg.startsWith('data:')) {
+    return <img src={svg} alt="" style={{ width: size, height: size, objectFit: 'contain', display: 'block', ...style }} />;
+  }
+  return (
+    <div
+      style={{ width: size, height: size, ...style }}
+      dangerouslySetInnerHTML={{ __html: svg.replace(/width="[^"]*"/, 'width="100%"').replace(/height="[^"]*"/, 'height="100%"') }}
+    />
+  );
+}
+
 // ─── 1. Editorial ────────────────────────────────────────────────────────────
 // Structuré : bloc de gauche avec titre, séparateur vertical, bloc de droite avec date
 
@@ -86,7 +113,7 @@ export function HeroEditorial({ site }: HeroProps) {
             <p style={{ margin: 0, fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: t.primaryColor, opacity: 0.65, marginBottom: '0.4rem' }}>
               {site.language === 'he' ? 'כלה' : 'Mariée'}
             </p>
-            <h1 style={{ fontSize: `clamp(2.2rem, 7cqw, 4.5rem)`, fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
+            <h1 style={{ fontSize: fitNames('clamp(2.2rem, 7cqw, 4.5rem)', [site.brideName, site.groomName], 32, 0.6), fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
               {site.brideName}
             </h1>
           </div>
@@ -103,7 +130,7 @@ export function HeroEditorial({ site }: HeroProps) {
             <p style={{ margin: 0, fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: t.primaryColor, opacity: 0.65, marginBottom: '0.4rem' }}>
               {site.language === 'he' ? 'חתן' : 'Marié'}
             </p>
-            <h1 style={{ fontSize: `clamp(2.2rem, 7cqw, 4.5rem)`, fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
+            <h1 style={{ fontSize: fitNames('clamp(2.2rem, 7cqw, 4.5rem)', [site.brideName, site.groomName], 32, 0.6), fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
               {site.groomName}
             </h1>
           </div>
@@ -280,7 +307,7 @@ export function HeroFairepart({ site }: HeroProps) {
 
         <h1
           style={{
-            fontSize: titleFontSize(t.titleSize),
+            fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 58),
             fontWeight: 600,
             lineHeight: 1.15,
             margin: '0.5rem 0',
@@ -293,7 +320,7 @@ export function HeroFairepart({ site }: HeroProps) {
         <p style={{ fontSize: '1.2rem', color: t.primaryColor, margin: '0.25rem 0', fontWeight: 400 }}>& </p>
         <h1
           style={{
-            fontSize: titleFontSize(t.titleSize),
+            fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 58),
             fontWeight: 600,
             lineHeight: 1.15,
             margin: '0.5rem 0',
@@ -336,14 +363,7 @@ export function HeroMonogramStyle({ site }: HeroProps) {
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* SVG or fallback monogram — scaled to 160px regardless of original export size */}
         {site.content?.monogramSvg ? (
-          <div
-            style={{ width: 160, height: 160, marginBottom: '2rem' }}
-            dangerouslySetInnerHTML={{
-              __html: site.content.monogramSvg
-                .replace(/width="[^"]*"/, 'width="100%"')
-                .replace(/height="[^"]*"/, 'height="100%"'),
-            }}
-          />
+          <MonogramBox svg={site.content.monogramSvg} size={160} style={{ margin: '0 auto 2rem' }} />
         ) : (
           <div
             style={{
@@ -378,7 +398,7 @@ export function HeroMonogramStyle({ site }: HeroProps) {
         </p>
         <h1
           style={{
-            fontSize: titleFontSize(t.titleSize),
+            fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 84, 0.55),
             fontWeight: 600,
             lineHeight: 1.15,
             margin: '0 0 0.5rem',
@@ -387,7 +407,7 @@ export function HeroMonogramStyle({ site }: HeroProps) {
         >
           {site.brideName} & {site.groomName}
         </h1>
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram />
       </div>
     </header>
   );
@@ -451,7 +471,7 @@ export function HeroLuxe({ site }: HeroProps) {
 
         <h1
           style={{
-            fontSize: titleFontSize(t.titleSize),
+            fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 76, 0.58),
             fontWeight: 600,
             lineHeight: 1.1,
             margin: '0 0 0.25rem',
@@ -466,7 +486,7 @@ export function HeroLuxe({ site }: HeroProps) {
         <p style={{ color: t.primaryColor, fontSize: '1.5rem', fontStyle: 'italic', margin: '0.25rem 0' }}>&</p>
         <h1
           style={{
-            fontSize: titleFontSize(t.titleSize),
+            fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 76, 0.58),
             fontWeight: 600,
             lineHeight: 1.1,
             margin: '0 0 1.5rem',
@@ -508,7 +528,8 @@ export function HeroArtDeco({ site }: HeroProps) {
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
-        padding: '4rem 2rem',
+        // Marge > losanges d'angle (≈ 120 px) : le contenu ne passe jamais dessous
+        padding: '8rem 2rem',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -521,7 +542,6 @@ export function HeroArtDeco({ site }: HeroProps) {
         <div style={{ position: 'absolute', top: 30, left: 30, width: 80, height: 80, border: `1px solid ${accent}33`, transform: 'rotate(45deg)' }} />
         <div style={{ position: 'absolute', bottom: 20, right: 20, width: 100, height: 100, border: `1px solid ${accent}55`, transform: 'rotate(45deg)' }} />
         <div style={{ position: 'absolute', bottom: 30, right: 30, width: 80, height: 80, border: `1px solid ${accent}33`, transform: 'rotate(45deg)' }} />
-        <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${accent}33, transparent)` }} />
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 640 }}>
@@ -538,7 +558,7 @@ export function HeroArtDeco({ site }: HeroProps) {
 
         <h1
           style={{
-            fontSize: titleFontSize(t.titleSize),
+            fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 84, 0.8),
             fontWeight: 700,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
@@ -552,7 +572,7 @@ export function HeroArtDeco({ site }: HeroProps) {
         <p style={{ color: accent, fontSize: '1.1rem', fontStyle: 'italic', margin: '0.25rem 0', letterSpacing: '0.15em' }}>& </p>
         <h1
           style={{
-            fontSize: titleFontSize(t.titleSize),
+            fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 84, 0.8),
             fontWeight: 700,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
@@ -625,7 +645,7 @@ export function HeroMagazine({ site }: HeroProps) {
         </p>
         <h1
           style={{
-            fontSize: `clamp(3rem, 8cqw, 5.5rem)`,
+            fontSize: fitNames('clamp(3rem, 8cqw, 5.5rem)', [site.brideName, site.groomName], 66, 0.62),
             fontWeight: 800,
             lineHeight: 0.95,
             margin: '0 0 1.5rem',
@@ -668,7 +688,7 @@ export function HeroMinimal({ site }: HeroProps) {
       </p>
       <h1
         style={{
-          fontSize: `clamp(1.8rem, 5cqw, 3rem)`,
+          fontSize: fitNames('clamp(1.8rem, 5cqw, 3rem)', [site.brideName, site.groomName], 84, 0.6),
           fontWeight: 300,
           lineHeight: 1.3,
           margin: 0,
@@ -756,7 +776,11 @@ export function HeroRoyal({ site }: HeroProps) {
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 600 }}>
-        <RoyalSeal color={c} size={80} />
+        {site.content?.monogramSvg ? (
+          <MonogramBox svg={site.content.monogramSvg} size={120} style={{ margin: '0 auto' }} />
+        ) : (
+          <RoyalSeal color={c} size={80} />
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1.75rem 0 1rem' }}>
           <div style={{ flex: 1, height: 1, background: c, opacity: 0.5 }} />
@@ -766,7 +790,7 @@ export function HeroRoyal({ site }: HeroProps) {
           <div style={{ flex: 1, height: 1, background: c, opacity: 0.5 }} />
         </div>
 
-        <h1 style={{ fontSize: titleFontSize(t.titleSize), fontWeight: 700, color: t.textColor, margin: '0 0 0.25rem', lineHeight: 1.1, fontStyle: 'italic' }}>
+        <h1 style={{ fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 76, 0.6), fontWeight: 700, color: t.textColor, margin: '0 0 0.25rem', lineHeight: 1.1, fontStyle: 'italic' }}>
           {site.brideName}
         </h1>
 
@@ -776,11 +800,11 @@ export function HeroRoyal({ site }: HeroProps) {
           <div style={{ flex: 1, height: 1, background: `${c}55` }} />
         </div>
 
-        <h1 style={{ fontSize: titleFontSize(t.titleSize), fontWeight: 700, color: t.textColor, margin: '0 0 2rem', lineHeight: 1.1, fontStyle: 'italic' }}>
+        <h1 style={{ fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 76, 0.6), fontWeight: 700, color: t.textColor, margin: '0 0 2rem', lineHeight: 1.1, fontStyle: 'italic' }}>
           {site.groomName}
         </h1>
 
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram={!!site.content?.monogramSvg} />
       </div>
     </header>
   );
@@ -874,6 +898,9 @@ export function HeroGarden({ site }: HeroProps) {
           }}
         >
           <LeafWreath color={c} size={wreathSize} />
+          {site.content?.monogramSvg ? (
+            <MonogramBox svg={site.content.monogramSvg} size={96} style={{ position: 'relative', zIndex: 1 }} />
+          ) : (
           <span
             style={{
               position: 'relative',
@@ -886,6 +913,7 @@ export function HeroGarden({ site }: HeroProps) {
           >
             {site.brideName[0]}{site.groomName[0]}
           </span>
+          )}
         </div>
 
         <p style={{ fontSize: '0.58rem', letterSpacing: '0.42em', textTransform: 'uppercase', color: c, marginBottom: '1.25rem', opacity: 0.8 }}>
@@ -894,7 +922,7 @@ export function HeroGarden({ site }: HeroProps) {
 
         <h1
           style={{
-            fontSize: titleFontSize(t.titleSize),
+            fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 84, 0.55),
             fontWeight: 600,
             color: t.textColor,
             margin: '0 0 0.5rem',
@@ -920,7 +948,7 @@ export function HeroGarden({ site }: HeroProps) {
           </svg>
         </div>
 
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram={!!site.content?.monogramSvg} />
       </div>
     </header>
   );
@@ -959,19 +987,6 @@ export function HeroCinematic({ site }: HeroProps) {
         }}
       />
 
-      {/* Horizontal light streak */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '38%',
-          left: 0,
-          right: 0,
-          height: 1,
-          background: `linear-gradient(90deg, transparent, ${t.primaryColor}33 25%, ${t.primaryColor}66 50%, ${t.primaryColor}33 75%, transparent)`,
-          pointerEvents: 'none',
-        }}
-      />
-
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 860, textAlign: 'center' }}>
         <p
           style={{
@@ -986,12 +1001,12 @@ export function HeroCinematic({ site }: HeroProps) {
           {L.heroKicker}
         </p>
         {/* Both names at equal visual weight */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
           <h1
             style={{
-              fontSize: `clamp(3rem, 11cqw, 7rem)`,
+              fontSize: fitNames('clamp(3rem, 11cqw, 7rem)', [site.brideName, site.groomName], 74, 0.78),
               fontWeight: 800,
-              lineHeight: 0.9,
+              lineHeight: 1,
               margin: 0,
               letterSpacing: '-0.03em',
               color: t.textColor,
@@ -1005,9 +1020,9 @@ export function HeroCinematic({ site }: HeroProps) {
           </span>
           <h1
             style={{
-              fontSize: `clamp(3rem, 11cqw, 7rem)`,
+              fontSize: fitNames('clamp(3rem, 11cqw, 7rem)', [site.brideName, site.groomName], 74, 0.78),
               fontWeight: 800,
-              lineHeight: 0.9,
+              lineHeight: 1,
               margin: 0,
               letterSpacing: '-0.03em',
               color: t.textColor,
@@ -1094,7 +1109,10 @@ export function HeroLetterpress({ site }: HeroProps) {
           </div>
         </div>
 
-        {/* Embossed monogram */}
+        {/* Embossed monogram — le monogramme du couple remplace les initiales s'il existe */}
+        {site.content?.monogramSvg ? (
+          <MonogramBox svg={site.content.monogramSvg} size={120} style={{ margin: '0 auto 1.75rem' }} />
+        ) : (
         <div
           style={{
             width: 76,
@@ -1112,16 +1130,17 @@ export function HeroLetterpress({ site }: HeroProps) {
             {site.brideName[0]}{site.groomName[0]}
           </span>
         </div>
+        )}
 
-        <h1 style={{ fontSize: titleFontSize(t.titleSize), fontWeight: 600, color: t.textColor, margin: '0 0 0.2rem', lineHeight: 1.15, letterSpacing: '0.03em', fontStyle: 'italic' }}>
+        <h1 style={{ fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 55, 0.6), fontWeight: 600, color: t.textColor, margin: '0 0 0.2rem', lineHeight: 1.15, letterSpacing: '0.03em', fontStyle: 'italic' }}>
           {site.brideName}
         </h1>
         <p style={{ color: t.primaryColor, fontSize: '1.15rem', margin: '0.2rem 0', fontStyle: 'italic', opacity: 0.8 }}>&</p>
-        <h1 style={{ fontSize: titleFontSize(t.titleSize), fontWeight: 600, color: t.textColor, margin: '0 0 2rem', lineHeight: 1.15, letterSpacing: '0.03em', fontStyle: 'italic' }}>
+        <h1 style={{ fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 55, 0.6), fontWeight: 600, color: t.textColor, margin: '0 0 2rem', lineHeight: 1.15, letterSpacing: '0.03em', fontStyle: 'italic' }}>
           {site.groomName}
         </h1>
 
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram={!!site.content?.monogramSvg} />
 
         {/* Bottom rule */}
         <div style={{ marginTop: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center' }}>

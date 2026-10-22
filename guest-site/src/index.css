@@ -197,6 +197,28 @@ a {
 .iphone-btn-voldown { left: -3px; top: 198px; width: 3px; height: 46px; }
 .iphone-btn-power { right: -3px; top: 150px; width: 3px; height: 64px; }
 
+/* Mêmes règles « mobile » selon la largeur du TEMPLATE (et non de la fenêtre) :
+   dans l'aperçu iPhone du builder, la fenêtre est large mais le site fait
+   393 px → le décompte restait en 4 colonnes (« MINU-TES ») et la barre de
+   nav tronquait le nom du couple. */
+@container (max-width: 720px) {
+  .wedding-modern-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .wedding-countdown-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .wedding-nav-links {
+    display: none !important;
+  }
+
+  .wedding-mobile-nav-btn {
+    display: inline-block !important;
+  }
+}
+
 @media (max-width: 720px) {
   .wedding-modern-grid {
     grid-template-columns: 1fr !important;

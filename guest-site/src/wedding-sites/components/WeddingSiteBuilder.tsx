@@ -7,9 +7,9 @@ import { RSVPBuilder } from '@guest/rsvp/RSVPBuilder';
 import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
-import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS } from '../data/weddingThemes';
+import { ALL_STYLE_PRESETS, FONT_OPTIONS } from '../data/weddingThemes';
 import { applyColorCombination, COLOR_COMBINATIONS, type ColorCombination } from '../data/colorCombinations';
-import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId } from '../data/musicSuggestions';
+import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId, isYouTubeUrl } from '../data/musicSuggestions';
 import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, uploadWeddingMusic, adaptPhotoToTheme } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
@@ -47,7 +47,6 @@ const HERO_STYLE_OPTIONS: { id: HeroStyle; label: string; icon: string; desc: st
   { id: 'editorial',   label: 'Éditorial',   icon: '📰', desc: 'Deux colonnes structurées' },
   { id: 'faire-part',  label: 'Faire-part',  icon: '💌', desc: 'Style invitation papier' },
   { id: 'art-deco',    label: 'Art Déco',    icon: '◆',  desc: 'Géométrique 1920s' },
-  { id: 'magazine',    label: 'Magazine',    icon: '📖', desc: 'Style éditorial bold' },
   { id: 'minimal',     label: 'Minimal',     icon: '⬜', desc: 'Épuré, espace blanc' },
   { id: 'royal',       label: 'Royal',       icon: '👑', desc: 'Héraldique formel' },
   { id: 'garden',      label: 'Botanique',   icon: '🌿', desc: 'Couronne de feuilles' },
@@ -531,9 +530,11 @@ export function WeddingSiteBuilder() {
       if (!isValidUrl(value)) errors.push(`${label} : URL invalide (doit commencer par https://).`);
     }
 
-    // Musique : accepte une piste Deezer (liste), un lien YouTube OU une URL .mp3 https://
-    if (!isValidMusicUrl(content.musicUrl))
-      errors.push('Lien musique : choisissez une chanson dans la liste ou collez un lien YouTube / une URL .mp3 (https://).');
+    // Musique : une piste de la liste OU une URL de fichier audio https:// (plus de YouTube)
+    if (isYouTubeUrl(content.musicUrl))
+      errors.push('Musique : les liens YouTube ne sont plus acceptés. Choisissez une chanson dans la liste ou envoyez votre fichier audio.');
+    else if (!isValidMusicUrl(content.musicUrl))
+      errors.push('Lien musique : choisissez une chanson dans la liste ou collez une URL de fichier audio (https://…mp3).');
 
     (content.galleryPhotos ?? []).forEach((u, i) => {
       if (!/^https?:\/\/\S+/.test(u) && !u.startsWith('data:image/'))
@@ -1135,28 +1136,8 @@ export function WeddingSiteBuilder() {
           <section style={block}>
             <h2 style={h2}>🎨 Style & thème</h2>
 
-            {/* ── Preset ───────────────────────────────────────────────────── */}
-            <label style={lab}>
-              Preset visuel
-              <select
-                style={inp}
-                value={theme.style}
-                onChange={(e) => {
-                  const id = e.target.value as WeddingTheme['style'];
-                  const preset = STYLE_PRESETS.find((s) => s.id === id);
-                  const { heroStyle: _h, patternId: _p, separatorStyle: _s, cardStyle: _c, cornerDecor: _co, ...rest } = theme;
-                  if (preset) setTheme(applyThemePreset({ ...rest, ...preset.theme, style: id } as WeddingTheme));
-                  else setTheme(applyThemePreset({ ...rest, style: id } as WeddingTheme));
-                }}
-              >
-                {STYLE_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>{p.label}</option>
-                ))}
-              </select>
-            </label>
-
             {/* ── Studio de Design ─────────────────────────────────────────── */}
-            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'linear-gradient(135deg, #F6F4EF 0%, #EDE8E0 100%)', borderRadius: 12, border: '1px solid #C7B7A5' }}>
+            <div style={{ marginTop: '0.5rem', padding: '1rem', background: 'linear-gradient(135deg, #F6F4EF 0%, #EDE8E0 100%)', borderRadius: 12, border: '1px solid #C7B7A5' }}>
               <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', fontWeight: 800, color: '#8F947F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Studio de design
               </p>
@@ -1722,7 +1703,7 @@ export function WeddingSiteBuilder() {
                 ))}
               </select>
               <span style={{ fontSize: '0.72rem', color: '#8a8378', fontWeight: 400, marginTop: 2 }}>
-                La chanson est jouée EN ENTIER dans un petit lecteur YouTube : elle démarre au milieu (le passage le plus connu), continue jusqu'au bout puis reprend du début. Si YouTube n'est pas disponible, l'extrait Deezer de 30 s prend le relais. {musicLabelForUrl(content.musicUrl)
+                La musique est jouée en fond, sans aucun lecteur visible : vos invités n'ont qu'une petite pastille 🔊 pour la couper. {musicLabelForUrl(content.musicUrl)
                   ? `Sélection : ${musicLabelForUrl(content.musicUrl)}.`
                   : ''}
               </span>
@@ -1754,10 +1735,10 @@ export function WeddingSiteBuilder() {
               {musicError ? <span style={{ fontSize: '0.75rem', color: '#b42318' }}>{musicError}</span> : null}
             </div>
             <label style={lab}>
-              …ou un lien YouTube / votre propre URL .mp3
+              …ou l'adresse d'un fichier audio (.mp3)
               <input
                 style={inp}
-                placeholder="https://youtu.be/… ou https://…/musique.mp3"
+                placeholder="https://…/musique.mp3"
                 value={deezerTrackId(content.musicUrl) != null ? '' : (content.musicUrl ?? '')}
                 onChange={(e) => setContent((c) => ({ ...c, musicUrl: e.target.value }))}
               />
