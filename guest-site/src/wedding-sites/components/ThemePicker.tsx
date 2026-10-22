@@ -11,6 +11,8 @@ type Props = {
   onSelect: (preset: ThemePreset) => void;
   /** Preset déjà actif (si édition d'un site existant) */
   currentStyleId?: string;
+  /** Site déjà enregistré : présélectionne son thème tel quel. */
+  isExisting?: boolean;
 };
 
 /** Génère un dégradé représentatif à partir de la couleur principale + fond */
@@ -237,10 +239,13 @@ function ThemeCard({
   );
 }
 
-export function ThemePicker({ onSelect, currentStyleId }: Props) {
+export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Props) {
   // Par défaut : vintage-blue si aucun style existant, sinon le style du site en cours d'édition
+  // (« classic » est aussi le style par défaut d'un site neuf : on ne le garde
+  // que pour un site existant, sinon « Commencer » basculait son site Classique
+  // en Vintage Bleu.)
   const [selected, setSelected] = useState<string>(
-    currentStyleId && currentStyleId !== 'classic' ? currentStyleId : 'vintage-blue'
+    currentStyleId && (isExisting || currentStyleId !== 'classic') ? currentStyleId : 'vintage-blue'
   );
 
   const chosen = STYLE_PRESETS.find((p) => p.id === selected) ?? STYLE_PRESETS[0];

@@ -172,6 +172,9 @@ export function WeddingSiteBuilder() {
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
 
   const [step, setStep] = useState<'pick' | 'build'>('pick');
+  // Thème du site existant chargé depuis le serveur (null = création) : le
+  // sélecteur doit le présélectionner, y compris « classic ».
+  const [loadedStyle, setLoadedStyle] = useState<WeddingTheme['style'] | null>(null);
 
   const [{ date, time }, setDt] = useState(initialDate);
 
@@ -390,7 +393,10 @@ export function WeddingSiteBuilder() {
       setCity(site.city || '');
       setWelcomeText(site.welcomeText || '');
       setMainText(site.mainText || '');
-      if (site.theme && typeof site.theme === 'object') setTheme(applyThemePreset({ ...defaultWeddingTheme(), ...(site.theme as WeddingTheme) }));
+      if (site.theme && typeof site.theme === 'object') {
+        setTheme(applyThemePreset({ ...defaultWeddingTheme(), ...(site.theme as WeddingTheme) }));
+        setLoadedStyle((site.theme as WeddingTheme).style ?? 'classic');
+      }
       if (site.sections && typeof site.sections === 'object') setSections({ ...defaultWeddingSections(), ...(site.sections as WeddingSections) });
       if (site.content && typeof site.content === 'object') setContent((prev) => ({ ...prev, ...(site.content as WeddingSiteContent) }));
       // Source unique du lieu : récupère l'ancien champ « Lieu précis » des
@@ -853,8 +859,13 @@ export function WeddingSiteBuilder() {
   if (step === 'pick') {
     return (
       <ThemePicker
+        // Remonté au chargement du site : la présélection suit le thème enregistré
+        key={loadedStyle ?? 'new'}
         currentStyleId={theme.style}
+        isExisting={loadedStyle != null}
         onSelect={(preset) => {
+          // Même thème que le site enregistré : on garde ses réglages tels quels
+          if (preset.id === theme.style && loadedStyle != null) { setStep('build'); return; }
           const { heroStyle: _h, patternId: _p, separatorStyle: _s, cardStyle: _c, cornerDecor: _co, ...rest } = theme;
           setTheme(applyThemePreset({ ...rest, ...preset.theme, style: preset.id } as WeddingTheme));
           setStep('build');
