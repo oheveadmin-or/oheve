@@ -423,25 +423,6 @@ function FamiliesCard({
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  4. Carte Photo (photo seule en 4:3)                                        */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-function PhotoCard({ tk, src }: { tk: EditorialTokens; src: string }) {
-  return (
-    <Card tk={tk}>
-      <div style={{ width: '100%', aspectRatio: '4 / 3', borderRadius: tk.radius.image, overflow: 'hidden' }}>
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
-      </div>
-    </Card>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────────────────── */
 /*  Surface de carte pour les sections déléguées (renderOptionalSections)      */
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -468,11 +449,8 @@ export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
 
   const hasTwoNames = !!(site.brideName?.trim() && site.groomName?.trim());
   const photos = (site.content?.galleryPhotos ?? []).filter(Boolean);
-  const heroBg = photos[0] || site.content?.venue?.photoUrl || undefined;
-
-  // Carte Photo autonome : on ne l'affiche que si la galerie est masquée
-  // (sinon doublon). Source : 1re photo dispo non déjà utilisée par le hero.
-  const featuredPhoto = !site.sections.gallery ? photos[0] || site.content?.venue?.photoUrl : undefined;
+  // Galerie désactivée = aucune photo sur le site, pas même en fond du hero.
+  const heroBg = site.sections.gallery ? photos[0] || undefined : undefined;
 
   return (
     <div
@@ -550,7 +528,6 @@ export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
 
       <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} icon={icon} />
 
-      {featuredPhoto ? <PhotoCard tk={tk} src={featuredPhoto} /> : null}
 
 
       {/* Sections fonctionnelles (Histoire, Galerie, RSVP, Lieu, Programme, FAQ…) */}

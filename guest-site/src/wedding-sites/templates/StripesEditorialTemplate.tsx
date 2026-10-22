@@ -159,10 +159,11 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
 
   const hasSchedule = site.sections.program && scheduleItems.length > 0;
 
-  const featuredPhoto =
-    site.content?.galleryPhotos?.find(Boolean) ||
-    site.content?.venue?.photoUrl ||
-    undefined;
+  // Grande photo du modèle : seulement si la galerie est activée
+  // (galerie désactivée = aucune photo sur le site).
+  const featuredPhoto = site.sections.gallery
+    ? site.content?.galleryPhotos?.find(Boolean) || undefined
+    : undefined;
 
   const c = useCountdown(site.date);
 

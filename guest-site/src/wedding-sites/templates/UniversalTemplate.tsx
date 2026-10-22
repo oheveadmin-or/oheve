@@ -107,14 +107,6 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
   const sep = t.separatorStyle ?? 'none';
   const sepColor = t.accentColor ?? t.primaryColor;
 
-  // Photo vedette : même comportement que les thèmes autonomes (Rayures,
-  // Voile Ivoire, Cartes) — la 1re photo s'affiche aussi quand la galerie
-  // est masquée, pour un rendu identique sur tous les thèmes.
-  const universalPhotos = (site.content?.galleryPhotos ?? []).filter(Boolean);
-  const featuredPhoto = !site.sections.gallery
-    ? universalPhotos[0] || site.content?.venue?.photoUrl || undefined
-    : undefined;
-
   return (
     <div
       id="top"
@@ -174,25 +166,6 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         }}
       >
         <SectionSeparator style={sep} color={sepColor} />
-
-        {/* Photo vedette (1re photo de la galerie ou photo du lieu) — rien si aucune photo */}
-        {featuredPhoto ? (
-          <section className="wedding-fade-in" style={{ margin: '1.5rem auto 2rem', maxWidth: 620, textAlign: 'center' }}>
-            <img
-              src={featuredPhoto}
-              alt=""
-              loading="lazy"
-              style={{
-                width: '100%',
-                aspectRatio: '4 / 3',
-                objectFit: 'cover',
-                display: 'block',
-                borderRadius: Math.max(6, t.borderRadius),
-                boxShadow: `0 22px 60px -30px ${t.primaryColor}88`,
-              }}
-            />
-          </section>
-        ) : null}
 
         {/* Main text (guestMessage section) */}
         {site.mainText ? (

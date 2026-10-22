@@ -1799,7 +1799,9 @@ export function WeddingSiteBuilder() {
             <h2 style={h2}>🖼️ Galerie photos</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
               Ajoutez vos photos directement depuis votre appareil — elles sont optimisées et hébergées automatiquement.
-              La première photo sert d'image vedette sur le site. Touchez <strong>✨ IA</strong> sur une photo pour la
+              Les photos n'apparaissent sur le site que si la section <strong>« Galerie »</strong> est activée
+              {sections.gallery ? '' : ' (elle est désactivée : aucune photo ne s\'affiche pour l\'instant)'}.
+              La première photo est mise en avant. Touchez <strong>✨ IA</strong> sur une photo pour la
               ré-adapter à l'ambiance du thème choisi.
             </p>
 

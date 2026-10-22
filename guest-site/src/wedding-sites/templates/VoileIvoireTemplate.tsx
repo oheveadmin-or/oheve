@@ -397,20 +397,6 @@ function FamiliesCard({
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  4. Carte Photo                                                             */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-function PhotoCard({ tk, src }: { tk: VoileTokens; src: string }) {
-  return (
-    <Card tk={tk}>
-      <div style={{ width: '100%', aspectRatio: '3 / 4', borderRadius: tk.radius.image, overflow: 'hidden' }}>
-        <img src={src} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-      </div>
-    </Card>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────────────────── */
 /*  Surface de carte pour les sections déléguées (renderOptionalSections)      */
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -435,8 +421,6 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
 
   const hasTwoNames = !!(site.brideName?.trim() && site.groomName?.trim());
-  const photos = (site.content?.galleryPhotos ?? []).filter(Boolean);
-  const featuredPhoto = !site.sections.gallery ? photos[0] || site.content?.venue?.photoUrl : undefined;
 
   return (
     <div
@@ -537,7 +521,6 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
 
       <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} />
 
-      {featuredPhoto ? <PhotoCard tk={tk} src={featuredPhoto} /> : null}
 
 
       {/* Sections fonctionnelles (Programme, Lieu, RSVP, Galerie, FAQ…) */}
