@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { WeddingSite } from '../types';
-import { HeroMeta } from './templateParts';
+import { HeroMeta, HeroMonogram, tintMonogram } from './templateParts';
 import { titleFontSize } from './templateCardStyles';
 import { HeroPattern } from './PatternOverlay';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
@@ -146,6 +146,7 @@ export function HeroEditorial({ site }: HeroProps) {
           <div style={{ flex: 1, height: 1, background: t.primaryColor, opacity: 0.3 }} />
         </div>
         <HeroVerse site={site} width={420} style={{ marginBottom: 0 }} />
+        <HeroMonogram site={site} />
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 680 }}>
@@ -186,7 +187,7 @@ export function HeroEditorial({ site }: HeroProps) {
           <div style={{ flex: 1, height: 1, background: t.primaryColor, opacity: 0.2 }} />
         </div>
 
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram />
       </div>
     </header>
   );
@@ -218,6 +219,7 @@ export function HeroSplit({ site }: HeroProps) {
         }}
       >
         <HeroVerse site={site} width={300} style={{ margin: '0 0 1.5rem' }} />
+        <HeroMonogram site={site} />
         <h1
           style={{
             fontSize: `clamp(2rem, 5cqw, 4rem)`,
@@ -231,7 +233,7 @@ export function HeroSplit({ site }: HeroProps) {
           <br />
           <span style={{ color: t.primaryColor, fontStyle: 'italic', fontWeight: 400, fontSize: '0.75em' }}>& {site.groomName}</span>
         </h1>
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram />
       </div>
 
       {/* Right: decorative panel */}
@@ -319,6 +321,7 @@ export function HeroFairepart({ site }: HeroProps) {
         {t.cornerDecor && <CornerDecor color={t.primaryColor} size={32} />}
 
         <HeroVerse site={site} width={320} />
+        <HeroMonogram site={site} />
 
         <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem', opacity: 0.7, fontStyle: 'italic' }}>
           {site.content?.parentsBride?.father || site.content?.parentsBride?.mother
@@ -353,7 +356,7 @@ export function HeroFairepart({ site }: HeroProps) {
         </h1>
 
         <div style={{ width: 60, height: 1, background: t.primaryColor, margin: '1.5rem auto', opacity: 0.5 }} />
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram />
       </div>
     </header>
   );
@@ -383,7 +386,7 @@ export function HeroMonogramStyle({ site }: HeroProps) {
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* SVG or fallback monogram — scaled to 160px regardless of original export size */}
         {site.content?.monogramSvg ? (
-          <MonogramBox svg={site.content.monogramSvg} size={160} style={{ margin: '0 auto 2rem' }} />
+          <MonogramBox svg={tintMonogram(site.content.monogramSvg, site.theme.primaryColor, site.theme.backgroundColor)} size={160} style={{ margin: '0 auto 2rem' }} />
         ) : (
           <div
             style={{
@@ -475,6 +478,7 @@ export function HeroLuxe({ site }: HeroProps) {
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 640 }}>
         <HeroVerse site={site} width={380} style={{ marginBottom: '2rem' }} />
+        <HeroMonogram site={site} />
 
         <h1
           style={{
@@ -512,7 +516,7 @@ export function HeroLuxe({ site }: HeroProps) {
           <div style={{ flex: 1, height: 1, background: t.primaryColor, maxWidth: 80, opacity: 0.5 }} />
         </div>
 
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram />
       </div>
     </header>
   );
@@ -559,6 +563,7 @@ export function HeroArtDeco({ site }: HeroProps) {
         </div>
 
         <HeroVerse site={site} width={380} />
+        <HeroMonogram site={site} />
 
         <h1
           style={{
@@ -595,7 +600,7 @@ export function HeroArtDeco({ site }: HeroProps) {
           <div style={{ flex: 1, height: 1, background: accent }} />
         </div>
 
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram />
       </div>
     </header>
   );
@@ -636,6 +641,7 @@ export function HeroMagazine({ site }: HeroProps) {
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto', width: '100%', padding: '0 3rem 0 5rem' }}>
         <HeroVerse site={site} width={340} style={{ margin: '0 0 1rem' }} />
+        <HeroMonogram site={site} />
         <h1
           style={{
             fontSize: fitNames('clamp(3rem, 8cqw, 5.5rem)', [site.brideName, site.groomName], 66, 0.62),
@@ -650,7 +656,7 @@ export function HeroMagazine({ site }: HeroProps) {
           <br />
           <span style={{ color: t.primaryColor, fontWeight: 400, fontStyle: 'italic', fontSize: '0.65em' }}>& {site.groomName}</span>
         </h1>
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram />
       </div>
     </header>
   );
@@ -676,6 +682,7 @@ export function HeroMinimal({ site }: HeroProps) {
       }}
     >
       <HeroVerse site={site} width={360} style={{ marginBottom: '2.5rem' }} />
+      <HeroMonogram site={site} />
       <h1
         style={{
           fontSize: fitNames('clamp(1.8rem, 5cqw, 3rem)', [site.brideName, site.groomName], 84, 0.6),
@@ -691,7 +698,7 @@ export function HeroMinimal({ site }: HeroProps) {
         {site.groomName}
       </h1>
       <div style={{ width: 40, height: 1, background: t.primaryColor, margin: '2rem auto', opacity: 0.4 }} />
-      <HeroMeta site={site} />
+      <HeroMeta site={site} hideMonogram />
     </header>
   );
 }
@@ -766,7 +773,7 @@ export function HeroRoyal({ site }: HeroProps) {
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 600 }}>
         {site.content?.monogramSvg ? (
-          <MonogramBox svg={site.content.monogramSvg} size={120} style={{ margin: '0 auto' }} />
+          <MonogramBox svg={tintMonogram(site.content.monogramSvg, site.theme.primaryColor, site.theme.backgroundColor)} size={120} style={{ margin: '0 auto' }} />
         ) : (
           <RoyalSeal color={c} size={80} />
         )}
@@ -882,7 +889,7 @@ export function HeroGarden({ site }: HeroProps) {
         >
           <LeafWreath color={c} size={wreathSize} />
           {site.content?.monogramSvg ? (
-            <MonogramBox svg={site.content.monogramSvg} size={96} style={{ position: 'relative', zIndex: 1 }} />
+            <MonogramBox svg={tintMonogram(site.content.monogramSvg, site.theme.primaryColor, site.theme.backgroundColor)} size={96} style={{ position: 'relative', zIndex: 1 }} />
           ) : (
           <span
             style={{
@@ -969,6 +976,7 @@ export function HeroCinematic({ site }: HeroProps) {
 
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 860, textAlign: 'center' }}>
         <HeroVerse site={site} width={420} style={{ marginBottom: '2rem' }} />
+        <HeroMonogram site={site} />
         {/* Both names at equal visual weight */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
           <h1
@@ -1011,7 +1019,7 @@ export function HeroCinematic({ site }: HeroProps) {
           }}
         />
 
-        <HeroMeta site={site} />
+        <HeroMeta site={site} hideMonogram />
       </div>
     </header>
   );
@@ -1081,7 +1089,7 @@ export function HeroLetterpress({ site }: HeroProps) {
 
         {/* Embossed monogram — le monogramme du couple remplace les initiales s'il existe */}
         {site.content?.monogramSvg ? (
-          <MonogramBox svg={site.content.monogramSvg} size={120} style={{ margin: '0 auto 1.75rem' }} />
+          <MonogramBox svg={tintMonogram(site.content.monogramSvg, site.theme.primaryColor, site.theme.backgroundColor)} size={120} style={{ margin: '0 auto 1.75rem' }} />
         ) : (
         <div
           style={{

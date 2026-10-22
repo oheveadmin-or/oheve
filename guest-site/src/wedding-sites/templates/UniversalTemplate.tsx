@@ -130,7 +130,8 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         <PatternOverlay
           patternId={t.patternId ?? 'none'}
           color={t.primaryColor}
-          opacity={(t.patternOpacity ?? 0.07) * 0.55}
+          // Plus discret que dans le hero : les sections restent lisibles
+          opacity={(t.patternOpacity ?? 0.07) * 0.35}
         />
       )}
 

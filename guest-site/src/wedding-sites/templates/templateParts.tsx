@@ -176,9 +176,34 @@ export function SectionBlock({
   );
 }
 
+/**
+ * Recolore le monogramme SVG généré aux couleurs du thème : l'encre (couleur
+ * déclarée dans `style="color:…"` du SVG) devient `ink`, et les tons très clairs
+ * (contour « détourage » d'une lettre sur l'autre) prennent le fond `paper`.
+ * Sans ça, le monogramme restait noir quelle que soit la palette choisie.
+ * Les images importées (data:) ne sont pas modifiées.
+ */
+export function tintMonogram(svg: string, ink: string, paper: string): string {
+  if (svg.startsWith('data:')) return svg;
+  const declared = /style="[^"]*color:\s*(#[0-9a-f]{3,8})/i.exec(svg)?.[1];
+  const isLight = (hex: string) => {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex);
+    if (!m) return false;
+    const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16) / 255);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.85;
+  };
+  return svg.replace(/(fill|stroke|color)(=|:\s*)"?(#[0-9a-f]{3,8})/gi, (all, attr: string, sep: string, hex: string) => {
+    const quote = all.includes('"') ? '"' : '';
+    if (declared && hex.toLowerCase() === declared.toLowerCase()) return `${attr}${sep}${quote}${ink}`;
+    if (isLight(hex)) return `${attr}${sep}${quote}${paper}`;
+    return all;
+  });
+}
+
 export function HeroMonogram({ site }: { site: WeddingSite }) {
-  const svg = site.content?.monogramSvg;
-  if (!svg) return null;
+  const raw = site.content?.monogramSvg;
+  if (!raw) return null;
+  const svg = tintMonogram(raw, site.theme.primaryColor, site.theme.backgroundColor);
   const isDataUrl = svg.startsWith('data:');
   // Taille choisie par le couple, bornée : l'export brut (300 px+) écrasait le hero
   const size = Math.min(170, Math.max(90, site.content?.monogramSizePx ?? 140));
@@ -226,7 +251,12 @@ export function SiteBodyTexts({ site, style }: { site: WeddingSite; style?: CSSP
 
 /** `hideMonogram` : le hero affiche déjà le monogramme lui-même (pas de doublon). */
 export function HeroMeta({ site, hideMonogram = false }: { site: WeddingSite; hideMonogram?: boolean }) {
-  const line = [formatWeddingDate(site.date, site.language), site.city, site.venue].filter(Boolean).join(' · ');
+  // Ville et lieu identiques (« Marseille · Marseille ») : affichés une fois
+  const seen = new Set<string>();
+  const line = [formatWeddingDate(site.date, site.language), site.city, site.venue]
+    .map((x) => x?.trim())
+    .filter((x): x is string => !!x && !seen.has(x.toLowerCase()) && !!seen.add(x.toLowerCase()))
+    .join(' · ');
   const countdown = useCountdown(site.date);
 
   const familyColumns = getFamilyColumns(site);
@@ -236,15 +266,16 @@ export function HeroMeta({ site, hideMonogram = false }: { site: WeddingSite; hi
       {/* Monogram hero */}
       {hideMonogram ? null : <HeroMonogram site={site} />}
 
-      <p style={{ margin: '0.5rem 0 0', fontSize: '1.05rem', fontWeight: 600, color: site.theme.primaryColor }}>
-        {line}
-      </p>
-      <CountdownRow site={site} countdown={countdown} />
-      {site.welcomeText ? (
-        <p style={{ marginTop: '1.25rem', fontSize: '1.1rem', maxWidth: 520, marginInline: 'auto', lineHeight: 1.65 }}>
+      {/* Phrase d'accueil : juste sous les prénoms, comme sur un faire-part */}
+      {site.welcomeText?.trim() ? (
+        <p style={{ margin: '0 auto 0.85rem', fontSize: '1.15rem', fontStyle: 'italic', maxWidth: 520, lineHeight: 1.6, opacity: 0.85 }}>
           {site.welcomeText}
         </p>
       ) : null}
+      <p style={{ margin: '0.5rem 0 0', fontSize: '1.02rem', fontWeight: 600, letterSpacing: '0.02em', color: site.theme.primaryColor }}>
+        {line}
+      </p>
+      <CountdownRow site={site} countdown={countdown} />
       {familyColumns.length ? (
         <div style={{ marginTop: '1.5rem' }}>
           <FamilyColumnsRow
@@ -322,7 +353,18 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
         padding: 0,
       }}
     >
-      <span aria-hidden>{playing ? '🔊' : '🔇'}</span>
+      {/* Icône dessinée aux couleurs du thème (l'emoji 🔇 était rouge sur toutes les palettes) */}
+      <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" fillOpacity="0.15" />
+        {playing ? (
+          <>
+            <path d="M15.5 9a4 4 0 0 1 0 6" />
+            <path d="M18 6.5a7.5 7.5 0 0 1 0 11" />
+          </>
+        ) : (
+          <path d="M16 9.5l5 5M21 9.5l-5 5" />
+        )}
+      </svg>
     </button>
   ) : null;
 
@@ -712,7 +754,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
       : { ...useCard({ theme: t }), marginTop: '0.75rem' };
     blocks.push(
       <section id="program" key="program" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
-        <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.program}</h2>
+        <SectionTitle label={L.program} theme={t} />
         <div style={progCardStyle}>
           <ProgramTimeline site={site} isVintage={isVintage} />
         </div>
@@ -724,7 +766,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     const hasVenue = !!(venue?.name || venue?.address || venue?.description || venue?.photoUrl || venue?.googleMapsUrl || venue?.wazeUrl);
     blocks.push(
       <section id="location" key="loc" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
-        <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.location}</h2>
+        <SectionTitle label={L.location} theme={t} />
         <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
           {hasVenue ? (
             <div style={{ display: 'grid', gap: '0.85rem' }}>
@@ -833,7 +875,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     if (faq.length) {
       blocks.push(
         <section id="faq" key="faq" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
-          <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: t.primaryColor }}>{L.faq}</h2>
+          <SectionTitle label={L.faq} theme={t} />
           <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
             <FAQAccordion site={site} items={faq} />
           </div>
@@ -1077,7 +1119,7 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
   const btnBg = isVintage ? 'rgba(255,255,255,0.08)' : '#fff';
 
   if (!events.length) {
-    return <p style={{ margin: 0, opacity: 0.8, color: textColor }}>Programme a venir.</p>;
+    return <p style={{ margin: 0, opacity: 0.8, color: textColor }}>Programme à venir.</p>;
   }
 
   return (
@@ -1111,9 +1153,10 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
               <span style={{ width: 10, height: 10, borderRadius: 999, background: dotColor, display: 'inline-block', marginTop: 7, opacity: 0.85 }} />
               {idx < visible.length - 1 ? <span style={{ marginTop: 4, width: 2, flex: 1, minHeight: 28, background: lineColor }} /> : null}
             </div>
-            <div>
+            {/* Aligné sur la frise (et non centré à côté de la pastille) */}
+            <div style={{ textAlign: 'start' }}>
               <p style={{ margin: '0 0 0.2rem', fontWeight: 700, color: textColor }}>{ev.label}</p>
-              <p style={{ margin: '0 0 0.2rem', fontSize: '0.9rem', color: mutedColor }}>{[ev.date, ev.time, ev.place].filter(Boolean).join(' · ') || 'Horaire a confirmer'}</p>
+              <p style={{ margin: '0 0 0.2rem', fontSize: '0.9rem', color: mutedColor }}>{[ev.date, ev.time, ev.place].filter(Boolean).join(' · ') || 'Horaire à confirmer'}</p>
               {ev.description ? <p style={{ margin: 0, fontSize: '0.9rem', color: mutedColor }}>{ev.description}</p> : null}
             </div>
           </article>
@@ -1166,16 +1209,16 @@ function CountdownRow({ site, countdown }: { site: WeddingSite; countdown: { d: 
     { label: site.language === 'fr' ? 'Minutes' : site.language === 'he' ? 'דקות' : 'Minutes', value: pad2(countdown.m) },
     { label: site.language === 'fr' ? 'Secondes' : site.language === 'he' ? 'שניות' : 'Seconds', value: pad2(countdown.s) },
   ];
-  const inline = `${parts[0].value} ${parts[0].label} ${parts[1].value}:${parts[2].value}:${parts[3].value}`;
   const rc = resolveThemeColors(site.theme);
+  // Décompte affiché UNE fois (avant : ligne « 0 Jours 00:00:00 » + cases),
+  // cases sur fond carte pour se détacher du motif de fond.
   return (
-    <div style={{ marginTop: '1rem' }}>
-      <p style={{ margin: '0 0 0.55rem', color: site.theme.primaryColor, letterSpacing: '0.14em', fontWeight: 700 }}>{inline}</p>
+    <div style={{ marginTop: '1.25rem' }}>
       <div className="wedding-countdown-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, maxWidth: 420, marginInline: 'auto' }}>
         {parts.map((p) => (
-          <div key={p.label} style={{ border: `1px solid ${rc.border}3a`, borderRadius: 10, padding: '0.55rem 0.35rem', background: `${rc.accent}1a` }}>
-            <div style={{ fontWeight: 800, color: site.theme.primaryColor }}>{p.value}</div>
-            <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.8 }}>{p.label}</div>
+          <div key={p.label} style={{ border: `1px solid ${rc.border}40`, borderRadius: 12, padding: '0.7rem 0.35rem 0.6rem', background: site.theme.cardBackgroundColor ?? `${site.theme.backgroundColor}e6`, boxShadow: `0 6px 18px -14px ${site.theme.primaryColor}` }}>
+            <div style={{ fontSize: '1.45rem', lineHeight: 1.1, fontWeight: 600, color: site.theme.primaryColor, fontVariantNumeric: 'tabular-nums' }}>{p.value}</div>
+            <div style={{ marginTop: 4, fontSize: '0.62rem', letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.7 }}>{p.label}</div>
           </div>
         ))}
       </div>
@@ -1198,6 +1241,18 @@ function linkBtn(site: WeddingSite): CSSProperties {
     fontWeight: 600,
     fontSize: '0.84rem',
   };
+}
+
+/**
+ * Titre des sections Programme / Lieux / FAQ : même style que les autres
+ * sections (SectionHeading) sur Classique — avant, « PROGRAMME » en capitales
+ * côtoyait « RSVP » en italique souligné. Les thèmes autonomes et Vintage
+ * gardent leur titre historique.
+ */
+function SectionTitle({ label, theme }: { label: string; theme: WeddingSite['theme'] }) {
+  const own = ['stripes-editorial', 'editorial-cards', 'voile-ivoire', 'vintage-blue'].includes(theme.style);
+  if (!own) return <SectionHeading label={label} color={theme.primaryColor} theme={theme} />;
+  return <h2 style={{ fontSize: '0.95rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: theme.primaryColor }}>{label}</h2>;
 }
 
 function SectionHeading({ label, color, theme }: { label: string; color: string; theme?: WeddingSite['theme'] }) {
