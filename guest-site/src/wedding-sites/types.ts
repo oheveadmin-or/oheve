@@ -91,7 +91,9 @@ export type PatternId =
   | 'vine'              // Lierre et vignes sinueuses
   | 'art-nouveau'       // Courbes organiques art nouveau
   | 'ornament-star'     // Étoile ornementale 8 branches (papeterie)
-  | 'quatrefoil';       // Croix perlée délicate (petits points)
+  | 'quatrefoil'        // Croix perlée délicate (petits points)
+  | 'oriental-geometry' // Étoiles 8 branches entrelacées (étoile et croix)
+  | 'paper-arabesque';  // Grain papier + volutes d'angle
 
 export type SeparatorStyle =
   | 'none'

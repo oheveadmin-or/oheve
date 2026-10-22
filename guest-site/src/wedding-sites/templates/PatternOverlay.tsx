@@ -5,14 +5,111 @@ interface PatternOverlayProps {
   patternId: PatternId;
   color: string;
   opacity?: number;
+  /** « Papier & arabesques » : pose aussi les volutes aux coins (hero uniquement) */
+  corners?: boolean;
+  /**
+   * Motif de PAGE : peint sous le contenu (z-index -1) au lieu de par-dessus
+   * les cartes des sections. Le parent doit créer un contexte d'empilement
+   * (`isolation: 'isolate'`) pour que le motif reste au-dessus de son fond.
+   */
+  behind?: boolean;
 }
 
 function buildSvgDataUri(svg: string): string {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
+// ─── Géométrie orientale : « étoile et croix » (khatam 8 branches) ────────────
+// Étoiles à 8 branches (deux carrés superposés) aux nœuds d'une grille, pointes
+// jointives → les croix apparaissent entre elles. Tout est tracé dans la couleur
+// du thème : le motif suit les combinaisons de couleurs.
+
+/** Contour d'une étoile à 8 branches (16 sommets) centrée en (cx, cy). */
+function khatamPath(cx: number, cy: number, R: number): string {
+  const r = (R * Math.cos(Math.PI / 4)) / Math.cos(Math.PI / 8);
+  const pts = Array.from({ length: 16 }, (_, i) => {
+    const rad = i % 2 === 0 ? R : r;
+    const a = (Math.PI / 8) * i;
+    return `${(cx + rad * Math.cos(a)).toFixed(2)},${(cy + rad * Math.sin(a)).toFixed(2)}`;
+  });
+  return `M${pts.join('L')}Z`;
+}
+
+/** Rosace pleine à n branches (cœur doré des étoiles). */
+function rosettePath(cx: number, cy: number, R: number, r: number, n = 8): string {
+  const pts = Array.from({ length: 2 * n }, (_, i) => {
+    const rad = i % 2 === 0 ? R : r;
+    const a = -Math.PI / 2 + (Math.PI / n) * i;
+    return `${(cx + rad * Math.cos(a)).toFixed(2)},${(cy + rad * Math.sin(a)).toFixed(2)}`;
+  });
+  return `M${pts.join('L')}Z`;
+}
+
+function orientalGeometrySvg(color: string): string {
+  const S = 80;
+  const R = S / 2;
+  const nodes: [number, number][] = [[0, 0], [S, 0], [0, S], [S, S]];
+  const outer = nodes.map(([x, y]) => khatamPath(x, y, R)).join('');
+  const inner = nodes.map(([x, y]) => khatamPath(x, y, R * 0.6)).join('') + khatamPath(S / 2, S / 2, R * 0.42);
+  const rosettes = nodes.map(([x, y]) => rosettePath(x, y, R * 0.26, R * 0.1)).join('') + rosettePath(S / 2, S / 2, R * 0.16, R * 0.06, 4);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">`
+    + `<path d="${outer}" fill="none" stroke="${color}" stroke-width="0.9" stroke-linejoin="round"/>`
+    + `<path d="${inner}" fill="none" stroke="${color}" stroke-width="0.55" opacity="0.7" stroke-linejoin="round"/>`
+    + `<path d="${rosettes}" fill="${color}"/></svg>`;
+}
+
+// ─── Papier & arabesques : grain papier + volutes d'angle ─────────────────────
+
+function hexToRgb01(hex: string): [number, number, number] {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec((hex || '').trim());
+  if (!m) return [0.45, 0.38, 0.3];
+  return [m[1], m[2], m[3]].map((x) => parseInt(x, 16) / 255) as [number, number, number];
+}
+
+/** Grain de papier fin, teinté de la couleur du thème. */
+function paperGrainSvg(color: string): string {
+  const [r, g, b] = hexToRgb01(color).map((v) => v.toFixed(3));
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>`
+    + `<feColorMatrix values="0 0 0 0 ${r}  0 0 0 0 ${g}  0 0 0 0 ${b}  0 0 0 0.16 0"/></filter><rect width="160" height="160" filter="url(#g)"/></svg>`;
+}
+
+function arabesqueLeaf(x: number, y: number, ang: number, L = 13, w = 4.8): string {
+  return `<path transform="translate(${x} ${y}) rotate(${ang})" d="M0,0 Q${L * 0.45},${-w} ${L},0 Q${L * 0.45},${w} 0,0Z"/>`;
+}
+
+/** Moitié de la volute (le long du bord haut) ; l'autre moitié est son miroir sur la diagonale. */
+function arabesqueHalf(c: string): string {
+  const main = 'M34,34 C56,18 96,14 152,14 M152,14 c9,0 13,-8 7,-12 c-5,-3 -10,1 -7,5 '
+    + 'M60,22 c2,12 -6,22 -16,20 c-8,-2 -8,-12 -1,-13 c4,0 5,4 3,6 '
+    + 'M92,16 c-1,10 -9,15 -18,12 c-5,-2 -4,-8 1,-8 M118,15 c1,8 8,12 15,9 c4,-2 3,-7 -1,-6 ';
+  const fine = 'M42,40 C62,28 86,25 106,26 c6,0 9,4 7,8 c-2,3 -6,2 -6,-1 ';
+  const leaves = arabesqueLeaf(70, 18, -150) + arabesqueLeaf(80, 17, -25) + arabesqueLeaf(104, 15, -160, 11, 4)
+    + arabesqueLeaf(110, 15, -20, 11, 4) + arabesqueLeaf(136, 14, -165, 10, 3.8) + arabesqueLeaf(142, 14, -18, 10, 3.8)
+    + arabesqueLeaf(52, 26, -125, 10, 3.8);
+  const dots = ([[84, 30, 1.5], [88, 33, 1.1], [80, 33, 1.1], [127, 26, 1.3], [146, 24, 1.1], [162, 6, 1.2]] as const)
+    .map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('');
+  return `<path d="${main}" fill="none" stroke="${c}" stroke-width="1.3" stroke-linecap="round"/>`
+    + `<path d="${fine}" fill="none" stroke="${c}" stroke-width="0.7" stroke-linecap="round" opacity="0.75"/>`
+    + `<g fill="${c}">${leaves}${dots}</g>`;
+}
+
+/** Volute d'angle complète (haut-gauche ; `flip` = tournée pour le coin bas-droit). */
+function arabesqueCornerSvg(c: string, flip = false): string {
+  const core = `<path d="M34,34 c-10,-10 -26,-5 -26,8 c0,11 13,15 19,7 c4,-6 -2,-12 -7,-8" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round"/>`
+    + `<g fill="${c}">${arabesqueLeaf(36, 36, 45, 20, 7)}${arabesqueLeaf(40, 40, 20, 11, 3.8)}${arabesqueLeaf(40, 40, 70, 11, 3.8)}<circle cx="34" cy="34" r="2.6"/></g>`;
+  const body = `${arabesqueHalf(c)}<g transform="matrix(0 1 1 0 0 0)">${arabesqueHalf(c)}</g>${core}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">${flip ? `<g transform="rotate(180 90 90)">${body}</g>` : body}</svg>`;
+}
+
 function getPatternBackground(patternId: PatternId, color: string): string | null {
   switch (patternId) {
+    case 'oriental-geometry':
+      return buildSvgDataUri(orientalGeometrySvg(color));
+
+    case 'paper-arabesque':
+      // Seul le grain se répète ; les volutes d'angle sont posées par PatternOverlay (`corners`)
+      return buildSvgDataUri(paperGrainSvg(color));
+
     case 'dots':
       return buildSvgDataUri(
         `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="1" cy="1" r="1" fill="${color}"/></svg>`
@@ -145,11 +242,30 @@ function getPatternBackground(patternId: PatternId, color: string): string | nul
   }
 }
 
-export function PatternOverlay({ patternId, color, opacity = 0.07 }: PatternOverlayProps) {
+export function PatternOverlay({ patternId, color, opacity = 0.07, corners = false, behind = false }: PatternOverlayProps) {
+  const z = behind ? -1 : 0;
   if (patternId === 'none') return null;
 
   const bg = getPatternBackground(patternId, color);
   if (!bg) return null;
+
+  if (patternId === 'paper-arabesque') {
+    // Décor (et non texture) : l'opacité du Studio règle son intensité sur une
+    // échelle plus forte, sinon les volutes disparaissaient à 18 %.
+    const intensity = Math.min(1, Math.max(0.08, opacity * 3.5));
+    const corner: CSSProperties = { position: 'absolute', width: 'min(150px, 36%)', aspectRatio: '1', backgroundSize: 'contain', backgroundRepeat: 'no-repeat', opacity: Math.min(1, intensity * 1.4) };
+    return (
+      <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: z }}>
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: bg, backgroundRepeat: 'repeat', opacity: intensity }} />
+        {corners ? (
+          <>
+            <div style={{ ...corner, top: 10, left: 10, backgroundImage: buildSvgDataUri(arabesqueCornerSvg(color)) }} />
+            <div style={{ ...corner, bottom: 10, right: 10, backgroundImage: buildSvgDataUri(arabesqueCornerSvg(color, true)) }} />
+          </>
+        ) : null}
+      </div>
+    );
+  }
 
   const style: CSSProperties = {
     position: 'absolute',
@@ -158,7 +274,7 @@ export function PatternOverlay({ patternId, color, opacity = 0.07 }: PatternOver
     backgroundRepeat: 'repeat',
     opacity,
     pointerEvents: 'none',
-    zIndex: 0,
+    zIndex: z,
   };
 
   return <div style={style} aria-hidden />;
@@ -169,6 +285,16 @@ export function getPatternStyle(patternId: PatternId, color: string): CSSPropert
   if (patternId === 'none') return {};
   const bg = getPatternBackground(patternId, color);
   if (!bg) return {};
+  if (patternId === 'paper-arabesque') {
+    // Vignette : volutes aux deux coins + grain
+    return {
+      backgroundImage: `${buildSvgDataUri(arabesqueCornerSvg(color))}, ${buildSvgDataUri(arabesqueCornerSvg(color, true))}, ${bg}`,
+      backgroundPosition: 'top left, bottom right, 0 0',
+      backgroundSize: '60%, 60%, 80px',
+      backgroundRepeat: 'no-repeat, no-repeat, repeat',
+    };
+  }
+  if (patternId === 'oriental-geometry') return { backgroundImage: bg, backgroundSize: '26px' };
   return { backgroundImage: bg };
 }
 
@@ -237,7 +363,7 @@ export function HeroPattern({
   opacity?: number;
 }) {
   if (usesComboFloral(theme)) return <FloralLayer theme={theme} />;
-  return <PatternOverlay patternId={theme.patternId ?? 'none'} color={color} opacity={opacity ?? theme.patternOpacity ?? 0.07} />;
+  return <PatternOverlay patternId={theme.patternId ?? 'none'} color={color} opacity={opacity ?? theme.patternOpacity ?? 0.07} corners />;
 }
 
 function withAlpha(hex: string, alpha: number): string {

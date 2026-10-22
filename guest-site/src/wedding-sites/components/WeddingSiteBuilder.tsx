@@ -67,6 +67,8 @@ const PATTERN_OPTIONS: { id: PatternId; label: string }[] = [
   { id: 'art-nouveau',        label: 'Art Nouveau' },
   { id: 'oriental',           label: 'Oriental' },
   { id: 'stars-of-david',     label: 'Étoile David' },
+  { id: 'oriental-geometry',  label: 'Géométrie orientale' },
+  { id: 'paper-arabesque',    label: 'Papier & arabesques' },
 ];
 
 const SEPARATOR_OPTIONS: { id: SeparatorStyle; label: string }[] = [
@@ -1259,7 +1261,7 @@ export function WeddingSiteBuilder() {
                           // (React warning « conflicting style properties »)
                           backgroundColor: theme.backgroundColor || '#faf7f2',
                           ...patBg,
-                          backgroundRepeat: 'repeat',
+                          backgroundRepeat: patBg.backgroundRepeat ?? 'repeat',
                           border: `1px solid ${active ? '#a5b4fc' : '#e8e4f5'}`,
                           flexShrink: 0,
                         }}
@@ -1278,7 +1280,7 @@ export function WeddingSiteBuilder() {
                     type="range"
                     style={{ flex: 1, marginTop: 0 }}
                     min={2}
-                    max={30}
+                    max={60}
                     value={Math.round((theme.patternOpacity ?? 0.07) * 100)}
                     onChange={(e) => setTheme({ ...theme, patternOpacity: Number(e.target.value) / 100 })}
                   />

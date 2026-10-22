@@ -24,6 +24,7 @@ import type { EditorialTokens } from '../themes/EditorialCardsTheme';
 import { EditorialDivider, EditorialIcon } from './EditorialCardIcons';
 import type { EditorialIconKey } from './EditorialCardIcons';
 import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { PatternOverlay } from './PatternOverlay';
 import type { ResolvedFamilyColumn } from './templateParts';
 
 /** Icône décorative par défaut du modèle (le client pourra la changer). */
@@ -465,8 +466,12 @@ export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
         minHeight: '100vh',
         paddingTop: tk.cardGap,
         textAlign: site.language === 'he' ? 'right' : 'left',
+        position: 'relative',
+        isolation: 'isolate',
       }}
     >
+      {/* Motif de fond du Studio de design — sous les cartes (avant : jamais affiché) */}
+      <PatternOverlay patternId={site.theme.patternId ?? 'none'} color={tk.colors.accent} opacity={site.theme.patternOpacity ?? 0.07} behind />
       <PublicStickyNav site={site} />
       {/* ♫ Musique — lecture automatique, sans bouton (démarre au 1er geste) */}
       <HiddenAutoMusic url={site.content?.musicUrl} />

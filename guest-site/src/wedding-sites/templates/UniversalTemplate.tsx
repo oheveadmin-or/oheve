@@ -121,6 +121,8 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         minHeight: '100vh',
         position: 'relative',
         overflow: 'hidden',
+        // Contexte d'empilement : le motif de page passe SOUS le contenu
+        isolation: 'isolate',
       }}
     >
       {/* Global background pattern — suppressed for vintage (paper texture handles ambiance).
@@ -130,8 +132,10 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         <PatternOverlay
           patternId={t.patternId ?? 'none'}
           color={t.primaryColor}
-          // Plus discret que dans le hero : les sections restent lisibles
-          opacity={(t.patternOpacity ?? 0.07) * 0.35}
+          // Un peu plus discret que dans le hero (les sections sont sur cartes),
+          // mais assez fort pour que le curseur « Opacité » se voie partout
+          opacity={(t.patternOpacity ?? 0.07) * 0.7}
+          behind
         />
       )}
 

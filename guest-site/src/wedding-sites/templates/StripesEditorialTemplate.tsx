@@ -236,6 +236,8 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
         color: ink,
         minHeight: '100vh',
         position: 'relative',
+        // Contexte d'empilement : le motif de page passe SOUS les cartes
+        isolation: 'isolate',
         // Conteneur de requête : toutes les tailles en `cqw` du template
         // s'échelonnent sur la largeur RÉELLE du site (393 px dans l'aperçu
         // iPhone) et non sur la fenêtre du navigateur — sans ça, la carte
@@ -244,7 +246,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
       }}
     >
       {/* Motif de fond du Studio de design */}
-      <PatternOverlay patternId={t.patternId ?? 'none'} color={stripe} opacity={t.patternOpacity ?? 0.07} />
+      <PatternOverlay patternId={t.patternId ?? 'none'} color={stripe} opacity={t.patternOpacity ?? 0.07} behind />
       {/* Le monogramme SVG généré embarque width/height fixes : on le fait
           scaler à la taille choisie dans le builder. */}
       <style>{'.stripes-monogram svg{width:100%;height:auto;display:block;}'}</style>
