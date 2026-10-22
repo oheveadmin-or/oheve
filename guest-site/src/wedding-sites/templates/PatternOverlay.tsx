@@ -172,8 +172,15 @@ export function getPatternStyle(patternId: PatternId, color: string): CSSPropert
   return { backgroundImage: bg };
 }
 
+/** Le motif floral d'une combinaison fait partie de l'identité Vintage Bleu :
+ *  sur tous les autres thèmes, une combinaison ne change QUE les couleurs
+ *  (avant, choisir « Olive & Beige » sur Classique donnait un rendu Vintage). */
+export function usesComboFloral(theme: WeddingTheme): boolean {
+  return theme.style === 'vintage-blue' && !!theme.floralPattern;
+}
+
 /**
- * FloralLayer — motif floral fourni par la combinaison de couleurs.
+ * FloralLayer — motif floral fourni par la combinaison de couleurs (Vintage Bleu).
  *
  * Réservé à la CARTE d'en-tête (hero) : il remplace le décor propre du
  * modèle à cet endroit précis, et nulle part ailleurs — le reste de la page
@@ -183,7 +190,7 @@ export function getPatternStyle(patternId: PatternId, color: string): CSSPropert
  * positionné, et son contenu placé au-dessus (`zIndex` ≥ 1).
  */
 export function FloralLayer({ theme }: { theme: WeddingTheme }) {
-  if (!theme.floralPattern) return null;
+  if (!usesComboFloral(theme)) return null;
   return (
     <>
       <div
@@ -217,8 +224,8 @@ export function FloralLayer({ theme }: { theme: WeddingTheme }) {
 }
 
 /**
- * HeroPattern — décor du hero : le motif floral de la combinaison s'il y en
- * a une, sinon la texture SVG du modèle (comportement historique inchangé).
+ * HeroPattern — décor du hero : le motif floral de la combinaison (Vintage
+ * Bleu uniquement), sinon la texture SVG du modèle choisie dans le Studio.
  */
 export function HeroPattern({
   theme,
@@ -229,7 +236,7 @@ export function HeroPattern({
   color: string;
   opacity?: number;
 }) {
-  if (theme.floralPattern) return <FloralLayer theme={theme} />;
+  if (usesComboFloral(theme)) return <FloralLayer theme={theme} />;
   return <PatternOverlay patternId={theme.patternId ?? 'none'} color={color} opacity={opacity ?? theme.patternOpacity ?? 0.07} />;
 }
 
