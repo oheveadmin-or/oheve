@@ -19,7 +19,9 @@ import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
 import { placeWithPreposition, weddingPlace } from '@/lib/place-utils';
 import { getGuests, loadGuests, subscribeGuests } from '@/lib/guests-store';
 import { getTodoTasks, loadTodoTasks, setTodoTasks, subscribeTodo, type TodoTask } from '@/lib/todo-store';
+import { API_ENDPOINTS } from '@/constants/config';
 import {
+  addProviderToHome,
   getHomeProviders,
   loadHomeProviders,
   removeProviderFromHome,
@@ -183,6 +185,7 @@ export default function DashboardScreen() {
   // Extrait du contexte pour que les dépendances des hooks portent sur le
   // jeton lui-même et non sur l'objet `user` entier (qui change plus souvent).
   const accessToken = user?.accessToken;
+  const userId = user?.id;
 
   const loadAppointments = useCallback(() => {
     if (!user?.accessToken || user.role === 'prestataire') return;
@@ -202,9 +205,30 @@ export default function DashboardScreen() {
       // (Avant, faute de salle enregistrée, on affichait une salle quelconque
       // de l'annuaire : la photo ne correspondait pas au lieu du mariage.)
       const salleKeywords = ['salle', 'lieu', 'reception', 'venue'];
-      const venueFromHome = providers.find((p) =>
-        salleKeywords.some((kw) => p.categorie?.toLowerCase().includes(kw))
-      );
+      const isVenue = (cat?: string | null) => salleKeywords.some((kw) => cat?.toLowerCase().includes(kw));
+      let venueFromHome = providers.find((p) => isVenue(p.categorie));
+      if (!venueFromHome && accessToken && userId) {
+        // Salle déjà PAYÉE dans l'app (avant que le paiement l'ajoute
+        // automatiquement à « Mes prestataires ») : c'est le lieu du mariage.
+        try {
+          const res = await fetch(API_ENDPOINTS.paymentsHistory, { headers: { Authorization: `Bearer ${accessToken}` } });
+          const json = await res.json();
+          const paid = (Array.isArray(json?.data) ? json.data : []).find((p: {
+            client_id: number; status: string; presta_category?: string | null;
+          }) => p.client_id === userId && p.status === 'succeeded' && isVenue(p.presta_category));
+          if (paid) {
+            venueFromHome = {
+              id: String(paid.prestataire_id),
+              nom: paid.business_name || [paid.presta_prenom, paid.presta_nom].filter(Boolean).join(' ') || 'Ma salle',
+              categorie: paid.presta_category ?? 'salle',
+              ville: paid.presta_city ?? '',
+              note: 0, telephone: '', email: '', adresse: '', instagram: '',
+            };
+            addProviderToHome(venueFromHome);
+            setHomeProviders(getHomeProviders());
+          }
+        } catch { /* hors ligne : pas de lieu */ }
+      }
       if (!venueFromHome) {
         setVenueProvider(null);
         return;
@@ -241,7 +265,7 @@ export default function DashboardScreen() {
         setHomeProviders(getHomeProviders());
       }
     });
-  }, [loadAppointments, accessToken]));
+  }, [loadAppointments, accessToken, userId]));
 
   const confirmRemoveProvider = useCallback((p: ProviderContact) => {
     Alert.alert('Retirer ce prestataire', `Retirer ${p.nom} de mes prestataires ?`, [
@@ -367,14 +391,19 @@ export default function DashboardScreen() {
               {venueProvider?.photoUrl ? (
                 <Image source={{ uri: venueProvider.photoUrl }} style={styles.venueBg} contentFit="cover" />
               ) : (
-                <View style={[styles.venueBg, { backgroundColor: C.saugePale, alignItems: 'center', justifyContent: 'center' }]}>
-                  <Ionicons name="business-outline" size={36} color={C.sauge} />
+                <View style={[styles.venueBg, { backgroundColor: C.saugePale, alignItems: 'flex-end', justifyContent: 'flex-start', padding: 18 }]}>
+                  <Ionicons name="business-outline" size={30} color={C.sauge} />
                 </View>
               )}
               <View style={styles.venueOverlay} />
               <View style={styles.venueContent}>
                 <ThemedText style={styles.venueOverline}>Mon mariage sera</ThemedText>
-                {lieuAvecPreposition ? (
+                {venueProvider ? (
+                  // Salle retenue : son nom, avec la ville du mariage si connue.
+                  <ThemedText style={styles.venueTitle} numberOfLines={2}>
+                    {venueProvider.name}{lieuAvecPreposition ? ` ${lieuAvecPreposition}` : ''}
+                  </ThemedText>
+                ) : lieuAvecPreposition ? (
                   <ThemedText style={styles.venueTitle}>{lieuAvecPreposition}</ThemedText>
                 ) : (
                   <ThemedText style={styles.venueTitle}>Lieu à définir</ThemedText>
@@ -383,7 +412,7 @@ export default function DashboardScreen() {
                   <View style={styles.venueProviderRow}>
                     <View style={styles.venueProviderBadge}>
                       <Ionicons name="star" size={11} color={C.saugeDark} />
-                      <ThemedText style={styles.venueProviderName}>{venueProvider.name}</ThemedText>
+                      <ThemedText style={styles.venueProviderName}>Voir la salle</ThemedText>
                     </View>
                     <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.8)" />
                   </View>

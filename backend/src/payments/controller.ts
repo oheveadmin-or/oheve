@@ -216,7 +216,7 @@ export class PaymentsController {
         `SELECT p.*,
            uc.nom AS client_nom, uc.prenom AS client_prenom,
            up.nom AS presta_nom, up.prenom AS presta_prenom,
-           pp.business_name
+           pp.business_name, pp.category AS presta_category, pp.location_city AS presta_city
          FROM payments p
          JOIN users uc ON uc.id=p.client_id
          JOIN users up ON up.id=p.prestataire_id

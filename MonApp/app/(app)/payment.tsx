@@ -12,6 +12,7 @@ import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
 import { addExpense, resolveCategoryKey } from '@/lib/budget-store';
+import { addProviderToHome, isProviderInHome } from '@/lib/providers-store';
 import { premiumApi } from '@/services/auth/api';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
@@ -153,6 +154,14 @@ function PaymentForm({
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
             body: JSON.stringify({ payment_intent_id: paymentIntent.id }),
           }).catch(() => { /* réseau : le webhook Stripe prendra le relais */ });
+          // Prestataire payé = prestataire retenu : il rejoint « Mes prestataires »
+          // (une salle devient ainsi le lieu affiché sur l'accueil, avec sa photo).
+          if (!isProviderInHome(String(prestataireId))) {
+            addProviderToHome({
+              id: String(prestataireId), nom: prestataireNom, categorie: prestataireCategorie ?? '',
+              ville: '', note: 0, telephone: '', email: '', adresse: '', instagram: '',
+            });
+          }
           const catKey = resolveCategoryKey(prestataireCategorie ?? '');
           addExpense({
             categoryKey: catKey,
