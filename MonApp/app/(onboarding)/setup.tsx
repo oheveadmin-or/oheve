@@ -728,7 +728,7 @@ const s = StyleSheet.create({
   content: { padding: 20, gap: 16 },
 
   header: { paddingVertical: 8, marginBottom: 4 },
-  title: { fontSize: 26, fontWeight: '700', color: C.text, marginBottom: 6 },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.text, marginBottom: 6 },
   subtitle: { fontSize: 15, color: C.secondary, lineHeight: 22 },
 
   card: {
@@ -757,7 +757,7 @@ const s = StyleSheet.create({
   inputWrap: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderColor: C.border, borderRadius: 14,
-    paddingHorizontal: 14, backgroundColor: '#FAF9F6', gap: 8,
+    paddingHorizontal: 14, backgroundColor: '#FCFBF9', gap: 8,
   },
   input: { flex: 1, height: 48, fontSize: 15, color: C.text },
   suggestions: {
@@ -786,14 +786,14 @@ const s = StyleSheet.create({
   venueBadgeText: { fontSize: 10, color: C.saugeDark, fontWeight: '600' },
   venueInput: {
     borderWidth: 1, borderColor: C.border, borderRadius: 14,
-    paddingHorizontal: 14, height: 46, fontSize: 15, color: C.text, backgroundColor: '#FAF9F6',
+    paddingHorizontal: 14, height: 46, fontSize: 15, color: C.text, backgroundColor: '#FCFBF9',
   },
 
   // Budget
   modeToggle: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   modeBtn: {
     flex: 1, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5,
-    borderColor: C.border, alignItems: 'center', backgroundColor: '#FAF9F6',
+    borderColor: C.border, alignItems: 'center', backgroundColor: '#FCFBF9',
   },
   modeBtnActive: { borderColor: C.sauge, backgroundColor: C.saugeLight },
   modeBtnText: { fontSize: 14, fontWeight: '600', color: C.secondary },
@@ -804,10 +804,10 @@ const s = StyleSheet.create({
   budgetInput: {
     flex: 1, borderWidth: 1.5, borderColor: C.border, borderRadius: 14,
     paddingHorizontal: 16, paddingVertical: 12,
-    fontSize: 28, fontWeight: '700', color: C.text,
-    backgroundColor: '#FAF9F6', textAlign: 'center',
+    fontSize: 28, fontFamily: 'OheveSerif-Medium', color: C.text,
+    backgroundColor: '#FCFBF9', textAlign: 'center',
   },
-  budgetCurrency: { fontSize: 24, fontWeight: '700', color: C.secondary },
+  budgetCurrency: { fontSize: 24, fontFamily: 'OheveSerif-Medium', color: C.secondary },
   catGrid: { gap: 2 },
   catRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -819,7 +819,7 @@ const s = StyleSheet.create({
   catInput: {
     width: 80, borderWidth: 1, borderColor: C.border, borderRadius: 10,
     paddingHorizontal: 8, paddingVertical: 6, fontSize: 14, color: C.text,
-    backgroundColor: '#FAF9F6', textAlign: 'right',
+    backgroundColor: '#FCFBF9', textAlign: 'right',
   },
   catCurrency: { fontSize: 13, color: C.secondary, width: 14 },
   catTotal: {
@@ -851,7 +851,7 @@ const s = StyleSheet.create({
   stepPill: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 10, paddingHorizontal: 16, borderRadius: 30,
-    borderWidth: 1.5, borderColor: C.border, backgroundColor: '#FAF9F6', gap: 6,
+    borderWidth: 1.5, borderColor: C.border, backgroundColor: '#FCFBF9', gap: 6,
   },
   stepPillActive: { borderColor: C.sauge, backgroundColor: C.saugeLight },
   stepPillIcon: { fontSize: 15 },

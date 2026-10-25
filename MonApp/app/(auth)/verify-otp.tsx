@@ -106,11 +106,11 @@ export default function VerifyOtpScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#A7AD9A" />
+            <Ionicons name="arrow-back" size={22} color="#929B83" />
           </Pressable>
 
           <View style={styles.iconWrap}>
-            <Ionicons name="mail-open-outline" size={48} color="#A7AD9A" />
+            <Ionicons name="mail-open-outline" size={48} color="#929B83" />
           </View>
 
           <ThemedText style={styles.title}>Vérification email</ThemedText>
@@ -160,20 +160,20 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 40 },
   backBtn: { marginBottom: 16 },
   iconWrap: { alignItems: 'center', marginBottom: 20, marginTop: 20 },
-  title: { fontSize: 26, fontWeight: '800', color: '#111827', marginBottom: 8, textAlign: 'center' },
-  sub: { fontSize: 15, color: '#6b7280', marginBottom: 32, textAlign: 'center', lineHeight: 22 },
-  emailHighlight: { color: '#A7AD9A', fontWeight: '700' },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: '#343630', marginBottom: 8, textAlign: 'center' },
+  sub: { fontSize: 15, color: '#5c5f57', marginBottom: 32, textAlign: 'center', lineHeight: 22 },
+  emailHighlight: { color: '#929B83', fontWeight: '700' },
   codeRow: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 32 },
   codeBox: {
     width: 46, height: 56, borderRadius: 12,
-    borderWidth: 2, borderColor: '#e5e7eb',
-    textAlign: 'center', fontSize: 22, fontWeight: '700',
-    color: '#111827', backgroundColor: '#fafafa',
+    borderWidth: 2, borderColor: '#ece8e0',
+    textAlign: 'center', fontSize: 22, fontFamily: 'OheveSerif-Medium',
+    color: '#343630', backgroundColor: '#fcfbf9',
   },
-  codeBoxFilled: { borderColor: '#A7AD9A', backgroundColor: '#E8EDE4' },
-  btn: { backgroundColor: '#A7AD9A', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  codeBoxFilled: { borderColor: '#929B83', backgroundColor: '#F5F2ED' },
+  btn: { backgroundColor: '#929B83', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
   btnDisabled: { opacity: 0.6 },
   btnTxt: { color: '#fff', fontWeight: '700', fontSize: 16 },
   resendRow: { marginTop: 20, alignItems: 'center' },
-  resendTxt: { color: '#A7AD9A', fontWeight: '600', fontSize: 14 },
+  resendTxt: { color: '#929B83', fontWeight: '600', fontSize: 14 },
 });

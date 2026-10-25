@@ -84,10 +84,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
   },
-  title: { fontSize: 22, fontWeight: '800', color: C.textDark },
+  title: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   addBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#8B5CF6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#747E68', alignItems: 'center', justifyContent: 'center',
   },
 
   list: { paddingHorizontal: 20, paddingBottom: 32 },
@@ -109,6 +109,6 @@ const styles = StyleSheet.create({
 
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15, color: C.textLight },
-  emptyBtn: { backgroundColor: '#8B5CF6', paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
+  emptyBtn: { backgroundColor: '#747E68', paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.md },
   emptyBtnText: { color: C.textInvert, fontWeight: '700' },
 });

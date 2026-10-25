@@ -2,15 +2,15 @@ import { useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 
-const SAGE = '#A7AD9A';
-const SAGE_DEEP = '#8F947F';
-const SAGE_LIGHT = '#edf2ec';
-const MOKA = '#3d2e1f';
-const MOKA_MID = '#6b5344';
-const GOLD = '#b8965a';
-const IVORY = '#faf8f3';
-const IVORY_CARD = '#f5f0e8';
-const SAND = '#ede8df';
+const SAGE = '#929B83';
+const SAGE_DEEP = '#929B83';
+const SAGE_LIGHT = '#f5f2ed';
+const MOKA = '#343630';
+const MOKA_MID = '#5c5f57';
+const GOLD = '#747e68';
+const IVORY = '#fcfbf9';
+const IVORY_CARD = '#ffffff';
+const SAND = '#f5f2ed';
 
 const APP_STORE_URL = 'https://apps.apple.com/fr/app/oheve/id6785535857';
 const INSTAGRAM_URL = 'https://www.instagram.com/ohevewedding';
@@ -86,7 +86,7 @@ function ScreenHome() {
   return (
     <div style={{ padding: '1.8rem 0.9rem 1rem', height: '100%', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.05rem', color: MOKA }}>Sarah & Léa</div>
+        <div style={{ fontFamily: "'Fraunces', serif", fontSize: '1.05rem', color: MOKA }}>Sarah & Léa</div>
         <div style={{ fontSize: '0.5rem', letterSpacing: '0.12em', color: MOKA_MID, opacity: 0.6 }}>17 JUIN 2027 · PARIS</div>
       </div>
       <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center' }}>
@@ -127,7 +127,7 @@ function ScreenGuests() {
   return (
     <div style={{ padding: '1.8rem 0.9rem 1rem', height: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '0.95rem', color: MOKA }}>Invités</span>
+        <span style={{ fontFamily: "'Fraunces', serif", fontSize: '0.95rem', color: MOKA }}>Invités</span>
         <span style={{ fontSize: '0.48rem', color: SAGE_DEEP, fontWeight: 700 }}>184 confirmés</span>
       </div>
       <div style={{ display: 'flex', gap: '0.25rem' }}>
@@ -153,7 +153,7 @@ function ScreenSeating() {
   return (
     <div style={{ padding: '1.8rem 0.9rem 1rem', height: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '0.95rem', color: MOKA }}>Plan de table</span>
+        <span style={{ fontFamily: "'Fraunces', serif", fontSize: '0.95rem', color: MOKA }}>Plan de table</span>
         <span style={{ fontSize: '0.46rem', color: SAGE_DEEP, fontWeight: 700 }}>PDF</span>
       </div>
       <div style={{ background: '#fff', borderRadius: 10, padding: '0.5rem', boxShadow: '0 1px 6px rgba(61,46,31,0.05)' }}>
@@ -162,7 +162,7 @@ function ScreenSeating() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <div key={n} style={{ aspectRatio: '1', borderRadius: '50%', border: `1px solid ${n % 4 === 0 ? GOLD : SAGE}`, background: n % 4 === 0 ? '#fdf8ef' : SAGE_LIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cormorant Garamond', serif", fontSize: '0.55rem', color: MOKA }}>
+            <div key={n} style={{ aspectRatio: '1', borderRadius: '50%', border: `1px solid ${n % 4 === 0 ? GOLD : SAGE}`, background: n % 4 === 0 ? '#fdf8ef' : SAGE_LIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Fraunces', serif", fontSize: '0.55rem', color: MOKA }}>
               {n}
             </div>
           ))}
@@ -194,7 +194,7 @@ export default function Home() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400&family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: ${IVORY}; }
         html { scroll-behavior: smooth; }
@@ -221,14 +221,14 @@ export default function Home() {
         .ohv-btn-store {
           display: inline-flex; align-items: center; gap: 0.6rem;
           padding: 0.75rem 1.6rem;
-          background: #211a14; color: #fff;
+          background: #343630; color: #fff;
           border-radius: 50px; text-decoration: none;
           font-family: 'Inter', sans-serif;
           box-shadow: 0 6px 22px rgba(33,26,20,0.28);
           transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
         }
         .ohv-btn-store:hover {
-          background: #362b22; transform: translateY(-2px);
+          background: #4a4c45; transform: translateY(-2px);
           box-shadow: 0 10px 30px rgba(33,26,20,0.34);
         }
         .ohv-btn-insta {
@@ -236,7 +236,7 @@ export default function Home() {
           padding: 0.75rem 1.5rem;
           border-radius: 50px; text-decoration: none;
           font-family: 'Inter', sans-serif; font-size: 0.93rem; font-weight: 600; color: #fff;
-          background: linear-gradient(120deg, #b8965a 0%, #c77b7b 45%, #8f7fa8 100%);
+          background: linear-gradient(120deg, #747e68 0%, #c77b7b 45%, #8f7fa8 100%);
           box-shadow: 0 6px 22px rgba(160,110,110,0.28);
           transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
         }
@@ -288,7 +288,7 @@ export default function Home() {
           position: relative;
           width: 212px; height: 430px;
           border-radius: 36px;
-          background: #221b15;
+          background: #343630;
           padding: 7px;
           box-shadow: 0 18px 50px rgba(61,46,31,0.22), 0 2px 6px rgba(61,46,31,0.14);
         }
@@ -341,7 +341,7 @@ export default function Home() {
 
         {/* ─── NAV ──────────────────────────────────────────── */}
         <nav className="ohv-nav" style={navStyle}>
-          <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.1rem', fontWeight: 600, color: MOKA, letterSpacing: '0.06em' }}>
+          <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.1rem', fontWeight: 600, color: MOKA, letterSpacing: '0.06em' }}>
             OHEVE <span style={{ color: SAGE }}>WEDDING</span>
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -438,7 +438,7 @@ export default function Home() {
             {FEATURES.map((f) => (
               <div key={f.title} className="ohv-feat-card">
                 <div style={{ fontSize: '1.7rem', marginBottom: '0.8rem' }}>{f.icon}</div>
-                <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.2rem', fontWeight: 600, color: MOKA, marginBottom: '0.45rem' }}>{f.title}</h3>
+                <h3 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.2rem', fontWeight: 600, color: MOKA, marginBottom: '0.45rem' }}>{f.title}</h3>
                 <p style={{ fontSize: '0.88rem', color: MOKA_MID, lineHeight: 1.62, opacity: 0.85 }}>{f.desc}</p>
               </div>
             ))}
@@ -462,9 +462,9 @@ export default function Home() {
               </div>
               <div style={{ background: IVORY_CARD, borderRadius: 14, padding: '2rem', textAlign: 'center' }}>
                 <div style={{ width: 48, height: 48, borderRadius: '50%', border: `1.5px solid ${SAGE}`, margin: '0 auto 0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.3rem', color: MOKA_MID }}>♡</span>
+                  <span style={{ fontFamily: "'Fraunces', serif", fontSize: '1.3rem', color: MOKA_MID }}>♡</span>
                 </div>
-                <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.6rem', fontWeight: 300, color: MOKA, marginBottom: '0.3rem' }}>Sarah & Léa</div>
+                <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.6rem', fontWeight: 300, color: MOKA, marginBottom: '0.3rem' }}>Sarah & Léa</div>
                 <div style={{ fontSize: '0.8rem', color: MOKA_MID, opacity: 0.7, letterSpacing: '0.08em' }}>17 JUIN 2027 · PARIS</div>
                 <div style={{ margin: '1.2rem auto', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                   {['264 J', '11 H', '42 M'].map((v) => (
@@ -487,7 +487,7 @@ export default function Home() {
           <div className="ohv-insta-card" style={instaCard}>
             <div style={{ flex: 1, textAlign: 'left' }}>
               <div style={{ ...sectionLabel, marginBottom: '0.6rem' }}>INSTAGRAM</div>
-              <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.9rem', fontWeight: 300, color: MOKA, lineHeight: 1.2, marginBottom: '0.6rem' }}>
+              <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.9rem', fontWeight: 300, color: MOKA, lineHeight: 1.2, marginBottom: '0.6rem' }}>
                 Inspirations, coulisses<br />
                 <em style={{ fontStyle: 'italic', color: SAGE }}>et vrais mariages.</em>
               </h2>
@@ -517,7 +517,7 @@ export default function Home() {
             <svg width="36" height="36" viewBox="0 0 36 36" style={{ marginBottom: '1rem' }}>
               <polygon points="18,2 21,12 31,12 23,19 26,29 18,23 10,29 13,19 5,12 15,12" fill={GOLD} opacity="0.6" />
             </svg>
-            <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '2.2rem', fontWeight: 300, color: MOKA, marginBottom: '0.8rem', lineHeight: 1.2 }}>
+            <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '2.2rem', fontWeight: 300, color: MOKA, marginBottom: '0.8rem', lineHeight: 1.2 }}>
               Prêt à organiser<br /><em style={{ fontStyle: 'italic', color: SAGE }}>votre mariage ?</em>
             </h2>
             <p style={{ fontSize: '0.95rem', color: MOKA_MID, opacity: 0.75, marginBottom: '2rem', lineHeight: 1.6 }}>
@@ -532,7 +532,7 @@ export default function Home() {
 
         {/* ─── FOOTER ───────────────────────────────────────── */}
         <footer className="ohv-footer" style={footerStyle}>
-          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1rem', fontWeight: 600, letterSpacing: '0.08em', color: MOKA_MID }}>
+          <span style={{ fontFamily: "'Fraunces', serif", fontSize: '1rem', fontWeight: 600, letterSpacing: '0.08em', color: MOKA_MID }}>
             OHEVE <span style={{ color: SAGE }}>WEDDING</span>
           </span>
           <div style={{ display: 'flex', gap: '1.2rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -644,7 +644,7 @@ const badgeStyle: CSSProperties = {
 };
 
 const heroTitle: CSSProperties = {
-  fontFamily: "'Cormorant Garamond', Georgia, serif",
+  fontFamily: "'Fraunces', Georgia, serif",
   fontSize: '3.3rem',
   fontWeight: 300,
   lineHeight: 1.15,
@@ -712,7 +712,7 @@ const sectionLabel: CSSProperties = {
 };
 
 const sectionTitle: CSSProperties = {
-  fontFamily: "'Cormorant Garamond', Georgia, serif",
+  fontFamily: "'Fraunces', Georgia, serif",
   fontSize: '2.1rem',
   fontWeight: 300,
   color: MOKA,

@@ -123,7 +123,7 @@ const s = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    borderBottomWidth: 1, borderBottomColor: '#f5f2ed',
   },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: C.textDark },
 
@@ -142,7 +142,7 @@ const s = StyleSheet.create({
     borderWidth: 2, borderColor: '#fff',
   },
 
-  title: { fontSize: 22, fontWeight: '800', color: C.textDark, textAlign: 'center' },
+  title: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark, textAlign: 'center' },
   subtitle: { fontSize: 14, color: C.textMid, textAlign: 'center', lineHeight: 22 },
   featureName: { fontWeight: '700', color: C.saugeDark },
 
@@ -155,11 +155,11 @@ const s = StyleSheet.create({
   valueRow: { flexDirection: 'row', justifyContent: 'space-between' },
   valueLabel: { fontSize: 12, color: C.textMid },
   valuePrice: { fontSize: 12, color: C.textMid },
-  valueDivider: { height: 1, backgroundColor: '#e5e7eb' },
+  valueDivider: { height: 1, backgroundColor: '#ece8e0' },
   totalStrikeLabel: { fontSize: 12, color: C.textLight },
   totalStrike: { fontSize: 12, color: C.textLight, textDecorationLine: 'line-through' },
   todayLabel: { fontSize: 14, fontWeight: '700', color: C.textDark },
-  todayPrice: { fontSize: 20, fontWeight: '800', color: C.saugeDark },
+  todayPrice: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.saugeDark },
 
   cta: {
     backgroundColor: C.sauge, borderRadius: 16, paddingVertical: 16,

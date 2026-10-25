@@ -147,8 +147,8 @@ export default function StripeConnectScreen() {
 function Badge({ ok, label }: { ok?: boolean; label: string }) {
   return (
     <View style={[bStyles.badge, ok ? bStyles.ok : bStyles.pending]}>
-      <Ionicons name={ok ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={ok ? C.sauge : '#9ca3af'} />
-      <ThemedText style={[bStyles.label, !ok && { color: '#9ca3af' }]}>{label}</ThemedText>
+      <Ionicons name={ok ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={ok ? C.sauge : '#9a9c93'} />
+      <ThemedText style={[bStyles.label, !ok && { color: '#9a9c93' }]}>{label}</ThemedText>
     </View>
   );
 }
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   scroll: { padding: 20 },
   card: { backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 24, gap: 14, borderWidth: 1, borderColor: C.saugePale },
   successIcon: { alignSelf: 'center' },
-  cardTitle: { fontSize: 20, fontWeight: '700', color: C.textDark, textAlign: 'center' },
+  cardTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark, textAlign: 'center' },
   cardSub: { fontSize: 14, color: C.textMid, textAlign: 'center', lineHeight: 21 },
   badges: { gap: 8 },
   accountId: { fontSize: 11, color: C.textLight, textAlign: 'center' },
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
 const bStyles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
   ok: { backgroundColor: C.saugePale, borderColor: C.sauge },
-  pending: { backgroundColor: '#f9fafb', borderColor: '#e5e7eb' },
+  pending: { backgroundColor: '#fcfbf9', borderColor: '#ece8e0' },
   label: { fontSize: 13, fontWeight: '600', color: C.textDark },
 });
 

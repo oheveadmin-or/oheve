@@ -35,10 +35,10 @@ type CategoryItem = {
 
 const MAIN_CATEGORIES: CategoryItem[] = [
   { slug: 'salle', label: 'Lieux de réception', count: 48, icon: 'business-outline', bg: '#E8E4DC' },
-  { slug: 'traiteur', label: 'Traiteurs', count: 73, icon: 'restaurant-outline', bg: '#EDE8E1' },
+  { slug: 'traiteur', label: 'Traiteurs', count: 73, icon: 'restaurant-outline', bg: '#ECE8E0' },
   { slug: 'photo', label: 'Photo & Vidéo', count: 92, icon: 'camera-outline', bg: '#E4E8E4' },
   { slug: 'musique', label: 'Musique & Animation', count: 64, icon: 'musical-notes-outline', bg: '#EBE6DE' },
-  { slug: 'fleuriste', label: 'Décoration & Fleurs', count: 51, icon: 'flower-outline', bg: '#E8EDE4' },
+  { slug: 'fleuriste', label: 'Décoration & Fleurs', count: 51, icon: 'flower-outline', bg: '#F5F2ED' },
   { slug: 'beaute', label: 'Beauté', count: 38, icon: 'sparkles-outline', bg: '#EDE4E8' },
   { slug: 'tenues', label: 'Tenues', count: 49, icon: 'shirt-outline', bg: '#E4E8ED' },
   { slug: 'transport', label: 'Transport', count: 27, icon: 'car-outline', bg: '#EDE8E4' },
@@ -338,7 +338,7 @@ export default function ProvidersScreen() {
                   <TextInput
                     style={styles.modalInput}
                     placeholder={placeholder}
-                    placeholderTextColor="#A09890"
+                    placeholderTextColor="#9A9C93"
                     value={value}
                     onChangeText={onChange}
                     keyboardType={keyboardType}
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   homeButtonText: { color: C.moka, fontSize: 14, fontWeight: '600' },
 
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
-  title: { fontSize: 26, fontWeight: '800', color: C.textDark, marginBottom: 4 },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 4 },
   subtitle: { fontSize: 13, color: C.textLight },
   settingsBtn: {
     width: 40, height: 40, borderRadius: RADIUS.md,

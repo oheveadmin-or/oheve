@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16,
   },
-  title: { flex: 1, fontSize: 26, fontWeight: '700', color: C.textDark },
+  title: { flex: 1, fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   addBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: C.sauge, alignItems: 'center', justifyContent: 'center',
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(61,53,48,0.4)' },
   modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.taupe, alignSelf: 'center', marginBottom: 14 },
-  modalTitle: { fontSize: 22, fontWeight: '700', color: C.textDark, marginBottom: 14 },
+  modalTitle: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 14 },
 
   cardPreview: {
     backgroundColor: C.sauge, borderRadius: 16, padding: 20, marginBottom: 16,

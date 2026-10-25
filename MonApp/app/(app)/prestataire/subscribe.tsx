@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', gap: 10, paddingTop: 8 },
   badge: { backgroundColor: C.sauge, borderRadius: 99, paddingHorizontal: 16, paddingVertical: 6 },
   badgeTxt: { color: '#fff', fontWeight: '800', fontSize: 11, letterSpacing: 1.5 },
-  heroTitle: { fontSize: 25, fontWeight: '800', color: C.textDark, textAlign: 'center', lineHeight: 31 },
+  heroTitle: { fontSize: 25, fontFamily: 'OheveSerif-Medium', color: C.textDark, textAlign: 'center', lineHeight: 33 },
   heroSub: { fontSize: 14, color: C.textLight, textAlign: 'center' },
 
   launchBanner: {
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   },
   freeTxt: { fontSize: 12, fontWeight: '700', color: C.saugeDark },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  price: { fontSize: 40, fontWeight: '800', color: C.textDark },
+  price: { fontSize: 40, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   priceNote: { fontSize: 16, color: C.textMid, fontWeight: '600' },
   priceDesc: { fontSize: 12.5, color: C.textMid, textAlign: 'center', lineHeight: 18 },
 

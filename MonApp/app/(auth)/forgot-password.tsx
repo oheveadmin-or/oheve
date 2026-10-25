@@ -45,13 +45,13 @@ export default function ForgotPasswordScreen() {
   return (
     <ScreenLayout>
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
-        <Ionicons name="arrow-back" size={22} color="#A7AD9A" />
+        <Ionicons name="arrow-back" size={22} color="#929B83" />
       </Pressable>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.content}>
           <View style={styles.iconWrap}>
-            <Ionicons name="lock-open-outline" size={52} color="#A7AD9A" />
+            <Ionicons name="lock-open-outline" size={52} color="#929B83" />
           </View>
 
           <ThemedText style={styles.title}>Mot de passe oublié ?</ThemedText>
@@ -63,7 +63,7 @@ export default function ForgotPasswordScreen() {
           <TextInput
             style={styles.input}
             placeholder="sophie@email.com"
-            placeholderTextColor="#A09890"
+            placeholderTextColor="#9A9C93"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -95,17 +95,17 @@ const styles = StyleSheet.create({
   backBtn: { marginBottom: 8 },
   content: { flex: 1, paddingTop: 12 },
   iconWrap: { alignItems: 'center', marginBottom: 24, marginTop: 16 },
-  title: { fontSize: 26, fontWeight: '800', color: '#3D3530', marginBottom: 10 },
-  sub: { fontSize: 14, color: '#6B6058', lineHeight: 22, marginBottom: 28 },
-  label: { fontSize: 13, fontWeight: '600', color: '#4b5563', marginBottom: 8 },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: '#343630', marginBottom: 10 },
+  sub: { fontSize: 14, color: '#5C5F57', lineHeight: 22, marginBottom: 28 },
+  label: { fontSize: 13, fontWeight: '600', color: '#5c5f57', marginBottom: 8 },
   input: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: '#3D3530', backgroundColor: '#fafafa', marginBottom: 0,
+    fontSize: 15, color: '#343630', backgroundColor: '#fcfbf9', marginBottom: 0,
   },
-  btn: { marginTop: 20, backgroundColor: '#A7AD9A', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  btn: { marginTop: 20, backgroundColor: '#929B83', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
   btnDisabled: { opacity: 0.6 },
   btnTxt: { color: '#fff', fontWeight: '700', fontSize: 16 },
   backToLogin: { marginTop: 20, alignItems: 'center' },
-  backToLoginTxt: { color: '#A7AD9A', fontWeight: '600', fontSize: 14 },
+  backToLoginTxt: { color: '#929B83', fontWeight: '600', fontSize: 14 },
 });

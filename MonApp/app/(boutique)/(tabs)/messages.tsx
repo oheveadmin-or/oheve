@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: C.card,
   },
-  title: { fontSize: 22, fontWeight: '800', color: C.textDark },
+  title: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   subtitle: { fontSize: 13, color: C.sauge, fontWeight: '600', marginTop: 2 },
   headerIcon: {
     width: 40, height: 40, borderRadius: 20,

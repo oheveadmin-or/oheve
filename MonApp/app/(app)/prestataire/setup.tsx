@@ -150,7 +150,7 @@ export default function PrestataireSetup() {
             <Image source={{ uri: form.cover_local_uri }} style={styles.coverImage} contentFit="cover" />
           ) : (
             <View style={styles.coverPlaceholder}>
-              <Ionicons name="camera-outline" size={32} color="#c4b5fd" />
+              <Ionicons name="camera-outline" size={32} color="#929b83" />
               <ThemedText style={styles.coverPlaceholderText}>Ajouter une photo de couverture</ThemedText>
             </View>
           )}
@@ -166,7 +166,7 @@ export default function PrestataireSetup() {
           value={form.business_name}
           onChangeText={set('business_name')}
           placeholder="Ex: Photos & Émotions"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#9a9c93"
           autoCapitalize="words"
         />
 
@@ -194,7 +194,7 @@ export default function PrestataireSetup() {
           value={form.city}
           onChangeText={set('city')}
           placeholder="Ex: Paris"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#9a9c93"
           autoCapitalize="words"
         />
 
@@ -205,7 +205,7 @@ export default function PrestataireSetup() {
           value={form.phone}
           onChangeText={set('phone')}
           placeholder="+33 6 00 00 00 00"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#9a9c93"
           keyboardType="phone-pad"
         />
 
@@ -216,7 +216,7 @@ export default function PrestataireSetup() {
           value={form.description}
           onChangeText={set('description')}
           placeholder="Décrivez votre activité, votre style, vos services…"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#9a9c93"
           multiline
           numberOfLines={4}
           textAlignVertical="top"
@@ -229,7 +229,7 @@ export default function PrestataireSetup() {
           value={form.price_range}
           onChangeText={set('price_range')}
           placeholder="Ex : 1 500 € – 4 000 €"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#9a9c93"
         />
 
         {/* Réseaux sociaux */}
@@ -243,7 +243,7 @@ export default function PrestataireSetup() {
             value={form.instagram}
             onChangeText={set('instagram')}
             placeholder="@votre_compte"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9a9c93"
             autoCapitalize="none"
           />
         </View>
@@ -258,7 +258,7 @@ export default function PrestataireSetup() {
             value={form.website}
             onChangeText={set('website')}
             placeholder="https://votre-site.fr"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9a9c93"
             autoCapitalize="none"
             keyboardType="url"
           />
@@ -290,42 +290,42 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fff' },
   header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 },
   stepBadge: {
-    alignSelf: 'flex-start', fontSize: 11, fontWeight: '800', color: '#A7AD9A',
+    alignSelf: 'flex-start', fontSize: 11, fontWeight: '800', color: '#929B83',
     letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase',
   },
-  title: { fontSize: 26, fontWeight: '800', color: '#111827', marginBottom: 6 },
-  sub: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: '#343630', marginBottom: 6 },
+  sub: { fontSize: 14, color: '#5c5f57', lineHeight: 20 },
   content: { padding: 24, gap: 8 },
-  label: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontWeight: '700', color: '#5c5f57', marginBottom: 6, marginTop: 10 },
   input: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 15,
-    color: '#111827', backgroundColor: '#fafafa',
+    color: '#343630', backgroundColor: '#fcfbf9',
   },
   inputMulti: { height: 100, paddingTop: 12 },
 
   coverWrap: {
-    height: 160, borderRadius: 16, overflow: 'hidden', backgroundColor: '#f3f4f6',
+    height: 160, borderRadius: 16, overflow: 'hidden', backgroundColor: '#f5f2ed',
   },
   coverImage: { width: '100%', height: '100%' },
   coverPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  coverPlaceholderText: { fontSize: 13, color: '#9ca3af', fontWeight: '500' },
+  coverPlaceholderText: { fontSize: 13, color: '#9a9c93', fontWeight: '500' },
   coverEditBadge: {
     position: 'absolute', bottom: 10, right: 10, width: 32, height: 32,
-    borderRadius: 16, backgroundColor: '#A7AD9A',
+    borderRadius: 16, backgroundColor: '#929B83',
     alignItems: 'center', justifyContent: 'center',
   },
 
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   catCard: {
     width: '22%', aspectRatio: 1, borderRadius: 14, borderWidth: 1.5,
-    borderColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center',
-    gap: 4, backgroundColor: '#fafafa',
+    borderColor: '#ece8e0', alignItems: 'center', justifyContent: 'center',
+    gap: 4, backgroundColor: '#fcfbf9',
   },
-  catCardOn: { borderColor: '#A7AD9A', backgroundColor: '#ede9fe' },
+  catCardOn: { borderColor: '#929B83', backgroundColor: '#f5f2ed' },
   catIcon: { fontSize: 22 },
-  catLabel: { fontSize: 9, fontWeight: '600', color: '#6b7280', textAlign: 'center' },
-  catLabelOn: { color: '#A7AD9A' },
+  catLabel: { fontSize: 9, fontWeight: '600', color: '#5c5f57', textAlign: 'center' },
+  catLabelOn: { color: '#929B83' },
 
   socialRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   socialIcon: {
@@ -335,11 +335,11 @@ const styles = StyleSheet.create({
   socialInput: { flex: 1 },
 
   btn: {
-    marginTop: 24, backgroundColor: '#A7AD9A', borderRadius: 14,
+    marginTop: 24, backgroundColor: '#929B83', borderRadius: 14,
     paddingVertical: 15, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8,
   },
   btnOff: { opacity: 0.4 },
   btnTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  nextStepHint: { marginTop: 10, textAlign: 'center', fontSize: 12, color: '#9ca3af' },
+  nextStepHint: { marginTop: 10, textAlign: 'center', fontSize: 12, color: '#9a9c93' },
 });

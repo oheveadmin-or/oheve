@@ -1,12 +1,12 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-const SAGE = '#A7AD9A';
-const MOKA = '#3d2e1f';
-const MOKA_MID = '#6b5344';
-const GOLD = '#b8965a';
-const IVORY = '#faf8f3';
-const IVORY_CARD = '#f5f0e8';
+const SAGE = '#929B83';
+const MOKA = '#343630';
+const MOKA_MID = '#5c5f57';
+const GOLD = '#747e68';
+const IVORY = '#fcfbf9';
+const IVORY_CARD = '#ffffff';
 
 const CONTACT_EMAIL = 'oheveadmin@gmail.com';
 
@@ -14,13 +14,13 @@ function LegalLayout({ title, updated, children }: { title: string; updated: str
   return (
     <div style={{ background: IVORY, minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600&family=Inter:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400&family=Inter:wght@400;500;600&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
       `}</style>
 
       <nav style={navStyle}>
         <Link to="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.1rem', fontWeight: 600, color: MOKA, letterSpacing: '0.06em' }}>
+          <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.1rem', fontWeight: 600, color: MOKA, letterSpacing: '0.06em' }}>
             OHEVE <span style={{ color: SAGE }}>WEDDING</span>
           </span>
         </Link>
@@ -31,7 +31,7 @@ function LegalLayout({ title, updated, children }: { title: string; updated: str
           <svg width="36" height="36" viewBox="0 0 36 36" style={{ marginBottom: '0.8rem' }}>
             <polygon points="18,2 21,12 31,12 23,19 26,29 18,23 10,29 13,19 5,12 15,12" fill={GOLD} opacity="0.6" />
           </svg>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '2.3rem', fontWeight: 300, color: MOKA, lineHeight: 1.2, marginBottom: '0.5rem' }}>
+          <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '2.3rem', fontWeight: 300, color: MOKA, lineHeight: 1.2, marginBottom: '0.5rem' }}>
             {title}
           </h1>
           <p style={{ fontSize: '0.82rem', color: MOKA_MID, opacity: 0.6 }}>Dernière mise à jour : {updated}</p>
@@ -54,7 +54,7 @@ function LegalLayout({ title, updated, children }: { title: string; updated: str
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section style={{ marginBottom: '1.8rem' }}>
-      <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.25rem', fontWeight: 600, color: MOKA, marginBottom: '0.5rem' }}>{title}</h2>
+      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.25rem', fontWeight: 600, color: MOKA, marginBottom: '0.5rem' }}>{title}</h2>
       <div style={{ fontSize: '0.92rem', color: MOKA_MID, lineHeight: 1.75, whiteSpace: 'pre-line' }}>{children}</div>
     </section>
   );

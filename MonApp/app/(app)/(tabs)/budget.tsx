@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 10 },
   backBtn: { padding: 4 },
   overline:  { fontSize: 12, color: C.textLight, letterSpacing: 0.5 },
-  title:     { fontSize: 30, fontWeight: '700', color: C.textDark },
+  title:     { fontSize: 30, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   content:   { gap: 12, paddingTop: 4 },
 
   // ── Overview card ──
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   overviewTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   donutWrap: { alignItems: 'center', justifyContent: 'center' },
   donutCenter: { position: 'absolute', alignItems: 'center' },
-  donutPct: { fontSize: 26, fontWeight: '800', color: C.textDark },
+  donutPct: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   donutSub: { fontSize: 10, color: C.textMid, marginTop: 1 },
   overviewStats: { flex: 1, gap: 10 },
   statItem: { gap: 1 },
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 14, gap: 12,
   },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.taupe, marginBottom: 4 },
-  sheetTitle: { fontSize: 20, fontWeight: '700', color: C.textDark },
+  sheetTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark },
 
   sheetCatHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   editBtn: {
@@ -725,8 +725,8 @@ const styles = StyleSheet.create({
   // Modals
   fieldLabel: { fontSize: 12, fontWeight: '700', color: C.textMid, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
   amountRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  amountInput: { flex: 1, fontSize: 22, fontWeight: '700', color: C.textDark },
-  amountSuffix: { fontSize: 22, fontWeight: '700', color: C.textDark },
+  amountInput: { flex: 1, fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark },
+  amountSuffix: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   typeRow: { flexDirection: 'row', gap: 8 },
   typeChip: {
     flex: 1, paddingVertical: 9, alignItems: 'center',

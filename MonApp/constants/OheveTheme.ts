@@ -1,41 +1,41 @@
 /**
  * Oheve — Charte graphique officielle
- * Palette: Sauge · Beige Doux · Ivoire · Taupé · Moka
+ * Palette: Blanc ivoire · Blanc pur · Vert sauge · Vert olive · Grège · Anthracite chaud
  */
 
 export const C = {
   // ── Couleurs principales ───────────────────────────────────────
-  sauge:      '#8F947F',   // vert contrat (accent primaire)
-  saugeDark:  '#757B68',   // vert contrat foncé (texte actif)
-  saugePale:  '#E4E7DC',   // vert très clair (fonds pill, badge)
+  sauge:      '#929B83',   // vert sauge (accent primaire, bouton central)
+  saugeDark:  '#747E68',   // vert olive (icônes, actions, texte actif)
+  saugePale:  '#F5F2ED',   // grège très clair (pastilles, détails)
 
-  beige:      '#D7C7B5',   // beige lin/sable
-  ivoire:     '#F6F2EA',   // ivoire (fond général)
-  taupe:      '#C7B7A5',   // taupé (bordures, séparateurs)
-  moka:       '#7B7063',   // moka (éléments foncés, accents)
+  beige:      '#ECE8E0',   // grège (cartes secondaires)
+  ivoire:     '#FCFBF9',   // blanc ivoire (fond de l'application)
+  taupe:      '#E2DED5',   // grège soutenu (bordures, séparateurs)
+  moka:       '#5C5F57',   // anthracite adouci (éléments foncés)
 
   // ── Textes ────────────────────────────────────────────────────
-  textDark:   '#3C352F',   // titres principaux
-  textMid:    '#665D54',   // corps
-  textLight:  '#9A9288',   // labels, hints
+  textDark:   '#343630',   // anthracite chaud (titres, textes importants)
+  textMid:    '#5C5F57',   // corps
+  textLight:  '#9A9C93',   // labels, hints
   textInvert: '#FFFFFF',   // sur fonds sombres
 
   // ── Fond & surfaces ───────────────────────────────────────────
-  background: '#F6F2EA',   // fond écran
-  card:       '#F2EDE4',   // contraste doux pour les blocs
-  cardAlt:    '#EFE9DE',   // contraste doux secondaire
+  background: '#FCFBF9',   // blanc ivoire (fond écran)
+  card:       '#FFFFFF',   // blanc pur (cartes, navigation)
+  cardAlt:    '#F5F2ED',   // grège très clair
   border:     'transparent',   // bordures neutralisées
 
   // ── États ─────────────────────────────────────────────────────
-  success:    '#757B68',   // vert (confirmé)
-  successPale:'#E4E7DC',
+  success:    '#747E68',   // vert olive (confirmé)
+  successPale:'#F5F2ED',
   warning:    '#B99B74',   // ambre chaud
   warningPale:'#F2E9DE',
   error:      '#C17E7E',   // rouge doux
   errorPale:  '#F5E8E8',
 
   // ── Shadow ────────────────────────────────────────────────────
-  shadow:     '#7B7063',
+  shadow:     '#343630',
 } as const;
 
 export const RADIUS = {
@@ -46,9 +46,16 @@ export const RADIUS = {
   pill: 999,
 } as const;
 
+// Police de titre : alias chargés dans app/_layout.tsx (Fraunces, proche de The Seasons)
+export const SERIF = {
+  regular:  'OheveSerif-Regular',
+  medium:   'OheveSerif-Medium',
+  semibold: 'OheveSerif-SemiBold',
+} as const;
+
 export const FONT = {
-  title:    { fontFamily: 'System', fontWeight: '700' as const },
-  subtitle: { fontFamily: 'System', fontWeight: '500' as const },
+  title:    { fontFamily: SERIF.medium },
+  subtitle: { fontFamily: SERIF.regular },
   body:     { fontFamily: 'System', fontWeight: '400' as const },
   caption:  { fontFamily: 'System', fontWeight: '400' as const },
 } as const;

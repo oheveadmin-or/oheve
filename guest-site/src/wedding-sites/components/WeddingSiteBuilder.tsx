@@ -971,19 +971,19 @@ export function WeddingSiteBuilder() {
               );
             })}
           </div>
-          <div style={{ height: 3, background: '#E9E3D8' }}>
-            <div style={{ height: '100%', width: `${((wizIdx + 1) / WIZARD_STEPS.length) * 100}%`, background: '#8F947F', transition: 'width 0.3s ease' }} />
+          <div style={{ height: 3, background: '#F5F2ED' }}>
+            <div style={{ height: '100%', width: `${((wizIdx + 1) / WIZARD_STEPS.length) * 100}%`, background: '#929B83', transition: 'width 0.3s ease' }} />
           </div>
         </nav>
 
         <div style={{ margin: '1.1rem 0 1rem' }}>
-          <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8F947F' }}>
+          <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#929B83' }}>
             Étape {wizIdx + 1} sur {WIZARD_STEPS.length}
           </p>
-          <h2 style={{ margin: '0.2rem 0 0.2rem', fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 500, fontSize: '1.9rem', color: '#3D3229' }}>
+          <h2 style={{ margin: '0.2rem 0 0.2rem', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 500, fontSize: '1.9rem', color: '#343630' }}>
             {WIZARD_STEPS[wizIdx].title}
           </h2>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: '#8a8378' }}>{WIZARD_STEPS[wizIdx].sub}</p>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: '#7e8178' }}>{WIZARD_STEPS[wizIdx].sub}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -1060,13 +1060,13 @@ export function WeddingSiteBuilder() {
             {/* Date hébraïque calculée automatiquement à partir du calendrier */}
             {date && hebrewDateFromIso(date) ? (
               <div style={hebrewDateBox}>
-                <span style={{ color: '#8a8378' }}>{frenchLongDate(date)}</span>
+                <span style={{ color: '#7e8178' }}>{frenchLongDate(date)}</span>
                 <br />
-                <span style={{ color: '#8a8378' }}>Date hébraïque : </span>
+                <span style={{ color: '#7e8178' }}>Date hébraïque : </span>
                 <strong style={{ fontWeight: 600 }}>{hebrewDateFromIso(date)?.fr}</strong>
                 {' · '}
                 <span dir="rtl" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: '1rem', unicodeBidi: 'isolate', whiteSpace: 'nowrap' }}>{hebrewDateFromIso(date)?.he}</span>
-                <span style={{ display: 'block', fontSize: '0.72rem', color: '#8a8378', marginTop: 4 }}>
+                <span style={{ display: 'block', fontSize: '0.72rem', color: '#7e8178', marginTop: 4 }}>
                   Calculée automatiquement. Si la Houppa a lieu après le coucher du soleil, le jour hébraïque est le lendemain.
                 </span>
               </div>
@@ -1096,7 +1096,7 @@ export function WeddingSiteBuilder() {
           <section style={block}>
             {/* ── Verset hébraïque en arc ── */}
             <div>
-              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', letterSpacing: '0.04em', display: 'block', marginBottom: '0.6rem' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#5c5f57', letterSpacing: '0.04em', display: 'block', marginBottom: '0.6rem' }}>
                 ✡️ פסוק — Verset hébraïque (affiché en arc)
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: '0.75rem', direction: 'rtl' }}>
@@ -1120,9 +1120,9 @@ export function WeddingSiteBuilder() {
                       style={{
                         padding: '0.3rem 0.75rem',
                         borderRadius: 999,
-                        border: `1.5px solid ${isSelected ? '#8F947F' : '#D1D5DB'}`,
-                        background: isSelected ? '#8F947F' : '#fff',
-                        color: isSelected ? '#fff' : '#374151',
+                        border: `1.5px solid ${isSelected ? '#929B83' : '#ECE8E0'}`,
+                        background: isSelected ? '#929B83' : '#fff',
+                        color: isSelected ? '#fff' : '#5c5f57',
                         fontFamily: v ? "'Frank Ruhl Libre', serif" : 'inherit',
                         fontSize: v ? '0.9rem' : '0.78rem',
                         cursor: 'pointer',
@@ -1155,7 +1155,7 @@ export function WeddingSiteBuilder() {
               écrivez-les librement (« M. et Mme Attia », « Mamie Simone »…) — aucun intitulé imposé.
             </p>
             {(content.familyColumns ?? []).map((col, ci) => (
-              <div key={col.id} style={{ border: '1px solid #E4E7DC', borderRadius: 12, padding: '0.75rem', marginBottom: 10, background: '#FBFBF9' }}>
+              <div key={col.id} style={{ border: '1px solid #F5F2ED', borderRadius: 12, padding: '0.75rem', marginBottom: 10, background: '#FBFBF9' }}>
                 <label style={lab}>
                   Titre de la colonne
                   <input
@@ -1242,8 +1242,8 @@ export function WeddingSiteBuilder() {
             <h2 style={h2}>🎨 Style & thème</h2>
 
             {/* ── Studio de Design ─────────────────────────────────────────── */}
-            <div style={{ marginTop: '0.5rem', padding: '1rem', background: 'linear-gradient(135deg, #F6F4EF 0%, #EDE8E0 100%)', borderRadius: 12, border: '1px solid #C7B7A5' }}>
-              <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', fontWeight: 800, color: '#8F947F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <div style={{ marginTop: '0.5rem', padding: '1rem', background: 'linear-gradient(135deg, #FCFBF9 0%, #F5F2ED 100%)', borderRadius: 12, border: '1px solid #E2DED5' }}>
+              <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', fontWeight: 800, color: '#929B83', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Studio de design
               </p>
 
@@ -1260,7 +1260,7 @@ export function WeddingSiteBuilder() {
                       step={1}
                       value={theme.stripeWidth ?? 8}
                       onChange={(e) => setTheme((t) => ({ ...t, stripeWidth: Number(e.target.value) }))}
-                      style={{ width: '100%', marginTop: 6, accentColor: '#8F947F' }}
+                      style={{ width: '100%', marginTop: 6, accentColor: '#929B83' }}
                     />
                   </label>
                   <label style={{ display: 'block', fontSize: '0.76rem', color: '#555', fontWeight: 600 }}>
@@ -1272,7 +1272,7 @@ export function WeddingSiteBuilder() {
                       step={5}
                       value={Math.round((theme.stripeOpacity ?? 1) * 100)}
                       onChange={(e) => setTheme((t) => ({ ...t, stripeOpacity: Number(e.target.value) / 100 }))}
-                      style={{ width: '100%', marginTop: 6, accentColor: '#8F947F' }}
+                      style={{ width: '100%', marginTop: 6, accentColor: '#929B83' }}
                     />
                   </label>
                 </div>
@@ -1297,10 +1297,10 @@ export function WeddingSiteBuilder() {
                       onClick={() => setTheme({ ...theme, heroStyle: h.id })}
                       style={{
                         padding: '0.6rem 0.25rem 0.45rem',
-                        border: `2px solid ${active ? '#8F947F' : '#C7B7A5'}`,
+                        border: `2px solid ${active ? '#929B83' : '#E2DED5'}`,
                         borderRadius: 10,
                         cursor: 'pointer',
-                        background: active ? '#E4E7DC' : '#fff',
+                        background: active ? '#F5F2ED' : '#fff',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -1309,7 +1309,7 @@ export function WeddingSiteBuilder() {
                       }}
                     >
                       <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>{h.icon}</span>
-                      <span style={{ fontSize: '0.6rem', fontWeight: 700, color: active ? '#8F947F' : '#333', lineHeight: 1.2 }}>{h.label}</span>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 700, color: active ? '#929B83' : '#333', lineHeight: 1.2 }}>{h.label}</span>
                       <span style={{ fontSize: '0.52rem', color: '#666', lineHeight: 1.2 }}>{h.desc}</span>
                     </button>
                   );
@@ -1333,7 +1333,7 @@ export function WeddingSiteBuilder() {
                       onClick={() => setTheme({ ...theme, patternId: p.id })}
                       style={{
                         padding: '0.3rem 0.15rem',
-                        border: `2px solid ${active ? '#8F947F' : '#C7B7A5'}`,
+                        border: `2px solid ${active ? '#929B83' : '#E2DED5'}`,
                         borderRadius: 8,
                         cursor: 'pointer',
                         background: '#fff',
@@ -1351,14 +1351,14 @@ export function WeddingSiteBuilder() {
                           // backgroundColor (longhand) : ne pas mélanger le
                           // shorthand `background` avec backgroundImage/Repeat
                           // (React warning « conflicting style properties »)
-                          backgroundColor: theme.backgroundColor || '#faf7f2',
+                          backgroundColor: theme.backgroundColor || '#fcfbf9',
                           ...patBg,
                           backgroundRepeat: patBg.backgroundRepeat ?? 'repeat',
                           border: `1px solid ${active ? '#a5b4fc' : '#e8e4f5'}`,
                           flexShrink: 0,
                         }}
                       />
-                      <span style={{ fontSize: '0.5rem', fontWeight: 600, color: active ? '#8F947F' : '#444', textAlign: 'center', lineHeight: 1.2, wordBreak: 'break-word' }}>
+                      <span style={{ fontSize: '0.5rem', fontWeight: 600, color: active ? '#929B83' : '#444', textAlign: 'center', lineHeight: 1.2, wordBreak: 'break-word' }}>
                         {p.label}
                       </span>
                     </button>
@@ -1393,16 +1393,16 @@ export function WeddingSiteBuilder() {
                       onClick={() => setTheme({ ...theme, separatorStyle: s.id })}
                       style={{
                         padding: '0.42rem 0.6rem',
-                        border: `2px solid ${active ? '#8F947F' : '#C7B7A5'}`,
+                        border: `2px solid ${active ? '#929B83' : '#E2DED5'}`,
                         borderRadius: 8,
                         cursor: 'pointer',
-                        background: active ? '#E4E7DC' : '#fff',
+                        background: active ? '#F5F2ED' : '#fff',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8,
                       }}
                     >
-                      <span style={{ fontSize: '0.62rem', fontWeight: 700, color: active ? '#8F947F' : '#333', minWidth: 58, textAlign: 'left' }}>
+                      <span style={{ fontSize: '0.62rem', fontWeight: 700, color: active ? '#929B83' : '#333', minWidth: 58, textAlign: 'left' }}>
                         {s.label}
                       </span>
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', height: 14 }}>
@@ -1425,10 +1425,10 @@ export function WeddingSiteBuilder() {
                       onClick={() => setTheme({ ...theme, cardStyle: c.id })}
                       style={{
                         padding: '0.55rem 0.25rem',
-                        border: `2px solid ${active ? '#8F947F' : '#C7B7A5'}`,
+                        border: `2px solid ${active ? '#929B83' : '#E2DED5'}`,
                         borderRadius: 10,
                         cursor: 'pointer',
-                        background: active ? '#E4E7DC' : '#fff',
+                        background: active ? '#F5F2ED' : '#fff',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -1436,7 +1436,7 @@ export function WeddingSiteBuilder() {
                         textAlign: 'center',
                       }}
                     >
-                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: active ? '#8F947F' : '#333' }}>{c.label}</span>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: active ? '#929B83' : '#333' }}>{c.label}</span>
                       <span style={{ fontSize: '0.52rem', color: '#666', lineHeight: 1.3 }}>{c.desc}</span>
                     </button>
                   );
@@ -1477,7 +1477,7 @@ export function WeddingSiteBuilder() {
                       <button
                         key={c.name}
                         onClick={() => setTheme(applyColorCombination(theme, c))}
-                        style={{ border: isActive ? '2px solid #8F947F' : '1.5px solid #e5e7eb', borderRadius: 8, padding: '0.4rem 0.3rem', background: isActive ? '#f5f3ee' : '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+                        style={{ border: isActive ? '2px solid #929B83' : '1.5px solid #ece8e0', borderRadius: 8, padding: '0.4rem 0.3rem', background: isActive ? '#f5f3ee' : '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
                       >
                         <div style={{ display: 'flex', gap: 2 }}>
                           {c.swatch.map((color, i) => <div key={i} style={{ width: 12, height: 12, borderRadius: '50%', background: color, border: '1px solid rgba(0,0,0,0.1)' }} />)}
@@ -1630,7 +1630,7 @@ export function WeddingSiteBuilder() {
 
             {/* ── Style de navigation ── */}
             <div style={{ marginTop: '1.2rem' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.6rem' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#5c5f57', display: 'block', marginBottom: '0.6rem' }}>
                 Navigation des invités
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -1650,9 +1650,9 @@ export function WeddingSiteBuilder() {
                         flex: 1,
                         padding: '0.55rem 0.4rem',
                         borderRadius: 10,
-                        border: `2px solid ${sel ? '#8F947F' : '#E4E7DC'}`,
-                        background: sel ? '#8F947F14' : '#fff',
-                        color: sel ? '#4a5240' : '#6b7280',
+                        border: `2px solid ${sel ? '#929B83' : '#F5F2ED'}`,
+                        background: sel ? '#929B8314' : '#fff',
+                        color: sel ? '#5f6855' : '#5c5f57',
                         fontWeight: sel ? 700 : 400,
                         fontSize: '0.78rem',
                         cursor: 'pointer',
@@ -1685,7 +1685,7 @@ export function WeddingSiteBuilder() {
           {wiz === 'date' && (
           <section style={block}>
             <h2 style={h2}>Le lieu</h2>
-            <p style={{ fontSize: '0.78rem', color: '#8a8378', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.78rem', color: '#7e8178', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
               📍 Repris automatiquement en haut du site, avec les boutons Google Maps et Waze.
             </p>
             <label style={lab}>
@@ -1730,7 +1730,7 @@ export function WeddingSiteBuilder() {
             </label>
             <div style={{ display: 'grid', gap: 10 }}>
               {(content.accommodations ?? []).map((hotel, idx) => (
-                <div key={hotel.id} style={{ border: '1px solid #E4E7DC', borderRadius: 12, padding: '0.75rem' }}>
+                <div key={hotel.id} style={{ border: '1px solid #F5F2ED', borderRadius: 12, padding: '0.75rem' }}>
                   <div style={{ display: 'grid', gap: 8 }}>
                     <input style={inp} placeholder="Nom de l'hôtel" value={hotel.name} onChange={(e) => upsertAccommodation(idx, { name: e.target.value })} />
                     <input style={inp} placeholder="Adresse" value={hotel.address} onChange={(e) => upsertAccommodation(idx, { address: e.target.value })} />
@@ -1764,7 +1764,7 @@ export function WeddingSiteBuilder() {
             <h2 style={h2}>FAQ</h2>
             <div style={{ display: 'grid', gap: 10 }}>
               {(content.faq ?? []).map((q, idx) => (
-                <div key={q.id} style={{ border: '1px solid #E4E7DC', borderRadius: 12, padding: '0.75rem' }}>
+                <div key={q.id} style={{ border: '1px solid #F5F2ED', borderRadius: 12, padding: '0.75rem' }}>
                   <input style={inp} placeholder="Question" value={q.question} onChange={(e) => upsertFaq(idx, { question: e.target.value })} />
                   <textarea style={{ ...inp, minHeight: 70, resize: 'vertical' }} placeholder="Réponse" value={q.answer} onChange={(e) => upsertFaq(idx, { answer: e.target.value })} />
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -1826,13 +1826,13 @@ export function WeddingSiteBuilder() {
                   </option>
                 ))}
               </select>
-              <span style={{ fontSize: '0.72rem', color: '#8a8378', fontWeight: 400, marginTop: 2 }}>
+              <span style={{ fontSize: '0.72rem', color: '#7e8178', fontWeight: 400, marginTop: 2 }}>
                 La musique est jouée en fond, sans aucun lecteur visible : vos invités n'ont qu'une petite pastille 🔊 pour la couper. {musicLabelForUrl(content.musicUrl)
                   ? `Sélection : ${musicLabelForUrl(content.musicUrl)}.`
                   : ''}
               </span>
             </label>
-            <span style={{ fontSize: '0.72rem', color: '#8a8378', fontWeight: 400 }}>
+            <span style={{ fontSize: '0.72rem', color: '#7e8178', fontWeight: 400 }}>
               🔊 La musique se lance automatiquement sur la carte (aperçu compris) dès que vous cliquez. Choisissez « — Choisir une chanson — » pour la couper.
             </span>
             <div style={{ display: 'grid', gap: 6 }}>
@@ -1882,7 +1882,7 @@ export function WeddingSiteBuilder() {
                 const existing = (content.jewishEvents ?? []).find((e) => e.type === def.type);
                 const enabled = existing?.enabled ?? false;
                 return (
-                  <div key={def.type} style={{ border: `1px solid ${enabled ? '#8F947F' : '#E4E7DC'}`, borderRadius: 12, padding: '0.75rem', background: enabled ? '#E4E7DC' : '#fff' }}>
+                  <div key={def.type} style={{ border: `1px solid ${enabled ? '#929B83' : '#F5F2ED'}`, borderRadius: 12, padding: '0.75rem', background: enabled ? '#F5F2ED' : '#fff' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, marginBottom: enabled ? 10 : 0, cursor: 'pointer' }}>
                       <input
                         type="checkbox"
@@ -1905,10 +1905,10 @@ export function WeddingSiteBuilder() {
                           <input style={inp} placeholder="Heure (ex. 19h00)" value={existing.time} onChange={(e) => upsertJewishEvent(def.type, { time: e.target.value })} />
                         </div>
                         {existing.date && !eventDateTextToIso(existing.date) ? (
-                          <span style={{ fontSize: '0.72rem', color: '#8a8378' }}>Date actuelle : « {existing.date} » — choisissez-la dans le calendrier pour la mettre au propre.</span>
+                          <span style={{ fontSize: '0.72rem', color: '#7e8178' }}>Date actuelle : « {existing.date} » — choisissez-la dans le calendrier pour la mettre au propre.</span>
                         ) : null}
                         {eventDateTextToIso(existing.date) && hebrewDateFromIso(eventDateTextToIso(existing.date)) ? (
-                          <span style={{ fontSize: '0.75rem', color: '#8a8378' }}>
+                          <span style={{ fontSize: '0.75rem', color: '#7e8178' }}>
                             {frenchLongDate(eventDateTextToIso(existing.date))} · {hebrewDateFromIso(eventDateTextToIso(existing.date))?.fr} ·{' '}
                             <span dir="rtl" style={{ fontFamily: "'Frank Ruhl Libre', serif", unicodeBidi: 'isolate', whiteSpace: 'nowrap' }}>{hebrewDateFromIso(eventDateTextToIso(existing.date))?.he}</span>
                           </span>
@@ -1942,10 +1942,10 @@ export function WeddingSiteBuilder() {
             {(content.galleryPhotos ?? []).length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 8, marginBottom: '0.85rem' }}>
                 {(content.galleryPhotos ?? []).map((url, idx) => (
-                  <div key={`${url.slice(-24)}-${idx}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', border: idx === 0 ? '2px solid #8F947F' : '1px solid #E4E7DC', background: '#f4f2ed' }}>
+                  <div key={`${url.slice(-24)}-${idx}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', border: idx === 0 ? '2px solid #929B83' : '1px solid #F5F2ED', background: '#f4f2ed' }}>
                     <img src={url} alt={`Photo ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     {idx === 0 && (
-                      <span style={{ position: 'absolute', top: 4, left: 4, background: '#8F947F', color: '#fff', fontSize: '0.55rem', fontWeight: 700, padding: '2px 6px', borderRadius: 6 }}>★ Vedette</span>
+                      <span style={{ position: 'absolute', top: 4, left: 4, background: '#929B83', color: '#fff', fontSize: '0.55rem', fontWeight: 700, padding: '2px 6px', borderRadius: 6 }}>★ Vedette</span>
                     )}
                     <button
                       type="button"
@@ -2003,9 +2003,9 @@ export function WeddingSiteBuilder() {
                 width: '100%',
                 padding: '0.85rem',
                 borderRadius: 12,
-                border: '2px dashed #8F947F',
+                border: '2px dashed #929B83',
                 background: galleryUploading > 0 ? '#f0efe9' : '#FAFAF7',
-                color: '#5a6150',
+                color: '#5f6855',
                 fontWeight: 700,
                 fontSize: '0.9rem',
                 cursor: galleryUploading > 0 ? 'wait' : 'pointer',
@@ -2054,7 +2054,7 @@ export function WeddingSiteBuilder() {
             {/* Modèles rapides */}
             {inviteLinks.length === 0 && rsvpForm.events.filter((e) => e.enabled).length > 0 ? (
               <div style={{ display: 'grid', gap: 8, marginBottom: '1rem' }}>
-                <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#8F947F', margin: 0 }}>⚡ Modèles rapides</p>
+                <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#929B83', margin: 0 }}>⚡ Modèles rapides</p>
                 {[
                   { label: '💍 Mariage uniquement', filter: (ev: RSVPEvent) => ['jewish-mairie', 'jewish-houppa'].includes(ev.id) },
                   { label: '💍 + 🕌 Mariage & Chabbat Hatan', filter: (ev: RSVPEvent) => ['jewish-mairie', 'jewish-houppa', 'jewish-chabbat-hatan'].includes(ev.id) },
@@ -2080,7 +2080,7 @@ export function WeddingSiteBuilder() {
                     </button>
                   );
                 })}
-                <div style={{ borderTop: '1px solid #E4E7DC', marginTop: 4, paddingTop: 4 }} />
+                <div style={{ borderTop: '1px solid #F5F2ED', marginTop: 4, paddingTop: 4 }} />
               </div>
             ) : null}
 
@@ -2092,7 +2092,7 @@ export function WeddingSiteBuilder() {
               const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/wedding/${linkSlug}/invite/${link.token}`;
               const linkSaved = !!publishedSlug && savedInviteTokens.includes(link.token);
               return (
-                <div key={link.id} style={{ border: `1px solid ${link.token ? '#a3e635' : '#E4E7DC'}`, borderRadius: 12, padding: '0.85rem', marginBottom: 10 }}>
+                <div key={link.id} style={{ border: `1px solid ${link.token ? '#a3e635' : '#F5F2ED'}`, borderRadius: 12, padding: '0.85rem', marginBottom: 10 }}>
                   <div style={{ display: 'grid', gap: 8 }}>
                     <input
                       style={inp}
@@ -2169,7 +2169,7 @@ export function WeddingSiteBuilder() {
                         <span style={{ fontFamily: 'monospace' }}>{url}</span>
                         <button
                           type="button"
-                          style={{ marginLeft: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#8F947F', fontWeight: 700, fontSize: '0.8rem' }}
+                          style={{ marginLeft: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#929B83', fontWeight: 700, fontSize: '0.8rem' }}
                           onClick={() => navigator.clipboard.writeText(url)}
                         >
                           📋 Copier
@@ -2376,7 +2376,7 @@ const block: CSSProperties = {
   padding: '1.1rem 1.1rem 1.2rem',
   background: '#fff',
   borderRadius: 14,
-  border: '1px solid #E4E7DC',
+  border: '1px solid #F5F2ED',
   boxShadow: '0 8px 28px rgba(143, 148, 127, 0.08)',
 };
 
@@ -2385,7 +2385,7 @@ const stepNav: CSSProperties = {
   top: 0,
   zIndex: 20,
   margin: '0 -0.25rem',
-  background: '#F6F2EA',
+  background: '#FCFBF9',
   backdropFilter: 'blur(8px)',
   WebkitBackdropFilter: 'blur(8px)',
 };
@@ -2408,8 +2408,8 @@ function stepTab(active: boolean, done: boolean): CSSProperties {
     cursor: 'pointer',
     fontSize: '0.86rem',
     fontWeight: active ? 700 : 500,
-    background: active ? '#8F947F' : done ? '#EDE8E0' : 'transparent',
-    color: active ? '#fff' : done ? '#5a6150' : '#9a9387',
+    background: active ? '#929B83' : done ? '#F5F2ED' : 'transparent',
+    color: active ? '#fff' : done ? '#5f6855' : '#9a9387',
     transition: 'background 0.2s, color 0.2s',
   };
 }
@@ -2418,9 +2418,9 @@ const hebrewDateBox: CSSProperties = {
   margin: '0 0 0.75rem',
   padding: '0.6rem 0.85rem',
   borderRadius: 12,
-  background: '#F6F4EF',
+  background: '#FCFBF9',
   fontSize: '0.84rem',
-  color: '#3D3229',
+  color: '#343630',
   lineHeight: 1.6,
 };
 
@@ -2433,8 +2433,8 @@ const stepFooter: CSSProperties = {
   alignItems: 'center',
   marginTop: '1.25rem',
   padding: '0.7rem 0 calc(0.7rem + env(safe-area-inset-bottom))',
-  background: '#F6F2EA',
-  borderTop: '1px solid #E9E3D8',
+  background: '#FCFBF9',
+  borderTop: '1px solid #F5F2ED',
 };
 
 const footerBackBtn: CSSProperties = {
@@ -2442,9 +2442,9 @@ const footerBackBtn: CSSProperties = {
   width: 48,
   height: 48,
   borderRadius: 999,
-  border: '1px solid #C7B7A5',
+  border: '1px solid #E2DED5',
   background: '#fff',
-  color: '#5a6150',
+  color: '#5f6855',
   fontSize: '1.1rem',
 };
 
@@ -2453,9 +2453,9 @@ const footerSeeBtn: CSSProperties = {
   minWidth: 0,
   height: 48,
   borderRadius: 999,
-  border: '1.5px solid #8F947F',
+  border: '1.5px solid #929B83',
   background: '#fff',
-  color: '#4a5240',
+  color: '#5f6855',
   fontWeight: 700,
   fontSize: '0.95rem',
   cursor: 'pointer',
@@ -2468,7 +2468,7 @@ const footerNextBtn: CSSProperties = {
   padding: '0 1.3rem',
   borderRadius: 999,
   border: 'none',
-  background: 'linear-gradient(120deg, #8F947F, #757B68)',
+  background: 'linear-gradient(120deg, #929B83, #747E68)',
   color: '#fff',
   fontWeight: 700,
   fontSize: '0.95rem',
@@ -2491,7 +2491,7 @@ const inp: CSSProperties = {
   marginTop: 6,
   padding: '0.55rem 0.65rem',
   borderRadius: 10,
-  border: '1px solid #C7B7A5',
+  border: '1px solid #E2DED5',
   fontSize: '0.95rem',
 };
 
@@ -2570,13 +2570,13 @@ const submitBtn: CSSProperties = {
   fontSize: '1rem',
   cursor: 'pointer',
   color: '#fff',
-  background: 'linear-gradient(120deg, #8F947F, #757B68)',
+  background: 'linear-gradient(120deg, #929B83, #747E68)',
 };
 
 const ghostInlineBtn: CSSProperties = {
   padding: '0.42rem 0.66rem',
   borderRadius: 9,
-  border: '1px solid #C7B7A5',
+  border: '1px solid #E2DED5',
   background: '#fff',
   cursor: 'pointer',
   fontWeight: 700,
@@ -2598,7 +2598,7 @@ const studioSectionLabel: CSSProperties = {
   margin: '0 0 0.5rem',
   fontSize: '0.7rem',
   fontWeight: 700,
-  color: '#757B68',
+  color: '#747E68',
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
 };
@@ -2624,10 +2624,10 @@ const lockedNameField: CSSProperties = {
   marginTop: 6,
   padding: '0.55rem 0.75rem',
   borderRadius: 10,
-  border: '1px solid #e5e7eb',
+  border: '1px solid #ece8e0',
   fontSize: '0.95rem',
   fontWeight: 600,
-  background: '#f9fafb',
-  color: '#6b7280',
+  background: '#fcfbf9',
+  color: '#5c5f57',
   userSelect: 'none',
 };

@@ -149,7 +149,7 @@ export default function MessagesScreen() {
           )}
           {canStartConversation && (
             <Pressable style={styles.newBtn} onPress={openNewConversationModal} hitSlop={8}>
-              <Ionicons name="create-outline" size={22} color="#A7AD9A" />
+              <Ionicons name="create-outline" size={22} color="#929B83" />
             </Pressable>
           )}
         </View>
@@ -162,7 +162,7 @@ export default function MessagesScreen() {
       ) : null}
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#A7AD9A" size="large" /></View>
+        <View style={styles.center}><ActivityIndicator color="#929B83" size="large" /></View>
       ) : conversations.length === 0 ? (
         <View style={styles.center}>
           <ThemedText style={styles.emptyEmoji}>💬</ThemedText>
@@ -189,8 +189,8 @@ export default function MessagesScreen() {
               style={({ pressed }) => [styles.convRow, pressed && { opacity: 0.85 }]}
               onPress={() => router.push(`/(app)/messages/${c.id}` as never)}
             >
-              <View style={[styles.avatar, { backgroundColor: c.unread_count > 0 ? '#A7AD9A' : '#e5e7eb' }]}>
-                <ThemedText style={[styles.avatarTxt, { color: c.unread_count > 0 ? '#fff' : '#6b7280' }]}>
+              <View style={[styles.avatar, { backgroundColor: c.unread_count > 0 ? '#929B83' : '#ece8e0' }]}>
+                <ThemedText style={[styles.avatarTxt, { color: c.unread_count > 0 ? '#fff' : '#5c5f57' }]}>
                   {c.other_prenom?.[0] ?? '?'}
                 </ThemedText>
               </View>
@@ -222,24 +222,24 @@ export default function MessagesScreen() {
           <View style={styles.modalHeader}>
             <ThemedText style={styles.modalTitle}>Contacter un prestataire</ThemedText>
             <Pressable onPress={() => setModalVisible(false)} hitSlop={12}>
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color="#5c5f57" />
             </Pressable>
           </View>
 
           <View style={styles.searchWrap}>
-            <Ionicons name="search" size={16} color="#A09890" style={{ marginRight: 8 }} />
+            <Ionicons name="search" size={16} color="#9A9C93" style={{ marginRight: 8 }} />
             <TextInput
               style={styles.searchInput}
               value={search}
               onChangeText={setSearch}
               placeholder="Rechercher par nom, catégorie, ville…"
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
               autoCorrect={false}
             />
           </View>
 
           {prestLoading ? (
-            <View style={styles.center}><ActivityIndicator color="#A7AD9A" size="large" /></View>
+            <View style={styles.center}><ActivityIndicator color="#929B83" size="large" /></View>
           ) : (
             <FlatList
               data={filtered}
@@ -263,8 +263,8 @@ export default function MessagesScreen() {
                     </ThemedText>
                   </View>
                   {starting === p.user_id
-                    ? <ActivityIndicator color="#A7AD9A" size="small" />
-                    : <Ionicons name="chatbubble-outline" size={20} color="#A7AD9A" />}
+                    ? <ActivityIndicator color="#929B83" size="small" />
+                    : <Ionicons name="chatbubble-outline" size={20} color="#929B83" />}
                 </Pressable>
               )}
               ListEmptyComponent={
@@ -282,40 +282,40 @@ export default function MessagesScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  title: { fontSize: 26, fontWeight: '800', color: '#3D3530', flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f5f2ed' },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: '#343630', flex: 1 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  totalUnread: { backgroundColor: '#A7AD9A', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2 },
+  totalUnread: { backgroundColor: '#929B83', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2 },
   totalUnreadTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
   newBtn: { padding: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 52 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#3D3530' },
-  emptySub: { fontSize: 14, color: '#A09890', textAlign: 'center', lineHeight: 20 },
-  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#A7AD9A', borderRadius: 24, paddingHorizontal: 20, paddingVertical: 12, marginTop: 8 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#343630' },
+  emptySub: { fontSize: 14, color: '#9A9C93', textAlign: 'center', lineHeight: 20 },
+  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#929B83', borderRadius: 24, paddingHorizontal: 20, paddingVertical: 12, marginTop: 8 },
   startBtnTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
   convRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   avatarTxt: { fontSize: 18, fontWeight: '700' },
   convInfo: { flex: 1, minWidth: 0 },
   convTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 },
-  convName: { fontSize: 15, fontWeight: '700', color: '#3D3530', flex: 1 },
-  convTime: { fontSize: 11, color: '#A09890', marginLeft: 8 },
+  convName: { fontSize: 15, fontWeight: '700', color: '#343630', flex: 1 },
+  convTime: { fontSize: 11, color: '#9A9C93', marginLeft: 8 },
   convBottomRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  convLast: { fontSize: 13, color: '#A09890', flex: 1 },
-  convLastUnread: { color: '#374151', fontWeight: '600' },
-  badge: { backgroundColor: '#A7AD9A', borderRadius: 99, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  convLast: { fontSize: 13, color: '#9A9C93', flex: 1 },
+  convLastUnread: { color: '#5c5f57', fontWeight: '600' },
+  badge: { backgroundColor: '#929B83', borderRadius: 99, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   badgeTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  sep: { height: 1, backgroundColor: '#f9fafb', marginLeft: 76 },
+  sep: { height: 1, backgroundColor: '#fcfbf9', marginLeft: 76 },
   // Modal
   modal: { flex: 1, backgroundColor: '#fff' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#3D3530' },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, backgroundColor: '#f3f4f6', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  searchInput: { flex: 1, fontSize: 14, color: '#3D3530' },
-  prestRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  modalTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: '#343630' },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, backgroundColor: '#f5f2ed', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  searchInput: { flex: 1, fontSize: 14, color: '#343630' },
+  prestRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12, borderBottomWidth: 1, borderBottomColor: '#f5f2ed' },
   prestAvatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#f3f0ff', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   prestAvatarTxt: { fontSize: 22 },
-  prestName: { fontSize: 15, fontWeight: '700', color: '#3D3530' },
-  prestSub: { fontSize: 12, color: '#A09890', marginTop: 2 },
+  prestName: { fontSize: 15, fontWeight: '700', color: '#343630' },
+  prestSub: { fontSize: 12, color: '#9A9C93', marginTop: 2 },
 });

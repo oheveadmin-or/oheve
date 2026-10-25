@@ -130,7 +130,7 @@ export default function DateMariageScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.header}>
         <Pressable style={styles.retourBtn} onPress={handleRetour}>
-          <Ionicons name="arrow-back" size={24} color="#6366f1" />
+          <Ionicons name="arrow-back" size={24} color="#747e68" />
           <ThemedText style={styles.retourText}>Retour</ThemedText>
         </Pressable>
         <View style={styles.progressBar}>
@@ -279,24 +279,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   retourText: {
-    color: '#6366f1',
+    color: '#747e68',
     fontSize: 16,
     fontWeight: '500',
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#ece8e0',
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#747e68',
     borderRadius: 2,
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: 'OheveSerif-Medium',
     marginBottom: 8,
   },
   instruction: {
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   },
   yearLabel: {
     fontSize: 20,
-    fontWeight: '600',
+    fontFamily: 'OheveSerif-Medium',
     marginBottom: 16,
   },
   grid: {
@@ -328,26 +328,26 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#ece8e0',
   },
   gridItemSelected: {
-    borderColor: '#6366f1',
+    borderColor: '#747e68',
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
   },
   gridItemDisabled: {
     opacity: 0.4,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f5f2ed',
   },
   gridText: {
     fontSize: 16,
     fontWeight: '500',
   },
   gridTextSelected: {
-    color: '#6366f1',
+    color: '#747e68',
     fontWeight: '600',
   },
   gridTextDisabled: {
-    color: '#A09890',
+    color: '#9A9C93',
   },
   datePreview: {
     flexDirection: 'row',
@@ -357,8 +357,8 @@ const styles = StyleSheet.create({
   },
   datePreviewDay: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#6366f1',
+    fontFamily: 'OheveSerif-Medium',
+    color: '#747e68',
   },
   datePreviewMonth: {
     fontSize: 18,
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   calendarCellSelected: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#747e68',
   },
   calendarCellDisabled: {
     opacity: 0.4,
@@ -409,10 +409,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   calendarCellTextDisabled: {
-    color: '#A09890',
+    color: '#9A9C93',
   },
   button: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#747e68',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',

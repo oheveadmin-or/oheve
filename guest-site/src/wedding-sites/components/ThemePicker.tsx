@@ -208,7 +208,7 @@ function ThemeCard({
       >
         <div
           style={{
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontFamily: "'Fraunces', Georgia, serif",
             fontSize: '0.88rem',
             fontWeight: 700,
             color: '#1e1e1e',
@@ -268,7 +268,7 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Pr
       >
         <div
           style={{
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontFamily: "'Fraunces', Georgia, serif",
             fontSize: 'clamp(1.7rem, 4vw, 2.4rem)',
             fontWeight: 600,
             color: '#2c2416',
@@ -348,7 +348,7 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Pr
           <div style={{ minWidth: 0 }}>
             <div
               style={{
-                fontFamily: "'Cormorant Garamond', Georgia, serif",
+                fontFamily: "'Fraunces', Georgia, serif",
                 fontWeight: 700,
                 fontSize: '1rem',
                 color: '#1e1e1e',
@@ -373,7 +373,7 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Pr
             color: '#fff',
             border: 'none',
             borderRadius: 50,
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontFamily: "'Fraunces', Georgia, serif",
             fontSize: '1rem',
             fontWeight: 600,
             letterSpacing: '0.04em',

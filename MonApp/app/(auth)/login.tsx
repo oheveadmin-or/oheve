@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   logoMiniText: { fontSize: 16, fontWeight: '700', color: C.ivoire, fontStyle: 'italic' },
 
-  title: { fontWeight: '800', marginBottom: 6, color: C.textDark, fontSize: 28, marginTop: 4 },
+  title: { fontFamily: 'OheveSerif-Medium', marginBottom: 6, color: C.textDark, fontSize: 28, marginTop: 4 },
   subtitle: { fontSize: 14, color: C.textLight, marginBottom: 24 },
 
   appleBtn: { width: '100%', height: 50, marginBottom: 12 },

@@ -31,13 +31,13 @@ function PwdField({
           value={value}
           onChangeText={onChange}
           placeholder={placeholder ?? '••••••••'}
-          placeholderTextColor="#A09890"
+          placeholderTextColor="#9A9C93"
           secureTextEntry={!show}
           returnKeyType={onSubmit ? 'done' : 'next'}
           onSubmitEditing={onSubmit}
         />
         <Pressable onPress={onToggle} style={styles.eyeBtn}>
-          <Ionicons name={show ? 'eye-off-outline' : 'eye-outline'} size={20} color="#A09890" />
+          <Ionicons name={show ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9A9C93" />
         </Pressable>
       </View>
     </>
@@ -112,7 +112,7 @@ export default function SecurityScreen() {
   return (
     <ScreenLayout>
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
-        <Ionicons name="arrow-back" size={22} color="#A7AD9A" />
+        <Ionicons name="arrow-back" size={22} color="#929B83" />
       </Pressable>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
@@ -121,7 +121,7 @@ export default function SecurityScreen() {
 
           {/* Compte info */}
           <View style={styles.infoCard}>
-            <Ionicons name="person-circle-outline" size={20} color="#A7AD9A" />
+            <Ionicons name="person-circle-outline" size={20} color="#929B83" />
             <View style={{ flex: 1 }}>
               <ThemedText style={styles.infoCardName}>
                 {user?.prenom} {user?.nom}
@@ -136,18 +136,18 @@ export default function SecurityScreen() {
 
           {/* Méthodes de connexion (email / Google / Apple) */}
           <Pressable style={styles.methodsRow} onPress={() => router.push('/(app)/login-methods' as never)}>
-            <Ionicons name="link-outline" size={18} color="#A7AD9A" />
+            <Ionicons name="link-outline" size={18} color="#929B83" />
             <View style={{ flex: 1 }}>
               <ThemedText style={styles.methodsTitle}>Méthodes de connexion</ThemedText>
               <ThemedText style={styles.methodsSub}>Email, Google, Apple — lier ou délier</ThemedText>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#A09890" />
+            <Ionicons name="chevron-forward" size={18} color="#9A9C93" />
           </Pressable>
 
           {/* Changer mot de passe */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="key-outline" size={18} color="#A7AD9A" />
+              <Ionicons name="key-outline" size={18} color="#929B83" />
               <ThemedText style={styles.sectionTitle}>Changer le mot de passe</ThemedText>
             </View>
 
@@ -204,7 +204,7 @@ export default function SecurityScreen() {
               style={styles.forgotLink}
               onPress={() => router.push('/(auth)/forgot-password')}
             >
-              <Ionicons name="mail-outline" size={14} color="#A7AD9A" />
+              <Ionicons name="mail-outline" size={14} color="#929B83" />
               <ThemedText style={styles.forgotLinkTxt}>
                 Mot de passe oublié ? Réinitialiser par email
               </ThemedText>
@@ -214,7 +214,7 @@ export default function SecurityScreen() {
           {/* Sessions actives */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="phone-portrait-outline" size={18} color="#6B6058" />
+              <Ionicons name="phone-portrait-outline" size={18} color="#5C5F57" />
               <ThemedText style={styles.sectionTitle}>Sessions actives</ThemedText>
             </View>
 
@@ -245,15 +245,15 @@ export default function SecurityScreen() {
 const styles = StyleSheet.create({
   backBtn: { marginBottom: 8 },
   content: { paddingBottom: 60, gap: 20 },
-  title: { fontSize: 28, fontWeight: '800', color: '#3D3530', marginBottom: 4 },
+  title: { fontSize: 28, fontFamily: 'OheveSerif-Medium', color: '#343630', marginBottom: 4 },
 
   infoCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     borderWidth: 1, borderColor: '#e0e7ff', borderRadius: 14,
-    padding: 14, backgroundColor: '#E8EDE4',
+    padding: 14, backgroundColor: '#F5F2ED',
   },
-  infoCardName: { fontSize: 15, fontWeight: '700', color: '#3D3530' },
-  infoCardEmail: { fontSize: 13, color: '#6B6058', marginTop: 2 },
+  infoCardName: { fontSize: 15, fontWeight: '700', color: '#343630' },
+  infoCardEmail: { fontSize: 13, color: '#5C5F57', marginTop: 2 },
   safeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 99 },
   safeBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#10b981' },
 
@@ -262,21 +262,21 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#ececf2', borderRadius: 16,
     padding: 16, backgroundColor: '#fff',
   },
-  methodsTitle: { fontSize: 15, fontWeight: '700', color: '#3D3530' },
-  methodsSub: { fontSize: 12, color: '#A09890', marginTop: 2 },
+  methodsTitle: { fontSize: 15, fontWeight: '700', color: '#343630' },
+  methodsSub: { fontSize: 12, color: '#9A9C93', marginTop: 2 },
 
   section: {
     borderWidth: 1, borderColor: '#ececf2', borderRadius: 16,
     padding: 16, backgroundColor: '#fff', gap: 0,
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#3D3530' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#343630' },
 
-  label: { fontSize: 13, fontWeight: '600', color: '#4b5563', marginBottom: 8, marginTop: 12 },
+  label: { fontSize: 13, fontWeight: '600', color: '#5c5f57', marginBottom: 8, marginTop: 12 },
   input: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: '#3D3530', backgroundColor: '#fafafa',
+    fontSize: 15, color: '#343630', backgroundColor: '#fcfbf9',
   },
   pwdRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eyeBtn: { padding: 10 },
@@ -284,20 +284,20 @@ const styles = StyleSheet.create({
   strengthGood: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   strengthGoodTxt: { fontSize: 12, color: '#10b981', fontWeight: '600' },
 
-  btn: { marginTop: 20, backgroundColor: '#A7AD9A', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  btn: { marginTop: 20, backgroundColor: '#929B83', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   btnDisabled: { opacity: 0.6 },
   btnTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   forgotLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, justifyContent: 'center' },
-  forgotLinkTxt: { color: '#A7AD9A', fontSize: 13, fontWeight: '600' },
+  forgotLinkTxt: { color: '#929B83', fontSize: 13, fontWeight: '600' },
 
   sessionCard: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12,
-    padding: 12, backgroundColor: '#fafafa',
+    borderWidth: 1, borderColor: '#ece8e0', borderRadius: 12,
+    padding: 12, backgroundColor: '#fcfbf9',
   },
-  sessionLabel: { fontSize: 14, fontWeight: '600', color: '#3D3530' },
-  sessionSub: { fontSize: 12, color: '#A09890', marginTop: 2 },
+  sessionLabel: { fontSize: 14, fontWeight: '600', color: '#343630' },
+  sessionSub: { fontSize: 12, color: '#9A9C93', marginTop: 2 },
   currentBadge: { backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
   currentBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#10b981' },
 

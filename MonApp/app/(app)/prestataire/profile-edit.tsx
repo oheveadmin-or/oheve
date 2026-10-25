@@ -175,7 +175,7 @@ export default function PrestataireProfileEdit() {
   if (loading) {
     return (
       <View style={[styles.root, styles.center, { paddingTop: insets.top }]}>
-        <ActivityIndicator color="#A7AD9A" size="large" />
+        <ActivityIndicator color="#929B83" size="large" />
       </View>
     );
   }
@@ -190,7 +190,7 @@ export default function PrestataireProfileEdit() {
       {/* ── Nav bar ───────────────────────────────────────────────── */}
       <View style={styles.navbar}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#A7AD9A" />
+          <Ionicons name="arrow-back" size={22} color="#929B83" />
         </Pressable>
         <ThemedText style={styles.navTitle}>Mon profil</ThemedText>
         <Pressable
@@ -220,7 +220,7 @@ export default function PrestataireProfileEdit() {
             />
           ) : (
             <View style={styles.coverPlaceholder}>
-              <Ionicons name="camera-outline" size={36} color="#c4b5fd" />
+              <Ionicons name="camera-outline" size={36} color="#929b83" />
               <ThemedText style={styles.coverPlaceholderText}>
                 Ajouter une photo de couverture
               </ThemedText>
@@ -246,7 +246,7 @@ export default function PrestataireProfileEdit() {
             value={form.business_name}
             onChangeText={set('business_name')}
             placeholder="Ex : Photos & Émotions"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9a9c93"
             autoCapitalize="words"
           />
 
@@ -274,7 +274,7 @@ export default function PrestataireProfileEdit() {
             value={form.city}
             onChangeText={set('city')}
             placeholder="Ex : Paris"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9a9c93"
             autoCapitalize="words"
           />
 
@@ -284,7 +284,7 @@ export default function PrestataireProfileEdit() {
             value={form.phone}
             onChangeText={set('phone')}
             placeholder="+33 6 00 00 00 00"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9a9c93"
             keyboardType="phone-pad"
           />
         </View>
@@ -299,7 +299,7 @@ export default function PrestataireProfileEdit() {
             value={form.description}
             onChangeText={set('description')}
             placeholder="Décrivez votre activité, votre style, vos services…"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9a9c93"
             multiline
             numberOfLines={5}
             textAlignVertical="top"
@@ -311,7 +311,7 @@ export default function PrestataireProfileEdit() {
             value={form.price_range}
             onChangeText={set('price_range')}
             placeholder="Ex : 1 500 € – 4 000 €"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9a9c93"
           />
         </View>
 
@@ -328,7 +328,7 @@ export default function PrestataireProfileEdit() {
               value={form.instagram}
               onChangeText={set('instagram')}
               placeholder="@votre_compte"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#9a9c93"
               autoCapitalize="none"
             />
           </View>
@@ -342,7 +342,7 @@ export default function PrestataireProfileEdit() {
               value={form.website}
               onChangeText={set('website')}
               placeholder="https://votre-site.fr"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#9a9c93"
               autoCapitalize="none"
               keyboardType="url"
             />
@@ -356,7 +356,7 @@ export default function PrestataireProfileEdit() {
         >
           <View style={styles.portfolioShortcutLeft}>
             <View style={styles.portfolioIcon}>
-              <Ionicons name="images-outline" size={22} color="#A7AD9A" />
+              <Ionicons name="images-outline" size={22} color="#929B83" />
             </View>
             <View>
               <ThemedText style={styles.portfolioShortcutTitle}>Gérer mes photos</ThemedText>
@@ -365,7 +365,7 @@ export default function PrestataireProfileEdit() {
               </ThemedText>
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+          <Ionicons name="chevron-forward" size={18} color="#9a9c93" />
         </Pressable>
 
         {/* ── Bouton sauvegarder (bottom) ───────────────────────────── */}
@@ -398,12 +398,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f5f2ed',
   },
   backBtn: { padding: 4 },
-  navTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#111827' },
+  navTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#343630' },
   saveBtn: {
-    backgroundColor: '#A7AD9A',
+    backgroundColor: '#929B83',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 7,
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   // Cover photo
   coverWrap: {
     height: 200,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f5f2ed',
   },
   coverImage: { width: '100%', height: '100%' },
   coverPlaceholder: {
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  coverPlaceholderText: { fontSize: 14, color: '#9ca3af', fontWeight: '500' },
+  coverPlaceholderText: { fontSize: 14, color: '#9a9c93', fontWeight: '500' },
   coverOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.35)',
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#A7AD9A',
+    backgroundColor: '#929B83',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -450,31 +450,31 @@ const styles = StyleSheet.create({
   section: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f5f2ed',
     gap: 8,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#111827',
+    color: '#343630',
     marginBottom: 6,
   },
   fieldLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#374151',
+    color: '#5c5f57',
     marginTop: 8,
     marginBottom: 4,
   },
   input: {
     borderWidth: 1.5,
-    borderColor: '#e5e7eb',
+    borderColor: '#ece8e0',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#fafafa',
+    color: '#343630',
+    backgroundColor: '#fcfbf9',
   },
   inputMulti: { height: 120, paddingTop: 12 },
 
@@ -484,16 +484,16 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#e5e7eb',
+    borderColor: '#ece8e0',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#fcfbf9',
   },
-  catCardOn: { borderColor: '#A7AD9A', backgroundColor: '#ede9fe' },
+  catCardOn: { borderColor: '#929B83', backgroundColor: '#f5f2ed' },
   catIcon: { fontSize: 22 },
-  catLabel: { fontSize: 9, fontWeight: '600', color: '#6b7280', textAlign: 'center' },
-  catLabelOn: { color: '#A7AD9A' },
+  catLabel: { fontSize: 9, fontWeight: '600', color: '#5c5f57', textAlign: 'center' },
+  catLabelOn: { color: '#929B83' },
 
   // Social
   socialRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -513,24 +513,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f5f2ed',
   },
   portfolioShortcutLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   portfolioIcon: {
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: '#ede9fe',
+    backgroundColor: '#f5f2ed',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  portfolioShortcutTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  portfolioShortcutSub: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  portfolioShortcutTitle: { fontSize: 15, fontWeight: '700', color: '#343630' },
+  portfolioShortcutSub: { fontSize: 12, color: '#9a9c93', marginTop: 2 },
 
   // Save bottom button
   saveBottomBtn: {
     margin: 20,
-    backgroundColor: '#A7AD9A',
+    backgroundColor: '#929B83',
     borderRadius: 16,
     paddingVertical: 16,
     flexDirection: 'row',

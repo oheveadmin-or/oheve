@@ -69,14 +69,14 @@ export default function ActeMariageScreen() {
 
 const styles = StyleSheet.create({
   back: { alignSelf: 'flex-start', marginBottom: 8, paddingVertical: 6 },
-  backText: { color: '#6366f1', fontSize: 15, fontWeight: '600' },
+  backText: { color: '#747e68', fontSize: 15, fontWeight: '600' },
   content: { paddingBottom: 48, gap: 12 },
   overline: { fontSize: 13, opacity: 0.7 },
-  title: { fontSize: 28, fontWeight: '700' },
+  title: { fontSize: 28, fontFamily: 'OheveSerif-Medium' },
   subtitle: { fontSize: 15, opacity: 0.82, lineHeight: 22, marginBottom: 8 },
   list: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#ece8e0',
     borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: '#fff',
@@ -93,5 +93,5 @@ const styles = StyleSheet.create({
   rowText: { flex: 1 },
   rowTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
   rowSub: { fontSize: 13, opacity: 0.75, lineHeight: 18 },
-  chevron: { fontSize: 22, color: '#A7AD9A', fontWeight: '600' },
+  chevron: { fontSize: 22, color: '#929B83', fontFamily: 'OheveSerif-Medium' },
 });

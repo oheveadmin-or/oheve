@@ -159,7 +159,7 @@ export default function LocationScreen() {
           style={styles.retourBtn}
           onPress={() => (isEditFromDashboard ? router.replace('/(app)/(tabs)') : router.replace('/(onboarding)/budget'))}
         >
-          <Ionicons name="arrow-back" size={24} color="#6366f1" />
+          <Ionicons name="arrow-back" size={24} color="#747e68" />
           <ThemedText style={styles.retourText}>Retour</ThemedText>
         </Pressable>
       </View>
@@ -189,13 +189,13 @@ export default function LocationScreen() {
             value={q}
             onChangeText={setQ}
             placeholder="Ex: Paris, Jérusalem, Marseille…"
-            placeholderTextColor="#A09890"
+            placeholderTextColor="#9A9C93"
             style={styles.input}
           />
 
           {loading && (
             <View style={styles.loadingRow}>
-              <ActivityIndicator color="#6366f1" />
+              <ActivityIndicator color="#747e68" />
             </View>
           )}
 
@@ -230,7 +230,7 @@ export default function LocationScreen() {
             value={address}
             onChangeText={setAddress}
             placeholder="Adresse complète (ex: 2 Rue Scribe, 75009 Paris)"
-            placeholderTextColor="#A09890"
+            placeholderTextColor="#9A9C93"
             style={styles.input}
           />
 
@@ -275,8 +275,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 24 },
   header: { marginBottom: 16 },
   retourBtn: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  retourText: { color: '#6366f1', fontSize: 16, fontWeight: '500' },
-  title: { fontSize: 26, fontWeight: '700', marginBottom: 8 },
+  retourText: { color: '#747e68', fontSize: 16, fontWeight: '500' },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', marginBottom: 8 },
   subtitle: { fontSize: 15, opacity: 0.8, marginBottom: 20 },
   modeRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
   modeBtn: {
@@ -284,19 +284,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#ece8e0',
     alignItems: 'center',
   },
   modeBtnSelected: {
-    borderColor: '#6366f1',
+    borderColor: '#747e68',
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
   },
   modeText: { fontSize: 14, fontWeight: '600' },
-  modeTextSelected: { color: '#6366f1' },
+  modeTextSelected: { color: '#747e68' },
   section: { flex: 1, gap: 12 },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#ece8e0',
     borderRadius: 14,
     padding: 14,
     fontSize: 16,
@@ -307,16 +307,16 @@ const styles = StyleSheet.create({
   resultCard: {
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#ece8e0',
     borderRadius: 14,
     marginBottom: 10,
   },
   resultCity: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   resultDetail: { fontSize: 14, opacity: 0.8 },
   skipBtn: { padding: 14, alignItems: 'center' },
-  skipText: { color: '#6366f1', fontSize: 14, textDecorationLine: 'underline' },
+  skipText: { color: '#747e68', fontSize: 14, textDecorationLine: 'underline' },
   primaryBtn: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#747e68',
     padding: 16,
     borderRadius: 14,
     alignItems: 'center',
@@ -324,6 +324,6 @@ const styles = StyleSheet.create({
   primaryBtnDisabled: { opacity: 0.6 },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   unknownText: { fontSize: 15, opacity: 0.8, marginBottom: 16 },
-  button: { marginTop: 16, padding: 16, backgroundColor: '#6366f1', borderRadius: 12, alignItems: 'center' },
+  button: { marginTop: 16, padding: 16, backgroundColor: '#747e68', borderRadius: 12, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '600' },
 });

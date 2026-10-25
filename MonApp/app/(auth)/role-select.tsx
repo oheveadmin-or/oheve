@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   logoText: { fontSize: 18, fontWeight: '800', color: C.textInvert, fontStyle: 'italic' },
 
-  title: { fontSize: 28, fontWeight: '800', color: C.textDark, textAlign: 'center', marginBottom: 8 },
+  title: { fontSize: 28, fontFamily: 'OheveSerif-Medium', color: C.textDark, textAlign: 'center', marginBottom: 8 },
   subtitle: { fontSize: 15, color: C.textLight, textAlign: 'center', marginBottom: 32 },
 
   cards: { gap: 14, marginBottom: 36 },

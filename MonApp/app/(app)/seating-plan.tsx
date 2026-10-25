@@ -59,7 +59,7 @@ type Guest = {
   guestCount: number;
 };
 
-const COLORS = ['#8F947F', '#C7B7A5', '#7B7063', '#A09480', '#B5A692', '#6B7060', '#C4B5A0', '#9A8C7E'];
+const COLORS = ['#929B83', '#C7B7A5', '#7B7063', '#A09480', '#B5A692', '#6B7060', '#C4B5A0', '#9A8C7E'];
 
 const DIMS: Record<TableShape, { w: number; h: number }> = {
   round: { w: 82, h: 82 },
@@ -309,7 +309,7 @@ function shapeLabel(s: TableShape) {
 }
 
 function ShapeIcon({ shape, active }: { shape: TableShape; active: boolean }) {
-  const color = active ? '#fff' : '#A7AD9A';
+  const color = active ? '#fff' : '#929B83';
   if (shape === 'round') return <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: color, opacity: active ? 1 : 0.6 }} />;
   if (shape === 'oval') return <View style={{ width: 38, height: 24, borderRadius: 12, backgroundColor: color, opacity: active ? 1 : 0.6 }} />;
   return <View style={{ width: 36, height: 24, borderRadius: 5, backgroundColor: color, opacity: active ? 1 : 0.6 }} />;
@@ -646,14 +646,14 @@ function SeatingPlanContent() {
         <ThemedText style={styles.title}>Placement de table</ThemedText>
         <View style={styles.headerBtns}>
           <Pressable style={styles.pdfBtn} onPress={() => setShowRoomModal(true)} hitSlop={8}>
-            <Ionicons name="resize-outline" size={17} color="#A7AD9A" />
+            <Ionicons name="resize-outline" size={17} color="#929B83" />
           </Pressable>
           <Pressable
             style={styles.pdfBtn}
             onPress={() => (hasPremiumAccess ? openExport() : setPdfPaywall(true))}
             hitSlop={8}
           >
-            <Ionicons name="document-text-outline" size={17} color="#A7AD9A" />
+            <Ionicons name="document-text-outline" size={17} color="#929B83" />
           </Pressable>
           <Pressable
             style={styles.pdfBtn}
@@ -680,7 +680,7 @@ function SeatingPlanContent() {
               )
             }
           >
-            <Ionicons name="trash-outline" size={17} color="#A7AD9A" />
+            <Ionicons name="trash-outline" size={17} color="#929B83" />
           </Pressable>
           <Pressable style={styles.addBtn} onPress={() => setAddTableModal(true)} hitSlop={8}>
             <Ionicons name="add" size={22} color="#fff" />
@@ -710,7 +710,7 @@ function SeatingPlanContent() {
 
         {tables.length === 0 && (
           <View style={styles.emptyWrap}>
-            <Ionicons name="grid-outline" size={52} color="#d1d5db" />
+            <Ionicons name="grid-outline" size={52} color="#ece8e0" />
             <ThemedText style={styles.emptyText}>Ajoute ta première table avec +</ThemedText>
           </View>
         )}
@@ -727,11 +727,11 @@ function SeatingPlanContent() {
           <View style={styles.panelTopRow}>
             <Pressable style={styles.panelNameBtn} onPress={openEditName}>
               <ThemedText style={styles.panelName}>{selected.name}</ThemedText>
-              <Ionicons name="pencil-outline" size={14} color="#9ca3af" />
+              <Ionicons name="pencil-outline" size={14} color="#9a9c93" />
             </Pressable>
             <View style={styles.panelBtns}>
               <Pressable style={styles.panelBtn} onPress={() => { setShowAddGuest(false); setAssignModal(true); }}>
-                <Ionicons name="person-add-outline" size={17} color="#A7AD9A" />
+                <Ionicons name="person-add-outline" size={17} color="#929B83" />
               </Pressable>
               <Pressable style={[styles.panelBtn, styles.panelBtnDel]} onPress={() => handleDeleteTable(selected.id)}>
                 <Ionicons name="trash-outline" size={17} color="#dc2626" />
@@ -748,7 +748,7 @@ function SeatingPlanContent() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
             {selected.guestIds.length === 0 ? (
               <Pressable style={styles.addGuestChip} onPress={() => { setShowAddGuest(false); setAssignModal(true); }}>
-                <Ionicons name="person-add-outline" size={13} color="#A7AD9A" />
+                <Ionicons name="person-add-outline" size={13} color="#929B83" />
                 <ThemedText style={styles.addGuestChipTxt}>Ajouter des invités</ThemedText>
               </Pressable>
             ) : (
@@ -758,7 +758,7 @@ function SeatingPlanContent() {
                 return (
                   <Pressable key={gid} style={styles.chip} onPress={() => handleToggleGuest(gid)}>
                     <ThemedText style={styles.chipText} numberOfLines={1}>{g.name}</ThemedText>
-                    <Ionicons name="close-circle" size={14} color="#A7AD9A" />
+                    <Ionicons name="close-circle" size={14} color="#929B83" />
                   </Pressable>
                 );
               })
@@ -779,7 +779,7 @@ function SeatingPlanContent() {
           </View>
           <View style={styles.statDiv} />
           <View style={styles.stat}>
-            <ThemedText style={[styles.statVal, { color: '#A7AD9A' }]}>
+            <ThemedText style={[styles.statVal, { color: '#929B83' }]}>
               {assignedPeople}/{totalPeople}
             </ThemedText>
             <ThemedText style={styles.statLbl}>Assignés</ThemedText>
@@ -804,7 +804,7 @@ function SeatingPlanContent() {
                 value={newTableName}
                 onChangeText={setNewTableName}
                 placeholder={`Table ${tables.length + 1}`}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#9a9c93"
                 returnKeyType="done"
               />
 
@@ -828,7 +828,7 @@ function SeatingPlanContent() {
               <ThemedText style={styles.sheetLabel}>Dimensions de la table (cm)</ThemedText>
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <ThemedText style={[styles.sheetLabel, { fontSize: 11, marginTop: 0, color: '#9ca3af' }]}>
+                  <ThemedText style={[styles.sheetLabel, { fontSize: 11, marginTop: 0, color: '#9a9c93' }]}>
                     {newShape === 'round' ? 'Diamètre' : 'Largeur'}
                   </ThemedText>
                   <TextInput
@@ -836,20 +836,20 @@ function SeatingPlanContent() {
                     value={newTableW}
                     onChangeText={setNewTableW}
                     placeholder="150"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor="#9a9c93"
                     keyboardType="decimal-pad"
                     {...keyboardDoneProps}
                   />
                 </View>
                 {newShape !== 'round' && (
                   <View style={{ flex: 1 }}>
-                    <ThemedText style={[styles.sheetLabel, { fontSize: 11, marginTop: 0, color: '#9ca3af' }]}>Profondeur</ThemedText>
+                    <ThemedText style={[styles.sheetLabel, { fontSize: 11, marginTop: 0, color: '#9a9c93' }]}>Profondeur</ThemedText>
                     <TextInput
                       style={styles.input}
                       value={newTableH}
                       onChangeText={setNewTableH}
                       placeholder="120"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor="#9a9c93"
                       keyboardType="decimal-pad"
                       {...keyboardDoneProps}
                     />
@@ -908,7 +908,7 @@ function SeatingPlanContent() {
                       value={newGuestName}
                       onChangeText={setNewGuestName}
                       placeholder="Nom de l'invité (ex: Famille Cohen)"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor="#9a9c93"
                       autoFocus
                       returnKeyType="done"
                       onSubmitEditing={handleAddGuest}
@@ -940,7 +940,7 @@ function SeatingPlanContent() {
                   <>
                     {/* ── Bouton créer un nouvel invité ── */}
                     <Pressable style={styles.newGuestBtn} onPress={() => setShowAddGuest(true)}>
-                      <Ionicons name="person-add-outline" size={16} color="#A7AD9A" />
+                      <Ionicons name="person-add-outline" size={16} color="#929B83" />
                       <ThemedText style={styles.newGuestBtnTxt}>Créer un nouvel invité et l'assigner</ThemedText>
                     </Pressable>
 
@@ -972,8 +972,8 @@ function SeatingPlanContent() {
                                   {onOther ? ` · ${otherTable?.name ?? 'autre table'}` : ''}
                                 </ThemedText>
                               </View>
-                              {isHere && <Ionicons name="checkmark-circle" size={22} color="#A7AD9A" />}
-                              {onOther && <Ionicons name="lock-closed-outline" size={18} color="#d1d5db" />}
+                              {isHere && <Ionicons name="checkmark-circle" size={22} color="#929B83" />}
+                              {onOther && <Ionicons name="lock-closed-outline" size={18} color="#ece8e0" />}
                             </Pressable>
                             {/* Bouton supprimer l'invité */}
                             {!onOther && (
@@ -1019,7 +1019,7 @@ function SeatingPlanContent() {
                 value={roomWidth}
                 onChangeText={setRoomWidth}
                 placeholder="Ex: 20"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#9a9c93"
                 keyboardType="decimal-pad"
                 {...keyboardDoneProps}
               />
@@ -1029,7 +1029,7 @@ function SeatingPlanContent() {
                 value={roomHeight}
                 onChangeText={setRoomHeight}
                 placeholder="Ex: 30"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#9a9c93"
                 keyboardType="decimal-pad"
                 {...keyboardDoneProps}
               />
@@ -1041,15 +1041,15 @@ function SeatingPlanContent() {
                 const avgTableArea = 4;
                 const maxTables = Math.floor((rw * rh * 0.55) / avgTableArea);
                 return (
-                  <View style={{ marginTop: 10, padding: 14, backgroundColor: '#E8EDE4', borderRadius: 12, gap: 6 }}>
-                    <ThemedText style={{ color: '#7A8A72', fontWeight: '700', fontSize: 13 }}>
+                  <View style={{ marginTop: 10, padding: 14, backgroundColor: '#F5F2ED', borderRadius: 12, gap: 6 }}>
+                    <ThemedText style={{ color: '#747E68', fontWeight: '700', fontSize: 13 }}>
                       Surface : {surface} m²
                     </ThemedText>
-                    <ThemedText style={{ color: '#A7AD9A', fontSize: 12 }}>
+                    <ThemedText style={{ color: '#929B83', fontSize: 12 }}>
                       Capacité estimée : ~{maxTables} tables (avec 55% d'espace utilisable)
                     </ThemedText>
                     {tables.length > 0 && (
-                      <ThemedText style={{ color: tables.length <= maxTables ? '#7A8A72' : '#C17E7E', fontSize: 12, fontWeight: '600' }}>
+                      <ThemedText style={{ color: tables.length <= maxTables ? '#747E68' : '#C17E7E', fontSize: 12, fontWeight: '600' }}>
                         {tables.length <= maxTables
                           ? `✓ ${tables.length} table${tables.length > 1 ? 's' : ''} — salle adaptée`
                           : `⚠ ${tables.length} tables — salle peut-être trop petite`}
@@ -1086,7 +1086,7 @@ function SeatingPlanContent() {
                 value={editNameValue}
                 onChangeText={setEditNameValue}
                 placeholder="Nom de la table"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#9a9c93"
                 autoFocus
                 returnKeyType="done"
                 onSubmitEditing={handleSaveTableName}
@@ -1116,21 +1116,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#ece8e0',
     gap: 12,
   },
-  backBtn: { color: '#A7AD9A', fontSize: 15, fontWeight: '600' },
-  title: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  backBtn: { color: '#929B83', fontSize: 15, fontWeight: '600' },
+  title: { flex: 1, fontSize: 17, fontWeight: '700', color: '#343630', textAlign: 'center' },
   headerBtns: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   pdfBtn: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#E8EDE4',
-    borderWidth: 1, borderColor: '#ede9fe',
+    backgroundColor: '#F5F2ED',
+    borderWidth: 1, borderColor: '#f5f2ed',
     alignItems: 'center', justifyContent: 'center',
   },
   addBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#A7AD9A',
+    backgroundColor: '#929B83',
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -1149,7 +1149,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  emptyText: { color: '#9ca3af', fontSize: 14, textAlign: 'center' },
+  emptyText: { color: '#9a9c93', fontSize: 14, textAlign: 'center' },
   legend: { position: 'absolute', bottom: 8, left: 0, right: 0, alignItems: 'center' },
   legendText: { fontSize: 10, color: '#b0a9f5', fontWeight: '500' },
 
@@ -1157,7 +1157,7 @@ const styles = StyleSheet.create({
   resizeBtn: {
     position: 'absolute',
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#A7AD9A',
+    backgroundColor: '#929B83',
     alignItems: 'center', justifyContent: 'center',
     zIndex: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
@@ -1175,7 +1175,7 @@ const styles = StyleSheet.create({
   tableBody: {
     position: 'absolute',
     alignItems: 'center', justifyContent: 'center', gap: 2,
-    shadowColor: '#A7AD9A',
+    shadowColor: '#929B83',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15, shadowRadius: 6, elevation: 3,
   },
@@ -1185,7 +1185,7 @@ const styles = StyleSheet.create({
   // Panel bas — table sélectionnée
   panel: {
     backgroundColor: '#fff',
-    borderTopWidth: 1, borderTopColor: '#f3f4f6',
+    borderTopWidth: 1, borderTopColor: '#f5f2ed',
     paddingHorizontal: 16, paddingTop: 8,
     minHeight: 120,
     shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
@@ -1193,49 +1193,49 @@ const styles = StyleSheet.create({
   },
   panelHandle: {
     width: 36, height: 4, borderRadius: 2,
-    backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 10,
+    backgroundColor: '#ece8e0', alignSelf: 'center', marginBottom: 10,
   },
   panelTopRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 2,
   },
   panelNameBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  panelName: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  panelMeta: { fontSize: 12, color: '#9ca3af', marginBottom: 8 },
+  panelName: { fontSize: 16, fontWeight: '700', color: '#343630' },
+  panelMeta: { fontSize: 12, color: '#9a9c93', marginBottom: 8 },
   panelBtns: { flexDirection: 'row', gap: 8 },
   panelBtn: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#E8EDE4', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#ede9fe',
+    backgroundColor: '#F5F2ED', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#f5f2ed',
   },
   panelBtnDel: { backgroundColor: '#fef2f2', borderColor: '#fecaca' },
   chipsRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: 99, borderWidth: 1, borderColor: '#ede9fe', backgroundColor: '#E8EDE4',
+    borderRadius: 99, borderWidth: 1, borderColor: '#f5f2ed', backgroundColor: '#F5F2ED',
   },
-  chipText: { fontSize: 12, color: '#A7AD9A', fontWeight: '600', maxWidth: 90 },
+  chipText: { fontSize: 12, color: '#929B83', fontWeight: '600', maxWidth: 90 },
   addGuestChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 99, borderWidth: 1.5, borderColor: '#A7AD9A',
+    borderRadius: 99, borderWidth: 1.5, borderColor: '#929B83',
     borderStyle: 'dashed',
   },
-  addGuestChipTxt: { fontSize: 12, color: '#A7AD9A', fontWeight: '600' },
+  addGuestChipTxt: { fontSize: 12, color: '#929B83', fontWeight: '600' },
 
   // Stats
   statsBar: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6',
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f5f2ed',
     paddingTop: 14, paddingHorizontal: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.04, shadowRadius: 6, elevation: 4,
   },
   stat: { flex: 1, alignItems: 'center' },
-  statVal: { fontSize: 24, fontWeight: '800', color: '#111827' },
-  statLbl: { fontSize: 11, color: '#9ca3af', fontWeight: '500', marginTop: 2 },
-  statDiv: { width: 1, height: 40, backgroundColor: '#f3f4f6' },
+  statVal: { fontSize: 24, fontFamily: 'OheveSerif-Medium', color: '#343630' },
+  statLbl: { fontSize: 11, color: '#9a9c93', fontWeight: '500', marginTop: 2 },
+  statDiv: { width: 1, height: 40, backgroundColor: '#f5f2ed' },
 
   // Overlay & sheets
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
@@ -1255,79 +1255,79 @@ const styles = StyleSheet.create({
   },
   sheetHandle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 14,
+    backgroundColor: '#ece8e0', alignSelf: 'center', marginBottom: 14,
   },
   sheetTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 },
-  sheetTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  sheetSub: { fontSize: 13, color: '#9ca3af' },
-  sheetLabel: { fontSize: 13, color: '#4b5563', fontWeight: '600', marginTop: 14, marginBottom: 8 },
+  sheetTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: '#343630' },
+  sheetSub: { fontSize: 13, color: '#9a9c93' },
+  sheetLabel: { fontSize: 13, color: '#5c5f57', fontWeight: '600', marginTop: 14, marginBottom: 8 },
   input: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: '#111827', backgroundColor: '#fafafa',
+    fontSize: 15, color: '#343630', backgroundColor: '#fcfbf9',
   },
 
   shapeRow: { flexDirection: 'row', gap: 10 },
   shapeChip: {
-    flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 14,
+    flex: 1, borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 14,
     paddingVertical: 14, paddingHorizontal: 8,
-    alignItems: 'center', gap: 8, backgroundColor: '#fafafa',
+    alignItems: 'center', gap: 8, backgroundColor: '#fcfbf9',
   },
-  shapeChipOn: { borderColor: '#A7AD9A', backgroundColor: '#A7AD9A' },
-  shapeChipLbl: { fontSize: 11, fontWeight: '600', color: '#6b7280' },
+  shapeChipOn: { borderColor: '#929B83', backgroundColor: '#929B83' },
+  shapeChipLbl: { fontSize: 11, fontWeight: '600', color: '#5c5f57' },
   shapeChipLblOn: { color: '#fff' },
 
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24 },
   stepBtn: {
     width: 44, height: 44, borderRadius: 22,
-    borderWidth: 1.5, borderColor: '#e5e7eb',
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa',
+    borderWidth: 1.5, borderColor: '#ece8e0',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfbf9',
   },
-  stepBtnTxt: { fontSize: 24, color: '#A7AD9A', fontWeight: '700', lineHeight: 28 },
-  stepVal: { fontSize: 30, fontWeight: '800', color: '#111827', minWidth: 48, textAlign: 'center' },
+  stepBtnTxt: { fontSize: 24, color: '#929B83', fontFamily: 'OheveSerif-Medium', lineHeight: 31 },
+  stepVal: { fontSize: 30, fontFamily: 'OheveSerif-Medium', color: '#343630', minWidth: 48, textAlign: 'center' },
 
   stepperSm: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   stepBtnSm: {
     width: 38, height: 38, borderRadius: 19,
-    borderWidth: 1.5, borderColor: '#e5e7eb',
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa',
+    borderWidth: 1.5, borderColor: '#ece8e0',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfbf9',
   },
-  stepValSm: { fontSize: 24, fontWeight: '800', color: '#111827', minWidth: 36, textAlign: 'center' },
+  stepValSm: { fontSize: 24, fontFamily: 'OheveSerif-Medium', color: '#343630', minWidth: 36, textAlign: 'center' },
 
   sheetActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  btnPrimary: { flex: 1, backgroundColor: '#A7AD9A', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  btnPrimary: { flex: 1, backgroundColor: '#929B83', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   btnPrimaryTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  btnSecondary: { flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  btnSecondaryTxt: { color: '#6b7280', fontWeight: '700', fontSize: 15 },
+  btnSecondary: { flex: 1, borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  btnSecondaryTxt: { color: '#5c5f57', fontWeight: '700', fontSize: 15 },
   btnDisabled: { opacity: 0.4 },
 
   // Bouton créer invité
   newGuestBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1.5, borderColor: '#A7AD9A', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#929B83', borderRadius: 12,
     paddingVertical: 12, paddingHorizontal: 14,
-    backgroundColor: '#E8EDE4', marginBottom: 4,
+    backgroundColor: '#F5F2ED', marginBottom: 4,
   },
-  newGuestBtnTxt: { fontSize: 14, color: '#A7AD9A', fontWeight: '600' },
-  orSeparator: { fontSize: 11, color: '#d1d5db', textAlign: 'center', marginVertical: 10, fontWeight: '500' },
+  newGuestBtnTxt: { fontSize: 14, color: '#929B83', fontWeight: '600' },
+  orSeparator: { fontSize: 11, color: '#ece8e0', textAlign: 'center', marginVertical: 10, fontWeight: '500' },
 
   addGuestForm: { gap: 4 },
-  addGuestFormTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 10 },
+  addGuestFormTitle: { fontSize: 16, fontWeight: '700', color: '#343630', marginBottom: 10 },
 
   // Ligne invité
   guestRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: 12, borderWidth: 1.5, borderColor: '#f3f4f6',
-    marginBottom: 8, backgroundColor: '#fafafa',
+    borderRadius: 12, borderWidth: 1.5, borderColor: '#f5f2ed',
+    marginBottom: 8, backgroundColor: '#fcfbf9',
   },
-  guestRowOn: { borderColor: '#A7AD9A', backgroundColor: '#E8EDE4' },
+  guestRowOn: { borderColor: '#929B83', backgroundColor: '#F5F2ED' },
   guestRowLocked: { opacity: 0.4 },
-  guestRowName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  guestRowNameOn: { color: '#A7AD9A' },
-  guestRowSub: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  guestRowName: { fontSize: 14, fontWeight: '600', color: '#343630' },
+  guestRowNameOn: { color: '#929B83' },
+  guestRowSub: { fontSize: 12, color: '#9a9c93', marginTop: 2 },
   guestDeleteBtn: { padding: 6, marginLeft: 4 },
-  noGuestsHint: { color: '#9ca3af', fontSize: 13, textAlign: 'center', paddingVertical: 20 },
+  noGuestsHint: { color: '#9a9c93', fontSize: 13, textAlign: 'center', paddingVertical: 20 },
 });
 
 export default function SeatingPlanScreen() {

@@ -1,19 +1,19 @@
 /* ─── Page /presentation : la présentation OHEVE en version interactive ─── */
 
 .pz {
-  --pz-ivory: #f3efe9;
-  --pz-sand: #e4dfd7;
-  --pz-paper: #faf7f2;
-  --pz-sage: #9c9f88;
-  --pz-sage-deep: #6f7560;
-  --pz-forest: #4a5844;
-  --pz-moka: #45291a;
-  --pz-taupe: #8b7d72;
-  --pz-ink: #3e362e;
-  --pz-ink-soft: #6c6257;
-  --pz-line: rgba(69, 41, 26, 0.18);
-  --pz-serif: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
-  --pz-display: 'Marcellus', 'Cormorant Garamond', Georgia, serif;
+  --pz-ivory: #f5f2ed;
+  --pz-sand: #ece8e0;
+  --pz-paper: #fcfbf9;
+  --pz-sage: #929b83;
+  --pz-sage-deep: #747e68;
+  --pz-forest: #5f6855;
+  --pz-moka: #343630;
+  --pz-taupe: #7e8178;
+  --pz-ink: #343630;
+  --pz-ink-soft: #5c5f57;
+  --pz-line: rgba(52, 54, 48, 0.16);
+  --pz-serif: 'Fraunces', 'Cormorant Garamond', Georgia, serif;
+  --pz-display: 'Fraunces', Georgia, serif;
   --pz-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   background: var(--pz-ivory);
@@ -1650,7 +1650,7 @@
   top: -0.8rem;
   left: 50%;
   transform: translateX(-50%);
-  background: #b8965a;
+  background: #747e68;
   color: #fff;
   font-size: 0.75rem;
   letter-spacing: 0.2em;

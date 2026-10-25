@@ -9,7 +9,7 @@ export default function AdminLayout() {
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator color="#A7AD9A" />
+        <ActivityIndicator color="#929B83" />
       </View>
     );
   }

@@ -188,22 +188,22 @@ const CATEGORIES: {
 ];
 
 const CAT_COLORS: Record<Exclude<MainCategory, 'tout'>, string> = {
-  décoration: '#A7AD9A',
+  décoration: '#929B83',
   fleurs: '#ec4899',
   photos: '#f59e0b',
-  tenues: '#8b5cf6',
+  tenues: '#747e68',
   traiteur: '#10b981',
   musique: '#3b82f6',
   souvenirs: '#f43f5e',
   salle: '#0891b2',
   beaute: '#d946ef',
-  transport: '#6366f1',
+  transport: '#747e68',
   juif: '#a855f7',
   'chabbat-hattan': '#7c3aed',
   patisserie: '#fb7185',
   planner: '#14b8a6',
   animation: '#eab308',
-  autres: '#6b7280',
+  autres: '#5c5f57',
 };
 
 const FEED_CACHE_KEY = '@oheve:explore_feed_cache';
@@ -262,7 +262,7 @@ function ProviderModal({
   if (!provider) return null;
 
   const providerPosts = posts.filter((p) => p.providerId === provider.id);
-  const catColor = CAT_COLORS[provider.category as Exclude<MainCategory, 'tout'>] ?? '#A7AD9A';
+  const catColor = CAT_COLORS[provider.category as Exclude<MainCategory, 'tout'>] ?? '#929B83';
 
   const handleInstagram = () => {
     if (provider.instagram) {
@@ -276,7 +276,7 @@ function ProviderModal({
         {/* Header */}
         <View style={provStyles.header}>
           <Pressable onPress={onClose} hitSlop={12}>
-            <Ionicons name="chevron-down" size={26} color="#3D3530" />
+            <Ionicons name="chevron-down" size={26} color="#343630" />
           </Pressable>
           <ThemedText style={provStyles.headerTitle}>Profil prestataire</ThemedText>
           <View style={{ width: 26 }} />
@@ -294,7 +294,7 @@ function ProviderModal({
             </View>
             {provider.location && (
               <View style={provStyles.locationRow}>
-                <Ionicons name="location-outline" size={13} color="#A09890" />
+                <Ionicons name="location-outline" size={13} color="#9A9C93" />
                 <ThemedText style={provStyles.locationTxt}>{provider.location}</ThemedText>
               </View>
             )}
@@ -366,23 +366,23 @@ const provStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f5f2ed',
   },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#3D3530' },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: '#343630' },
   profileBlock: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 28, paddingBottom: 20, gap: 10 },
   avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  avatarTxt: { color: '#fff', fontSize: 32, fontWeight: '800' },
-  name: { fontSize: 22, fontWeight: '800', color: '#3D3530' },
+  avatarTxt: { color: '#fff', fontSize: 32, fontFamily: 'OheveSerif-Medium' },
+  name: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: '#343630' },
   catBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 99, borderWidth: 1 },
   catBadgeTxt: { fontSize: 12, fontWeight: '700' },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  locationTxt: { fontSize: 13, color: '#A09890' },
-  desc: { fontSize: 14, color: '#4b5563', textAlign: 'center', lineHeight: 21 },
+  locationTxt: { fontSize: 13, color: '#9A9C93' },
+  desc: { fontSize: 14, color: '#5c5f57', textAlign: 'center', lineHeight: 21 },
   statsRow: { flexDirection: 'row', alignItems: 'center', gap: 20, marginTop: 4 },
   stat: { alignItems: 'center', gap: 2 },
-  statNum: { fontSize: 20, fontWeight: '800', color: '#3D3530' },
-  statLbl: { fontSize: 12, color: '#A09890' },
-  statDivider: { width: 1, height: 28, backgroundColor: '#e5e7eb' },
+  statNum: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: '#343630' },
+  statLbl: { fontSize: 12, color: '#9A9C93' },
+  statDivider: { width: 1, height: 28, backgroundColor: '#ece8e0' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 6, width: '100%' },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -391,11 +391,11 @@ const provStyles = StyleSheet.create({
   actionBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
   actionBtnOutline: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 11, borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e7eb',
+    gap: 6, paddingVertical: 11, borderRadius: 12, borderWidth: 1.5, borderColor: '#ece8e0',
   },
   actionBtnOutlineTxt: { fontWeight: '700', fontSize: 14 },
   postsSection: { paddingHorizontal: 16, paddingTop: 8 },
-  postsSectionTitle: { fontSize: 16, fontWeight: '700', color: '#3D3530', marginBottom: 10 },
+  postsSectionTitle: { fontSize: 16, fontWeight: '700', color: '#343630', marginBottom: 10 },
   postsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   postThumb: {
     width: (W - 40) / 3, height: (W - 40) / 3,
@@ -476,7 +476,7 @@ function CommentSheet({
               value={text}
               onChangeText={setText}
               placeholder="Ajouter un commentaire..."
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
               returnKeyType="send"
               onSubmitEditing={submit}
             />
@@ -500,24 +500,24 @@ const cmtStyles = StyleSheet.create({
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
     maxHeight: H * 0.7, paddingHorizontal: 16, paddingTop: 12,
   },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 12 },
-  title: { fontSize: 18, fontWeight: '800', color: '#3D3530', marginBottom: 12 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#ece8e0', alignSelf: 'center', marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: '800', color: '#343630', marginBottom: 12 },
   list: { maxHeight: H * 0.45 },
-  empty: { color: '#A09890', textAlign: 'center', paddingVertical: 24, fontSize: 14 },
+  empty: { color: '#9A9C93', textAlign: 'center', paddingVertical: 24, fontSize: 14 },
   cmtRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  cmtAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#A7AD9A', alignItems: 'center', justifyContent: 'center' },
+  cmtAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#929B83', alignItems: 'center', justifyContent: 'center' },
   cmtAvatarTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
   cmtBody: { flex: 1, gap: 2 },
   cmtHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cmtAuthor: { fontSize: 13, fontWeight: '700', color: '#3D3530' },
-  cmtTime: { fontSize: 11, color: '#A09890' },
-  cmtText: { fontSize: 14, color: '#374151', lineHeight: 20 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  cmtAuthor: { fontSize: 13, fontWeight: '700', color: '#343630' },
+  cmtTime: { fontSize: 11, color: '#9A9C93' },
+  cmtText: { fontSize: 14, color: '#5c5f57', lineHeight: 20 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f5f2ed' },
   input: {
-    flex: 1, height: 42, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 21,
-    paddingHorizontal: 14, fontSize: 14, color: '#3D3530', backgroundColor: '#fafafa',
+    flex: 1, height: 42, borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 21,
+    paddingHorizontal: 14, fontSize: 14, color: '#343630', backgroundColor: '#fcfbf9',
   },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#A7AD9A', alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#929B83', alignItems: 'center', justifyContent: 'center' },
 });
 
 // ── Reel Card ────────────────────────────────────────────────────────────────
@@ -539,7 +539,7 @@ function ReelCardBase({
   onOpenProvider: (providerId: string) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const catColor = CAT_COLORS[post.category] ?? '#A7AD9A';
+  const catColor = CAT_COLORS[post.category] ?? '#929B83';
 
   return (
     <View style={[reelStyles.card, { width: W, height: reelH }]}>
@@ -600,7 +600,7 @@ function ReelCardBase({
           <ThemedText style={reelStyles.author}>{post.author}</ThemedText>
           {post.providerId && (
             <View style={reelStyles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={14} color="#A7AD9A" />
+              <Ionicons name="checkmark-circle" size={14} color="#929B83" />
             </View>
           )}
         </View>
@@ -658,7 +658,7 @@ function GridCard({
   onLike: (id: string) => void;
   onOpen: (id: string) => void;
 }) {
-  const catColor = CAT_COLORS[post.category] ?? '#A7AD9A';
+  const catColor = CAT_COLORS[post.category] ?? '#929B83';
   return (
     <Pressable style={[gridStyles.card, { height: post.cardH }]} onPress={() => onOpen(post.id)} hitSlop={6}>
       {post.mediaUri && post.mediaType === 'video' ? (
@@ -694,7 +694,7 @@ function GridCard({
 
 const gridStyles = StyleSheet.create({
   card: { borderRadius: 14, overflow: 'hidden', marginBottom: 10, position: 'relative' },
-  videoBg: { backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center' },
+  videoBg: { backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 52 },
   overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 14 },
   catChip: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
@@ -730,7 +730,7 @@ function PostDetailModal({
   onOpenProvider: (providerId: string) => void;
 }) {
   if (!post) return null;
-  const catColor = CAT_COLORS[post.category] ?? '#A7AD9A';
+  const catColor = CAT_COLORS[post.category] ?? '#929B83';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -782,7 +782,7 @@ function PostDetailModal({
                 )}
               </View>
               {(post.userId || post.providerId) && (
-                <Ionicons name="chevron-forward" size={16} color="#A09890" />
+                <Ionicons name="chevron-forward" size={16} color="#9A9C93" />
               )}
             </Pressable>
 
@@ -791,17 +791,17 @@ function PostDetailModal({
             {/* Actions row */}
             <View style={detailStyles.actionsRow}>
               <Pressable style={detailStyles.actionBtn} onPress={() => onLike(post.id)}>
-                <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={20} color={post.isLiked ? '#f43f5e' : '#6b7280'} />
+                <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={20} color={post.isLiked ? '#f43f5e' : '#5c5f57'} />
                 <ThemedText style={detailStyles.actionTxt}>{post.likes} j'aimes</ThemedText>
               </Pressable>
               <Pressable style={detailStyles.actionBtn} onPress={() => { onClose(); onComment(post); }}>
-                <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />
+                <Ionicons name="chatbubble-outline" size={18} color="#5c5f57" />
                 <ThemedText style={detailStyles.actionTxt}>
                   {post.commentCount ?? post.comments.length} commentaires
                 </ThemedText>
               </Pressable>
               <Pressable style={detailStyles.actionBtn} onPress={() => onShare(post)}>
-                <Ionicons name="share-social-outline" size={18} color="#6b7280" />
+                <Ionicons name="share-social-outline" size={18} color="#5c5f57" />
                 <ThemedText style={detailStyles.actionTxt}>Partager</ThemedText>
               </Pressable>
             </View>
@@ -816,7 +816,7 @@ const detailStyles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0,0,0,0.5)' },
   card: { width: '100%', maxWidth: 420, borderRadius: 20, overflow: 'hidden', backgroundColor: '#fff' },
   media: { height: 240, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  videoBg: { flex: 1, width: '100%', backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  videoBg: { flex: 1, width: '100%', backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center', gap: 10 },
   videoTxt: { color: '#fff', fontWeight: '700' },
   emoji: { fontSize: 88 },
   catChip: { position: 'absolute', top: 10, left: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 },
@@ -825,12 +825,12 @@ const detailStyles = StyleSheet.create({
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  authorName: { fontSize: 14, fontWeight: '700', color: '#3D3530' },
-  providerHint: { fontSize: 11, color: '#A7AD9A', marginTop: 1 },
+  authorName: { fontSize: 14, fontWeight: '700', color: '#343630' },
+  providerHint: { fontSize: 11, color: '#929B83', marginTop: 1 },
   caption: { fontSize: 15, fontWeight: '500', color: '#1f2937', lineHeight: 22 },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 10 },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f5f2ed', paddingTop: 10 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  actionTxt: { fontSize: 12, color: '#6b7280', fontWeight: '600' },
+  actionTxt: { fontSize: 12, color: '#5c5f57', fontWeight: '600' },
 });
 
 // ── Create Post Modal (prestataire only) ────────────────────────────────────
@@ -922,7 +922,7 @@ function CreatePostModal({
               value={newCaption}
               onChangeText={setNewCaption}
               placeholder="Décris ton offre, ton inspiration..."
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
               multiline
               numberOfLines={3}
             />
@@ -1001,35 +1001,35 @@ const createStyles = StyleSheet.create({
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 20, paddingBottom: 40, gap: 0,
   },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 14 },
-  title: { fontSize: 22, fontWeight: '800', color: '#3D3530', marginBottom: 16 },
-  mediaPicker: { height: 180, borderRadius: 16, overflow: 'hidden', borderWidth: 2, borderColor: '#ede9fe', borderStyle: 'dashed', marginBottom: 16 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#ece8e0', alignSelf: 'center', marginBottom: 14 },
+  title: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: '#343630', marginBottom: 16 },
+  mediaPicker: { height: 180, borderRadius: 16, overflow: 'hidden', borderWidth: 2, borderColor: '#f5f2ed', borderStyle: 'dashed', marginBottom: 16 },
   mediaPickerEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#faf8ff', gap: 6 },
-  mediaPickerTxt: { fontSize: 15, fontWeight: '700', color: '#A7AD9A' },
+  mediaPickerTxt: { fontSize: 15, fontWeight: '700', color: '#929B83' },
   mediaPickerSub: { fontSize: 12, color: '#a78bfa' },
   mediaPreview: { width: '100%', height: '100%' },
-  mediaPreviewVideoBg: { flex: 1, backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  mediaPreviewVideoBg: { flex: 1, backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center', gap: 8 },
   mediaPreviewVideoTxt: { color: '#fff', fontWeight: '700' },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#4b5563', marginBottom: 8 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#5c5f57', marginBottom: 8 },
   captionInput: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: '#3D3530', backgroundColor: '#fafafa',
+    fontSize: 15, color: '#343630', backgroundColor: '#fcfbf9',
     textAlignVertical: 'top', minHeight: 90, marginBottom: 14,
   },
   chipRow: { flexDirection: 'row', gap: 8, paddingBottom: 16 },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 12, paddingVertical: 9,
-    borderRadius: 99, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fafafa',
+    borderRadius: 99, borderWidth: 1.5, borderColor: '#ece8e0', backgroundColor: '#fcfbf9',
   },
   chipEmoji: { fontSize: 14 },
-  chipLbl: { fontSize: 12, fontWeight: '600', color: '#4b5563' },
+  chipLbl: { fontSize: 12, fontWeight: '600', color: '#5c5f57' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  btnCancel: { flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  btnCancelTxt: { color: '#6b7280', fontWeight: '700', fontSize: 15 },
+  btnCancel: { flex: 1, borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  btnCancelTxt: { color: '#5c5f57', fontWeight: '700', fontSize: 15 },
   btnPublish: {
-    flex: 1, backgroundColor: '#A7AD9A', borderRadius: 14,
+    flex: 1, backgroundColor: '#929B83', borderRadius: 14,
     paddingVertical: 14, alignItems: 'center', justifyContent: 'center',
     flexDirection: 'row', gap: 6,
   },
@@ -1523,10 +1523,10 @@ export default function ExploreScreen() {
         <View style={styles.headerRight}>
           <View style={styles.modeToggle}>
             <Pressable style={[styles.modeBtn, mode === 'grid' && styles.modeBtnOn]} onPress={() => setMode('grid')} hitSlop={10}>
-              <Ionicons name="grid-outline" size={16} color={mode === 'grid' ? '#fff' : '#A7AD9A'} />
+              <Ionicons name="grid-outline" size={16} color={mode === 'grid' ? '#fff' : '#929B83'} />
             </Pressable>
             <Pressable style={[styles.modeBtn, mode === 'reels' && styles.modeBtnOn]} onPress={() => setMode('reels')} hitSlop={10}>
-              <Ionicons name="play-outline" size={16} color={mode === 'reels' ? '#fff' : '#A7AD9A'} />
+              <Ionicons name="play-outline" size={16} color={mode === 'reels' ? '#fff' : '#929B83'} />
             </Pressable>
           </View>
           {isPrestataire && (
@@ -1730,13 +1730,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10,
   },
-  overline: { fontSize: 13, color: '#A09890', fontWeight: '500' },
-  title: { fontSize: 30, lineHeight: 38, fontWeight: '800', color: '#3D3530', letterSpacing: -0.5 },
+  overline: { fontSize: 13, color: '#9A9C93', fontWeight: '500' },
+  title: { fontSize: 30, lineHeight: 38, fontFamily: 'OheveSerif-Medium', color: '#343630', letterSpacing: -0.5 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 4 },
-  modeToggle: { flexDirection: 'row', borderRadius: 10, borderWidth: 1.5, borderColor: '#ede9fe', overflow: 'hidden' },
-  modeBtn: { padding: 7, backgroundColor: '#fafafa' },
-  modeBtnOn: { backgroundColor: '#A7AD9A' },
-  publishBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#A7AD9A', alignItems: 'center', justifyContent: 'center' },
+  modeToggle: { flexDirection: 'row', borderRadius: 10, borderWidth: 1.5, borderColor: '#f5f2ed', overflow: 'hidden' },
+  modeBtn: { padding: 7, backgroundColor: '#fcfbf9' },
+  modeBtnOn: { backgroundColor: '#929B83' },
+  publishBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#929B83', alignItems: 'center', justifyContent: 'center' },
 
   // flexGrow:0 → la rangée se dimensionne à son contenu (puces + emojis) sans
   // s'étirer verticalement. Un maxHeight fixe rognait les emojis/labels selon
@@ -1746,11 +1746,11 @@ const styles = StyleSheet.create({
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 99, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fafafa',
+    borderRadius: 99, borderWidth: 1.5, borderColor: '#ece8e0', backgroundColor: '#fcfbf9',
   },
-  filterChipOn: { backgroundColor: '#A7AD9A', borderColor: '#A7AD9A' },
+  filterChipOn: { backgroundColor: '#929B83', borderColor: '#929B83' },
   filterEmoji: { fontSize: 13 },
-  filterLabel: { fontSize: 12, fontWeight: '600', color: '#4b5563' },
+  filterLabel: { fontSize: 12, fontWeight: '600', color: '#5c5f57' },
   filterLabelOn: { color: '#fff' },
 
   subFiltersScroll: { flexGrow: 0 },
@@ -1758,12 +1758,12 @@ const styles = StyleSheet.create({
   subChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 99, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fafafa',
+    borderRadius: 99, borderWidth: 1, borderColor: '#ece8e0', backgroundColor: '#fcfbf9',
   },
-  subChipOn: { backgroundColor: '#ede9fe', borderColor: '#A7AD9A' },
+  subChipOn: { backgroundColor: '#f5f2ed', borderColor: '#929B83' },
   subChipEmoji: { fontSize: 12 },
-  subChipLbl: { fontSize: 11, fontWeight: '600', color: '#6b7280' },
-  subChipLblOn: { color: '#A7AD9A' },
+  subChipLbl: { fontSize: 11, fontWeight: '600', color: '#5c5f57' },
+  subChipLblOn: { color: '#929B83' },
 
   gridContent: { paddingHorizontal: 12, paddingTop: 4 },
   grid: { flexDirection: 'row', gap: 10 },
@@ -1771,9 +1771,9 @@ const styles = StyleSheet.create({
 
   emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 },
   emptyEmoji: { fontSize: 52 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#3D3530' },
-  emptySub: { fontSize: 14, color: '#A09890', textAlign: 'center', paddingHorizontal: 30 },
-  emptyBtn: { marginTop: 8, backgroundColor: '#A7AD9A', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#343630' },
+  emptySub: { fontSize: 14, color: '#9A9C93', textAlign: 'center', paddingHorizontal: 30 },
+  emptyBtn: { marginTop: 8, backgroundColor: '#929B83', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
   emptyBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   reelsCloseBtn: {

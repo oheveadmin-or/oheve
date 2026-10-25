@@ -78,7 +78,7 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.ivoire },
   content: { padding: 24, paddingTop: 80, gap: 14 },
-  title: { fontSize: 22, fontWeight: '800', color: C.textDark },
+  title: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   subtitle: { fontSize: 14, color: C.textMid, marginBottom: 8 },
   box: { backgroundColor: C.card, borderRadius: 12, padding: 14 },
   boxLabel: { fontSize: 11, fontWeight: '700', color: C.sauge, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },

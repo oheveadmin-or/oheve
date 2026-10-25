@@ -793,7 +793,7 @@ const instaStyles = StyleSheet.create({
     backgroundColor: C.saugePale, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: C.sauge,
   },
-  avatarLetter: { fontSize: 30, fontWeight: '800', color: C.saugeDark },
+  avatarLetter: { fontSize: 30, fontFamily: 'OheveSerif-Medium', color: C.saugeDark },
   avatarEditBadge: {
     position: 'absolute', bottom: 2, right: 2,
     width: 22, height: 22, borderRadius: 11,
@@ -869,10 +869,10 @@ const instaStyles = StyleSheet.create({
   captionTitle: { fontSize: 19, fontWeight: '800', color: C.textDark, marginBottom: 4 },
   captionSub: { fontSize: 13, color: C.textLight, lineHeight: 18, marginBottom: 14 },
   captionPreview: { width: '100%', height: 160, borderRadius: 14, marginBottom: 14, backgroundColor: C.saugePale },
-  videoTile: { width: '100%', height: '100%', backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  videoTile: { width: '100%', height: '100%', backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center', gap: 6 },
   videoPreview: {
     width: '100%', height: 160, borderRadius: 14, marginBottom: 14,
-    backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   videoPreviewTxt: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
   captionInput: {
@@ -925,7 +925,7 @@ const instaStyles = StyleSheet.create({
     paddingHorizontal: 18, paddingBottom: 32, paddingTop: 10, gap: 4,
   },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 14 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: C.textDark, marginBottom: 8 },
+  modalTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 8 },
   modalItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 14, borderTopWidth: 1, borderTopColor: C.border,
@@ -937,7 +937,7 @@ const instaStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   headerOverline: { fontSize: 12, color: C.textLight, marginBottom: 2, letterSpacing: 0.5 },
-  title: { fontSize: 30, lineHeight: 38, fontWeight: '700', color: C.textDark },
+  title: { fontSize: 30, lineHeight: 38, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   content: { gap: 10, paddingBottom: 120 },
   profileCard: {
     borderWidth: 0, borderColor: C.border, borderRadius: RADIUS.lg,
@@ -953,7 +953,7 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: '#fff',
   },
   avatar: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { fontSize: 24, fontWeight: '800' },
+  avatarTxt: { fontSize: 24, fontFamily: 'OheveSerif-Medium' },
   profileInfo: { flex: 1, gap: 3 },
   sectionLabel: {
     fontSize: 11, fontWeight: '700', color: C.textLight,

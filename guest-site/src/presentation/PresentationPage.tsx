@@ -323,7 +323,7 @@ function Positioning() {
         ))}
       </div>
       <div className="pz-idea" data-reveal>
-        <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#45291a" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true">
+        <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#343630" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true">
           <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3zM12 0.5V1.5M4 4l.8.8M20 4l-.8.8M1.5 10h1M21.5 10h1" />
         </svg>
         <p className="pz-quote">« Une seule application. Des centaines de décisions simplifiées. »</p>
@@ -378,8 +378,8 @@ function TodoDemo() {
 function BudgetDemo() {
   const [ref, inView] = useInView<HTMLDivElement>(0.3);
   const rows = [
-    { name: 'Réception', v: 82, c: '#6f7560' },
-    { name: 'Photo & vidéo', v: 64, c: '#9c9f88' },
+    { name: 'Réception', v: 82, c: '#747e68' },
+    { name: 'Photo & vidéo', v: 64, c: '#929b83' },
     { name: 'Tenues', v: 48, c: '#b6ad9b' },
     { name: 'Fleurs & déco', v: 104, c: '#c08a7a' },
   ];
@@ -425,9 +425,9 @@ function GuestsDemo() {
         <div className="pz-ring">
           <svg viewBox="0 0 140 140" aria-hidden="true">
             <circle cx="70" cy="70" r="58" stroke="rgba(69,41,26,0.08)" />
-            <circle cx="70" cy="70" r="58" stroke="#d6ccbc" strokeDasharray={C} strokeDashoffset={arc(145)} />
+            <circle cx="70" cy="70" r="58" stroke="#e2ded5" strokeDasharray={C} strokeDashoffset={arc(145)} />
             <circle cx="70" cy="70" r="58" stroke="#c08a7a" strokeDasharray={C} strokeDashoffset={arc(113)} />
-            <circle cx="70" cy="70" r="58" stroke="#6f7560" strokeDasharray={C} strokeDashoffset={arc(98)} />
+            <circle cx="70" cy="70" r="58" stroke="#747e68" strokeDasharray={C} strokeDashoffset={arc(98)} />
           </svg>
           <div className="pz-ring-label">
             <div>
@@ -438,7 +438,7 @@ function GuestsDemo() {
         </div>
         <div className="pz-stats">
           <div className="pz-stat">
-            <span className="pz-dot" style={{ background: '#6f7560' }} />
+            <span className="pz-dot" style={{ background: '#747e68' }} />
             <b>{yes}</b> confirmés
           </div>
           <div className="pz-stat">
@@ -446,7 +446,7 @@ function GuestsDemo() {
             <b>{no}</b> refus
           </div>
           <div className="pz-stat">
-            <span className="pz-dot" style={{ background: '#d6ccbc' }} />
+            <span className="pz-dot" style={{ background: '#e2ded5' }} />
             <b>{pending}</b> en attente
           </div>
         </div>

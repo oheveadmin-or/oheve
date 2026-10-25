@@ -153,14 +153,14 @@ export function BookingModal({
                 value={title}
                 onChangeText={setTitle}
                 placeholder="Titre du rendez-vous"
-                placeholderTextColor="#A09890"
+                placeholderTextColor="#9A9C93"
               />
               <TextInput
                 style={[bkStyles.input, { minHeight: 70, textAlignVertical: 'top' }]}
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="Notes (optionnel)"
-                placeholderTextColor="#A09890"
+                placeholderTextColor="#9A9C93"
                 multiline
               />
               <Pressable style={bkStyles.ctaBtn} onPress={handleBook} disabled={submitting}>
@@ -266,28 +266,28 @@ export function ProposeAppointmentModal({
               value={title}
               onChangeText={setTitle}
               placeholder="Titre (ex. Dégustation menu)"
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
             />
             <TextInput
               style={bkStyles.input}
               value={date}
               onChangeText={setDate}
               placeholder="Date (AAAA-MM-JJ)"
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
             />
             <TextInput
               style={bkStyles.input}
               value={time}
               onChangeText={setTime}
               placeholder="Heure (HH:MM)"
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
             />
             <TextInput
               style={[bkStyles.input, { minHeight: 70, textAlignVertical: 'top' }]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Notes (optionnel — adresse, précisions…)"
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
               multiline
             />
             <View style={bkStyles.notifyRow}>
@@ -312,7 +312,7 @@ const bkStyles = StyleSheet.create({
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingHorizontal: 20, paddingTop: 10,
   },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 12 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#ece8e0', alignSelf: 'center', marginBottom: 12 },
   headerTitle: { fontSize: 19, fontWeight: '800', color: C.textDark },
   headerSub: { fontSize: 13, color: C.textLight, marginTop: 2, marginBottom: 14 },
   input: {

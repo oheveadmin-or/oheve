@@ -135,7 +135,7 @@ export default function BudgetScreen() {
       >
         <View style={styles.header}>
           <Pressable style={styles.retourBtn} onPress={() => router.replace('/(onboarding)/date-mariage')}>
-            <Ionicons name="arrow-back" size={24} color="#6366f1" />
+            <Ionicons name="arrow-back" size={24} color="#747e68" />
             <ThemedText style={styles.retourText}>Retour</ThemedText>
           </Pressable>
         </View>
@@ -179,7 +179,7 @@ export default function BudgetScreen() {
                 key="input-global"
                 style={styles.input}
                 placeholder="Ex: 30000"
-                placeholderTextColor="#A09890"
+                placeholderTextColor="#9A9C93"
                 value={budgetGlobal}
                 onChangeText={updateBudgetGlobal}
                 keyboardType="number-pad"
@@ -202,7 +202,7 @@ export default function BudgetScreen() {
                     key={`input-${key}`}
                     style={styles.input}
                     placeholder={`Ex: ${placeholder === '0' ? '3000' : placeholder}`}
-                    placeholderTextColor="#A09890"
+                    placeholderTextColor="#9A9C93"
                     value={categories[key]}
                     onChangeText={(v) => updateCategory(key, v)}
                     keyboardType="number-pad"
@@ -255,13 +255,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   retourText: {
-    color: '#6366f1',
+    color: '#747e68',
     fontSize: 16,
     fontWeight: '500',
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: 'OheveSerif-Medium',
     marginBottom: 8,
   },
   subtitle: {
@@ -279,11 +279,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#ece8e0',
     alignItems: 'center',
   },
   choiceBtnSelected: {
-    borderColor: '#6366f1',
+    borderColor: '#747e68',
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
   },
   choiceText: {
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   choiceTextSelected: {
-    color: '#6366f1',
+    color: '#747e68',
     fontWeight: '600',
   },
   scroll: {
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#ece8e0',
     marginBottom: 12,
   },
   cardTitle: {
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#ece8e0',
     borderRadius: 8,
     padding: 14,
     fontSize: 16,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     marginBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#ece8e0',
   },
   totalLabel: {
     fontSize: 16,
@@ -364,11 +364,11 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#6366f1',
+    fontFamily: 'OheveSerif-Medium',
+    color: '#747e68',
   },
   button: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#747e68',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',

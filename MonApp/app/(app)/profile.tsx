@@ -29,10 +29,10 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   homeButton: { alignSelf: 'flex-start', marginBottom: 12, paddingVertical: 6 },
-  homeButtonText: { color: '#6366f1', fontSize: 15, fontWeight: '600' },
+  homeButtonText: { color: '#747e68', fontSize: 15, fontWeight: '600' },
   header: { marginBottom: 14 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 6 },
+  title: { fontSize: 28, fontFamily: 'OheveSerif-Medium', marginBottom: 6 },
   subtitle: { fontSize: 15, opacity: 0.8 },
-  card: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 16, gap: 10 },
+  card: { borderWidth: 1, borderColor: '#ece8e0', borderRadius: 12, padding: 16, gap: 10 },
   line: { fontSize: 15, fontWeight: '500' },
 });

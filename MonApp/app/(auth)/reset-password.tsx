@@ -91,13 +91,13 @@ export default function ResetPasswordScreen() {
   return (
     <ScreenLayout>
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
-        <Ionicons name="arrow-back" size={22} color="#A7AD9A" />
+        <Ionicons name="arrow-back" size={22} color="#929B83" />
       </Pressable>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.iconWrap}>
-            <Ionicons name="shield-checkmark-outline" size={52} color="#A7AD9A" />
+            <Ionicons name="shield-checkmark-outline" size={52} color="#929B83" />
           </View>
 
           <ThemedText style={styles.title}>Nouveau mot de passe</ThemedText>
@@ -132,12 +132,12 @@ export default function ResetPasswordScreen() {
               value={newPwd}
               onChangeText={setNewPwd}
               placeholder="Min. 8 caractères"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#9a9c93"
               secureTextEntry={!showNew}
               returnKeyType="next"
             />
             <Pressable onPress={() => setShowNew(v => !v)} style={styles.eyeBtn}>
-              <Ionicons name={showNew ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
+              <Ionicons name={showNew ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9a9c93" />
             </Pressable>
           </View>
 
@@ -149,13 +149,13 @@ export default function ResetPasswordScreen() {
               value={confirmPwd}
               onChangeText={setConfirmPwd}
               placeholder="Répète ton mot de passe"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#9a9c93"
               secureTextEntry={!showConfirm}
               returnKeyType="done"
               onSubmitEditing={handleReset}
             />
             <Pressable onPress={() => setShowConfirm(v => !v)} style={styles.eyeBtn}>
-              <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
+              <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9a9c93" />
             </Pressable>
           </View>
 
@@ -188,32 +188,32 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 40 },
   backBtn: { marginBottom: 8 },
   iconWrap: { alignItems: 'center', marginBottom: 20, marginTop: 16 },
-  title: { fontSize: 26, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  sub: { fontSize: 14, color: '#6b7280', marginBottom: 28, lineHeight: 22 },
-  emailTxt: { color: '#A7AD9A', fontWeight: '700' },
-  label: { fontSize: 13, fontWeight: '600', color: '#4b5563', marginBottom: 8, marginTop: 16 },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: '#343630', marginBottom: 8 },
+  sub: { fontSize: 14, color: '#5c5f57', marginBottom: 28, lineHeight: 22 },
+  emailTxt: { color: '#929B83', fontWeight: '700' },
+  label: { fontSize: 13, fontWeight: '600', color: '#5c5f57', marginBottom: 8, marginTop: 16 },
 
   codeRow: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 4 },
   codeBox: {
     width: 46, height: 56, borderRadius: 12,
-    borderWidth: 2, borderColor: '#e5e7eb',
-    textAlign: 'center', fontSize: 22, fontWeight: '700',
-    color: '#111827', backgroundColor: '#fafafa',
+    borderWidth: 2, borderColor: '#ece8e0',
+    textAlign: 'center', fontSize: 22, fontFamily: 'OheveSerif-Medium',
+    color: '#343630', backgroundColor: '#fcfbf9',
   },
-  codeBoxFilled: { borderColor: '#A7AD9A', backgroundColor: '#E8EDE4' },
+  codeBoxFilled: { borderColor: '#929B83', backgroundColor: '#F5F2ED' },
 
   input: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: '#111827', backgroundColor: '#fafafa',
+    fontSize: 15, color: '#343630', backgroundColor: '#fcfbf9',
   },
   pwdRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eyeBtn: { padding: 10 },
   errorTxt: { fontSize: 12, color: '#ef4444', marginTop: 6 },
 
-  btn: { marginTop: 28, backgroundColor: '#A7AD9A', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  btn: { marginTop: 28, backgroundColor: '#929B83', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
   btnDisabled: { opacity: 0.6 },
   btnTxt: { color: '#fff', fontWeight: '700', fontSize: 16 },
   resendRow: { marginTop: 18, alignItems: 'center' },
-  resendTxt: { color: '#A7AD9A', fontWeight: '600', fontSize: 14 },
+  resendTxt: { color: '#929B83', fontWeight: '600', fontSize: 14 },
 });

@@ -125,7 +125,7 @@ export function VideoThumbnail({ uri, style, iconSize = 30 }: VideoThumbnailProp
 
 const vtStyles = StyleSheet.create({
   wrap: {
-    backgroundColor: '#374151',
+    backgroundColor: '#5c5f57',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',

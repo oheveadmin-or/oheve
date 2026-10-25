@@ -76,7 +76,7 @@ export default function NewReelScreen() {
           ) : (
             <View style={styles.videoEmpty}>
               <View style={styles.videoIcon}>
-                <Ionicons name="videocam-outline" size={36} color="#8B5CF6" />
+                <Ionicons name="videocam-outline" size={36} color="#747E68" />
               </View>
               <ThemedText style={styles.videoEmptyTitle}>Sélectionner une vidéo</ThemedText>
               <ThemedText style={styles.videoEmptyMeta}>Max 90 secondes · MP4, MOV</ThemedText>
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   videoPicker: {
     height: 180, backgroundColor: C.card, borderRadius: RADIUS.lg,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#8B5CF633', borderStyle: 'dashed',
+    borderWidth: 2, borderColor: '#747E6833', borderStyle: 'dashed',
     marginBottom: 24,
   },
   videoEmpty: { alignItems: 'center', gap: 10 },
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
 
   publishBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#8B5CF6', borderRadius: RADIUS.md, paddingVertical: 16,
+    backgroundColor: '#747E68', borderRadius: RADIUS.md, paddingVertical: 16,
   },
   publishBtnDisabled: { opacity: 0.55 },
   publishBtnText: { color: C.textInvert, fontSize: 16, fontWeight: '700' },

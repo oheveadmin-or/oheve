@@ -125,7 +125,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 20 },
-  title: { fontSize: 26, fontWeight: '700', color: C.textDark, marginTop: 16, marginBottom: 20 },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginTop: 16, marginBottom: 20 },
   profileCard: {
     backgroundColor: C.card,
     borderRadius: 14,

@@ -492,7 +492,7 @@ export default function GuestsScreen() {
   // ── Labels ───────────────────────────────────────────────────────────────────
 
   const statusLabel: Record<GuestStatus, string> = { confirmed: 'Confirme', declined: 'Refuse' };
-  const statusColor: Record<GuestStatus, string>  = { confirmed: '#7A8A72', declined: '#C17E7E' };
+  const statusColor: Record<GuestStatus, string>  = { confirmed: '#747E68', declined: '#C17E7E' };
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -515,7 +515,7 @@ export default function GuestsScreen() {
               {eventFilter === 'all' ? 'Tous les invités' : `${eventEmoji(eventFilter)} ${eventLabel(eventFilter)}`}
             </ThemedText>
             <View style={styles.summaryIconBadge}>
-              <Ionicons name="people" size={12} color="#A7AD9A" />
+              <Ionicons name="people" size={12} color="#929B83" />
             </View>
           </View>
 
@@ -598,11 +598,11 @@ export default function GuestsScreen() {
 
         {/* Search bar */}
         <View style={styles.searchRow}>
-          <Ionicons name="search-outline" size={15} color="#A09890" style={{ marginRight: 6 }} />
+          <Ionicons name="search-outline" size={15} color="#9A9C93" style={{ marginRight: 6 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="Rechercher un invité..."
-            placeholderTextColor="#A09890"
+            placeholderTextColor="#9A9C93"
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="none"
@@ -611,7 +611,7 @@ export default function GuestsScreen() {
           />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={16} color="#A09890" />
+              <Ionicons name="close-circle" size={16} color="#9A9C93" />
             </Pressable>
           )}
         </View>
@@ -630,15 +630,15 @@ export default function GuestsScreen() {
         {/* Actions row */}
         <View style={styles.actionsRow}>
           <Pressable style={styles.actionBtn} onPress={onSyncFromSite}>
-            <Ionicons name="sync-outline" size={14} color="#7A8A72" />
+            <Ionicons name="sync-outline" size={14} color="#747E68" />
             <ThemedText style={styles.actionBtnText}>Sync site</ThemedText>
           </Pressable>
           <Pressable style={styles.actionBtn} onPress={onExportExcel}>
-            <Ionicons name="download-outline" size={14} color="#7A8A72" />
+            <Ionicons name="download-outline" size={14} color="#747E68" />
             <ThemedText style={styles.actionBtnText}>Exporter Excel</ThemedText>
           </Pressable>
           <Pressable style={styles.actionBtn} onPress={onImportExcel}>
-            <Ionicons name="document-attach-outline" size={14} color="#7A8A72" />
+            <Ionicons name="document-attach-outline" size={14} color="#747E68" />
             <ThemedText style={styles.actionBtnText}>Importer Excel</ThemedText>
           </Pressable>
         </View>
@@ -647,7 +647,7 @@ export default function GuestsScreen() {
         {mySiteLinks && (
           <View style={styles.inviteLinksCard}>
             <View style={styles.inviteLinksHead}>
-              <Ionicons name="link-outline" size={15} color="#7A8A72" />
+              <Ionicons name="link-outline" size={15} color="#747E68" />
               <ThemedText style={styles.inviteLinksTitle}>Lien carte de mariage</ThemedText>
             </View>
             <ThemedText style={styles.inviteLinksHint}>
@@ -664,10 +664,10 @@ export default function GuestsScreen() {
                     <ThemedText style={styles.inviteLinkUrl} numberOfLines={1}>{mainUrl}</ThemedText>
                   </View>
                   <Pressable hitSlop={8} onPress={() => copyInviteLink(mainUrl)}>
-                    <Ionicons name="copy-outline" size={17} color="#7A8A72" />
+                    <Ionicons name="copy-outline" size={17} color="#747E68" />
                   </Pressable>
                   <Pressable hitSlop={8} onPress={() => shareInviteLink(mainUrl)}>
-                    <Ionicons name="share-outline" size={17} color="#7A8A72" />
+                    <Ionicons name="share-outline" size={17} color="#747E68" />
                   </Pressable>
                 </View>
               );
@@ -682,10 +682,10 @@ export default function GuestsScreen() {
                     <ThemedText style={styles.inviteLinkUrl} numberOfLines={1}>{url}</ThemedText>
                   </View>
                   <Pressable hitSlop={8} onPress={() => copyInviteLink(url)}>
-                    <Ionicons name="copy-outline" size={17} color="#7A8A72" />
+                    <Ionicons name="copy-outline" size={17} color="#747E68" />
                   </Pressable>
                   <Pressable hitSlop={8} onPress={() => shareInviteLink(url)}>
-                    <Ionicons name="share-outline" size={17} color="#7A8A72" />
+                    <Ionicons name="share-outline" size={17} color="#747E68" />
                   </Pressable>
                 </View>
               );
@@ -693,7 +693,7 @@ export default function GuestsScreen() {
 
             {/* Message d'invitation envoyé avec le lien */}
             <Pressable style={styles.inviteMessageRow} onPress={openTemplateEditor}>
-              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#7A8A72" />
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#747E68" />
               <View style={{ flex: 1 }}>
                 <ThemedText style={styles.inviteLinkLabel}>Message d’invitation</ThemedText>
                 <ThemedText style={styles.inviteLinkUrl} numberOfLines={2}>
@@ -735,7 +735,7 @@ export default function GuestsScreen() {
                 onLongPress={() => onDeleteGuest(guest.id)}
               >
                 <View style={styles.guestIconWrap}>
-                  <Ionicons name="people-outline" size={11} color="#A7AD9A" />
+                  <Ionicons name="people-outline" size={11} color="#929B83" />
                 </View>
                 <View style={styles.guestBody}>
                   <View style={styles.guestTopRow}>
@@ -762,11 +762,11 @@ export default function GuestsScreen() {
                 </View>
                 {mySiteLinks && (
                   <Pressable onPress={() => sendGuestInvitation(guest)} hitSlop={8} style={styles.guestDeleteBtn} accessibilityLabel={`Envoyer l'invitation à ${guest.name}`}>
-                    <Ionicons name="paper-plane-outline" size={15} color="#7A8A72" />
+                    <Ionicons name="paper-plane-outline" size={15} color="#747E68" />
                   </Pressable>
                 )}
                 <Pressable onPress={() => onDeleteGuest(guest.id)} hitSlop={8} style={styles.guestDeleteBtn}>
-                  <Ionicons name="trash-outline" size={14} color="#d1d5db" />
+                  <Ionicons name="trash-outline" size={14} color="#ece8e0" />
                 </Pressable>
               </Pressable>
             );
@@ -887,96 +887,96 @@ export default function GuestsScreen() {
 }
 
 const styles = StyleSheet.create({
-  rsvpBadge: { fontSize: 10, color: '#7A8A72', fontWeight: '700', marginTop: 2 },
+  rsvpBadge: { fontSize: 10, color: '#747E68', fontWeight: '700', marginTop: 2 },
   slugRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   slugInput: { flex: 1, height: 36, borderWidth: 1, borderColor: '#EBEBF2', borderRadius: 10, paddingHorizontal: 10, fontSize: 13, backgroundColor: '#fff' },
-  slugSyncBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#7A8A72', alignItems: 'center', justifyContent: 'center' },
+  slugSyncBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#747E68', alignItems: 'center', justifyContent: 'center' },
   homeButton: { alignSelf: 'flex-start', marginBottom: 4, paddingVertical: 1 },
-  homeButtonText: { color: '#7A8A72', fontSize: 13, fontWeight: '600', lineHeight: 16 },
+  homeButtonText: { color: '#747E68', fontSize: 13, fontWeight: '600', lineHeight: 16 },
   pageContent: { paddingBottom: 8 },
   header: { marginBottom: 8 },
-  title: { fontWeight: '700', marginBottom: 2, color: '#3D3530', fontSize: 22 },
+  title: { fontFamily: 'OheveSerif-Medium', marginBottom: 2, color: '#343630', fontSize: 22 },
   subtitle: { fontSize: 12, color: '#8e8e98', lineHeight: 15, fontWeight: '500' },
 
   summaryCard: { borderWidth: 1, borderColor: '#EBEBF2', borderRadius: 14, backgroundColor: '#ffffff', paddingHorizontal: 10, paddingVertical: 10, marginBottom: 8 },
   summaryHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   summaryTitle: { fontSize: 11, color: '#707084', fontWeight: '600' },
-  summaryIconBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E8EDE4', alignItems: 'center', justifyContent: 'center' },
-  summaryBigNumber: { fontSize: 14, color: '#A7AD9A', fontWeight: '800', marginBottom: 6, lineHeight: 18 },
+  summaryIconBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#F5F2ED', alignItems: 'center', justifyContent: 'center' },
+  summaryBigNumber: { fontSize: 14, color: '#929B83', fontWeight: '800', marginBottom: 6, lineHeight: 18 },
   summaryBigHint: { color: '#2f3140', fontSize: 12, fontWeight: '600' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  progressTrack: { flex: 1, height: 4, backgroundColor: '#E8EDE4', borderRadius: 999, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#A7AD9A' },
-  progressPercent: { color: '#A7AD9A', fontSize: 10, fontWeight: '700', minWidth: 28, textAlign: 'right' },
+  progressTrack: { flex: 1, height: 4, backgroundColor: '#F5F2ED', borderRadius: 999, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: '#929B83' },
+  progressPercent: { color: '#929B83', fontSize: 10, fontWeight: '700', minWidth: 28, textAlign: 'right' },
   summaryStatsRow: { flexDirection: 'row', alignItems: 'center' },
   summaryStatCol: { flex: 1, alignItems: 'center' },
   summaryDivider: { width: 1, height: 20, backgroundColor: '#ececf1' },
-  summaryStatValue: { fontSize: 11, fontWeight: '700', color: '#A7AD9A', marginBottom: 1 },
+  summaryStatValue: { fontSize: 11, fontWeight: '700', color: '#929B83', marginBottom: 1 },
   summaryStatLabel: { fontSize: 9, color: '#7c7c8e', fontWeight: '500' },
 
   eventTabRow: { flexDirection: 'row', gap: 6, marginBottom: 8, paddingRight: 8 },
-  eventTab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#E2D9CC', backgroundColor: '#fff' },
-  eventTabActive: { backgroundColor: '#7A8A72', borderColor: '#7A8A72' },
-  eventTabText: { fontSize: 11, fontWeight: '600', color: '#4b5563' },
+  eventTab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#ECE8E0', backgroundColor: '#fff' },
+  eventTabActive: { backgroundColor: '#747E68', borderColor: '#747E68' },
+  eventTabText: { fontSize: 11, fontWeight: '600', color: '#5c5f57' },
   eventTabTextActive: { color: '#fff' },
 
   searchRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2D9CC',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#ECE8E0',
     borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
     marginBottom: 8,
   },
-  searchInput: { flex: 1, fontSize: 14, color: '#3D3530' },
+  searchInput: { flex: 1, fontSize: 14, color: '#343630' },
   filterRow: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', gap: 6, marginBottom: 8, paddingRight: 8 },
-  filterChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: '#E2D9CC', backgroundColor: '#ffffff', justifyContent: 'center' },
-  filterChipActive: { backgroundColor: '#A7AD9A', borderColor: '#A7AD9A' },
-  filterChipText: { color: '#4b5563', fontSize: 10, fontWeight: '500' },
+  filterChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: '#ECE8E0', backgroundColor: '#ffffff', justifyContent: 'center' },
+  filterChipActive: { backgroundColor: '#929B83', borderColor: '#929B83' },
+  filterChipText: { color: '#5c5f57', fontSize: 10, fontWeight: '500' },
   filterChipTextActive: { color: '#fff', fontWeight: '700' },
 
   actionsRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
   inviteLinksCard: {
-    borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 12,
+    borderWidth: 1, borderColor: '#ECE8E0', borderRadius: 12,
     backgroundColor: '#fff', padding: 12, marginBottom: 10, gap: 8,
   },
   inviteLinksHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  inviteLinksTitle: { fontSize: 14, fontWeight: '700', color: '#3D3530' },
-  inviteLinksHint: { fontSize: 11, color: '#A09890', lineHeight: 15 },
+  inviteLinksTitle: { fontSize: 14, fontWeight: '700', color: '#343630' },
+  inviteLinksHint: { fontSize: 11, color: '#9A9C93', lineHeight: 15 },
   inviteLinkRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E2D9CC',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#ECE8E0',
     paddingTop: 8,
   },
-  inviteLinkLabel: { fontSize: 12, fontWeight: '700', color: '#7A8A72' },
-  inviteLinkUrl: { fontSize: 11, color: '#6B6058', marginTop: 1 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#fff' },
-  actionBtnText: { fontSize: 11, color: '#7A8A72', fontWeight: '600' },
+  inviteLinkLabel: { fontSize: 12, fontWeight: '700', color: '#747E68' },
+  inviteLinkUrl: { fontSize: 11, color: '#5C5F57', marginTop: 1 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: '#ECE8E0', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#fff' },
+  actionBtnText: { fontSize: 11, color: '#747E68', fontWeight: '600' },
 
   emptyState: { paddingVertical: 24, alignItems: 'center' },
-  emptyText: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
+  emptyText: { fontSize: 13, color: '#9a9c93', textAlign: 'center' },
 
   guestDeleteBtn: { padding: 4 },
   inviteMessageRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderTopWidth: 1, borderTopColor: '#EFE8DD', paddingTop: 8, marginTop: 2,
   },
-  inviteMessageEdit: { fontSize: 12, fontWeight: '700', color: '#7A8A72' },
+  inviteMessageEdit: { fontSize: 12, fontWeight: '700', color: '#747E68' },
   templateInput: { minHeight: 260, maxHeight: 380, fontSize: 13, lineHeight: 18, marginTop: 8 },
   listContent: { gap: 4, paddingBottom: 2 },
-  guestCard: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#E2D9CC', width: '100%', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 0 },
+  guestCard: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#ECE8E0', width: '100%', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 0 },
   guestCardPressed: { opacity: 0.92 },
-  guestIconWrap: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#E8EDE4', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  guestIconWrap: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#F5F2ED', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   guestBody: { flex: 1, minWidth: 0 },
   guestTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 1 },
   guestRightSide: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8, flexShrink: 0 },
-  guestName: { fontSize: 13, fontWeight: '700', color: '#3D3530', flex: 1, minWidth: 0, lineHeight: 15 },
+  guestName: { fontSize: 13, fontWeight: '700', color: '#343630', flex: 1, minWidth: 0, lineHeight: 15 },
   statusBadge: { fontSize: 10, fontWeight: '700', textAlign: 'right' },
-  guestDetails: { fontSize: 10, color: '#6b7280', lineHeight: 12, fontWeight: '500', flexShrink: 1 },
+  guestDetails: { fontSize: 10, color: '#5c5f57', lineHeight: 12, fontWeight: '500', flexShrink: 1 },
   guestEventRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 },
   guestEventTag: { backgroundColor: '#F0F4EE', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  guestEventTagText: { fontSize: 9, color: '#7A8A72', fontWeight: '600' },
+  guestEventTagText: { fontSize: 9, color: '#747E68', fontWeight: '600' },
 
   listFooter: { marginTop: 6, paddingHorizontal: 2 },
-  primaryBtn: { backgroundColor: '#A7AD9A', paddingVertical: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  primaryBtn: { backgroundColor: '#929B83', paddingVertical: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   primaryBtnPressed: { opacity: 0.9 },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
@@ -984,23 +984,23 @@ const styles = StyleSheet.create({
   modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.25)' },
   modalCenter: { width: '100%', maxWidth: 520, alignSelf: 'center' },
   modalScrollContent: { width: '100%' },
-  modalCard: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#E2D9CC', padding: 14, width: '100%', maxWidth: 520, alignSelf: 'center' },
-  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 10, color: '#3D3530' },
-  modalLabel: { fontSize: 12, color: '#4b5563', marginBottom: 4, fontWeight: '600' },
-  modalInput: { borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, marginBottom: 9, backgroundColor: '#FCFCFD' },
+  modalCard: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#ECE8E0', padding: 14, width: '100%', maxWidth: 520, alignSelf: 'center' },
+  modalTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', marginBottom: 10, color: '#343630' },
+  modalLabel: { fontSize: 12, color: '#5c5f57', marginBottom: 4, fontWeight: '600' },
+  modalInput: { borderWidth: 1, borderColor: '#ECE8E0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, marginBottom: 9, backgroundColor: '#FCFCFD' },
   statusRow: { flexDirection: 'row', gap: 6, marginBottom: 9 },
-  statusChip: { flex: 1, borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 9, paddingVertical: 8, alignItems: 'center' },
-  statusChipActive: { borderColor: '#A7AD9A', backgroundColor: '#E8EDE4' },
-  statusChipText: { fontSize: 12, color: '#4b5563', fontWeight: '600' },
-  statusChipTextActive: { color: '#A7AD9A' },
+  statusChip: { flex: 1, borderWidth: 1, borderColor: '#ECE8E0', borderRadius: 9, paddingVertical: 8, alignItems: 'center' },
+  statusChipActive: { borderColor: '#929B83', backgroundColor: '#F5F2ED' },
+  statusChipText: { fontSize: 12, color: '#5c5f57', fontWeight: '600' },
+  statusChipTextActive: { color: '#929B83' },
   eventPickerRow: { flexDirection: 'row', gap: 6, marginBottom: 9, paddingRight: 4 },
-  eventPickerChip: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#E2D9CC', backgroundColor: '#fff' },
-  eventPickerChipActive: { backgroundColor: '#7A8A72', borderColor: '#7A8A72' },
-  eventPickerChipText: { fontSize: 11, color: '#4b5563', fontWeight: '500' },
+  eventPickerChip: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#ECE8E0', backgroundColor: '#fff' },
+  eventPickerChipActive: { backgroundColor: '#747E68', borderColor: '#747E68' },
+  eventPickerChipText: { fontSize: 11, color: '#5c5f57', fontWeight: '500' },
   eventPickerChipTextActive: { color: '#fff', fontWeight: '700' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 2 },
-  modalBtnSecondary: { flex: 1, borderWidth: 1, borderColor: '#E2D9CC', borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
-  modalBtnSecondaryText: { color: '#4b5563', fontWeight: '700' },
-  modalBtnPrimary: { flex: 1, backgroundColor: '#A7AD9A', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  modalBtnSecondary: { flex: 1, borderWidth: 1, borderColor: '#ECE8E0', borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
+  modalBtnSecondaryText: { color: '#5c5f57', fontWeight: '700' },
+  modalBtnPrimary: { flex: 1, backgroundColor: '#929B83', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
   modalBtnPrimaryText: { color: '#fff', fontWeight: '700' },
 });

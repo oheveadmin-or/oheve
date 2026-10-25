@@ -144,7 +144,7 @@ const ICONS: Record<SubCat, keyof typeof import('@expo/vector-icons').Ionicons.g
 
 const BG: Record<SubCat, string> = {
   lieu:        '#E8E4DC',
-  hebergement: '#EDE8E1',
+  hebergement: '#ECE8E0',
   synagogue:   '#E8E4EE',
 };
 
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   retourText: { color: C.saugeDark, fontSize: 15, fontWeight: '600' },
 
   wrap: { flex: 1, paddingHorizontal: 20 },
-  title: { fontSize: 26, fontWeight: '800', color: C.textDark, marginBottom: 4 },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 4 },
   subtitle: { fontSize: 13, color: C.textLight, marginBottom: 16, lineHeight: 18 },
 
   subCatScroll: { flexGrow: 0, marginBottom: 6 },

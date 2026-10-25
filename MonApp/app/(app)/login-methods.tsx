@@ -309,7 +309,7 @@ export default function LoginMethodsScreen() {
 const styles = StyleSheet.create({
   backBtn: { marginBottom: 8 },
   content: { paddingBottom: 60 },
-  title: { fontSize: 28, fontWeight: '800', color: C.textDark, marginBottom: 6 },
+  title: { fontSize: 28, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 6 },
   subtitle: { fontSize: 14, color: C.textLight, marginBottom: 20 },
 
   card: {

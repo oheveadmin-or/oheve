@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
   },
-  title: { fontSize: 22, fontWeight: '800', color: C.textDark },
+  title: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   addBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: C.sauge, alignItems: 'center', justifyContent: 'center',

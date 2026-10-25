@@ -75,7 +75,7 @@ export default function BoutiqueHomeScreen() {
         </Pressable>
         <Pressable style={styles.quickBtn} onPress={() => router.push('/(boutique)/reel/new')}>
           <View style={[styles.quickIcon, { backgroundColor: '#EDE5F8' }]}>
-            <Ionicons name="videocam-outline" size={22} color="#8B5CF6" />
+            <Ionicons name="videocam-outline" size={22} color="#747E68" />
           </View>
           <ThemedText style={styles.quickLabel}>Nouveau reel</ThemedText>
         </Pressable>
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
 
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   greeting: { fontSize: 14, color: C.textLight },
-  shopName: { fontSize: 22, fontWeight: '800', color: C.textDark },
+  shopName: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   notifBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     flex: 1, minWidth: '45%', backgroundColor: C.card, borderRadius: RADIUS.md,
     padding: 14, alignItems: 'flex-start', gap: 4,
   },
-  statValue: { fontSize: 20, fontWeight: '800', color: C.textDark },
+  statValue: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   statLabel: { fontSize: 12, color: C.textLight },
 
   quickRow: { flexDirection: 'row', gap: 10, marginBottom: 28 },

@@ -137,19 +137,19 @@ export default function SubscriptionScreen() {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color="#A7AD9A" />
+          <Ionicons name="arrow-back" size={22} color="#929B83" />
         </Pressable>
         <ThemedText style={styles.title}>Abonnement Boutique</ThemedText>
       </View>
 
       {loading ? (
-        <ActivityIndicator color="#A7AD9A" style={{ marginTop: 40 }} />
+        <ActivityIndicator color="#929B83" style={{ marginTop: 40 }} />
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}>
 
           {/* Status actuel */}
           {isActive && mySub && (
-            <View style={[styles.currentBadge, { borderColor: currentPlan === 'plus' ? '#f59e0b' : '#A7AD9A' }]}>
+            <View style={[styles.currentBadge, { borderColor: currentPlan === 'plus' ? '#f59e0b' : '#929B83' }]}>
               <ThemedText style={styles.currentBadgeTitle}>
                 {currentPlan === 'plus' ? '⭐ Plan Plus actif' : '✓ Plan Basic actif'}
               </ThemedText>
@@ -167,7 +167,7 @@ export default function SubscriptionScreen() {
           {/* Note compte non-boutique */}
           {user?.role !== 'boutique' && (
             <View style={styles.noticeBox}>
-              <Ionicons name="information-circle-outline" size={18} color="#6b7280" />
+              <Ionicons name="information-circle-outline" size={18} color="#5c5f57" />
               <ThemedText style={styles.noticeTxt}>
                 Les abonnements sont réservés aux comptes Boutique. Votre compte est de type "{user?.role}".
               </ThemedText>
@@ -204,7 +204,7 @@ export default function SubscriptionScreen() {
                 <View style={styles.featuresList}>
                   {plan.features.map((feat, idx) => (
                     <View key={idx} style={styles.featureRow}>
-                      <Ionicons name="checkmark-circle" size={16} color={isPlusHighlight ? '#f59e0b' : '#A7AD9A'} />
+                      <Ionicons name="checkmark-circle" size={16} color={isPlusHighlight ? '#f59e0b' : '#929B83'} />
                       <ThemedText style={styles.featureTxt}>{feat}</ThemedText>
                     </View>
                   ))}
@@ -246,38 +246,38 @@ export default function SubscriptionScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
-  title: { fontSize: 20, fontWeight: '800', color: '#111827', flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f5f2ed', gap: 12 },
+  title: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: '#343630', flex: 1 },
   content: { padding: 16, gap: 16 },
   currentBadge: { borderWidth: 2, borderRadius: 16, padding: 16, gap: 6 },
-  currentBadgeTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  currentBadgeSub: { fontSize: 12, color: '#6b7280' },
+  currentBadgeTitle: { fontSize: 15, fontWeight: '700', color: '#343630' },
+  currentBadgeSub: { fontSize: 12, color: '#5c5f57' },
   cancelBtn: { marginTop: 8, alignSelf: 'flex-start', backgroundColor: '#fee2e2', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   cancelBtnTxt: { fontSize: 12, color: '#dc2626', fontWeight: '600' },
-  noticeBox: { flexDirection: 'row', gap: 8, backgroundColor: '#f9fafb', borderRadius: 12, padding: 14, alignItems: 'flex-start' },
-  noticeTxt: { flex: 1, fontSize: 13, color: '#6b7280', lineHeight: 18 },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  planCard: { borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 18, padding: 20, gap: 16, position: 'relative' },
+  noticeBox: { flexDirection: 'row', gap: 8, backgroundColor: '#fcfbf9', borderRadius: 12, padding: 14, alignItems: 'flex-start' },
+  noticeTxt: { flex: 1, fontSize: 13, color: '#5c5f57', lineHeight: 18 },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: '#343630' },
+  planCard: { borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 18, padding: 20, gap: 16, position: 'relative' },
   planCardPlus: { borderColor: '#f59e0b', backgroundColor: '#fffbeb' },
-  planCardCurrent: { borderColor: '#A7AD9A', backgroundColor: '#E8EDE4' },
+  planCardCurrent: { borderColor: '#929B83', backgroundColor: '#F5F2ED' },
   popularBadge: { position: 'absolute', top: -12, alignSelf: 'center', backgroundColor: '#f59e0b', borderRadius: 99, paddingHorizontal: 14, paddingVertical: 4 },
   popularBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  activePlanBadge: { position: 'absolute', top: -12, right: 16, backgroundColor: '#A7AD9A', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 },
+  activePlanBadge: { position: 'absolute', top: -12, right: 16, backgroundColor: '#929B83', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 },
   activePlanBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
   planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  planName: { fontSize: 22, fontWeight: '800', color: '#111827' },
+  planName: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: '#343630' },
   planNamePlus: { color: '#b45309' },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  priceAmount: { fontSize: 28, fontWeight: '800', color: '#A7AD9A' },
+  priceAmount: { fontSize: 28, fontFamily: 'OheveSerif-Medium', color: '#929B83' },
   priceAmountPlus: { color: '#f59e0b' },
-  priceInterval: { fontSize: 13, color: '#9ca3af' },
+  priceInterval: { fontSize: 13, color: '#9a9c93' },
   featuresList: { gap: 10 },
   featureRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  featureTxt: { fontSize: 14, color: '#374151', flex: 1 },
-  subscribeBtn: { backgroundColor: '#A7AD9A', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  featureTxt: { fontSize: 14, color: '#5c5f57', flex: 1 },
+  subscribeBtn: { backgroundColor: '#929B83', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   subscribeBtnPlus: { backgroundColor: '#f59e0b' },
   subscribeBtnDisabled: { opacity: 0.6 },
   subscribeBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  disclaimer: { backgroundColor: '#f9fafb', borderRadius: 12, padding: 12 },
-  disclaimerTxt: { fontSize: 12, color: '#9ca3af', lineHeight: 18, textAlign: 'center' },
+  disclaimer: { backgroundColor: '#fcfbf9', borderRadius: 12, padding: 12 },
+  disclaimerTxt: { fontSize: 12, color: '#9a9c93', lineHeight: 18, textAlign: 'center' },
 });

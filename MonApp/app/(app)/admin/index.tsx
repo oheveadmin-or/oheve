@@ -156,7 +156,7 @@ export default function AdminDashboard() {
         <ThemedText style={styles.cardTitle}>{u.prenom} {u.nom}</ThemedText>
         <ThemedText style={styles.cardSub}>{u.email}</ThemedText>
         <View style={styles.badgeRow}>
-          <View style={[styles.badge, { backgroundColor: '#A7AD9A22' }]}>
+          <View style={[styles.badge, { backgroundColor: '#929B8322' }]}>
             <ThemedText style={[styles.badgeTxt, { color: '#6b7c5e' }]}>{u.role}</ThemedText>
           </View>
           {!u.is_active && (
@@ -168,7 +168,7 @@ export default function AdminDashboard() {
       </View>
       <View style={styles.cardActions}>
         <Pressable style={styles.iconBtn} onPress={() => changeRole(u.id, `${u.prenom} ${u.nom}`)}>
-          <Ionicons name="swap-horizontal-outline" size={16} color="#6366f1" />
+          <Ionicons name="swap-horizontal-outline" size={16} color="#747e68" />
         </Pressable>
         <Pressable style={styles.iconBtn} onPress={() => toggleActive(u.id, u.is_active)}>
           <Ionicons name={u.is_active ? 'pause-outline' : 'play-outline'} size={16} color={u.is_active ? '#dc2626' : '#10b981'} />
@@ -286,7 +286,7 @@ export default function AdminDashboard() {
           await adminApi.updatePublicSite(token, s.id as number, { is_hidden: !s.is_hidden });
           load();
         }}>
-          <Ionicons name="eye-off-outline" size={16} color="#6366f1" />
+          <Ionicons name="eye-off-outline" size={16} color="#747e68" />
         </Pressable>
         <Pressable style={styles.iconBtn} onPress={() => {
           Alert.alert('Supprimer', 'Supprimer ce site ?', [
@@ -320,7 +320,7 @@ export default function AdminDashboard() {
             { text: 'Fermer', style: 'cancel' },
           ]);
         }}>
-          <Ionicons name="create-outline" size={16} color="#6366f1" />
+          <Ionicons name="create-outline" size={16} color="#747e68" />
         </Pressable>
         <Pressable style={styles.iconBtn} onPress={() => {
           Alert.alert('Annuler', 'Supprimer cette réservation ?', [
@@ -344,8 +344,8 @@ export default function AdminDashboard() {
         <ThemedText style={styles.cardTitle}>{formatEuros(p.amount_total as number)}</ThemedText>
         <ThemedText style={styles.cardSub}>{p.client_prenom as string} → {p.business_name as string || p.presta_prenom as string}</ThemedText>
         <View style={styles.badgeRow}>
-          <View style={[styles.badge, { backgroundColor: p.status === 'succeeded' ? '#d1fae5' : '#f3f4f6' }]}>
-            <ThemedText style={[styles.badgeTxt, { color: p.status === 'succeeded' ? '#10b981' : '#6b7280' }]}>{p.status as string}</ThemedText>
+          <View style={[styles.badge, { backgroundColor: p.status === 'succeeded' ? '#d1fae5' : '#f5f2ed' }]}>
+            <ThemedText style={[styles.badgeTxt, { color: p.status === 'succeeded' ? '#10b981' : '#5c5f57' }]}>{p.status as string}</ThemedText>
           </View>
           <ThemedText style={styles.cardMeta}>Commission : {formatEuros(p.commission_amount as number)}</ThemedText>
         </View>
@@ -354,11 +354,11 @@ export default function AdminDashboard() {
   );
 
   const dashboardStats = stats ? [
-    { label: 'Utilisateurs', val: stats.total_users, color: '#6366f1', icon: 'people' },
+    { label: 'Utilisateurs', val: stats.total_users, color: '#747e68', icon: 'people' },
     { label: 'Clients', val: stats.clients, color: '#10b981', icon: 'person' },
-    { label: 'Prestataires', val: stats.prestataires, color: '#A7AD9A', icon: 'business' },
+    { label: 'Prestataires', val: stats.prestataires, color: '#929B83', icon: 'business' },
     { label: 'Boutiques', val: stats.boutiques, color: '#f59e0b', icon: 'storefront' },
-    { label: 'Réservations', val: stats.reservations, color: '#8b5cf6', icon: 'calendar' },
+    { label: 'Réservations', val: stats.reservations, color: '#747e68', icon: 'calendar' },
     { label: 'Chiffre d\'affaires', val: formatEuros(stats.total_revenue_cents), color: '#059669', icon: 'trending-up' },
     { label: 'Commissions', val: formatEuros(stats.total_commission_cents), color: '#0ea5e9', icon: 'cash' },
     { label: 'Paiements OK', val: stats.succeeded_payments, color: '#14b8a6', icon: 'checkmark-circle' },
@@ -382,7 +382,7 @@ export default function AdminDashboard() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={styles.tabRow}>
         {TABS.map((t) => (
           <Pressable key={t.key} style={[styles.tabChip, tab === t.key && styles.tabChipOn]} onPress={() => setTab(t.key)}>
-            <Ionicons name={t.icon as 'grid-outline'} size={14} color={tab === t.key ? '#fff' : '#6b7280'} />
+            <Ionicons name={t.icon as 'grid-outline'} size={14} color={tab === t.key ? '#fff' : '#5c5f57'} />
             <ThemedText style={[styles.tabChipTxt, tab === t.key && styles.tabChipTxtOn]}>{t.label}</ThemedText>
           </Pressable>
         ))}
@@ -415,7 +415,7 @@ export default function AdminDashboard() {
             value={search}
             onChangeText={setSearch}
             placeholder="Rechercher…"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9a9c93"
             returnKeyType="search"
             onSubmitEditing={load}
           />
@@ -432,7 +432,7 @@ export default function AdminDashboard() {
         )}
 
         {loading ? (
-          <ActivityIndicator color="#A7AD9A" style={{ marginTop: 40 }} />
+          <ActivityIndicator color="#929B83" style={{ marginTop: 40 }} />
         ) : (
           <>
             {tab === 'users' && (
@@ -480,38 +480,38 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   heroLabel: { fontSize: 11, color: '#c5cbb8', fontWeight: '600', letterSpacing: 1 },
-  heroTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  heroTitle: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: '#fff' },
   adminBadge: { marginLeft: 'auto', width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  tabScroll: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  tabScroll: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#ece8e0' },
   tabRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  tabChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: '#f3f4f6' },
-  tabChipOn: { backgroundColor: '#A7AD9A' },
-  tabChipTxt: { fontSize: 12, fontWeight: '600', color: '#6b7280' },
+  tabChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: '#f5f2ed' },
+  tabChipOn: { backgroundColor: '#929B83' },
+  tabChipTxt: { fontSize: 12, fontWeight: '600', color: '#5c5f57' },
   tabChipTxtOn: { color: '#fff' },
   content: { padding: 16, gap: 12 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: { width: '47%', backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 4, borderLeftWidth: 4, borderWidth: 1, borderColor: '#f0f0f0' },
-  statVal: { fontSize: 20, fontWeight: '800' },
-  statLbl: { fontSize: 11, color: '#9ca3af', fontWeight: '500' },
-  stripeCard: { width: '100%', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#e5e7eb', marginTop: 4 },
-  stripeTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  stripeTxt: { fontSize: 13, color: '#6b7280', marginTop: 4 },
-  search: { borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: '#111827', backgroundColor: '#fff' },
+  statVal: { fontSize: 20, fontFamily: 'OheveSerif-Medium' },
+  statLbl: { fontSize: 11, color: '#9a9c93', fontWeight: '500' },
+  stripeCard: { width: '100%', backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#ece8e0', marginTop: 4 },
+  stripeTitle: { fontSize: 14, fontWeight: '700', color: '#343630' },
+  stripeTxt: { fontSize: 13, color: '#5c5f57', marginTop: 4 },
+  search: { borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: '#343630', backgroundColor: '#fff' },
   filterRow: { gap: 8, paddingVertical: 4 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 99, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff' },
-  filterChipOn: { borderColor: '#A7AD9A', backgroundColor: '#A7AD9A' },
-  filterTxt: { fontSize: 12, fontWeight: '600', color: '#4b5563' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 99, borderWidth: 1.5, borderColor: '#ece8e0', backgroundColor: '#fff' },
+  filterChipOn: { borderColor: '#929B83', backgroundColor: '#929B83' },
+  filterTxt: { fontSize: 12, fontWeight: '600', color: '#5c5f57' },
   filterTxtOn: { color: '#fff' },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#f0f0f0', gap: 10 },
   cardOff: { opacity: 0.55 },
   cardBody: { flex: 1, gap: 3 },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  cardSub: { fontSize: 12, color: '#9ca3af' },
-  cardMeta: { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: '#343630' },
+  cardSub: { fontSize: 12, color: '#9a9c93' },
+  cardMeta: { fontSize: 11, color: '#5c5f57', marginTop: 2 },
   badgeRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 4 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
   badgeTxt: { fontSize: 10, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 6 },
-  iconBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' },
-  empty: { textAlign: 'center', color: '#9ca3af', marginTop: 32, fontSize: 14 },
+  iconBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#ece8e0', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfbf9' },
+  empty: { textAlign: 'center', color: '#9a9c93', marginTop: 32, fontSize: 14 },
 });

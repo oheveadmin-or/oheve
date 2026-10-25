@@ -290,7 +290,7 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 10 },
   back: { padding: 4 },
   overline: { fontSize: 11, color: C.textLight },
-  title: { fontSize: 22, fontWeight: '700', color: C.textDark },
+  title: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark },
 
   tabs: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   tab: {

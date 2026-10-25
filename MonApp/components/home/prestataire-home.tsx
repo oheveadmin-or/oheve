@@ -241,7 +241,7 @@ export function PrestataireHome() {
               )}
               {city ? (
                 <View style={styles.cityRow}>
-                  <Ionicons name="location-outline" size={13} color="#A09890" />
+                  <Ionicons name="location-outline" size={13} color="#9A9C93" />
                   <ThemedText style={styles.cityText}>{city}</ThemedText>
                 </View>
               ) : null}
@@ -265,7 +265,7 @@ export function PrestataireHome() {
 
           <View style={styles.heroPills}>
             <View style={styles.pill}>
-              <Ionicons name="images-outline" size={13} color="#A7AD9A" />
+              <Ionicons name="images-outline" size={13} color="#929B83" />
               <ThemedText style={styles.pillText}>{portfolioPhotos.length} photo{portfolioPhotos.length !== 1 ? 's' : ''}</ThemedText>
             </View>
             <Pressable
@@ -380,7 +380,7 @@ export function PrestataireHome() {
                     style={styles.photoAdd}
                     onPress={() => router.push('/(app)/(tabs)/portfolio' as never)}
                   >
-                    <Ionicons name="add" size={28} color="#A7AD9A" />
+                    <Ionicons name="add" size={28} color="#929B83" />
                     <ThemedText style={styles.photoAddText}>Ajouter</ThemedText>
                   </Pressable>
                 );
@@ -462,7 +462,7 @@ export function PrestataireHome() {
                 <ThemedText style={styles.actionLabel}>{action.label}</ThemedText>
                 <ThemedText style={styles.actionSub}>{action.sub}</ThemedText>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#A09890" />
+              <Ionicons name="chevron-forward" size={16} color="#9A9C93" />
             </Pressable>
           ))}
         </AnimatedView>
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTextWrap: { flex: 1, paddingRight: 10 },
-  hello: { fontSize: 24, fontWeight: '800', color: C.textDark },
+  hello: { fontSize: 24, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   subHello: { marginTop: 4, fontSize: 13, color: C.textLight },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatarBubble: {
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   },
   heroTop: { flexDirection: 'row', gap: 12, marginBottom: 14 },
   heroCaption: { fontSize: 12, color: C.textLight, marginBottom: 4 },
-  heroValue: { fontSize: 20, fontWeight: '800', color: C.textDark },
+  heroValue: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   categoryPill: {
     alignSelf: 'flex-start',
     marginTop: 6,
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statValue: { fontSize: 20, fontWeight: '800', color: C.textDark },
+  statValue: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   statLabel: { fontSize: 11, color: C.textLight, textAlign: 'center' },
 
   card: {

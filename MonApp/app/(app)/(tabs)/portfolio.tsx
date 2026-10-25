@@ -248,7 +248,7 @@ export default function PortfolioScreen() {
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color="#A7AD9A" size="large" />
+          <ActivityIndicator color="#929B83" size="large" />
           <ThemedText style={styles.loadingText}>Chargement du portfolio...</ThemedText>
         </View>
       ) : (
@@ -287,7 +287,7 @@ export default function PortfolioScreen() {
               </Pressable>
             ) : (
               <Pressable style={styles.coverEmpty} onPress={pickAndUpload}>
-                <Ionicons name="image-outline" size={40} color="#c4b5fd" />
+                <Ionicons name="image-outline" size={40} color="#929b83" />
                 <ThemedText style={styles.coverEmptyTitle}>
                   Aucune photo de couverture
                 </ThemedText>
@@ -318,7 +318,7 @@ export default function PortfolioScreen() {
             <View style={styles.grid} onLayout={(e) => setGridW(e.nativeEvent.layout.width)}>
               {/* Add photo tile */}
               <Pressable style={[styles.addTile, { width: tileSize, height: tileSize }]} onPress={pickAndUpload}>
-                <Ionicons name="add-circle-outline" size={32} color="#A7AD9A" />
+                <Ionicons name="add-circle-outline" size={32} color="#929B83" />
                 <ThemedText style={styles.addTileText}>Ajouter{'\n'}des photos</ThemedText>
               </Pressable>
 
@@ -380,7 +380,7 @@ export default function PortfolioScreen() {
           {photos.length === 0 && (
             <AnimatedView entering={FadeInDown.delay(180).springify()} style={styles.emptyState}>
               <View style={styles.emptyIconWrap}>
-                <Ionicons name="images-outline" size={52} color="#c4b5fd" />
+                <Ionicons name="images-outline" size={52} color="#929b83" />
               </View>
               <ThemedText style={styles.emptyTitle}>Votre portfolio est vide</ThemedText>
               <ThemedText style={styles.emptyHint}>
@@ -447,7 +447,7 @@ export default function PortfolioScreen() {
             <TextInput
               style={styles.captionInput}
               placeholder="Décrivez cette réalisation (lieu, style, prestation...)"
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
               value={captionText}
               onChangeText={setCaptionText}
               multiline
@@ -480,13 +480,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginBottom: 20,
   },
-  overline: { fontSize: 13, color: '#7a72a1', marginBottom: 2 },
-  title: { fontSize: 30, lineHeight: 38, fontWeight: '800', color: '#1c1535' },
+  overline: { fontSize: 13, color: '#747e68', marginBottom: 2 },
+  title: { fontSize: 30, lineHeight: 38, fontFamily: 'OheveSerif-Medium', color: '#1c1535' },
   uploadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#A7AD9A',
+    backgroundColor: '#929B83',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -495,18 +495,18 @@ const styles = StyleSheet.create({
   uploadBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  loadingText: { color: '#7a72a1', fontSize: 14 },
+  loadingText: { color: '#747e68', fontSize: 14 },
 
   content: { gap: 20, paddingBottom: 120 },
 
-  sectionLabel: { fontSize: 14, fontWeight: '700', color: '#374151', marginBottom: 10 },
+  sectionLabel: { fontSize: 14, fontWeight: '700', color: '#5c5f57', marginBottom: 10 },
 
   // Cover
   coverCard: {
     borderRadius: 20,
     overflow: 'hidden',
     height: 200,
-    backgroundColor: '#ede9fe',
+    backgroundColor: '#f5f2ed',
   },
   coverImage: { width: '100%', height: '100%' },
   coverBadge: {
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#A7AD9A',
+    backgroundColor: '#929B83',
     borderRadius: 99,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#f6f4ff',
     borderWidth: 2,
-    borderColor: '#c4b5fd',
+    borderColor: '#929b83',
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   coverEmptyTitle: { fontSize: 15, fontWeight: '700', color: '#5a46c6' },
-  coverEmptyHint: { fontSize: 12, color: '#7a72a1', textAlign: 'center', lineHeight: 18 },
+  coverEmptyHint: { fontSize: 12, color: '#747e68', textAlign: 'center', lineHeight: 18 },
 
   // Grid
   gridHeader: {
@@ -555,8 +555,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  gridHint: { fontSize: 12, color: '#9ca3af' },
-  gridSubHint: { fontSize: 12, color: '#9ca3af', marginBottom: 10, marginTop: -4 },
+  gridHint: { fontSize: 12, color: '#9a9c93' },
+  gridSubHint: { fontSize: 12, color: '#9a9c93', marginBottom: 10, marginTop: -4 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#f6f4ff',
     borderWidth: 1.5,
-    borderColor: '#c4b5fd',
+    borderColor: '#929b83',
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
   },
   addTileText: {
     fontSize: 10,
-    color: '#A7AD9A',
+    color: '#929B83',
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -585,11 +585,11 @@ const styles = StyleSheet.create({
     height: PHOTO_SIZE,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#ede9fe',
+    backgroundColor: '#f5f2ed',
   },
   photoTileCover: {
     borderWidth: 2.5,
-    borderColor: '#A7AD9A',
+    borderColor: '#929B83',
   },
   photoImage: { width: '100%', height: '100%' },
   captionOverlay: {
@@ -618,19 +618,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 20, paddingBottom: 32, gap: 10,
   },
-  captionHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 6 },
-  captionPreview: { width: '100%', height: 150, borderRadius: 14, backgroundColor: '#ede9fe' },
-  videoTile: { backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center' },
-  videoPreview: { backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  captionHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#ece8e0', alignSelf: 'center', marginBottom: 6 },
+  captionPreview: { width: '100%', height: 150, borderRadius: 14, backgroundColor: '#f5f2ed' },
+  videoTile: { backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center' },
+  videoPreview: { backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center', gap: 4 },
   videoPreviewTxt: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
   captionSheetTitle: { fontSize: 16, fontWeight: '800', color: '#1c1535', marginTop: 4 },
-  captionSheetSub: { fontSize: 12.5, color: '#A09890', lineHeight: 17, marginTop: 2 },
+  captionSheetSub: { fontSize: 12.5, color: '#9A9C93', lineHeight: 17, marginTop: 2 },
   captionInput: {
     borderWidth: 1.5, borderColor: C.border, borderRadius: 14,
     padding: 14, fontSize: 14, minHeight: 90, textAlignVertical: 'top',
-    color: '#1c1535', backgroundColor: '#fafafa',
+    color: '#1c1535', backgroundColor: '#fcfbf9',
   },
-  captionCount: { fontSize: 11, color: '#9ca3af', textAlign: 'right' },
+  captionCount: { fontSize: 11, color: '#9a9c93', textAlign: 'right' },
   captionSaveBtn: {
     backgroundColor: C.sauge, borderRadius: 14, paddingVertical: 15,
     alignItems: 'center', marginTop: 4,
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#A7AD9A',
+    backgroundColor: '#929B83',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -658,14 +658,14 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: '#ede9fe',
+    backgroundColor: '#f5f2ed',
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: '#1c1535' },
   emptyHint: {
     fontSize: 14,
-    color: '#7a72a1',
+    color: '#747e68',
     textAlign: 'center',
     lineHeight: 21,
     maxWidth: 280,
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#A7AD9A',
+    backgroundColor: '#929B83',
     borderRadius: 14,
     paddingHorizontal: 20,
     paddingVertical: 13,

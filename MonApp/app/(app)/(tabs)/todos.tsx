@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between', marginBottom: 14,
   },
   overline: { fontSize: 12, color: C.textLight, letterSpacing: 0.5, marginBottom: 2 },
-  title: { fontSize: 32, fontWeight: '700', color: C.textDark },
+  title: { fontSize: 32, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   addHeaderBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: C.sauge, alignItems: 'center', justifyContent: 'center',
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: C.taupe, alignSelf: 'center', marginBottom: 14,
   },
-  modalTitle: { fontSize: 22, fontWeight: '700', color: C.textDark, marginBottom: 14 },
+  modalTitle: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 14 },
   modalLabel: { fontSize: 13, fontWeight: '600', color: C.textMid, marginBottom: 6, marginTop: 10 },
   modalInput: {
     borderWidth: 1, borderColor: C.border, borderRadius: RADIUS.sm,

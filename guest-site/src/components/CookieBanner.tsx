@@ -44,8 +44,8 @@ const banner: React.CSSProperties = {
   bottom: 0,
   left: 0,
   right: 0,
-  background: '#3C352F',
-  color: '#F6F2EA',
+  background: '#343630',
+  color: '#FCFBF9',
   padding: '16px 20px',
   display: 'flex',
   flexWrap: 'wrap',
@@ -85,7 +85,7 @@ const btnBase: React.CSSProperties = {
 
 const btnPrimary: React.CSSProperties = {
   ...btnBase,
-  background: '#8F947F',
+  background: '#929B83',
   color: '#fff',
 };
 

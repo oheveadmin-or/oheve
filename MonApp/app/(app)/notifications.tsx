@@ -85,7 +85,7 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: C.card, alignItems: 'center', justifyContent: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: C.textDark },
+  title: { fontSize: 24, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   list: { paddingBottom: 40, gap: 10 },
   sectionLabel: {
     fontSize: 11, fontWeight: '700', color: C.textLight,

@@ -105,8 +105,8 @@ const styles = StyleSheet.create({
   },
   categoryText: { fontSize: 12, color: C.sauge, fontWeight: '700' },
 
-  name: { fontSize: 22, fontWeight: '800', color: C.textDark, marginBottom: 6 },
-  price: { fontSize: 26, fontWeight: '800', color: C.sauge, marginBottom: 16 },
+  name: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 6 },
+  price: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.sauge, marginBottom: 16 },
 
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   stat: {

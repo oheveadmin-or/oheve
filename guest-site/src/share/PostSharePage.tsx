@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-const SAGE = '#A7AD9A';
-const MOKA = '#3d2e1f';
-const MOKA_MID = '#6b5344';
-const IVORY = '#faf8f3';
+const SAGE = '#929B83';
+const MOKA = '#343630';
+const MOKA_MID = '#5c5f57';
+const IVORY = '#fcfbf9';
 
 /**
  * Lien de téléchargement de l'app. À remplacer par le vrai lien App Store
@@ -68,14 +68,14 @@ export default function PostSharePage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400&family=Inter:wght@400;500;600&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: ${IVORY}; }
         .shp-root {
           min-height: 100vh; display: flex; flex-direction: column; align-items: center;
           padding: 1.5rem 1rem 3rem; font-family: 'Inter', sans-serif; color: ${MOKA};
         }
-        .shp-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 600; letter-spacing: 0.12em; margin: 0.8rem 0 1.4rem; }
+        .shp-logo { font-family: 'Fraunces', serif; font-size: 1.8rem; font-weight: 600; letter-spacing: 0.12em; margin: 0.8rem 0 1.4rem; }
         .shp-card {
           width: 100%; max-width: 420px; background: #fff; border-radius: 20px; overflow: hidden;
           box-shadow: 0 8px 32px rgba(61,46,31,0.10);
@@ -85,10 +85,10 @@ export default function PostSharePage() {
         .shp-author { font-weight: 600; font-size: 0.95rem; }
         .shp-cat {
           display: inline-block; margin-left: 0.5rem; padding: 0.12rem 0.65rem;
-          background: #edf2ec; color: #5c6b52; border-radius: 50px; font-size: 0.72rem; font-weight: 600;
+          background: #f5f2ed; color: #5c6b52; border-radius: 50px; font-size: 0.72rem; font-weight: 600;
         }
         .shp-caption { margin-top: 0.55rem; font-size: 0.95rem; line-height: 1.5; color: ${MOKA_MID}; }
-        .shp-likes { margin-top: 0.55rem; font-size: 0.82rem; color: #a09890; }
+        .shp-likes { margin-top: 0.55rem; font-size: 0.82rem; color: #9a9c93; }
         .shp-actions { display: flex; flex-direction: column; gap: 0.7rem; width: 100%; max-width: 420px; margin-top: 1.3rem; }
         .shp-btn-primary {
           display: block; text-align: center; padding: 0.95rem 1rem; border: none; cursor: pointer;
@@ -101,7 +101,7 @@ export default function PostSharePage() {
           background: transparent; color: ${MOKA_MID}; border: 1.5px solid rgba(91,70,54,0.22);
           border-radius: 50px; font-size: 0.95rem; font-weight: 600; text-decoration: none;
         }
-        .shp-hint { margin-top: 0.9rem; font-size: 0.8rem; color: #a09890; text-align: center; }
+        .shp-hint { margin-top: 0.9rem; font-size: 0.8rem; color: #9a9c93; text-align: center; }
         .shp-status { margin-top: 4rem; color: ${MOKA_MID}; text-align: center; }
       `}</style>
 

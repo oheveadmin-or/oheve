@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   logoCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.sauge, alignItems: 'center', justifyContent: 'center' },
   logoText: { fontSize: 16, fontWeight: '700', color: C.ivoire, fontStyle: 'italic' },
 
-  title: { fontSize: 28, fontWeight: '800', color: C.textDark, textAlign: 'center', marginBottom: 6 },
+  title: { fontSize: 28, fontFamily: 'OheveSerif-Medium', color: C.textDark, textAlign: 'center', marginBottom: 6 },
   sub: { fontSize: 14, color: C.textLight, textAlign: 'center', marginBottom: 24 },
 
   appleBtn: { width: '100%', height: 50, marginBottom: 12 },

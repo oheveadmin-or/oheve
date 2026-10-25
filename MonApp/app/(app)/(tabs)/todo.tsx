@@ -280,7 +280,7 @@ export default function TodoScreen() {
             <TextInput
               style={styles.input}
               placeholder="Titre de la tâche"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#9a9c93"
               value={newTaskTitle}
               onChangeText={setNewTaskTitle}
             />
@@ -305,7 +305,7 @@ export default function TodoScreen() {
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="Créer une catégorie…"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#9a9c93"
                 value={customCategory}
                 onChangeText={setCustomCategory}
               />
@@ -381,7 +381,7 @@ export default function TodoScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.ivoire },
-  title: { fontSize: 32, fontWeight: '700', color: C.textDark, marginBottom: 14 },
+  title: { fontSize: 32, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 14 },
 
   tabsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   statusTab: {
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.card, borderTopLeftRadius: 22, borderTopRightRadius: 22,
     borderWidth: 1, borderColor: C.border, padding: 16,
   },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: C.textDark, marginBottom: 12 },
+  modalTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 12 },
   input: {
     borderWidth: 1, borderColor: C.border, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 11,

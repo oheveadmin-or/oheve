@@ -191,7 +191,7 @@ function DevisModal({
 const dStyles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.35)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '92%', paddingHorizontal: 18, paddingTop: 10 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 14 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#ece8e0', alignSelf: 'center', marginBottom: 14 },
   title: { fontSize: 18, fontWeight: '700', color: C.textDark, marginBottom: 14 },
   lbl: { fontSize: 12, fontWeight: '600', color: C.textLight, marginTop: 10, marginBottom: 4 },
   input: { borderWidth: 1.5, borderColor: C.saugePale, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: C.textDark, backgroundColor: '#fafaf8' },
@@ -272,7 +272,7 @@ function DevisBubble({ content, devisId, convId, token, clientName }: { content:
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',sans-serif;color:#2C2417;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-family:'Inter',sans-serif;color:#343630;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 
   /* ── PAGE LAYOUT ── */
   .page{width:210mm;min-height:297mm;margin:0 auto;position:relative;overflow:hidden;page-break-after:always}
@@ -282,15 +282,15 @@ function DevisBubble({ content, devisId, convId, token, clientName }: { content:
 
   /* ── COVER ── */
   .cover{background:linear-gradient(160deg,#f9f6f1 0%,#f0ebe3 55%,#e8e1d7 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 48px;text-align:center}
-  .cover-ornament{width:48px;height:2px;background:#A7AD9A;margin:0 auto 32px}
-  .cover-logo{font-family:'Playfair Display',serif;font-size:42px;font-weight:700;color:#2C2417;letter-spacing:6px;margin-bottom:6px}
-  .cover-tagline{font-size:10px;color:#9c9080;letter-spacing:4px;text-transform:uppercase;margin-bottom:56px}
-  .cover-label{font-size:10px;color:#A7AD9A;letter-spacing:4px;text-transform:uppercase;margin-bottom:16px}
-  .cover-title{font-family:'Playfair Display',serif;font-size:28px;font-weight:600;color:#2C2417;line-height:1.3;margin-bottom:40px;max-width:320px}
+  .cover-ornament{width:48px;height:2px;background:#929B83;margin:0 auto 32px}
+  .cover-logo{font-family:'Playfair Display',serif;font-size:42px;font-weight:700;color:#343630;letter-spacing:6px;margin-bottom:6px}
+  .cover-tagline{font-size:10px;color:#9a9c93;letter-spacing:4px;text-transform:uppercase;margin-bottom:56px}
+  .cover-label{font-size:10px;color:#929B83;letter-spacing:4px;text-transform:uppercase;margin-bottom:16px}
+  .cover-title{font-family:'Playfair Display',serif;font-size:28px;font-weight:600;color:#343630;line-height:1.3;margin-bottom:40px;max-width:320px}
   .cover-divider{width:1px;height:64px;background:#cec5b8;margin:0 auto 40px}
   .cover-couple{font-family:'Playfair Display',serif;font-size:22px;color:#5c4f43;margin-bottom:8px}
-  .cover-amp{font-family:'Playfair Display',serif;font-size:13px;color:#A7AD9A;letter-spacing:2px;margin-bottom:8px}
-  .cover-meta{font-size:11px;color:#9c9080;letter-spacing:2px;text-transform:uppercase;line-height:2}
+  .cover-amp{font-family:'Playfair Display',serif;font-size:13px;color:#929B83;letter-spacing:2px;margin-bottom:8px}
+  .cover-meta{font-size:11px;color:#9a9c93;letter-spacing:2px;text-transform:uppercase;line-height:2}
   .cover-footer{position:absolute;bottom:36px;left:0;right:0;text-align:center;font-size:10px;color:#b8b0a5;letter-spacing:2px;text-transform:uppercase}
   .cover-no{position:absolute;top:40px;right:48px;font-size:10px;color:#b8b0a5;letter-spacing:1px}
   .cover-corner{position:absolute;width:80px;height:80px;border-color:#cec5b8;border-style:solid}
@@ -301,76 +301,76 @@ function DevisBubble({ content, devisId, convId, token, clientName }: { content:
 
   /* ── DETAIL PAGE ── */
   .detail{padding:52px 48px 48px}
-  .det-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:44px;padding-bottom:24px;border-bottom:1px solid #ede8e1}
-  .det-logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#2C2417;letter-spacing:4px}
-  .det-logo-sub{font-size:9px;color:#A7AD9A;letter-spacing:3px;text-transform:uppercase;margin-top:3px}
+  .det-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:44px;padding-bottom:24px;border-bottom:1px solid #ece8e0}
+  .det-logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#343630;letter-spacing:4px}
+  .det-logo-sub{font-size:9px;color:#929B83;letter-spacing:3px;text-transform:uppercase;margin-top:3px}
   .det-no{text-align:right}
-  .det-no-label{font-size:9px;color:#9c9080;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
-  .det-no-val{font-size:13px;font-weight:600;color:#2C2417}
-  .det-no-date{font-size:11px;color:#9c9080;margin-top:2px}
+  .det-no-label{font-size:9px;color:#9a9c93;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+  .det-no-val{font-size:13px;font-weight:600;color:#343630}
+  .det-no-date{font-size:11px;color:#9a9c93;margin-top:2px}
 
   /* cards */
   .cards{display:flex;gap:16px;margin-bottom:36px}
-  .card{flex:1;background:#faf7f3;border-radius:12px;padding:18px 20px;border:1px solid #ede8e1}
-  .card-title{font-size:9px;color:#A7AD9A;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}
-  .card-name{font-family:'Playfair Display',serif;font-size:15px;color:#2C2417;margin-bottom:4px}
+  .card{flex:1;background:#fcfbf9;border-radius:12px;padding:18px 20px;border:1px solid #ece8e0}
+  .card-title{font-size:9px;color:#929B83;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}
+  .card-name{font-family:'Playfair Display',serif;font-size:15px;color:#343630;margin-bottom:4px}
   .card-sub{font-size:11px;color:#7a6e64;line-height:1.6}
 
   /* prestations summary */
-  .section-title{font-size:9px;color:#A7AD9A;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px}
-  .services-box{background:#faf7f3;border-radius:12px;padding:20px 24px;margin-bottom:28px;border:1px solid #ede8e1}
+  .section-title{font-size:9px;color:#929B83;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px}
+  .services-box{background:#fcfbf9;border-radius:12px;padding:20px 24px;margin-bottom:28px;border:1px solid #ece8e0}
   .service-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
   .service-item:last-child{margin-bottom:0}
-  .service-check{color:#A7AD9A;font-size:14px;flex-shrink:0;margin-top:1px}
-  .service-text{font-size:13px;color:#2C2417;font-weight:500}
+  .service-check{color:#929B83;font-size:14px;flex-shrink:0;margin-top:1px}
+  .service-text{font-size:13px;color:#343630;font-weight:500}
 
   /* table */
   .tbl{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px}
-  .tbl thead tr{background:#2C2417}
+  .tbl thead tr{background:#343630}
   .tbl thead th{padding:11px 14px;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#f0ebe3;font-weight:500;text-align:left}
   .tbl thead th:nth-child(2),.tbl thead th:nth-child(3),.tbl thead th:nth-child(4){text-align:right}
   .tbl thead th:nth-child(2){text-align:center}
-  .td-desc{padding:11px 14px;border-bottom:1px solid #f0ebe4;color:#2C2417}
+  .td-desc{padding:11px 14px;border-bottom:1px solid #f0ebe4;color:#343630}
   .td-c{padding:11px 14px;border-bottom:1px solid #f0ebe4;text-align:center;color:#7a6e64}
   .td-r{padding:11px 14px;border-bottom:1px solid #f0ebe4;text-align:right;color:#7a6e64}
-  .td-bold{color:#2C2417!important;font-weight:600}
+  .td-bold{color:#343630!important;font-weight:600}
   .tbl tbody tr:nth-child(even){background:#fdf9f5}
 
   /* totals */
   .totals-wrap{display:flex;justify-content:flex-end;margin-bottom:32px}
-  .totals-box{width:260px;background:#faf7f3;border-radius:12px;padding:20px 24px;border:1px solid #ede8e1}
-  .tot-row{display:flex;justify-content:space-between;font-size:12px;color:#7a6e64;padding:5px 0;border-bottom:1px solid #ede8e1}
+  .totals-box{width:260px;background:#fcfbf9;border-radius:12px;padding:20px 24px;border:1px solid #ece8e0}
+  .tot-row{display:flex;justify-content:space-between;font-size:12px;color:#7a6e64;padding:5px 0;border-bottom:1px solid #ece8e0}
   .tot-row:last-child{border-bottom:none;padding-top:14px;margin-top:4px}
-  .tot-label-main{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:#2C2417}
-  .tot-val-main{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#A7AD9A}
+  .tot-label-main{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:#343630}
+  .tot-val-main{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#929B83}
 
   /* notes */
-  .notes-box{background:#faf7f3;border-radius:12px;padding:18px 22px;border-left:3px solid #A7AD9A;margin-bottom:28px}
-  .notes-label{font-size:9px;color:#A7AD9A;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px}
+  .notes-box{background:#fcfbf9;border-radius:12px;padding:18px 22px;border-left:3px solid #929B83;margin-bottom:28px}
+  .notes-label{font-size:9px;color:#929B83;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px}
   .notes-text{font-size:12px;color:#5c4f43;line-height:1.7}
 
   /* ── CONDITIONS PAGE ── */
   .conditions{padding:52px 48px 48px}
-  .cond-title{font-family:'Playfair Display',serif;font-size:22px;color:#2C2417;margin-bottom:32px}
+  .cond-title{font-family:'Playfair Display',serif;font-size:22px;color:#343630;margin-bottom:32px}
   .cond-section{margin-bottom:28px}
-  .cond-section-title{font-size:9px;color:#A7AD9A;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #ede8e1}
+  .cond-section-title{font-size:9px;color:#929B83;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #ece8e0}
   .cond-text{font-size:12px;color:#5c4f43;line-height:1.8}
-  .acompte-box{background:linear-gradient(135deg,#f9f6f1,#f0ebe3);border-radius:12px;padding:22px 26px;margin-bottom:32px;border:1px solid #ede8e1;display:flex;justify-content:space-between;align-items:center}
-  .acompte-label{font-size:10px;color:#9c9080;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
-  .acompte-val{font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:#2C2417}
-  .acompte-sub{font-size:11px;color:#A7AD9A;margin-top:4px}
-  .acompte-pct{font-family:'Playfair Display',serif;font-size:42px;color:#ede8e1;font-weight:700}
+  .acompte-box{background:linear-gradient(135deg,#f9f6f1,#f0ebe3);border-radius:12px;padding:22px 26px;margin-bottom:32px;border:1px solid #ece8e0;display:flex;justify-content:space-between;align-items:center}
+  .acompte-label{font-size:10px;color:#9a9c93;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+  .acompte-val{font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:#343630}
+  .acompte-sub{font-size:11px;color:#929B83;margin-top:4px}
+  .acompte-pct{font-family:'Playfair Display',serif;font-size:42px;color:#ece8e0;font-weight:700}
 
   /* signatures */
   .sig-section{display:flex;gap:32px;margin-top:32px}
-  .sig-box{flex:1;border:1px solid #ede8e1;border-radius:12px;padding:24px 20px}
-  .sig-label{font-size:9px;color:#A7AD9A;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}
-  .sig-name{font-size:13px;font-weight:600;color:#2C2417;margin-bottom:16px}
-  .sig-line{height:1px;background:#ede8e1;margin-bottom:8px;margin-top:48px}
+  .sig-box{flex:1;border:1px solid #ece8e0;border-radius:12px;padding:24px 20px}
+  .sig-label{font-size:9px;color:#929B83;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}
+  .sig-name{font-size:13px;font-weight:600;color:#343630;margin-bottom:16px}
+  .sig-line{height:1px;background:#ece8e0;margin-bottom:8px;margin-top:48px}
   .sig-date-label{font-size:10px;color:#b0a898}
 
   /* shared footer */
-  .page-footer{position:absolute;bottom:32px;left:48px;right:48px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #ede8e1;padding-top:12px}
+  .page-footer{position:absolute;bottom:32px;left:48px;right:48px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #ece8e0;padding-top:12px}
   .pf-left{font-size:9px;color:#b0a898;letter-spacing:1px}
   .pf-right{font-size:9px;color:#b0a898;letter-spacing:1px}
 </style>
@@ -582,9 +582,9 @@ function isPdf(mimeType?: string | null) {
 }
 
 function FileIcon({ mimeType }: { mimeType?: string | null }) {
-  if (isImage(mimeType)) return <Ionicons name="image-outline" size={20} color="#A7AD9A" />;
+  if (isImage(mimeType)) return <Ionicons name="image-outline" size={20} color="#929B83" />;
   if (isPdf(mimeType)) return <Ionicons name="document-text-outline" size={20} color="#ef4444" />;
-  return <Ionicons name="attach-outline" size={20} color="#6b7280" />;
+  return <Ionicons name="attach-outline" size={20} color="#5c5f57" />;
 }
 
 function AttachmentBubble({ url, name, mimeType, isMe }: {
@@ -636,7 +636,7 @@ function AttachmentBubble({ url, name, mimeType, isMe }: {
           {isPdf(mimeType) ? 'PDF' : 'Fichier'} · Appuyer pour ouvrir
         </ThemedText>
       </View>
-      <Ionicons name="open-outline" size={16} color={isMe ? 'rgba(255,255,255,0.7)' : '#9ca3af'} />
+      <Ionicons name="open-outline" size={16} color={isMe ? 'rgba(255,255,255,0.7)' : '#9a9c93'} />
     </Pressable>
   );
 }
@@ -858,7 +858,7 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color="#A7AD9A" />
+          <Ionicons name="arrow-back" size={22} color="#929B83" />
         </Pressable>
         <View style={styles.headerCenter}>
           <View style={styles.headerAvatar}>
@@ -876,7 +876,7 @@ export default function ChatScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#A7AD9A" size="large" /></View>
+        <View style={styles.center}><ActivityIndicator color="#929B83" size="large" /></View>
       ) : (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -953,15 +953,15 @@ export default function ChatScreen() {
               hitSlop={8}
             >
               {uploading
-                ? <ActivityIndicator size="small" color="#A7AD9A" />
-                : <Ionicons name="attach" size={24} color="#A7AD9A" />}
+                ? <ActivityIndicator size="small" color="#929B83" />
+                : <Ionicons name="attach" size={24} color="#929B83" />}
             </Pressable>
             <TextInput
               style={styles.input}
               value={text}
               onChangeText={setText}
               placeholder="Écrire un message…"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#9a9c93"
               multiline
               returnKeyType="send"
               onSubmitEditing={send}
@@ -984,9 +984,9 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f5f2ed', gap: 12 },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
-  headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#A7AD9A', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#929B83', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   headerAvatarTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
   rdvBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -994,23 +994,23 @@ const styles = StyleSheet.create({
     borderRadius: 99, backgroundColor: '#EDF0E5', flexShrink: 0,
   },
   rdvBtnTxt: { fontSize: 12, fontWeight: '700', color: C.saugeDark },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#111827', flex: 1 },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: '#343630', flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyTxt: { color: '#9ca3af', fontSize: 14, textAlign: 'center' },
+  emptyTxt: { color: '#9a9c93', fontSize: 14, textAlign: 'center' },
   msgList: { padding: 16, gap: 8, paddingBottom: 8 },
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 8 },
   msgRowMe: { flexDirection: 'row-reverse' },
-  msgAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#A7AD9A', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  msgAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#929B83', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   msgAvatarTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
   bubble: { maxWidth: '80%', borderRadius: 16, padding: 10, gap: 4 },
-  bubbleMe: { backgroundColor: '#A7AD9A', borderBottomRightRadius: 4 },
-  bubbleThem: { backgroundColor: '#f3f4f6', borderBottomLeftRadius: 4 },
+  bubbleMe: { backgroundColor: '#929B83', borderBottomRightRadius: 4 },
+  bubbleThem: { backgroundColor: '#f5f2ed', borderBottomLeftRadius: 4 },
   bubbleFile: { padding: 8 },
-  bubbleSender: { fontSize: 10, color: '#6b7280', fontWeight: '600', marginBottom: 2 },
-  bubbleText: { fontSize: 14, color: '#111827', lineHeight: 19 },
+  bubbleSender: { fontSize: 10, color: '#5c5f57', fontWeight: '600', marginBottom: 2 },
+  bubbleText: { fontSize: 14, color: '#343630', lineHeight: 19 },
   bubbleTextMe: { color: '#fff' },
   bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2, marginTop: 2 },
-  bubbleTime: { fontSize: 10, color: '#9ca3af', textAlign: 'right' },
+  bubbleTime: { fontSize: 10, color: '#9a9c93', textAlign: 'right' },
   bubbleTimeMe: { color: 'rgba(255,255,255,0.6)' },
   // Image attachment
   imgThumbWrap: { width: 200, height: 160, borderRadius: 10, overflow: 'hidden' },
@@ -1022,25 +1022,25 @@ const styles = StyleSheet.create({
   // File attachment
   fileBubble: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, padding: 10, maxWidth: 260 },
   fileBubbleMe: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  fileBubbleThem: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
+  fileBubbleThem: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ece8e0' },
   fileIconBox: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  fileName: { fontSize: 13, fontWeight: '600', color: '#111827' },
+  fileName: { fontSize: 13, fontWeight: '600', color: '#343630' },
   fileNameMe: { color: '#fff' },
-  fileType: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
+  fileType: { fontSize: 11, color: '#9a9c93', marginTop: 1 },
   fileTypeMe: { color: 'rgba(255,255,255,0.6)' },
   // Input bar
-  inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 8, paddingTop: 8, gap: 6, borderTopWidth: 1, borderTopColor: '#f3f4f6', backgroundColor: '#fff' },
+  inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 8, paddingTop: 8, gap: 6, borderTopWidth: 1, borderTopColor: '#f5f2ed', backgroundColor: '#fff' },
   attachBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  input: { flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#111827', maxHeight: 100, backgroundColor: '#fafafa' },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#A7AD9A', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  input: { flex: 1, borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#343630', maxHeight: 100, backgroundColor: '#fcfbf9' },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#929B83', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   sendBtnOff: { opacity: 0.4 },
-  bubbleDevis: { backgroundColor: '#F6F2EA', borderWidth: 1.5, borderColor: '#A7AD9A', minWidth: 220 },
+  bubbleDevis: { backgroundColor: '#FCFBF9', borderWidth: 1.5, borderColor: '#929B83', minWidth: 220 },
   devisBubbleWrap: { gap: 10 },
   devisBubbleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   devisIconBox: { width: 40, height: 40, borderRadius: 10, backgroundColor: C.saugePale, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   devisInfo: { flex: 1 },
   devisLabel: { fontSize: 10, fontWeight: '700', color: C.sauge, textTransform: 'uppercase', letterSpacing: 0.5 },
-  devisTitle: { fontSize: 13, fontWeight: '600', color: '#3C352F', marginTop: 2 },
+  devisTitle: { fontSize: 13, fontWeight: '600', color: '#343630', marginTop: 2 },
   devisPdfBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.saugePale, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 },
   devisPdfTxt: { fontSize: 12, fontWeight: '700', color: C.sauge },
 });

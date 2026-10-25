@@ -351,7 +351,7 @@ export default function ProviderDetailScreen() {
             <AnimatedView entering={FadeInDown.delay(120).springify()} style={styles.infoCard}>
               {display.prix !== '—' && (
                 <View style={styles.priceRow}>
-                  <Ionicons name="pricetag" size={16} color="#A7AD9A" />
+                  <Ionicons name="pricetag" size={16} color="#929B83" />
                   <ThemedText style={styles.priceText}>{display.prix}</ThemedText>
                 </View>
               )}
@@ -362,7 +362,7 @@ export default function ProviderDetailScreen() {
               ].filter((row) => row.value && row.value !== '-').map((row) => (
                 <View key={row.label} style={styles.infoRow}>
                   <View style={styles.infoIconWrap}>
-                    <Ionicons name={row.icon as 'home'} size={15} color="#A7AD9A" />
+                    <Ionicons name={row.icon as 'home'} size={15} color="#929B83" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <ThemedText style={styles.infoLabel}>{row.label}</ThemedText>
@@ -423,7 +423,7 @@ export default function ProviderDetailScreen() {
             <TextInput
               style={styles.notesInput}
               placeholder="Vos notes sur ce prestataire..."
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
               value={notes}
               onChangeText={setNotes}
               multiline
@@ -535,7 +535,7 @@ function PaymentModal({
               value={amount}
               onChangeText={setAmount}
               placeholder={defaultPrice && defaultPrice !== '—' ? defaultPrice.replace(/[^\d,.-]/g, '') : '500'}
-              placeholderTextColor="#A09890"
+              placeholderTextColor="#9A9C93"
               keyboardType="decimal-pad"
               {...keyboardDoneProps}
               autoFocus
@@ -549,7 +549,7 @@ function PaymentModal({
             </ThemedText>
           </Pressable>
           <View style={pmStyles.secureRow}>
-            <Ionicons name="shield-checkmark-outline" size={13} color="#A09890" />
+            <Ionicons name="shield-checkmark-outline" size={13} color="#9A9C93" />
             <ThemedText style={pmStyles.secureTxt}>Paiement sécurisé par Stripe · SSL 256 bits</ThemedText>
           </View>
           <View style={{ height: 32 }} />
@@ -567,16 +567,16 @@ const pmStyles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 10,
   },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 16 },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#231b45', marginBottom: 4 },
-  headerSub: { fontSize: 13, color: '#A09890', marginBottom: 16 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#ece8e0', alignSelf: 'center', marginBottom: 16 },
+  headerTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: '#231b45', marginBottom: 4 },
+  headerSub: { fontSize: 13, color: '#9A9C93', marginBottom: 16 },
   amountRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderColor: C.sauge, borderRadius: 14, paddingHorizontal: 14, marginBottom: 20 },
-  amountInput: { flex: 1, height: 56, fontSize: 26, fontWeight: '800', color: '#231b45' },
-  currencySymbol: { fontSize: 26, fontWeight: '800', color: C.sauge },
+  amountInput: { flex: 1, height: 56, fontSize: 26, fontFamily: 'OheveSerif-Medium', color: '#231b45' },
+  currencySymbol: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.sauge },
   payBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.sauge, borderRadius: 16, paddingVertical: 16 },
   payBtnTxt: { color: '#fff', fontSize: 17, fontWeight: '800' },
   secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 12 },
-  secureTxt: { fontSize: 11, color: '#A09890' },
+  secureTxt: { fontSize: 11, color: '#9A9C93' },
 });
 
 function CATEGORIES_LABEL(slug: string): string {
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.beige,
   },
   heroTitle: { fontSize: 26, fontWeight: '800', color: '#fff', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
-  heroTitleDark: { fontSize: 22, fontWeight: '800', color: C.textDark, textAlign: 'center' },
+  heroTitleDark: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark, textAlign: 'center' },
   heroLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
   heroLocationText: { fontSize: 13, color: '#ffffffcc', fontWeight: '500' },
   heroPhotoCount: {
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
   galleryThumbFirst: { marginLeft: 0 },
   galleryThumbCover: { borderWidth: 2.5, borderColor: C.sauge },
   galleryImage: { width: '100%', height: '100%' },
-  galleryVideoTile: { backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center' },
+  galleryVideoTile: { backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center' },
   galleryBadge: {
     position: 'absolute',
     bottom: 0,

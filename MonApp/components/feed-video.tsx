@@ -167,7 +167,7 @@ const fvStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   fallback: {
-    backgroundColor: '#374151',
+    backgroundColor: '#5c5f57',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,

@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1.5, borderColor: C.saugePale, borderRadius: RADIUS.sm,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: C.textDark, backgroundColor: '#fafafa',
+    fontSize: 15, color: C.textDark, backgroundColor: '#fcfbf9',
   },
   templateInput: { minHeight: 300, fontSize: 13, lineHeight: 19 },
   waBtn: {

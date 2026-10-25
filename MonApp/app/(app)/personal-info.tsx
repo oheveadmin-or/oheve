@@ -168,7 +168,7 @@ export default function PersonalInfoScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#A7AD9A" />
+            <Ionicons name="arrow-back" size={22} color="#929B83" />
           </Pressable>
 
           <ThemedText style={styles.title}>Informations personnelles</ThemedText>
@@ -197,10 +197,10 @@ export default function PersonalInfoScreen() {
           {/* Email (lecture seule) */}
           <ThemedText style={styles.label}>Email</ThemedText>
           <View style={styles.inputReadOnly}>
-            <Ionicons name="mail-outline" size={16} color="#A09890" style={{ marginRight: 8 }} />
+            <Ionicons name="mail-outline" size={16} color="#9A9C93" style={{ marginRight: 8 }} />
             <ThemedText style={styles.inputReadOnlyTxt}>{user?.email ?? '-'}</ThemedText>
             <View style={styles.lockedBadge}>
-              <Ionicons name="lock-closed" size={12} color="#A09890" />
+              <Ionicons name="lock-closed" size={12} color="#9A9C93" />
             </View>
           </View>
           <ThemedText style={styles.hint}>L'email ne peut pas être modifié ici</ThemedText>
@@ -214,7 +214,7 @@ export default function PersonalInfoScreen() {
                 value={brideName}
                 onChangeText={setBrideName}
                 placeholder="Ex: Odaya"
-                placeholderTextColor="#A09890"
+                placeholderTextColor="#9A9C93"
                 autoCapitalize="words"
                 returnKeyType="next"
               />
@@ -224,7 +224,7 @@ export default function PersonalInfoScreen() {
                 value={groomName}
                 onChangeText={setGroomName}
                 placeholder="Ex: Aaron"
-                placeholderTextColor="#A09890"
+                placeholderTextColor="#9A9C93"
                 autoCapitalize="words"
                 returnKeyType="next"
               />
@@ -237,7 +237,7 @@ export default function PersonalInfoScreen() {
                 value={prenom}
                 onChangeText={setPrenom}
                 placeholder="Ex: Sophie"
-                placeholderTextColor="#A09890"
+                placeholderTextColor="#9A9C93"
                 autoCapitalize="words"
                 returnKeyType="next"
               />
@@ -247,7 +247,7 @@ export default function PersonalInfoScreen() {
                 value={nom}
                 onChangeText={setNom}
                 placeholder="Ex: Martin"
-                placeholderTextColor="#A09890"
+                placeholderTextColor="#9A9C93"
                 autoCapitalize="words"
                 returnKeyType="next"
               />
@@ -261,7 +261,7 @@ export default function PersonalInfoScreen() {
             value={phone}
             onChangeText={setPhone}
             placeholder="+33 6 12 34 56 78"
-            placeholderTextColor="#A09890"
+            placeholderTextColor="#9A9C93"
             keyboardType="phone-pad"
             returnKeyType="next"
           />
@@ -281,7 +281,7 @@ export default function PersonalInfoScreen() {
                       if (clean.length === 2) monthRef.current?.focus();
                     }}
                     placeholder="JJ"
-                    placeholderTextColor="#A09890"
+                    placeholderTextColor="#9A9C93"
                     keyboardType="number-pad"
                     maxLength={2}
                     textAlign="center"
@@ -301,7 +301,7 @@ export default function PersonalInfoScreen() {
                       if (clean.length === 2) yearRef.current?.focus();
                     }}
                     placeholder="MM"
-                    placeholderTextColor="#A09890"
+                    placeholderTextColor="#9A9C93"
                     keyboardType="number-pad"
                     maxLength={2}
                     textAlign="center"
@@ -320,7 +320,7 @@ export default function PersonalInfoScreen() {
                       setDateYear(clean);
                     }}
                     placeholder="AAAA"
-                    placeholderTextColor="#A09890"
+                    placeholderTextColor="#9A9C93"
                     keyboardType="number-pad"
                     maxLength={4}
                     textAlign="center"
@@ -353,44 +353,44 @@ export default function PersonalInfoScreen() {
 const styles = StyleSheet.create({
   content: { paddingBottom: 60 },
   backBtn: { marginBottom: 16 },
-  title: { fontSize: 26, fontWeight: '800', color: '#3D3530', marginBottom: 28 },
+  title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: '#343630', marginBottom: 28 },
 
   avatarSection: { alignItems: 'center', marginBottom: 32 },
   avatarWrap: { position: 'relative', marginBottom: 8 },
   avatarImg: { width: 90, height: 90, borderRadius: 45 },
   avatarPlaceholder: {
     width: 90, height: 90, borderRadius: 45,
-    backgroundColor: '#ede9fe', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f5f2ed', alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitials: { fontSize: 32, fontWeight: '800', color: '#A7AD9A' },
+  avatarInitials: { fontSize: 32, fontFamily: 'OheveSerif-Medium', color: '#929B83' },
   cameraBtn: {
     position: 'absolute', bottom: 0, right: 0,
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#A7AD9A', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#929B83', alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: '#fff',
   },
-  avatarHint: { fontSize: 12, color: '#A09890' },
+  avatarHint: { fontSize: 12, color: '#9A9C93' },
 
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#3D3530', marginTop: 8, marginBottom: 4 },
-  label: { fontSize: 13, fontWeight: '600', color: '#4b5563', marginBottom: 8, marginTop: 14 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#343630', marginTop: 8, marginBottom: 4 },
+  label: { fontSize: 13, fontWeight: '600', color: '#5c5f57', marginBottom: 8, marginTop: 14 },
 
   inputReadOnly: {
     flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#f9fafb',
+    borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#fcfbf9',
   },
-  inputReadOnlyTxt: { flex: 1, fontSize: 15, color: '#6B6058' },
+  inputReadOnlyTxt: { flex: 1, fontSize: 15, color: '#5C5F57' },
   lockedBadge: { marginLeft: 8 },
-  hint: { fontSize: 11, color: '#A09890', marginTop: 4, marginBottom: 4 },
+  hint: { fontSize: 11, color: '#9A9C93', marginTop: 4, marginBottom: 4 },
 
   input: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: '#3D3530', backgroundColor: '#fafafa',
+    fontSize: 15, color: '#343630', backgroundColor: '#fcfbf9',
   },
 
   btn: {
-    marginTop: 32, backgroundColor: '#A7AD9A',
+    marginTop: 32, backgroundColor: '#929B83',
     borderRadius: 14, paddingVertical: 15, alignItems: 'center',
   },
   btnDisabled: { opacity: 0.6 },
@@ -399,10 +399,10 @@ const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateFieldWrap: { flex: 1, alignItems: 'center', gap: 4 },
   dateInput: {
-    width: '100%', borderWidth: 1.5, borderColor: '#e5e7eb',
+    width: '100%', borderWidth: 1.5, borderColor: '#ece8e0',
     borderRadius: 12, paddingVertical: 12, fontSize: 17,
-    fontWeight: '700', color: '#3D3530', backgroundColor: '#fafafa',
+    fontWeight: '700', color: '#343630', backgroundColor: '#fcfbf9',
   },
-  dateLabel: { fontSize: 11, color: '#A09890', fontWeight: '500' },
-  dateSep: { fontSize: 22, color: '#A09890', fontWeight: '300', marginBottom: 18 },
+  dateLabel: { fontSize: 11, color: '#9A9C93', fontWeight: '500' },
+  dateSep: { fontSize: 22, color: '#9A9C93', fontWeight: '300', marginBottom: 18 },
 });

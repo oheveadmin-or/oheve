@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   homeButton: { alignSelf: 'flex-start', marginBottom: 12, paddingVertical: 6 },
   homeButtonText: { color: C.saugeDark, fontSize: 15, fontWeight: '600' },
   header: { marginBottom: 14 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 6, color: C.textDark },
+  title: { fontSize: 28, fontFamily: 'OheveSerif-Medium', marginBottom: 6, color: C.textDark },
   subtitle: { fontSize: 15, color: C.textLight },
   emptyCard: {
     borderRadius: RADIUS.lg,

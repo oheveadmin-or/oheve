@@ -169,10 +169,10 @@ const styles = StyleSheet.create({
     backgroundColor: C.sauge, alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: C.ivoire,
   },
-  avatarText: { fontSize: 26, fontWeight: '800', color: C.textInvert },
+  avatarText: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.textInvert },
 
   infoWrap: { paddingHorizontal: 20, marginTop: 10, marginBottom: 16 },
-  shopName: { fontSize: 20, fontWeight: '800', color: C.textDark, marginBottom: 4 },
+  shopName: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 4 },
   bio: { fontSize: 14, color: C.textMid, marginBottom: 4 },
   location: { fontSize: 13, color: C.textLight },
 

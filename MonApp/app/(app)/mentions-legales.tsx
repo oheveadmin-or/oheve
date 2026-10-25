@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
   backBtn: { marginRight: 8, padding: 4 },
-  title: { fontSize: 20, fontWeight: '700', color: C.textDark, flex: 1 },
+  title: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark, flex: 1 },
   scroll: { paddingHorizontal: 20, paddingBottom: 40 },
   block: { marginBottom: 28 },
   heading: { fontSize: 16, fontWeight: '700', color: C.textDark, marginBottom: 8 },

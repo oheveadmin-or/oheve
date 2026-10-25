@@ -48,7 +48,7 @@ export function QuickActionsSheet({ visible, onClose }: QuickActionsSheetProps) 
                 </View>
                 <ThemedText style={styles.itemLabel}>{action.label}</ThemedText>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#A09890" />
+              <Ionicons name="chevron-forward" size={18} color="#9A9C93" />
             </Pressable>
           ))}
           <Pressable style={styles.cancelBtn} onPress={onClose}>
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   content: { paddingHorizontal: 18, paddingBottom: 18, gap: 10 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 6, color: C.textDark },
+  title: { fontSize: 28, fontFamily: 'OheveSerif-Medium', marginBottom: 6, color: C.textDark },
   item: {
     borderWidth: 1,
     borderColor: C.border,

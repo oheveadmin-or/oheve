@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
   },
-  title: { fontSize: 22, fontWeight: '800', color: C.textDark },
+  title: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   revenueBadge: { backgroundColor: C.saugePale, borderRadius: RADIUS.pill, paddingHorizontal: 12, paddingVertical: 5 },
   revenueText: { fontSize: 13, color: C.sauge, fontWeight: '700' },
 

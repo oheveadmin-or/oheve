@@ -1161,7 +1161,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 4, marginBottom: 8,
   },
-  monthTitle: { fontSize: 20, fontWeight: '800', color: C.textDark },
+  monthTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark },
   navArrow: { padding: 8 },
   gridCard: {
     backgroundColor: C.card, borderRadius: RADIUS.lg,
@@ -1223,7 +1223,7 @@ const styles = StyleSheet.create({
   upcomingEventDate: { fontSize: 12, color: C.textLight },
 
   // Prestataire
-  pageTitle: { fontSize: 26, fontWeight: '800', color: C.textDark, marginBottom: 4 },
+  pageTitle: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 4 },
   pageSubtitle: { fontSize: 14, color: C.textLight, marginBottom: 16 },
   pendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pendingBadge: {
@@ -1273,7 +1273,7 @@ const styles = StyleSheet.create({
     padding: 24, paddingTop: 12, gap: 10,
   },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.taupe, alignSelf: 'center', marginBottom: 12 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: C.textDark, marginBottom: 4 },
+  modalTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: C.textDark, marginBottom: 4 },
   modalLabel: { fontSize: 13, fontWeight: '600', color: C.textMid, marginTop: 4 },
   input: {
     borderWidth: 1, borderColor: C.taupe, borderRadius: RADIUS.md,

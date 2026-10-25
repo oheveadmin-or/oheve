@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: 'OheveSerif-Medium',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#747e68',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
