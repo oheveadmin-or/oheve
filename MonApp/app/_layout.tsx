@@ -31,6 +31,10 @@ const OHEVE_FONTS = {
   'OheveSerif-Regular': require('../assets/fonts/Fraunces-Regular.ttf'),
   'OheveSerif-Medium': require('../assets/fonts/Fraunces-Medium.ttf'),
   'OheveSerif-SemiBold': require('../assets/fonts/Fraunces-SemiBold.ttf'),
+  // Coupe « texte » (petites tailles), appliquée partout par lib/rn-oheve-font.tsx
+  'OheveSerifText-Regular': require('../assets/fonts/FrauncesText-Regular.ttf'),
+  'OheveSerifText-Medium': require('../assets/fonts/FrauncesText-Medium.ttf'),
+  'OheveSerifText-SemiBold': require('../assets/fonts/FrauncesText-SemiBold.ttf'),
 };
 
 export default function RootLayout() {
