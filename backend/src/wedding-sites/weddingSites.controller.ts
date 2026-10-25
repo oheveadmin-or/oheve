@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { Request, Response } from 'express';
 import { weddingSitesRepo } from './weddingSites.repository';
+import { scheduleSiteSnapshot } from './sharePreview';
 import { adaptPhotoWithGemini, buildAdaptPrompt, isPhotoAIEnabled } from './photoAdapt';
 import { signBuilderToken } from '../auth/jwt';
 import { reconcilePremiumFromStripe } from '../premium';
@@ -319,6 +320,7 @@ export async function updateWeddingSite(req: Request, res: Response): Promise<vo
     });
 
     if (!row) { res.status(404).json({ success: false }); return; }
+    scheduleSiteSnapshot(row.slug);
     res.json({ success: true, data: rowToSite(row, { includeAccessKey: true }) });
   } catch (err) {
     console.error('updateWeddingSite:', err);

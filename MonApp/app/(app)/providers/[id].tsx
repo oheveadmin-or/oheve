@@ -67,6 +67,8 @@ export default function ProviderDetailScreen() {
   const [paymentModal, setPaymentModal] = useState(false);
   const [bookingModal, setBookingModal] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  // Paiement in-app possible seulement si le prestataire a activé Stripe Connect
+  const [paymentsEnabled, setPaymentsEnabled] = useState(false);
 
   useEffect(() => {
     if (!user?.accessToken || !id) { setLoadingProfile(false); return; }
@@ -81,9 +83,11 @@ export default function ProviderDetailScreen() {
       .then((res) => { if (res?.success && Array.isArray(res.data)) setPhotos(res.data); })
       .catch(() => {});
 
-    if (getProviderContact(id)) {
-      setLoadingProfile(false);
-    } else {
+    // Toujours interrogé (même si le contact est déjà enregistré localement)
+    // pour savoir si le prestataire accepte les paiements via l'app.
+    const hasLocalContact = !!getProviderContact(id);
+    if (hasLocalContact) setLoadingProfile(false);
+    {
       prestatairesApi
         .getById(user.accessToken, numId)
         .then((res: { success?: boolean; data?: {
@@ -91,9 +95,12 @@ export default function ProviderDetailScreen() {
           location_city?: string; price_min?: number; price_max?: number;
           price_range?: string; phone?: string; website_url?: string;
           email?: string; instagram_url?: string; avatar_url?: string;
+          payments_enabled?: boolean;
         } }) => {
           if (res?.success && res.data) {
             const p = res.data;
+            setPaymentsEnabled(!!p.payments_enabled);
+            if (hasLocalContact) return;
             if (p.avatar_url) setAvatarUrl(p.avatar_url);
             const prix = p.price_range?.trim()
               ? p.price_range.trim()
@@ -432,11 +439,13 @@ export default function ProviderDetailScreen() {
                 <ThemedText style={styles.bookingBtnText}>Voir les disponibilités</ThemedText>
               </Pressable>
 
-              {/* Contribution sécurisée */}
-              <Pressable style={styles.payBtn} onPress={() => setPaymentModal(true)}>
-                <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
-                <ThemedText style={styles.payBtnText}>Contribution sécurisée</ThemedText>
-              </Pressable>
+              {/* Contribution sécurisée — seulement si le prestataire a activé Stripe */}
+              {paymentsEnabled && (
+                <Pressable style={styles.payBtn} onPress={() => setPaymentModal(true)}>
+                  <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
+                  <ThemedText style={styles.payBtnText}>Contribution sécurisée</ThemedText>
+                </Pressable>
+              )}
 
               <Pressable
                 style={[styles.addBtn, added && styles.addBtnDone]}

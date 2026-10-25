@@ -1,0 +1,4 @@
+# Chromium : capture du site des mariés pour l'aperçu de lien WhatsApp
+# (backend/src/wedding-sites/siteSnapshot.ts). "..." garde les paquets par défaut.
+[phases.setup]
+nixPkgs = ["...", "chromium"]

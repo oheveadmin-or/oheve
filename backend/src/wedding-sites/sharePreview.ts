@@ -3,6 +3,7 @@ import path from 'path';
 import sharp, { type OverlayOptions, type Sharp } from 'sharp';
 import type { Request, Response } from 'express';
 import { weddingSitesRepo } from './weddingSites.repository';
+import { getSiteSnapshot } from './siteSnapshot';
 
 /**
  * Aperçu de lien (WhatsApp, iMessage, Messenger…) d'un site de mariage.
@@ -27,6 +28,16 @@ const SERIF_FONT = path.join(FONT_DIR, 'CormorantGaramond.ttf');
 
 const W = 1200;
 const H = 630;
+
+function versionOf(row: SiteRow): string {
+  return new Date(row.updated_at ?? 0).getTime().toString(36);
+}
+
+/** Capture du vrai site (clé d'accès du site de préférence, sinon celle du lien). */
+function snapshotOf(row: SiteRow, req: Request): Promise<Buffer | null> {
+  const key = String(row.access_key ?? '').trim() || String(req.query.k ?? '').trim();
+  return getSiteSnapshot(Number(row.id), versionOf(row), String(row.slug), key);
+}
 
 function hasValidKey(row: SiteRow, key: string): boolean {
   const k = key.trim();
@@ -120,6 +131,9 @@ export async function getSharePreview(req: Request, res: Response): Promise<void
     const couple = coupleLabel(row);
     const details = [formatDate(row, lang), placeLabel(row)].filter(Boolean).join(' · ');
     const t = TEXTS[lang];
+    // Prépare la capture du site tout de suite : le robot WhatsApp demande
+    // l'image juste après avoir lu ces métadonnées.
+    void snapshotOf(row, req);
     res.set('Cache-Control', 'public, max-age=300');
     res.json({
       success: true,
@@ -128,7 +142,7 @@ export async function getSharePreview(req: Request, res: Response): Promise<void
         description: [t.desc(couple), details].filter(Boolean).join(' '),
         lang,
         // Version = date de mise à jour : WhatsApp recharge l'image si le site change
-        version: new Date(row.updated_at ?? Date.now()).getTime().toString(36),
+        version: versionOf(row),
       },
     });
   } catch (err) {
@@ -260,6 +274,20 @@ export async function getShareImage(req: Request, res: Response): Promise<void> 
   try {
     const row = await loadAccessibleSite(req);
     if (!row) { res.status(404).end(); return; }
+    // L'aperçu = capture du vrai site des mariés ; la carte générée ne sert
+    // que de secours si la capture est impossible (Chromium absent) ou pas
+    // prête à temps pour le robot d'aperçu (elle est normalement générée dès
+    // l'enregistrement du site, cf. scheduleSiteSnapshot).
+    const snapshot = await Promise.race([
+      snapshotOf(row, req),
+      new Promise<null>((r) => setTimeout(() => r(null), 9000)),
+    ]);
+    if (snapshot) {
+      res.set('Content-Type', 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.send(snapshot);
+      return;
+    }
     const cacheKey = `${row.id}:${new Date(row.updated_at ?? 0).getTime()}`;
     let img = imageCache.get(cacheKey);
     if (!img) {
@@ -268,10 +296,37 @@ export async function getShareImage(req: Request, res: Response): Promise<void> 
       imageCache.set(cacheKey, img);
     }
     res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=3600');
+    // Secours : cache court pour que la vraie capture la remplace vite
+    res.set('Cache-Control', 'public, max-age=60');
     res.send(img);
   } catch (err) {
     console.error('getShareImage:', err);
     res.status(500).end();
   }
+}
+
+// ── Pré-génération à l'enregistrement du site ───────────────────────────────
+
+const pendingSnapshots = new Map<string, NodeJS.Timeout>();
+
+/**
+ * Prépare la capture d'aperçu après un enregistrement du site, pour qu'elle
+ * soit prête avant que les mariés n'envoient le lien. Le builder enregistre
+ * souvent : on attend 20 s sans nouvel enregistrement avant de capturer.
+ */
+export function scheduleSiteSnapshot(slug: string): void {
+  const key = slug.trim().toLowerCase();
+  if (!key) return;
+  const prev = pendingSnapshots.get(key);
+  if (prev) clearTimeout(prev);
+  pendingSnapshots.set(key, setTimeout(async () => {
+    pendingSnapshots.delete(key);
+    try {
+      const row = await weddingSitesRepo.findBySlug(key);
+      if (!row?.access_key || !(await weddingSitesRepo.isOwnerPremium(row))) return;
+      await getSiteSnapshot(Number(row.id), versionOf(row), String(row.slug), row.access_key);
+    } catch (err) {
+      console.error('scheduleSiteSnapshot:', (err as Error).message);
+    }
+  }, 20_000));
 }
