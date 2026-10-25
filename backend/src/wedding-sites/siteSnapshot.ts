@@ -1,5 +1,6 @@
 import { execFileSync } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import puppeteer, { type Browser } from 'puppeteer-core';
 
@@ -18,6 +19,38 @@ const W = 1200;
 const H = 630;
 const SITE_BASE = (process.env.SITE_SNAPSHOT_BASE_URL || 'https://oheve.pages.dev').replace(/\/+$/, '');
 const CACHE_DIR = path.join(process.cwd(), 'uploads', 'og-snapshots');
+// Change ce préfixe pour invalider toutes les captures déjà en cache.
+const CACHE_PREFIX = 'v2';
+
+/**
+ * Sur Railway, le Chromium de nix ne trouve aucune configuration fontconfig :
+ * il ne dessinait AUCUN texte (capture sans prénoms ni date). On lui fournit
+ * une config explicite : polices embarquées du projet + polices système / nix
+ * présentes sur la machine.
+ */
+function fontconfigFile(): string | null {
+  try {
+    const dirs = [
+      path.resolve(__dirname, '../../assets/fonts'),
+      '/root/.nix-profile/share/fonts',
+      '/nix/var/nix/profiles/default/share/fonts',
+      '/usr/share/fonts',
+      '/usr/local/share/fonts',
+    ].filter((d) => fs.existsSync(d));
+    const dir = path.join(os.tmpdir(), 'oheve-fontconfig');
+    fs.mkdirSync(path.join(dir, 'cache'), { recursive: true });
+    const file = path.join(dir, 'fonts.conf');
+    fs.writeFileSync(
+      file,
+      '<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n<fontconfig>\n' +
+        dirs.map((d) => `  <dir>${d}</dir>\n`).join('') +
+        `  <cachedir>${path.join(dir, 'cache')}</cachedir>\n</fontconfig>\n`,
+    );
+    return file;
+  } catch {
+    return null;
+  }
+}
 
 function findChromium(): string | null {
   const env = process.env.CHROMIUM_PATH?.trim();
@@ -50,10 +83,12 @@ function getBrowser(): Promise<Browser> {
   if (!browserPromise) {
     const executablePath = findChromium();
     if (!executablePath) return Promise.reject(new Error('Chromium introuvable'));
+    const fontsConf = process.platform === 'linux' ? fontconfigFile() : null;
     browserPromise = puppeteer
       .launch({
         executablePath,
         headless: true,
+        env: fontsConf ? { ...process.env, FONTCONFIG_FILE: fontsConf } : process.env,
         args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--hide-scrollbars', '--mute-audio'],
       })
       .then((b) => {
@@ -88,6 +123,19 @@ async function capture(slug: string, key: string): Promise<Buffer> {
     await page.evaluate('document.fonts && document.fonts.ready');
     // Laisse finir les animations d'entrée du haut de page
     await new Promise((r) => setTimeout(r, 1800));
+    // Garde-fou : si Chromium ne dessine pas le texte (polices introuvables),
+    // les prénoms ont une largeur nulle → on rejette la capture et l'appelant
+    // sert la carte de secours au lieu d'une image vide.
+    const textWidth = await page.evaluate(`(() => {
+      const el = document.createElement('span');
+      el.textContent = 'Mariage';
+      el.style.cssText = 'position:absolute;visibility:hidden;font-size:40px;font-family:serif';
+      document.body.appendChild(el);
+      const w = el.getBoundingClientRect().width;
+      el.remove();
+      return w;
+    })()`) as number;
+    if (!(textWidth > 20)) throw new Error(`texte non rendu (largeur ${textWidth})`);
     const shot = await page.screenshot({ type: 'jpeg', quality: 85, clip: { x: 0, y: 0, width: W, height: H } });
     return Buffer.from(shot);
   } finally {
@@ -106,7 +154,7 @@ const MEMORY_MAX = 40;
  * rendu.
  */
 export function getSiteSnapshot(siteId: number, version: string, slug: string, key: string): Promise<Buffer | null> {
-  const id = `${siteId}-${version}`;
+  const id = `${CACHE_PREFIX}-${siteId}-${version}`;
   const hit = memory.get(id);
   if (hit) return Promise.resolve(hit);
   const pending = inflight.get(id);

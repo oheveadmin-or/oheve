@@ -142,7 +142,8 @@ export async function getSharePreview(req: Request, res: Response): Promise<void
         description: [t.desc(couple), details].filter(Boolean).join(' '),
         lang,
         // Version = date de mise à jour : WhatsApp recharge l'image si le site change
-        version: versionOf(row),
+        // « s2 » : nouvelle URL d'image pour que WhatsApp oublie les captures ratées
+        version: `${versionOf(row)}s2`,
       },
     });
   } catch (err) {
