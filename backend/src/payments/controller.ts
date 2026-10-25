@@ -4,7 +4,12 @@ import { pool } from '../config/database';
 import { syncPrestaSubscription } from '../prestataire-subscription';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
+// Stripe signe avec un secret différent par destination : celle du compte
+// Oheve (paiements, abonnements) et celle des comptes connectés (account.updated).
+const STRIPE_WEBHOOK_SECRETS = [
+  process.env.STRIPE_WEBHOOK_SECRET,
+  process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
+].filter((s): s is string => !!s);
 const PLATFORM_COMMISSION_RATE = 0.05; // 5%
 const CONNECT_RETURN_PAGE = process.env.STRIPE_CONNECT_RETURN_PAGE ?? 'https://ohevewedding.com/stripe-retour/';
 
@@ -231,11 +236,16 @@ export class PaymentsController {
     const sig = req.headers['stripe-signature'] as string;
     let event: any;
 
-    try {
-      event = getStripe().webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
-    } catch (err: any) {
-      return res.status(400).json({ error: `Webhook error: ${err.message}` });
+    let lastErr = 'Aucun secret webhook configuré';
+    for (const secret of STRIPE_WEBHOOK_SECRETS) {
+      try {
+        event = getStripe().webhooks.constructEvent(req.body, sig, secret);
+        break;
+      } catch (err: any) {
+        lastErr = err.message;
+      }
     }
+    if (!event) return res.status(400).json({ error: `Webhook error: ${lastErr}` });
 
     if (event.type === 'payment_intent.succeeded') {
       const pi = event.data.object;
