@@ -26,6 +26,7 @@ import {
   verifySupabaseAccessToken,
 } from '../auth/socialVerify';
 import { avatarPublicUrl, mimeForFile, saveAvatar } from '../avatars/avatarStore';
+import { isPlaceholderEmail, visibleEmail } from '../auth/username';
 import { ConnexionInscriptionRepository } from './repository';
 
 // 10 rounds (minimum OWASP) : 12 prenait >1 s sur le vCPU partagé Railway et
@@ -162,18 +163,21 @@ export class ConnexionInscriptionController {
 
   // ── POST /connexion ────────────────────────────────────────────────────────
   async connexion(req: Request, res: Response) {
+    // `email` = email OU identifiant (comptes prestataires créés par l'admin).
     const { email, mot_de_passe } = req.body;
     if (!email || !mot_de_passe) {
-      return res.status(400).json({ success: false, message: 'Email et mot de passe requis' });
+      return res.status(400).json({ success: false, message: 'Email (ou identifiant) et mot de passe requis' });
     }
     try {
-      const user = await repo.findByEmail(email.trim().toLowerCase());
+      const user = await repo.findByLogin(String(email).trim().toLowerCase());
       if (!user || !user.is_active) {
         // Cas 2 : email inconnu → l'app propose la création de compte
         return res.status(401).json({
           success: false,
           code: 'EMAIL_NOT_FOUND',
-          message: 'Aucun compte n\'existe avec cet email.',
+          message: String(email).includes('@')
+            ? 'Aucun compte n\'existe avec cet email.'
+            : 'Aucun compte n\'existe avec cet identifiant.',
         });
       }
       if (!user.mot_de_passe) {
@@ -207,6 +211,7 @@ export class ConnexionInscriptionController {
         message: 'Connexion réussie',
         data: {
           ...safeUser,
+          email: visibleEmail(safeUser.email),
           role: effectiveRole,
           budget_total: calcBudgetTotal(safeUser),
           accessToken,
@@ -285,7 +290,7 @@ export class ConnexionInscriptionController {
       const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
       return res.status(200).json({
         success: true,
-        data: { ...user, role: effectiveRole, budget_total: calcBudgetTotal(user) },
+        data: { ...user, email: visibleEmail(user.email), role: effectiveRole, budget_total: calcBudgetTotal(user) },
       });
     } catch (err) {
       console.error('Erreur me:', err);
@@ -595,6 +600,51 @@ export class ConnexionInscriptionController {
       return res.status(200).json({ success: true, message: 'Mot de passe ajouté — tu peux maintenant te connecter par email.' });
     } catch (err) {
       console.error('Erreur setPassword:', err);
+      return res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+  }
+
+  // ── POST /first-login ──────────────────────────────────────────────────────
+  // Compte créé par l'admin (identifiant + mot de passe donné) : à la première
+  // connexion le prestataire choisit SON mot de passe et ajoute son email, avec
+  // lequel il pourra ensuite se connecter (l'identifiant reste valable).
+  async firstLogin(req: Request, res: Response) {
+    const { new_password, email } = req.body ?? {};
+    if (String(new_password ?? '').length < MIN_PWD) {
+      return res.status(400).json({ success: false, message: `Mot de passe : ${MIN_PWD} caractères minimum` });
+    }
+    const wanted = String(email ?? '').trim().toLowerCase();
+    if (wanted) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wanted) || isPlaceholderEmail(wanted)) {
+        return res.status(400).json({ success: false, message: 'Email invalide' });
+      }
+      if (isAdminEmail(wanted)) {
+        return res.status(400).json({ success: false, message: 'Cet email est réservé' });
+      }
+    }
+    try {
+      const me = await repo.findById(req.auth!.sub);
+      if (!me) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+      if (wanted && wanted !== me.email.toLowerCase()) {
+        const taken = await repo.findByEmail(wanted);
+        if (taken) {
+          return res.status(409).json({ success: false, message: 'Un autre compte utilise déjà cet email' });
+        }
+      }
+      const hash = await bcrypt.hash(String(new_password), SALT_ROUNDS);
+      await repo.completeFirstLogin(me.id, hash, wanted || null);
+      const updated = await repo.findById(me.id);
+      if (!updated) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+      // L'email fait partie du jeton : on en émet un nouveau.
+      const effectiveRole = await ensureAndGetRole(updated.id, updated.email, updated.role);
+      const accessToken = signAccessToken(updated.id, updated.email, effectiveRole);
+      return res.status(200).json({
+        success: true,
+        message: 'Compte mis à jour',
+        data: { ...updated, email: visibleEmail(updated.email), role: effectiveRole, accessToken },
+      });
+    } catch (err) {
+      console.error('Erreur firstLogin:', err);
       return res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
   }

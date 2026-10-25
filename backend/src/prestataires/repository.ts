@@ -1,4 +1,5 @@
 import { pool } from '../config/database';
+import { sqlVisibleEmail } from '../auth/username';
 
 export interface PrestaProfileRow {
   id: number;
@@ -72,7 +73,7 @@ export class PrestatairesRepository {
 
   async findByUserId(userId: number): Promise<PrestaProfileRow | null> {
     const r = await pool.query(
-      `SELECT p.*,u.email,u.nom,u.prenom,u.avatar_url,
+      `SELECT p.*,${sqlVisibleEmail('u.email')} AS email,u.nom,u.prenom,u.avatar_url,
               ph.url AS cover_url, ph.filename AS cover_filename,
               -- Le client ne peut payer que si le prestataire a activé Stripe Connect
               COALESCE(sca.charges_enabled, false) AS payments_enabled
@@ -110,7 +111,7 @@ export class PrestatairesRepository {
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     vals.push(limit, offset);
     const r = await pool.query(
-      `SELECT p.*,u.email,u.nom,u.prenom,u.avatar_url,
+      `SELECT p.*,${sqlVisibleEmail('u.email')} AS email,u.nom,u.prenom,u.avatar_url,
               u.role AS user_role,u.subscription_plan,u.subscription_status,
               ph.url AS cover_url, ph.filename AS cover_filename
        FROM prestataire_profiles p

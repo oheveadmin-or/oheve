@@ -2,6 +2,9 @@ import bcrypt from 'bcrypt';
 import { Router, Request, Response } from 'express';
 
 import { isAdminEmail, sanitizeAssignedRole } from '../auth/admin';
+import {
+  USERNAME_RULE, normalizeUsername, placeholderEmail, sqlVisibleEmail,
+} from '../auth/username';
 import { pool } from '../config/database';
 import { ADMIN_GRANT_SUB_ID, isAdminGrant, isPrestaSubActive } from '../prestataire-subscription';
 import { requireAdmin } from '../middleware/requireAdmin';
@@ -172,7 +175,7 @@ adminRoutes.get('/prestataires', async (req: Request, res: Response) => {
   const vals: unknown[] = [];
   let i = 1;
   if (search) {
-    conditions.push(`(pp.business_name ILIKE $${i} OR u.email ILIKE $${i} OR u.nom ILIKE $${i})`);
+    conditions.push(`(pp.business_name ILIKE $${i} OR u.email ILIKE $${i} OR u.username ILIKE $${i} OR u.nom ILIKE $${i})`);
     vals.push(`%${search}%`); i++;
   }
   const where = `WHERE ${conditions.join(' AND ')}`;
@@ -180,7 +183,8 @@ adminRoutes.get('/prestataires', async (req: Request, res: Response) => {
 
   try {
     const r = await pool.query(
-      `SELECT pp.*, u.email, u.nom, u.prenom, u.role, u.is_active AS user_active,
+      `SELECT pp.*, ${sqlVisibleEmail('u.email')} AS email, u.username, u.must_change_password,
+              u.nom, u.prenom, u.role, u.is_active AS user_active,
               u.subscription_plan, u.subscription_status,
               u.presta_sub_status, u.presta_current_period_end, u.presta_trial_end,
               CASE
@@ -216,14 +220,24 @@ adminRoutes.get('/prestataires', async (req: Request, res: Response) => {
 //   - 'payant' : le prestataire active lui-même son abonnement depuis l'app.
 adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
   const {
-    email, mot_de_passe, prenom, nom, business_name, category,
+    username, email, mot_de_passe, prenom, nom, business_name, category,
     location_city, phone, description, instagram_url, mode, offert_until,
   } = req.body ?? {};
 
-  const normalizedEmail = String(email ?? '').trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+  // Identifiant de connexion (l'email est facultatif : le prestataire l'ajoute
+  // lui-même à sa première connexion).
+  const login = normalizeUsername(username);
+  if (!USERNAME_RULE.test(login)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Identifiant : 3 à 30 caractères, lettres minuscules, chiffres, point, tiret ou _ (sans espace ni accent)',
+    });
+  }
+  const typedEmail = String(email ?? '').trim().toLowerCase();
+  if (typedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typedEmail)) {
     return res.status(400).json({ success: false, message: 'Email invalide' });
   }
+  const normalizedEmail = typedEmail || placeholderEmail(login);
   if (isAdminEmail(normalizedEmail)) {
     return res.status(400).json({ success: false, message: 'Cet email est réservé à l\'administrateur' });
   }
@@ -253,9 +267,10 @@ adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
     const hash = await bcrypt.hash(String(mot_de_passe), SALT_ROUNDS);
     const u = await client.query(
       `INSERT INTO users (email, nom, prenom, mot_de_passe, role, phone,
-                          presta_sub_id, presta_sub_status, presta_current_period_end)
-       VALUES ($1,$2,$3,$4,'prestataire',$5,$6,$7,$8)
-       RETURNING id, email, nom, prenom, role`,
+                          presta_sub_id, presta_sub_status, presta_current_period_end,
+                          username, must_change_password)
+       VALUES ($1,$2,$3,$4,'prestataire',$5,$6,$7,$8,$9,true)
+       RETURNING id, username, nom, prenom, role`,
       [
         normalizedEmail,
         String(nom ?? '').trim() || bizName,
@@ -265,6 +280,7 @@ adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
         mode === 'offert' ? ADMIN_GRANT_SUB_ID : null,
         mode === 'offert' ? 'active' : null,
         mode === 'offert' ? until : null,
+        login,
       ]
     );
     const user = u.rows[0];
@@ -282,7 +298,7 @@ adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
     );
     await client.query(
       `INSERT INTO admin_presta_credentials (user_id, email, password) VALUES ($1,$2,$3)`,
-      [user.id, normalizedEmail, String(mot_de_passe)]
+      [user.id, login, String(mot_de_passe)]
     );
     await client.query('COMMIT');
     return res.status(201).json({
@@ -293,7 +309,7 @@ adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
   } catch (err: unknown) {
     await client.query('ROLLBACK').catch(() => {});
     if ((err as { code?: string }).code === '23505') {
-      return res.status(409).json({ success: false, message: 'Un compte existe déjà avec cet email' });
+      return res.status(409).json({ success: false, message: 'Cet identifiant (ou cet email) est déjà utilisé' });
     }
     console.error(err);
     return res.status(500).json({ success: false, message: 'Erreur' });
@@ -366,17 +382,18 @@ adminRoutes.patch('/users/:id/password', async (req: Request, res: Response) => 
     return res.status(400).json({ success: false, message: `Mot de passe : ${MIN_PWD} caractères minimum` });
   }
   try {
-    const row = (await pool.query(`SELECT email FROM users WHERE id=$1`, [userId])).rows[0];
+    const row = (await pool.query(`SELECT email, username FROM users WHERE id=$1`, [userId])).rows[0];
     if (!row) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
     if (isAdminEmail(row.email)) {
       return res.status(403).json({ success: false, message: 'Impossible de modifier le compte administrateur ici' });
     }
     const hash = await bcrypt.hash(String(mot_de_passe), SALT_ROUNDS);
-    await pool.query(`UPDATE users SET mot_de_passe=$1 WHERE id=$2`, [hash, userId]);
+    // Mot de passe donné par l'admin : l'app proposera de le changer.
+    await pool.query(`UPDATE users SET mot_de_passe=$1, must_change_password=true WHERE id=$2`, [hash, userId]);
     await pool.query(
       `INSERT INTO admin_presta_credentials (user_id, email, password) VALUES ($1,$2,$3)
        ON CONFLICT (user_id) DO UPDATE SET email=EXCLUDED.email, password=EXCLUDED.password, updated_at=NOW()`,
-      [userId, row.email, String(mot_de_passe)]
+      [userId, row.username ?? row.email, String(mot_de_passe)]
     );
     // Déconnecte les sessions existantes : l'ancien mot de passe ne doit plus servir.
     await pool.query(`DELETE FROM refresh_tokens WHERE user_id=$1`, [userId]).catch(() => {});

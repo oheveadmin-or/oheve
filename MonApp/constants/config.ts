@@ -173,6 +173,7 @@ export const API_ENDPOINTS = {
   linkProvider: `${API_BASE_URL}/api/auth/link-provider`,
   unlinkProvider: (provider: string) => `${API_BASE_URL}/api/auth/providers/${provider}`,
   setPassword: `${API_BASE_URL}/api/auth/set-password`,
+  firstLogin: `${API_BASE_URL}/api/auth/first-login`,
   // Admin
   adminStats: `${API_BASE_URL}/api/admin/stats`,
   adminUsers: `${API_BASE_URL}/api/admin/users`,

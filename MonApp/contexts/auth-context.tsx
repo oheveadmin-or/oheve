@@ -41,6 +41,10 @@ export interface AuthUser {
   presta_sub_status?: string;
   presta_trial_end?: string;
   presta_current_period_end?: string;
+  // Compte créé par l'admin : identifiant de connexion, et mot de passe donné
+  // par l'admin à remplacer (écran /first-login proposé à la connexion).
+  username?: string | null;
+  must_change_password?: boolean;
 }
 
 /** Un prestataire a accès à son espace si son abonnement est en essai ou actif. */

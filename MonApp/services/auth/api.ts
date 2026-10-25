@@ -240,6 +240,10 @@ export const authApi = {
   setPassword: (accessToken: string, new_password: string) =>
     post(API_ENDPOINTS.setPassword, { new_password }, accessToken),
 
+  /** Première connexion d'un compte créé par l'admin : son mot de passe + son email. */
+  firstLogin: (accessToken: string, data: { new_password: string; email?: string }) =>
+    post(API_ENDPOINTS.firstLogin, data, accessToken),
+
   // Suppression définitive du compte + toutes les données (Guideline 5.1.1).
   deleteAccount: (accessToken: string) =>
     del(API_ENDPOINTS.deleteAccount, accessToken),
@@ -403,7 +407,7 @@ export const adminApi = {
 
   /** Crée le compte d'un prestataire (identifiants + fiche + mode offert/payant). */
   createPrestataire: (accessToken: string, data: {
-    email: string; mot_de_passe: string; prenom?: string; nom?: string;
+    username: string; email?: string; mot_de_passe: string; prenom?: string; nom?: string;
     business_name: string; category: string; location_city?: string; phone?: string;
     instagram_url?: string; mode: 'offert' | 'payant'; offert_until?: string | null;
   }) => adminFetch(accessToken, API_ENDPOINTS.adminPrestataires, 'POST', data),

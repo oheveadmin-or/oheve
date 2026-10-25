@@ -30,6 +30,8 @@ export interface UserRow {
   bride_name?: string;
   groom_name?: string;
   created_at: string;
+  username?: string | null;
+  must_change_password?: boolean;
 }
 
 export class ConnexionInscriptionRepository {
@@ -58,11 +60,32 @@ export class ConnexionInscriptionRepository {
               wedding_lat,wedding_lng,wedding_address,
               subscription_plan,subscription_status,subscription_started_at,subscription_expires_at,
               presta_sub_status,presta_trial_end,presta_current_period_end,
-              bride_name,groom_name,premium,premium_purchased_at,created_at
+              bride_name,groom_name,premium,premium_purchased_at,created_at,
+              username,must_change_password
        FROM users WHERE LOWER(email)=LOWER($1)`,
       [email.trim()]
     );
     return r.rows[0] ?? null;
+  }
+
+  /** Connexion : email OU identifiant (comptes créés par l'admin). */
+  async findByLogin(login: string): Promise<UserRow | null> {
+    const value = login.trim();
+    if (value.includes('@')) return this.findByEmail(value);
+    const r = await pool.query(`SELECT email FROM users WHERE LOWER(username)=LOWER($1)`, [value]);
+    return r.rows[0] ? this.findByEmail(r.rows[0].email) : null;
+  }
+
+  /**
+   * Première connexion d'un compte créé par l'admin : son propre mot de passe,
+   * et son email s'il en donne un (il pourra alors se connecter avec).
+   */
+  async completeFirstLogin(userId: number, hash: string, email: string | null): Promise<void> {
+    await pool.query(
+      `UPDATE users SET mot_de_passe=$1, must_change_password=false, email=COALESCE($2, email) WHERE id=$3`,
+      [hash, email, userId]
+    );
+    await pool.query(`DELETE FROM admin_presta_credentials WHERE user_id=$1`, [userId]).catch(() => {});
   }
 
   async findById(id: number): Promise<UserRow | null> {
@@ -73,7 +96,8 @@ export class ConnexionInscriptionRepository {
               wedding_lat,wedding_lng,wedding_address,
               subscription_plan,subscription_status,subscription_started_at,subscription_expires_at,
               presta_sub_status,presta_trial_end,presta_current_period_end,
-              bride_name,groom_name,premium,premium_purchased_at,created_at
+              bride_name,groom_name,premium,premium_purchased_at,created_at,
+              username,must_change_password
        FROM users WHERE id=$1`,
       [id]
     );
@@ -231,7 +255,7 @@ export class ConnexionInscriptionRepository {
   }
 
   async setPasswordById(userId: number, hash: string) {
-    await pool.query(`UPDATE users SET mot_de_passe=$1 WHERE id=$2`, [hash, userId]);
+    await pool.query(`UPDATE users SET mot_de_passe=$1, must_change_password=false WHERE id=$2`, [hash, userId]);
     // Le mot de passe donné par l'admin ne vaut plus : on ne l'affiche plus.
     await pool.query(`DELETE FROM admin_presta_credentials WHERE user_id=$1`, [userId]).catch(() => {});
   }
@@ -335,7 +359,7 @@ export class ConnexionInscriptionRepository {
 
   async updatePassword(email: string, hash: string): Promise<{ id: number; email: string } | null> {
     const r = await pool.query(
-      `UPDATE users SET mot_de_passe=$1 WHERE email=$2 RETURNING id, email`,
+      `UPDATE users SET mot_de_passe=$1, must_change_password=false WHERE email=$2 RETURNING id, email`,
       [hash, email]
     );
     if (r.rows[0]) {

@@ -54,3 +54,4 @@ connexionInscriptionRoutes.get('/auth-methods', requireAuth, ctrl.authMethods.bi
 connexionInscriptionRoutes.post('/link-provider', requireAuth, ctrl.linkProvider.bind(ctrl));
 connexionInscriptionRoutes.delete('/providers/:provider', requireAuth, ctrl.unlinkProvider.bind(ctrl));
 connexionInscriptionRoutes.post('/set-password', requireAuth, ctrl.setPassword.bind(ctrl));
+connexionInscriptionRoutes.post('/first-login', requireAuth, ctrl.firstLogin.bind(ctrl));

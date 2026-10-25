@@ -40,7 +40,7 @@ export default function LoginScreen() {
 
   const handleConnexion = async () => {
     if (!email.trim() || !password) {
-      Alert.alert('Erreur', 'Veuillez remplir email et mot de passe');
+      Alert.alert('Erreur', 'Veuillez remplir email (ou identifiant) et mot de passe');
       return;
     }
 
@@ -53,7 +53,7 @@ export default function LoginScreen() {
         if (result.code === 'EMAIL_NOT_FOUND') {
           Alert.alert(
             'Compte introuvable',
-            'Aucun compte n\'existe avec cet email. Veux-tu en créer un ?',
+            `${result.message ?? 'Aucun compte n\'existe avec cet email.'} Veux-tu en créer un ?`,
             [
               { text: 'Annuler', style: 'cancel' },
               { text: 'Créer un compte', onPress: () => router.push('/(auth)/register') },
@@ -95,7 +95,13 @@ export default function LoginScreen() {
         presta_sub_status: data.presta_sub_status,
         presta_trial_end: data.presta_trial_end,
         presta_current_period_end: data.presta_current_period_end,
+        username: data.username,
+        must_change_password: data.must_change_password,
       });
+
+      // Compte créé par l'admin : on propose tout de suite de choisir son mot
+      // de passe et d'ajouter son email.
+      if (data.must_change_password) { router.replace('/(app)/first-login' as never); return; }
 
       if (data.role === 'admin') { router.replace('/(app)/(tabs)'); return; }
       if (data.role === 'prestataire') { router.replace('/(app)/(tabs)'); return; }
@@ -167,13 +173,14 @@ export default function LoginScreen() {
           {/* Email */}
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Email ou identifiant"
             placeholderTextColor={C.textLight}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            autoComplete="email"
+            autoCorrect={false}
+            autoComplete="username"
           />
 
           {/* Mot de passe */}

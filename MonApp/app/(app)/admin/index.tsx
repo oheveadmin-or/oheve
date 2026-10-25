@@ -214,7 +214,7 @@ export default function AdminDashboard() {
             Alert.alert('Impossible', res.message ?? 'Réessayez.');
             return;
           }
-          const ids = `Identifiants Oheve\nEmail : ${email}\nMot de passe : ${pwd}`;
+          const ids = `Identifiants Oheve\nIdentifiant : ${email}\nMot de passe : ${pwd}`;
           Alert.alert('Mot de passe changé', ids, [
             { text: 'Copier', onPress: () => Clipboard.setStringAsync(ids) },
             { text: 'OK' },
@@ -268,20 +268,25 @@ export default function AdminDashboard() {
       <View style={[styles.card, suspended && styles.cardOff]}>
         <View style={styles.cardBody}>
           <ThemedText style={styles.cardTitle}>{p.business_name as string}</ThemedText>
-          <ThemedText style={styles.cardSub}>{p.email as string} · {p.category as string} · ID {userId}</ThemedText>
+          <ThemedText style={styles.cardSub}>
+            {[p.username ? `@${p.username as string}` : null, (p.email as string) || null, p.category as string, `ID ${userId}`].filter(Boolean).join(' · ')}
+          </ThemedText>
           {p.admin_password ? (
             <Pressable onPress={() => {
-              const ids = `Identifiants Oheve\nEmail : ${p.email as string}\nMot de passe : ${p.admin_password as string}`;
+              const ids = `Identifiants Oheve\nIdentifiant : ${(p.username as string) || (p.email as string)}\nMot de passe : ${p.admin_password as string}`;
               Clipboard.setStringAsync(ids);
               Alert.alert('Identifiants copiés', ids);
             }}>
               <ThemedText style={styles.cardIds} selectable>
-                Identifiants : {p.email as string} · {p.admin_password as string}  (toucher pour copier)
+                Identifiant : {(p.username as string) || (p.email as string)} · Mot de passe : {p.admin_password as string}  (toucher pour copier)
               </ThemedText>
             </Pressable>
           ) : (
             <ThemedText style={styles.cardMeta}>Mot de passe : choisi par le prestataire (clé = en générer un nouveau)</ThemedText>
           )}
+          {p.username && !p.email ? (
+            <ThemedText style={[styles.cardMeta, { color: '#b45309' }]}>Pas encore connecté : email à ajouter à sa 1re connexion</ThemedText>
+          ) : null}
           <ThemedText style={[styles.cardMeta, { color: provider === 'admin' || subActive ? '#10b981' : '#b45309' }]}>{modeLabel}</ThemedText>
           <ThemedText style={[styles.cardMeta, { color: p.charges_enabled ? '#10b981' : '#9a9c93' }]} selectable>{stripeLabel}</ThemedText>
           <View style={styles.badgeRow}>
@@ -297,7 +302,7 @@ export default function AdminDashboard() {
             <Pressable style={styles.iconBtn} onPress={() => changeCover(userId)}>
               <Ionicons name="image-outline" size={16} color="#747e68" />
             </Pressable>
-            <Pressable style={styles.iconBtn} onPress={() => resetPassword(userId, p.email as string)}>
+            <Pressable style={styles.iconBtn} onPress={() => resetPassword(userId, (p.username as string) || (p.email as string))}>
               <Ionicons name="key-outline" size={16} color="#747e68" />
             </Pressable>
           </View>

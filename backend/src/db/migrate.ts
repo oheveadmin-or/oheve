@@ -573,6 +573,11 @@ export async function runMigrations(): Promise<void> {
     await migrateDiskAvatarsToDb().catch((err) => console.error('❌ Import avatars:', (err as Error).message));
     // ── Photos, vidéos (reels), pièces jointes, musique : copie en base ────────
     await pool.query(CREATE_STORED_FILES);
+    // ── Connexion par identifiant (comptes prestataires créés par l'admin) ────
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50)`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users (LOWER(username)) WHERE username IS NOT NULL`);
+    // Mot de passe donné par l'admin : l'app propose de le changer à la connexion.
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false`);
     // ── Identifiants donnés par l'admin aux prestataires qu'il a créés ─────────
     // Gardés pour pouvoir les retrouver dans Admin → Prestataires (lecture
     // réservée à l'admin). Remplacés à chaque nouveau mot de passe admin.

@@ -1,5 +1,7 @@
 import { Resend } from 'resend';
 
+import { isPlaceholderEmail } from '../auth/username';
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM = 'Oheve <noreply@ohevewedding.com>';
@@ -44,6 +46,8 @@ async function send(opts: {
   html: string;
   text: string;
 }): Promise<void> {
+  // Compte à identifiant sans email réel : rien à envoyer.
+  if (isPlaceholderEmail(opts.to)) return;
   await resend.emails.send({
     from: FROM,
     replyTo: REPLY_TO,

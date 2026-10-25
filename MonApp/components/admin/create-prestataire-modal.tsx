@@ -46,6 +46,18 @@ export function grantUntil(months: number): string | null {
   return d.toISOString();
 }
 
+/** Identifiant de connexion : minuscules, chiffres, point, tiret, _ (sans accent). */
+export function toUsername(raw: string): string {
+  return raw
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[\s']+/g, '.')
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^\.|\.$/g, '')
+    .slice(0, 30);
+}
+
 /** Mot de passe lisible (sans 0/O/1/l) à transmettre au prestataire. */
 export function generatePassword(): string {
   const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -63,7 +75,9 @@ type Props = {
 
 export function CreatePrestataireModal({ visible, token, onClose, onCreated }: Props) {
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  // Tant que l'admin n'a pas tapé d'identifiant, on le déduit du nom de l'entreprise.
+  const [usernameTouched, setUsernameTouched] = useState(false);
   const [password, setPassword] = useState(generatePassword);
   const [businessName, setBusinessName] = useState('');
   const [category, setCategory] = useState('');
@@ -80,7 +94,7 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
-    setEmail(''); setPassword(generatePassword()); setBusinessName(''); setCategory('');
+    setUsername(''); setUsernameTouched(false); setPassword(generatePassword()); setBusinessName(''); setCategory('');
     setPrenom(''); setNom(''); setCity(''); setPhone(''); setInstagram(''); setCoverUri(null);
     setMode('offert'); setMonths(0);
   };
@@ -104,13 +118,14 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
     }
   };
 
-  const canSave = email.trim() && password.length >= 8 && businessName.trim() && category && !saving;
+  const login = usernameTouched ? username : toUsername(businessName);
+  const canSave = login.length >= 3 && password.length >= 8 && businessName.trim() && category && !saving;
 
   const submit = async () => {
     if (!canSave) return;
     setSaving(true);
     const res = await adminApi.createPrestataire(token, {
-      email: email.trim(),
+      username: login,
       mot_de_passe: password,
       prenom: prenom.trim() || undefined,
       nom: nom.trim() || undefined,
@@ -135,7 +150,7 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
     }
     setSaving(false);
     setCreated({
-      ids: `Identifiants Oheve\nEmail : ${email.trim().toLowerCase()}\nMot de passe : ${password}`,
+      ids: `Identifiants Oheve\nIdentifiant : ${login}\nMot de passe : ${password}`,
       info: mode === 'offert'
         ? `Abonnement offert${months ? ` ${months} mois` : ' sans limite'} : la fiche est visible dans l'annuaire dès maintenant.`
         : 'Mode payant : le prestataire active son abonnement depuis l\'app pour apparaître dans l\'annuaire.',
@@ -174,6 +189,9 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
             </Pressable>
             <ThemedText style={styles.modeTxt}>{created.info}</ThemedText>
             <ThemedText style={styles.modeTxt}>
+              À sa première connexion, l&apos;app lui propose de choisir son propre mot de passe et d&apos;ajouter son email.
+            </ThemedText>
+            <ThemedText style={styles.modeTxt}>
               Retrouvez ces identifiants à tout moment dans Admin → Prestataires.
             </ThemedText>
             {created.coverFailed && (
@@ -188,7 +206,14 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
         ) : (
         <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
           <ThemedText style={styles.section}>Identifiants de connexion</ThemedText>
-          <Field label="Email *" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <Field
+            label="Identifiant * (le prestataire ajoutera son email à sa 1re connexion)"
+            value={login}
+            onChangeText={(v) => { setUsernameTouched(true); setUsername(toUsername(v)); }}
+            placeholder="ex. domaine.oliviers"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
           <View style={{ gap: 6 }}>
             <ThemedText style={styles.label}>Mot de passe * (8 caractères min.)</ThemedText>
             <View style={styles.pwdRow}>
