@@ -34,6 +34,7 @@ import { defaultWeddingSections, defaultWeddingTheme } from '../types';
 import { getPatternStyle } from '../templates/PatternOverlay';
 import { getFamilyColumns } from '../templates/templateParts';
 import { mergeDateAndTimeToIso } from '../utils/date';
+import { eventDateTextToIso, frenchLongDate, hebrewDateFromIso, isoToEventDateText } from '../utils/hebrewDate';
 import { jewishRsvpId } from '../utils/inviteFilter';
 import { generateSlugFromDisplayName, slugify } from '../utils/slug';
 import { applyThemePreset } from '../templates/themePresets';
@@ -152,6 +153,22 @@ const DEFAULT_JEWISH_EVENTS: { type: JewishWeddingEvent['type']; label: string; 
 
 const initialDate = (): { date: string; time: string } => ({ date: '', time: '' });
 
+// ─── Parcours en étapes (une étape à l'écran à la fois) ──────────────────────
+const WIZARD_STEPS = [
+  { id: 'maries', tab: 'Mariés', title: 'Les mariés', sub: 'Vos prénoms, en grand sur le site, et votre monogramme.' },
+  { id: 'familles', tab: 'Familles', title: 'Les familles', sub: 'Parents, grands-parents… ligne par ligne.' },
+  { id: 'passouk', tab: 'Passouk', title: 'Le passouk', sub: 'Le verset en arc, en haut du site.' },
+  { id: 'date', tab: 'Date & lieu', title: 'Date & lieu', sub: 'La date, la salle et le programme de vos événements.' },
+  { id: 'textes', tab: 'Textes', title: 'Les textes', sub: 'Chaque phrase, à votre façon.' },
+  { id: 'style', tab: 'Style', title: 'Le style du site', sub: 'Couleurs, polices et sections affichées.' },
+  { id: 'musique', tab: 'Musique', title: 'La musique', sub: 'La chanson qui accompagne votre site.' },
+  { id: 'photos', tab: 'Photos', title: 'Vos photos', sub: 'La galerie de votre site.' },
+  { id: 'invites', tab: 'Invités', title: 'Vos invités', sub: 'Le formulaire de réponse, les hébergements et les questions.' },
+  { id: 'fin', tab: 'Terminer', title: "C'est prêt !", sub: "Vos liens d'invitation et la publication du site." },
+] as const;
+
+type WizardStepId = (typeof WIZARD_STEPS)[number]['id'];
+
 export function WeddingSiteBuilder() {
   const { slug: routeSlug } = useParams<{ slug?: string }>();
   const [namesLocked, setNamesLocked] = useState(false);
@@ -174,6 +191,25 @@ export function WeddingSiteBuilder() {
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
 
   const [step, setStep] = useState<'pick' | 'build'>('pick');
+  const [wizIdx, setWizIdx] = useState(0);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const formColumnRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const wiz: WizardStepId = WIZARD_STEPS[wizIdx].id;
+  const isLastStep = wizIdx === WIZARD_STEPS.length - 1;
+
+  function goToStep(idx: number) {
+    const next = Math.max(0, Math.min(WIZARD_STEPS.length - 1, idx));
+    setWizIdx(next);
+    // Chaque étape repart du haut : colonne scrollable (mobile) ou page (ordinateur)
+    formColumnRef.current?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
+    // L'onglet actif reste visible dans la barre d'étapes défilante
+    requestAnimationFrame(() => {
+      const tab = tabsRef.current?.querySelector<HTMLElement>(`[data-step="${next}"]`);
+      tab?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    });
+  }
   // Thème du site existant chargé depuis le serveur (null = création) : le
   // sélecteur doit le présélectionner, y compris « classic ».
   const [loadedStyle, setLoadedStyle] = useState<WeddingTheme['style'] | null>(null);
@@ -513,6 +549,8 @@ export function WeddingSiteBuilder() {
   function validateFormats(): string[] {
     const errors: string[] = [];
 
+    // Les champs des autres étapes ne sont plus à l'écran : `required` ne suffit plus
+    if (!groomName.trim() || !brideName.trim()) errors.push('Prénoms des mariés manquants (étape « Mariés »).');
     if (!date) errors.push('Date du mariage manquante.');
     else if (!isoDate) errors.push('Date ou heure du mariage invalide.');
     if (time && !/^\d{2}:\d{2}$/.test(time)) errors.push('Heure invalide (format attendu : HH:MM).');
@@ -554,6 +592,8 @@ export function WeddingSiteBuilder() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    // « Entrée » dans un champ d'une étape intermédiaire : on avance, on ne publie pas
+    if (!isLastStep) { goToStep(wizIdx + 1); return; }
     const errors = validateFormats();
     setSubmitErrors(errors);
     if (errors.length) return;
@@ -878,26 +918,9 @@ export function WeddingSiteBuilder() {
 
   return (
     <div className="wedding-builder-layout">
-      <div style={formColumn}>
-        <header style={{ marginBottom: '1rem' }}>
+      <div style={formColumn} ref={formColumnRef}>
+        <header style={{ marginBottom: '0.5rem' }}>
           <h1 style={h1}>{namesLocked ? `Personnaliser le site · ${groomName} & ${brideName}` : 'Créer le mini-site'}</h1>
-
-          {/* Mobile experience banner */}
-          {typeof window !== 'undefined' && window.innerWidth < 768 && (
-            <div style={mobileBanner}>
-              <span style={{ fontSize: '1.3rem' }}>🖥️</span>
-              <div>
-                <strong style={{ display: 'block', marginBottom: 4 }}>Meilleure expérience sur ordinateur</strong>
-                Pour profiter du studio complet avec aperçu en direct côte à côte, ouvrez cette page sur votre ordinateur ou tablette.
-                {"L'application mobile offre un builder simplifié."}
-              </div>
-            </div>
-          )}
-
-          <p style={sub}>
-            Remplissez les infos, personnalisez le style, vérifiez l'aperçu puis publiez. URL publique :{' '}
-            <strong>www.ohevewedding.com/wedding/votre-slug</strong> — votre domaine est actif.
-          </p>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <Link to="/" style={{ fontSize: '0.92rem' }}>← Retour</Link>
             {(
@@ -928,10 +951,46 @@ export function WeddingSiteBuilder() {
           </div>
         )}
 
+        {/* ── Barre d'étapes : onglets défilants + barre de progression ── */}
+        <nav style={stepNav} aria-label="Étapes de création">
+          <div ref={tabsRef} className="wsb-step-tabs" style={stepTabs}>
+            {WIZARD_STEPS.map((s, i) => {
+              const done = i < wizIdx;
+              const active = i === wizIdx;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  data-step={i}
+                  aria-current={active ? 'step' : undefined}
+                  onClick={() => goToStep(i)}
+                  style={stepTab(active, done)}
+                >
+                  {done ? `✓ ${s.tab}` : `${i + 1}. ${s.tab}`}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ height: 3, background: '#E9E3D8' }}>
+            <div style={{ height: '100%', width: `${((wizIdx + 1) / WIZARD_STEPS.length) * 100}%`, background: '#8F947F', transition: 'width 0.3s ease' }} />
+          </div>
+        </nav>
+
+        <div style={{ margin: '1.1rem 0 1rem' }}>
+          <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8F947F' }}>
+            Étape {wizIdx + 1} sur {WIZARD_STEPS.length}
+          </p>
+          <h2 style={{ margin: '0.2rem 0 0.2rem', fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 500, fontSize: '1.9rem', color: '#3D3229' }}>
+            {WIZARD_STEPS[wizIdx].title}
+          </h2>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: '#8a8378' }}>{WIZARD_STEPS[wizIdx].sub}</p>
+        </div>
+
         <form onSubmit={handleSubmit}>
 
+          {wiz === 'maries' && (
           <section style={block}>
-            <h2 style={h2}>Informations</h2>
+            <h2 style={h2}>Vos prénoms</h2>
             <div style={grid2}>
               <label style={lab}>
                 Prénom marié
@@ -970,6 +1029,12 @@ export function WeddingSiteBuilder() {
                 onChange={(e) => setCoupleName(e.target.value)}
               />
             </label>
+          </section>
+          )}
+
+          {wiz === 'date' && (
+          <section style={block}>
+            <h2 style={h2}>La date</h2>
             <div style={grid2}>
               <label style={lab}>
                 Date du mariage
@@ -992,14 +1057,30 @@ export function WeddingSiteBuilder() {
                 />
               </label>
             </div>
+            {/* Date hébraïque calculée automatiquement à partir du calendrier */}
+            {date && hebrewDateFromIso(date) ? (
+              <div style={hebrewDateBox}>
+                <span style={{ color: '#8a8378' }}>{frenchLongDate(date)}</span>
+                <br />
+                <span style={{ color: '#8a8378' }}>Date hébraïque : </span>
+                <strong style={{ fontWeight: 600 }}>{hebrewDateFromIso(date)?.fr}</strong>
+                {' · '}
+                <span dir="rtl" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: '1rem', unicodeBidi: 'isolate', whiteSpace: 'nowrap' }}>{hebrewDateFromIso(date)?.he}</span>
+                <span style={{ display: 'block', fontSize: '0.72rem', color: '#8a8378', marginTop: 4 }}>
+                  Calculée automatiquement. Si la Houppa a lieu après le coucher du soleil, le jour hébraïque est le lendemain.
+                </span>
+              </div>
+            ) : null}
             <label style={lab}>
               Ville
               <input style={inp} value={city} onChange={(e) => setCity(e.target.value)} />
             </label>
-            <p style={{ fontSize: '0.78rem', color: '#8a8378', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
-              📍 Le lieu se renseigne une seule fois dans la section « Lieu principal » ci-dessous —
-              il est repris automatiquement en haut du site.
-            </p>
+          </section>
+          )}
+
+          {wiz === 'textes' && (
+          <section style={block}>
+            <h2 style={h2}>L'accueil</h2>
             <label style={lab}>
               Phrase d'accueil
               <input style={inp} value={welcomeText} onChange={(e) => setWelcomeText(e.target.value)} />
@@ -1008,8 +1089,13 @@ export function WeddingSiteBuilder() {
               Texte principal
               <textarea style={{ ...inp, minHeight: 88, resize: 'vertical' }} value={mainText} onChange={(e) => setMainText(e.target.value)} />
             </label>
+          </section>
+          )}
+
+          {wiz === 'passouk' && (
+          <section style={block}>
             {/* ── Verset hébraïque en arc ── */}
-            <div style={{ marginTop: '1.2rem' }}>
+            <div>
               <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', letterSpacing: '0.04em', display: 'block', marginBottom: '0.6rem' }}>
                 ✡️ פסוק — Verset hébraïque (affiché en arc)
               </span>
@@ -1058,8 +1144,10 @@ export function WeddingSiteBuilder() {
               />
             </div>
           </section>
+          )}
 
           {/* ── Familles : colonnes libres ─────────────────────────────────── */}
+          {wiz === 'familles' && (
           <section style={block}>
             <h2 style={h2}>👨‍👩‍👧 Familles (affiché sur le site)</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
@@ -1114,8 +1202,10 @@ export function WeddingSiteBuilder() {
               + Ajouter une famille
             </button>
           </section>
+          )}
 
           {/* ── Logo monogramme ─────────────────────────────────────────────── */}
+          {wiz === 'maries' && (
           <section style={block}>
             <h2 style={h2}>💍 Logo monogramme (IA)</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
@@ -1145,7 +1235,9 @@ export function WeddingSiteBuilder() {
               </div>
             ) : null}
           </section>
+          )}
 
+          {wiz === 'style' && (
           <section style={block}>
             <h2 style={h2}>🎨 Style & thème</h2>
 
@@ -1504,7 +1596,9 @@ export function WeddingSiteBuilder() {
             </label>
 
           </section>
+          )}
 
+          {wiz === 'style' && (
           <section style={block}>
             <h2 style={h2}>Sections affichées</h2>
             <div style={checks}>
@@ -1586,9 +1680,14 @@ export function WeddingSiteBuilder() {
               </label>
             </div>
           </section>
+          )}
 
+          {wiz === 'date' && (
           <section style={block}>
-            <h2 style={h2}>Lieu principal</h2>
+            <h2 style={h2}>Le lieu</h2>
+            <p style={{ fontSize: '0.78rem', color: '#8a8378', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
+              📍 Repris automatiquement en haut du site, avec les boutons Google Maps et Waze.
+            </p>
             <label style={lab}>
               Nom du lieu
               <input style={inp} value={content.venue?.name ?? ''} onChange={(e) => updateVenueField('name', e.target.value)} />
@@ -1616,7 +1715,9 @@ export function WeddingSiteBuilder() {
               <textarea style={{ ...inp, minHeight: 72, resize: 'vertical' }} value={content.venue?.description ?? ''} onChange={(e) => updateVenueField('description', e.target.value)} />
             </label>
           </section>
+          )}
 
+          {wiz === 'invites' && (
           <section style={block}>
             <h2 style={h2}>Hébergements recommandés (max 6)</h2>
             <label style={lab}>
@@ -1656,7 +1757,9 @@ export function WeddingSiteBuilder() {
               + Ajouter un hôtel
             </button>
           </section>
+          )}
 
+          {wiz === 'invites' && (
           <section style={block}>
             <h2 style={h2}>FAQ</h2>
             <div style={{ display: 'grid', gap: 10 }}>
@@ -1682,7 +1785,9 @@ export function WeddingSiteBuilder() {
               + Ajouter une question
             </button>
           </section>
+          )}
 
+          {wiz === 'textes' && (
           <section style={block}>
             <h2 style={h2}>Textes du site</h2>
             <label style={lab}>
@@ -1701,6 +1806,12 @@ export function WeddingSiteBuilder() {
                 onChange={(e) => setContent((c) => ({ ...c, texts: { ...(c.texts ?? {}), familyText: e.target.value } }))}
               />
             </label>
+          </section>
+          )}
+
+          {wiz === 'musique' && (
+          <section style={block}>
+            <h2 style={h2}>🎵 Votre chanson</h2>
             <label style={lab}>
               Musique de fond — playlist mariage
               <select
@@ -1757,12 +1868,14 @@ export function WeddingSiteBuilder() {
               />
             </label>
           </section>
+          )}
 
           {/* ── Section mariage juif ────────────────────────────────────────── */}
+          {wiz === 'date' && (
           <section style={block}>
-            <h2 style={h2}>✡️ Événements du mariage juif</h2>
+            <h2 style={h2}>✡️ Le programme : vos événements</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Activez la section "Événements" dans les sections, puis configurez les événements de votre mariage.
+              Cochez les événements de votre mariage et choisissez leur date dans le calendrier.
             </p>
             <div style={{ display: 'grid', gap: 10 }}>
               {DEFAULT_JEWISH_EVENTS.map((def) => {
@@ -1781,9 +1894,25 @@ export function WeddingSiteBuilder() {
                     {enabled && existing ? (
                       <div style={{ display: 'grid', gap: 8 }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                          <input style={inp} placeholder="Date (ex. 14 juin 2026)" value={existing.date} onChange={(e) => upsertJewishEvent(def.type, { date: e.target.value })} />
+                          {/* Calendrier : écrit « 14 juin 2026 », le format texte qu'affichent les templates */}
+                          <input
+                            style={inp}
+                            type="date"
+                            aria-label={`Date — ${def.label}`}
+                            value={eventDateTextToIso(existing.date)}
+                            onChange={(e) => upsertJewishEvent(def.type, { date: isoToEventDateText(e.target.value) })}
+                          />
                           <input style={inp} placeholder="Heure (ex. 19h00)" value={existing.time} onChange={(e) => upsertJewishEvent(def.type, { time: e.target.value })} />
                         </div>
+                        {existing.date && !eventDateTextToIso(existing.date) ? (
+                          <span style={{ fontSize: '0.72rem', color: '#8a8378' }}>Date actuelle : « {existing.date} » — choisissez-la dans le calendrier pour la mettre au propre.</span>
+                        ) : null}
+                        {eventDateTextToIso(existing.date) && hebrewDateFromIso(eventDateTextToIso(existing.date)) ? (
+                          <span style={{ fontSize: '0.75rem', color: '#8a8378' }}>
+                            {frenchLongDate(eventDateTextToIso(existing.date))} · {hebrewDateFromIso(eventDateTextToIso(existing.date))?.fr} ·{' '}
+                            <span dir="rtl" style={{ fontFamily: "'Frank Ruhl Libre', serif", unicodeBidi: 'isolate', whiteSpace: 'nowrap' }}>{hebrewDateFromIso(eventDateTextToIso(existing.date))?.he}</span>
+                          </span>
+                        ) : null}
                         <input style={inp} placeholder="Lieu" value={existing.place} onChange={(e) => upsertJewishEvent(def.type, { place: e.target.value })} />
                         <textarea style={{ ...inp, minHeight: 56, resize: 'vertical' }} placeholder="Description (optionnel)" value={existing.description} onChange={(e) => upsertJewishEvent(def.type, { description: e.target.value })} />
                         <input style={inp} placeholder="Google Maps URL (optionnel)" value={existing.googleMapsUrl ?? ''} onChange={(e) => upsertJewishEvent(def.type, { googleMapsUrl: e.target.value })} />
@@ -1795,8 +1924,10 @@ export function WeddingSiteBuilder() {
               })}
             </div>
           </section>
+          )}
 
           {/* ── Galerie ─────────────────────────────────────────────────────── */}
+          {wiz === 'photos' && (
           <section style={block}>
             <h2 style={h2}>🖼️ Galerie photos</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
@@ -1908,10 +2039,12 @@ export function WeddingSiteBuilder() {
               )}
             </details>
           </section>
+          )}
 
-          <RSVPBuilder form={rsvpForm} onChange={setRsvpForm} />
+          {wiz === 'invites' && <RSVPBuilder form={rsvpForm} onChange={setRsvpForm} />}
 
           {/* ── Liens d'invitation ─────────────────────────────────────────── */}
+          {wiz === 'fin' && (<>
           <section style={block}>
             <h2 style={h2}>🔗 Liens d'invitation par groupe d'invités</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '0.75rem', lineHeight: 1.5 }}>
@@ -2130,10 +2263,32 @@ export function WeddingSiteBuilder() {
               {saving ? 'Enregistrement…' : namesLocked ? 'Sauvegarder les modifications' : 'Publier le mini-site'}
             </button>
           )}
+          </>)}
+
+          {/* ── Navigation entre étapes : précédent · voir le site · suivant ── */}
+          <div style={stepFooter}>
+            <button
+              type="button"
+              aria-label="Étape précédente"
+              onClick={() => goToStep(wizIdx - 1)}
+              disabled={wizIdx === 0}
+              style={{ ...footerBackBtn, opacity: wizIdx === 0 ? 0.4 : 1, cursor: wizIdx === 0 ? 'default' : 'pointer' }}
+            >
+              ←
+            </button>
+            <button type="button" className="wsb-see-site" onClick={() => setPreviewOpen(true)} style={footerSeeBtn}>
+              👁️ Voir mon site
+            </button>
+            {!isLastStep ? (
+              <button type="button" onClick={() => goToStep(wizIdx + 1)} style={footerNextBtn}>
+                Suivant →
+              </button>
+            ) : null}
+          </div>
         </form>
 
         {/* ── Liens publiés ────────────────────────────────────────────────── */}
-        {publishedSlug && (
+        {publishedSlug && wiz === 'fin' && (
           <div style={{ ...block, background: '#f0fdf4', border: '1px solid #bbf7d0', marginTop: '1.5rem' }}>
             <h2 style={{ ...h2, color: '#166534' }}>✅ Site publié — vos liens</h2>
 
@@ -2196,7 +2351,11 @@ export function WeddingSiteBuilder() {
         )}
       </div>
 
-      <aside className="wedding-builder-preview">
+      <aside className={`wedding-builder-preview${previewOpen ? ' is-open' : ''}`}>
+        <div className="wsb-preview-bar">
+          <span>Aperçu du site</span>
+          <button type="button" onClick={() => setPreviewOpen(false)}>Fermer ✕</button>
+        </div>
         <WeddingSitePreview draft={draft} />
         <ErrorBoundary>
           <RSVPPreview site={draft} form={rsvpForm} />
@@ -2206,25 +2365,9 @@ export function WeddingSiteBuilder() {
   );
 }
 
-const mobileBanner: CSSProperties = {
-  display: 'flex',
-  gap: '0.75rem',
-  alignItems: 'flex-start',
-  background: '#fef3c7',
-  border: '1px solid #fde68a',
-  borderRadius: 12,
-  padding: '0.9rem 1rem',
-  marginBottom: '1rem',
-  fontSize: '0.88rem',
-  color: '#92400e',
-  lineHeight: 1.5,
-};
-
 const formColumn: CSSProperties = { minWidth: 0 };
 
 const h1: CSSProperties = { fontSize: '1.85rem', margin: '0 0 0.5rem', fontWeight: 800 };
-
-const sub: CSSProperties = { opacity: 0.9, lineHeight: 1.5, margin: '0 0 0.65rem', fontSize: '0.95rem' };
 
 const h2: CSSProperties = { fontSize: '1.08rem', margin: '0 0 0.85rem', fontWeight: 700 };
 
@@ -2237,7 +2380,103 @@ const block: CSSProperties = {
   boxShadow: '0 8px 28px rgba(143, 148, 127, 0.08)',
 };
 
-const grid2: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' };
+const stepNav: CSSProperties = {
+  position: 'sticky',
+  top: 0,
+  zIndex: 20,
+  margin: '0 -0.25rem',
+  background: '#F6F2EA',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
+};
+
+const stepTabs: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  overflowX: 'auto',
+  padding: '0.6rem 0.25rem',
+  scrollbarWidth: 'none',
+};
+
+function stepTab(active: boolean, done: boolean): CSSProperties {
+  return {
+    flex: '0 0 auto',
+    padding: '0.45rem 0.95rem',
+    borderRadius: 999,
+    border: 'none',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    fontSize: '0.86rem',
+    fontWeight: active ? 700 : 500,
+    background: active ? '#8F947F' : done ? '#EDE8E0' : 'transparent',
+    color: active ? '#fff' : done ? '#5a6150' : '#9a9387',
+    transition: 'background 0.2s, color 0.2s',
+  };
+}
+
+const hebrewDateBox: CSSProperties = {
+  margin: '0 0 0.75rem',
+  padding: '0.6rem 0.85rem',
+  borderRadius: 12,
+  background: '#F6F4EF',
+  fontSize: '0.84rem',
+  color: '#3D3229',
+  lineHeight: 1.6,
+};
+
+const stepFooter: CSSProperties = {
+  position: 'sticky',
+  bottom: 0,
+  zIndex: 20,
+  display: 'flex',
+  gap: 8,
+  alignItems: 'center',
+  marginTop: '1.25rem',
+  padding: '0.7rem 0 calc(0.7rem + env(safe-area-inset-bottom))',
+  background: '#F6F2EA',
+  borderTop: '1px solid #E9E3D8',
+};
+
+const footerBackBtn: CSSProperties = {
+  flex: '0 0 auto',
+  width: 48,
+  height: 48,
+  borderRadius: 999,
+  border: '1px solid #C7B7A5',
+  background: '#fff',
+  color: '#5a6150',
+  fontSize: '1.1rem',
+};
+
+const footerSeeBtn: CSSProperties = {
+  flex: '1 1 auto',
+  minWidth: 0,
+  height: 48,
+  borderRadius: 999,
+  border: '1.5px solid #8F947F',
+  background: '#fff',
+  color: '#4a5240',
+  fontWeight: 700,
+  fontSize: '0.95rem',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+
+const footerNextBtn: CSSProperties = {
+  flex: '0 0 auto',
+  height: 48,
+  padding: '0 1.3rem',
+  borderRadius: 999,
+  border: 'none',
+  background: 'linear-gradient(120deg, #8F947F, #757B68)',
+  color: '#fff',
+  fontWeight: 700,
+  fontSize: '0.95rem',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+
+const grid2: CSSProperties ={ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' };
 
 const lab: CSSProperties = {
   display: 'block',

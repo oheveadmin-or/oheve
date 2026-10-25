@@ -42,8 +42,8 @@ function usePhoneScale(shellRef: React.RefObject<HTMLDivElement>) {
     const update = () => {
       const colWidth = el.clientWidth;
       const isSplitMobile = window.innerWidth <= 960;
-      // Vue mobile : l'aperçu est un bandeau compact en haut (≈ 42vh)
-      const maxH = isSplitMobile ? window.innerHeight * 0.33 : window.innerHeight - 150;
+      // Vue mobile : l'aperçu s'ouvre en plein écran sous la barre « Fermer ✕ »
+      const maxH = isSplitMobile ? window.innerHeight - 90 : window.innerHeight - 150;
       const byWidth = (colWidth - BEZEL * 2 - 8) / IPHONE_W;
       const byHeight = (maxH - BEZEL * 2) / IPHONE_H;
       setScale(Math.max(0.35, Math.min(0.8, byWidth, byHeight)));

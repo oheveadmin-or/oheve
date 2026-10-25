@@ -52,19 +52,24 @@ a {
     align-items: stretch;
   }
 
+  /* Parcours en étapes : l'aperçu n'occupe plus l'écran, il s'ouvre en plein
+     écran via « Voir mon site » (barre du bas) et se ferme avec « Fermer ✕ ». */
   .wedding-builder-preview {
-    flex: 0 0 auto;
-    position: static !important;
-    order: -1;
-    max-height: 42vh;
-    overflow: hidden;
-    background: #fff;
-    border-bottom: 2px solid #E4E7DC;
+    display: none !important;
   }
 
-  /* Override preview frame height for compact mobile view */
-  .wedding-preview-frame {
-    max-height: 36vh !important;
+  .wedding-builder-preview.is-open {
+    display: flex !important;
+    position: fixed !important;
+    inset: 0;
+    z-index: 100;
+    overflow-y: auto;
+    background: #F6F4EF;
+    padding: 0 0 24px !important;
+  }
+
+  .wedding-builder-preview.is-open .wsb-preview-bar {
+    display: flex;
   }
 
   /* Centre la maquette iPhone dans l'aperçu compact mobile
@@ -91,6 +96,45 @@ a {
   position: sticky;
   top: 12px;
   min-height: 200px;
+}
+
+/* Barre « Aperçu du site · Fermer ✕ » : seulement dans l'aperçu plein écran mobile */
+.wsb-preview-bar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: #3D3229;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.wsb-preview-bar button {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.wsb-step-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Sur ordinateur, l'aperçu est déjà affiché à côté : pas de bouton « Voir mon site » */
+@media (min-width: 961px) {
+  .wsb-see-site {
+    visibility: hidden;
+  }
 }
 
 .wedding-preview-shell {
