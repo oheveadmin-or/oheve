@@ -6,6 +6,7 @@ import { syncPrestaSubscription } from '../prestataire-subscription';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
 const PLATFORM_COMMISSION_RATE = 0.05; // 5%
+const CONNECT_RETURN_PAGE = process.env.STRIPE_CONNECT_RETURN_PAGE ?? 'https://ohevewedding.com/stripe-retour/';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _stripe: any = null;
@@ -86,6 +87,36 @@ export class PaymentsController {
     }
   }
 
+  // ── POST /api/payments/confirm ──────────────────────────────────────────────
+  // Appelé par l'app juste après le paiement : relit le PaymentIntent chez Stripe
+  // et persiste son statut, sans attendre le webhook (filet si celui-ci manque).
+  async confirm(req: Request, res: Response) {
+    try {
+      const userId = req.auth!.sub;
+      const { payment_intent_id } = req.body ?? {};
+      if (!payment_intent_id) {
+        return res.status(400).json({ success: false, message: 'payment_intent_id requis' });
+      }
+      const row = (await pool.query(
+        `SELECT id FROM payments WHERE stripe_payment_intent_id=$1 AND client_id=$2`,
+        [payment_intent_id, userId]
+      )).rows[0];
+      if (!row) return res.status(404).json({ success: false, message: 'Paiement introuvable' });
+
+      const pi = await getStripe().paymentIntents.retrieve(String(payment_intent_id));
+      const status = pi.status === 'succeeded' ? 'succeeded'
+        : pi.status === 'canceled' || pi.status === 'requires_payment_method' ? 'failed'
+        : 'pending';
+      await pool.query(
+        `UPDATE payments SET status=$1, updated_at=NOW() WHERE id=$2`, [status, row.id]
+      );
+      return res.json({ success: true, data: { status } });
+    } catch (err: any) {
+      console.error('payments-confirm error:', err.message);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
   // ── POST /api/payments/connect/onboard ──────────────────────────────────────
   async connectOnboard(req: Request, res: Response) {
     try {
@@ -104,7 +135,6 @@ export class PaymentsController {
         const account = await getStripe().accounts.create({
           type: 'express',
           email: u?.email,
-          business_type: 'individual',
           capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
           metadata: { user_id: String(userId) },
         });
@@ -118,8 +148,9 @@ export class PaymentsController {
 
       const link = await getStripe().accountLinks.create({
         account: accountId,
-        refresh_url: refresh_url ?? 'https://app.oheve.com/settings/payments',
-        return_url: return_url ?? 'https://app.oheve.com/settings/payments?connected=1',
+        // Page statique du site (guest-site/public/stripe-retour) qui rouvre l'app.
+        refresh_url: refresh_url ?? `${CONNECT_RETURN_PAGE}?status=refresh`,
+        return_url: return_url ?? `${CONNECT_RETURN_PAGE}?status=done`,
         type: 'account_onboarding',
       });
 

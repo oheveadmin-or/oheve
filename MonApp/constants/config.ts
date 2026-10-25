@@ -206,6 +206,7 @@ export const API_ENDPOINTS = {
   prestaSubCancel: `${API_BASE_URL}/api/prestataire-subscription/cancel`,
   // Payments
   paymentsCreateIntent: `${API_BASE_URL}/api/payments/create-intent`,
+  paymentsConfirm: `${API_BASE_URL}/api/payments/confirm`,
   paymentsHistory: `${API_BASE_URL}/api/payments/history`,
   paymentsConnectOnboard: `${API_BASE_URL}/api/payments/connect/onboard`,
   paymentsConnectStatus: `${API_BASE_URL}/api/payments/connect/status`,

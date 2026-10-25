@@ -53,7 +53,9 @@ export default function StripeConnectScreen() {
       });
       const json = await res.json();
       if (json.success && json.data?.url) {
-        await WebBrowser.openBrowserAsync(json.data.url);
+        // Session « auth » : Stripe renvoie vers ohevewedding.com/stripe-retour,
+        // qui redirige vers monapp://stripe-connect → la fenêtre se ferme seule.
+        await WebBrowser.openAuthSessionAsync(json.data.url, 'monapp://stripe-connect');
         // Après retour, rafraîchir le statut
         await fetchStatus();
       } else {

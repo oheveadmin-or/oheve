@@ -16,6 +16,7 @@ paymentsRoutes.use(requireAuth);
 
 // Créer un PaymentIntent (client paie un prestataire)
 paymentsRoutes.post('/create-intent', ctrl.createIntent.bind(ctrl));
+paymentsRoutes.post('/confirm', ctrl.confirm.bind(ctrl));
 
 // Stripe Connect — onboarding prestataire
 paymentsRoutes.post('/connect/onboard', ctrl.connectOnboard.bind(ctrl));

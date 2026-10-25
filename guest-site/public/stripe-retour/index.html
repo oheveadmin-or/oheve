@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/app-icon.jpg">
+<title>Oheve — paiements</title>
+<style>
+  @font-face { font-family: 'Marcellus'; font-display: swap; src: url('/links/fonts/marcellus-latin.woff2') format('woff2'); }
+  @font-face { font-family: 'Karla'; font-weight: 200 800; font-display: swap; src: url('/links/fonts/karla-latin.woff2') format('woff2'); }
+  * { margin: 0; box-sizing: border-box; }
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px;
+         background: #F1EBE0; color: #343630; font-family: 'Karla', system-ui, sans-serif; }
+  .card { width: 100%; max-width: 420px; background: #FBF8F2; border: 1px solid #E7DFD1; border-radius: 20px;
+          padding: 32px 24px; text-align: center; }
+  h1 { font-family: 'Marcellus', serif; font-weight: 400; font-size: 26px; margin: 12px 0 10px; }
+  p { font-size: 15px; line-height: 1.55; color: #5c5f57; }
+  a.btn { display: inline-block; margin-top: 22px; padding: 14px 22px; border-radius: 14px; background: #929B83;
+          color: #fff; text-decoration: none; font-weight: 700; }
+  .mark { font-size: 40px; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="mark" id="mark">✓</div>
+  <h1 id="title">C'est enregistré</h1>
+  <p id="text">Vos informations de paiement ont été transmises à Stripe. Revenez dans l'application Oheve pour voir l'état de votre compte.</p>
+  <a class="btn" id="open" href="monapp://stripe-connect">Revenir dans Oheve</a>
+</main>
+<script>
+  // Stripe renvoie ici après l'inscription (status=done) ou quand le lien a
+  // expiré (status=refresh). On rouvre l'app sur l'écran « Recevoir des paiements ».
+  var status = new URLSearchParams(location.search).get('status');
+  var deep = 'monapp://stripe-connect' + (status ? '?status=' + encodeURIComponent(status) : '');
+  document.getElementById('open').href = deep;
+  if (status === 'refresh') {
+    document.getElementById('mark').textContent = '↻';
+    document.getElementById('title').textContent = 'Lien expiré';
+    document.getElementById('text').textContent = 'Ce lien Stripe n’est plus valable. Revenez dans l’application Oheve et appuyez à nouveau sur « Compléter mon profil Stripe ».';
+  }
+  location.href = deep;
+</script>
+</body>
+</html>

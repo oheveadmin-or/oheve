@@ -401,6 +401,19 @@ export const adminApi = {
   deletePrestataire: (accessToken: string, userId: number) =>
     adminFetch(accessToken, `${API_ENDPOINTS.adminPrestataires}/${userId}`, 'DELETE'),
 
+  /** Crée le compte d'un prestataire (identifiants + fiche + mode offert/payant). */
+  createPrestataire: (accessToken: string, data: {
+    email: string; mot_de_passe: string; prenom?: string; nom?: string;
+    business_name: string; category: string; location_city?: string; phone?: string;
+    mode: 'offert' | 'payant'; offert_until?: string | null;
+  }) => adminFetch(accessToken, API_ENDPOINTS.adminPrestataires, 'POST', data),
+
+  setPrestataireMode: (accessToken: string, userId: number, mode: 'offert' | 'payant', offert_until?: string | null) =>
+    adminFetch(accessToken, `${API_ENDPOINTS.adminPrestataires}/${userId}/mode`, 'PATCH', { mode, offert_until }),
+
+  setUserPassword: (accessToken: string, userId: number, mot_de_passe: string) =>
+    adminFetch(accessToken, `${API_ENDPOINTS.adminUsers}/${userId}/password`, 'PATCH', { mot_de_passe }),
+
   listBoutiques: (accessToken: string, search?: string) => {
     const q = search ? `?search=${encodeURIComponent(search)}` : '';
     return get(`${API_ENDPOINTS.adminBoutiques}${q}`, accessToken);

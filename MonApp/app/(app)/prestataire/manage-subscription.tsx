@@ -16,7 +16,7 @@ import { prestataireSubApi } from '@/services/auth/api';
 
 type SubStatus = {
   /** 'apple' = souscrit via In-App Purchase iOS (résiliation gérée par Apple). */
-  provider?: 'apple' | 'stripe';
+  provider?: 'apple' | 'stripe' | 'admin';
   status: string | null;
   active: boolean;
   trial_end: string | null;
@@ -114,6 +114,8 @@ export default function ManageSubscriptionScreen() {
   const alreadyCancelled = sub?.cancel_at_period_end === true;
   const trialEnd = sub?.trial_end ?? user?.presta_trial_end;
   const periodEnd = sub?.current_period_end ?? user?.presta_current_period_end;
+  // Gratuité accordée par l'admin : ni prix, ni résiliation, ni prélèvement.
+  const isGrant = sub?.provider === 'admin' && active;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -132,6 +134,20 @@ export default function ManageSubscriptionScreen() {
           <>
             <ErrorBanner message={loadError} onRetry={load} />
 
+            {isGrant ? (
+              <View style={styles.statusCard}>
+                <View style={[styles.statusIcon, { backgroundColor: C.sauge + '20' }]}>
+                  <Ionicons name="gift" size={36} color={C.sauge} />
+                </View>
+                <ThemedText style={styles.statusTitle}>Abonnement offert par Oheve</ThemedText>
+                <ThemedText style={styles.statusSub}>
+                  {formatDate(periodEnd)
+                    ? `Votre fiche est visible gratuitement jusqu'au ${formatDate(periodEnd)}. Aucun prélèvement.`
+                    : 'Votre fiche est visible gratuitement, sans limite de durée. Aucun prélèvement.'}
+                </ThemedText>
+              </View>
+            ) : (
+            <>
             {/* Carte statut */}
             <View style={styles.statusCard}>
               <View style={[styles.statusIcon, { backgroundColor: (active ? C.sauge : C.error) + '20' }]}>
@@ -214,6 +230,8 @@ export default function ManageSubscriptionScreen() {
               autoRenewing
               extra={`${trialLabelLong(offer)} à la souscription.`}
             />
+            </>
+            )}
           </>
         )}
       </ScrollView>

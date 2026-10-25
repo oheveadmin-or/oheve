@@ -147,6 +147,12 @@ function PaymentForm({
             [{ text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') }],
           );
         } else {
+          // Persiste le statut tout de suite (le webhook Stripe reste le filet).
+          fetch(API_ENDPOINTS.paymentsConfirm, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+            body: JSON.stringify({ payment_intent_id: paymentIntent.id }),
+          }).catch(() => { /* réseau : le webhook Stripe prendra le relais */ });
           const catKey = resolveCategoryKey(prestataireCategorie ?? '');
           addExpense({
             categoryKey: catKey,

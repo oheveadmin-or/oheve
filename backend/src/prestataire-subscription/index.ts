@@ -47,6 +47,13 @@ export function isAppleSub(subId?: string | null): boolean {
   return !!subId && (subId.startsWith('apple:') || subId.startsWith('google:'));
 }
 
+// Abonnement offert par l'admin (aucun paiement) : presta_sub_id = 'admin:grant'.
+// presta_current_period_end = fin de la gratuité, NULL = offert sans limite.
+export const ADMIN_GRANT_SUB_ID = 'admin:grant';
+export function isAdminGrant(subId?: string | null): boolean {
+  return subId === ADMIN_GRANT_SUB_ID;
+}
+
 // ── Offre de lancement : attribution des 200 places ─────────────────────────
 
 const FOUNDER_LOCK_KEY = 815200;   // clé arbitraire du verrou consultatif
@@ -254,7 +261,7 @@ export async function cancelStripeSubOnAccountDeletion(userId: number): Promise<
     const row = (await pool.query(
       `SELECT presta_sub_id FROM users WHERE id=$1`, [userId]
     )).rows[0];
-    if (row?.presta_sub_id && !isAppleSub(row.presta_sub_id)) {
+    if (row?.presta_sub_id && !isAppleSub(row.presta_sub_id) && !isAdminGrant(row.presta_sub_id)) {
       await stripe.subscriptions.cancel(row.presta_sub_id);
     }
   } catch (err: any) {
@@ -291,7 +298,7 @@ prestataireSubscriptionRoutes.post('/start', requireAuth, async (req: Request, r
 
     // Réutiliser un abonnement déjà démarré (incomplete) plutôt que d'en empiler.
     let sub: StripeSub | null = null;
-    if (current?.presta_sub_id) {
+    if (current?.presta_sub_id && !isAdminGrant(current.presta_sub_id)) {
       try {
         const existing = await stripe.subscriptions.retrieve(current.presta_sub_id, {
           expand: ['pending_setup_intent'],
@@ -418,7 +425,7 @@ prestataireSubscriptionRoutes.get('/status', requireAuth, async (req: Request, r
 
     // ── Abonnement Apple (iOS) : pas de réconciliation Stripe. L'expiration
     // stockée (renouvelée à chaque re-vérification du JWS par l'app) fait foi.
-    if (isAppleSub(row?.presta_sub_id)) {
+    if (isAppleSub(row?.presta_sub_id) || isAdminGrant(row?.presta_sub_id)) {
       const endMs = row?.presta_current_period_end
         ? new Date(row.presta_current_period_end).getTime() : null;
       const expired = !!endMs && endMs < Date.now();
@@ -431,7 +438,7 @@ prestataireSubscriptionRoutes.get('/status', requireAuth, async (req: Request, r
       return res.json({
         success: true,
         data: {
-          provider: 'apple',
+          provider: isAdminGrant(row?.presta_sub_id) ? 'admin' : 'apple',
           status: row?.presta_sub_status ?? null,
           active: isPrestaSubActive(row?.presta_sub_status),
           trial_end: row?.presta_trial_end ?? null,
@@ -480,6 +487,12 @@ prestataireSubscriptionRoutes.post('/cancel', requireAuth, async (req: Request, 
     const row = (await pool.query(`SELECT presta_sub_id FROM users WHERE id=$1`, [userId])).rows[0];
     if (!row?.presta_sub_id) {
       return res.status(404).json({ success: false, message: 'Aucun abonnement à annuler' });
+    }
+    if (isAdminGrant(row.presta_sub_id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Votre abonnement vous est offert par Oheve : il n\'y a rien à résilier, aucun prélèvement n\'aura lieu.',
+      });
     }
     if (isAppleSub(row.presta_sub_id)) {
       // Impossible côté serveur : Apple gère la résiliation.

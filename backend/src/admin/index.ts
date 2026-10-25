@@ -1,10 +1,26 @@
+import bcrypt from 'bcrypt';
 import { Router, Request, Response } from 'express';
 
-import { sanitizeAssignedRole } from '../auth/admin';
+import { isAdminEmail, sanitizeAssignedRole } from '../auth/admin';
 import { pool } from '../config/database';
+import { ADMIN_GRANT_SUB_ID, isAdminGrant, isPrestaSubActive } from '../prestataire-subscription';
 import { requireAdmin } from '../middleware/requireAdmin';
 
 export const adminRoutes = Router();
+
+const MIN_PWD = 8;
+const SALT_ROUNDS = 10;
+
+/**
+ * Fin de gratuité demandée par l'admin : null = offert sans limite,
+ * 'invalid' si la date n'est pas lisible ou déjà passée.
+ */
+function parseGrantUntil(until: unknown): Date | null | 'invalid' {
+  if (until === undefined || until === null || until === '') return null;
+  const d = new Date(String(until));
+  if (isNaN(d.getTime()) || d.getTime() <= Date.now()) return 'invalid';
+  return d;
+}
 
 adminRoutes.use(requireAdmin);
 
@@ -165,14 +181,194 @@ adminRoutes.get('/prestataires', async (req: Request, res: Response) => {
   try {
     const r = await pool.query(
       `SELECT pp.*, u.email, u.nom, u.prenom, u.role, u.is_active AS user_active,
-              u.subscription_plan, u.subscription_status
+              u.subscription_plan, u.subscription_status,
+              u.presta_sub_status, u.presta_current_period_end, u.presta_trial_end,
+              CASE
+                WHEN u.presta_sub_id = '${ADMIN_GRANT_SUB_ID}' THEN 'admin'
+                WHEN u.presta_sub_id LIKE 'apple:%' THEN 'apple'
+                WHEN u.presta_sub_id LIKE 'google:%' THEN 'google'
+                WHEN u.presta_sub_id IS NOT NULL THEN 'stripe'
+              END AS presta_sub_provider,
+              (u.mot_de_passe IS NOT NULL) AS has_password,
+              sca.stripe_account_id, COALESCE(sca.charges_enabled, false) AS charges_enabled,
+              COALESCE(sca.payouts_enabled, false) AS payouts_enabled
        FROM prestataire_profiles pp
        JOIN users u ON u.id = pp.user_id
+       LEFT JOIN stripe_connect_accounts sca ON sca.user_id = pp.user_id
        ${where}
        ORDER BY pp.created_at DESC LIMIT $${i++} OFFSET $${i}`,
       vals
     );
     return res.json({ success: true, data: r.rows });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Erreur' });
+  }
+});
+
+// ── POST /api/admin/prestataires ──────────────────────────────────────────────
+// L'admin crée le compte d'un prestataire : identifiants de connexion (email +
+// mot de passe à lui transmettre), fiche annuaire, et mode de fonctionnement :
+//   - 'offert' : abonnement gratuit, visible tout de suite (jusqu'à `offert_until`
+//     ou sans limite) ;
+//   - 'payant' : le prestataire active lui-même son abonnement depuis l'app.
+adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
+  const {
+    email, mot_de_passe, prenom, nom, business_name, category,
+    location_city, phone, description, mode, offert_until,
+  } = req.body ?? {};
+
+  const normalizedEmail = String(email ?? '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ success: false, message: 'Email invalide' });
+  }
+  if (isAdminEmail(normalizedEmail)) {
+    return res.status(400).json({ success: false, message: 'Cet email est réservé à l\'administrateur' });
+  }
+  if (String(mot_de_passe ?? '').length < MIN_PWD) {
+    return res.status(400).json({ success: false, message: `Mot de passe : ${MIN_PWD} caractères minimum` });
+  }
+  const bizName = String(business_name ?? '').trim();
+  const cat = String(category ?? '').trim();
+  if (!bizName || !cat) {
+    return res.status(400).json({ success: false, message: 'Nom de l\'entreprise et catégorie requis' });
+  }
+  if (bizName.length > 200 || cat.length > 100 || String(phone ?? '').length > 50
+      || String(prenom ?? '').length > 100 || String(nom ?? '').length > 100) {
+    return res.status(400).json({ success: false, message: 'Un des champs est trop long' });
+  }
+  if (mode !== 'offert' && mode !== 'payant') {
+    return res.status(400).json({ success: false, message: 'Mode : « offert » ou « payant »' });
+  }
+  const until = mode === 'offert' ? parseGrantUntil(offert_until) : null;
+  if (until === 'invalid') {
+    return res.status(400).json({ success: false, message: 'Date de fin de gratuité invalide ou déjà passée' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const hash = await bcrypt.hash(String(mot_de_passe), SALT_ROUNDS);
+    const u = await client.query(
+      `INSERT INTO users (email, nom, prenom, mot_de_passe, role, phone,
+                          presta_sub_id, presta_sub_status, presta_current_period_end)
+       VALUES ($1,$2,$3,$4,'prestataire',$5,$6,$7,$8)
+       RETURNING id, email, nom, prenom, role`,
+      [
+        normalizedEmail,
+        String(nom ?? '').trim() || bizName,
+        String(prenom ?? '').trim() || bizName,
+        hash,
+        phone ? String(phone).trim() : null,
+        mode === 'offert' ? ADMIN_GRANT_SUB_ID : null,
+        mode === 'offert' ? 'active' : null,
+        mode === 'offert' ? until : null,
+      ]
+    );
+    const user = u.rows[0];
+    await client.query(
+      `INSERT INTO prestataire_profiles
+         (user_id, business_name, category, description, location_city, phone, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,NOW())`,
+      [
+        user.id, bizName, cat,
+        description ? String(description).trim() : null,
+        location_city ? String(location_city).trim() : null,
+        phone ? String(phone).trim() : null,
+      ]
+    );
+    await client.query('COMMIT');
+    return res.status(201).json({
+      success: true,
+      message: 'Compte prestataire créé',
+      data: { ...user, mode, offert_until: until ? until.toISOString() : null },
+    });
+  } catch (err: unknown) {
+    await client.query('ROLLBACK').catch(() => {});
+    if ((err as { code?: string }).code === '23505') {
+      return res.status(409).json({ success: false, message: 'Un compte existe déjà avec cet email' });
+    }
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Erreur' });
+  } finally {
+    client.release();
+  }
+});
+
+// ── PATCH /api/admin/prestataires/:userId/mode ────────────────────────────────
+// Bascule un prestataire existant entre « offert » et « payant ».
+// Un abonnement réellement payé (Stripe / App Store / Google Play) n'est jamais
+// écrasé : il faut d'abord que le prestataire le résilie.
+adminRoutes.patch('/prestataires/:userId/mode', async (req: Request, res: Response) => {
+  const userId = parseInt(req.params.userId, 10);
+  const { mode, offert_until } = req.body ?? {};
+  if (mode !== 'offert' && mode !== 'payant') {
+    return res.status(400).json({ success: false, message: 'Mode : « offert » ou « payant »' });
+  }
+  try {
+    const row = (await pool.query(
+      `SELECT id, role, presta_sub_id, presta_sub_status FROM users WHERE id=$1`, [userId]
+    )).rows[0];
+    if (!row || row.role !== 'prestataire') {
+      return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
+    }
+    const paidSub = row.presta_sub_id && !isAdminGrant(row.presta_sub_id)
+      && isPrestaSubActive(row.presta_sub_status);
+
+    if (mode === 'offert') {
+      if (paidSub) {
+        return res.status(409).json({
+          success: false,
+          message: 'Ce prestataire a déjà un abonnement payant actif. Il doit le résilier avant de passer en offert.',
+        });
+      }
+      const until = parseGrantUntil(offert_until);
+      if (until === 'invalid') {
+        return res.status(400).json({ success: false, message: 'Date de fin de gratuité invalide ou déjà passée' });
+      }
+      await pool.query(
+        `UPDATE users SET presta_sub_id=$1, presta_sub_status='active',
+                          presta_trial_end=NULL, presta_current_period_end=$2
+         WHERE id=$3`,
+        [ADMIN_GRANT_SUB_ID, until, userId]
+      );
+    } else {
+      if (!isAdminGrant(row.presta_sub_id)) {
+        return res.json({ success: true, message: 'Déjà en mode payant', data: { mode: 'payant' } });
+      }
+      await pool.query(
+        `UPDATE users SET presta_sub_id=NULL, presta_sub_status=NULL,
+                          presta_trial_end=NULL, presta_current_period_end=NULL
+         WHERE id=$1`,
+        [userId]
+      );
+    }
+    return res.json({ success: true, data: { mode } });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Erreur' });
+  }
+});
+
+// ── PATCH /api/admin/users/:id/password ───────────────────────────────────────
+// Nouveau mot de passe choisi par l'admin (prestataire qui a perdu ses identifiants).
+adminRoutes.patch('/users/:id/password', async (req: Request, res: Response) => {
+  const userId = parseInt(req.params.id, 10);
+  const { mot_de_passe } = req.body ?? {};
+  if (String(mot_de_passe ?? '').length < MIN_PWD) {
+    return res.status(400).json({ success: false, message: `Mot de passe : ${MIN_PWD} caractères minimum` });
+  }
+  try {
+    const row = (await pool.query(`SELECT email FROM users WHERE id=$1`, [userId])).rows[0];
+    if (!row) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
+    if (isAdminEmail(row.email)) {
+      return res.status(403).json({ success: false, message: 'Impossible de modifier le compte administrateur ici' });
+    }
+    const hash = await bcrypt.hash(String(mot_de_passe), SALT_ROUNDS);
+    await pool.query(`UPDATE users SET mot_de_passe=$1 WHERE id=$2`, [hash, userId]);
+    // Déconnecte les sessions existantes : l'ancien mot de passe ne doit plus servir.
+    await pool.query(`DELETE FROM refresh_tokens WHERE user_id=$1`, [userId]).catch(() => {});
+    return res.json({ success: true, message: 'Mot de passe mis à jour' });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: 'Erreur' });

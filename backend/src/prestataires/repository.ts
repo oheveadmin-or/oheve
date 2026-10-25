@@ -102,6 +102,8 @@ export class PrestatairesRepository {
       // Visible dans le répertoire uniquement si l'abonnement est actif/en essai
       // (les admins restent visibles quoi qu'il arrive).
       conditions.push(`(u.role='admin' OR u.presta_sub_status IN ('trialing','active'))`);
+      // Gratuité offerte par l'admin : invisible dès la date de fin dépassée.
+      conditions.push(`(u.presta_sub_id IS DISTINCT FROM 'admin:grant' OR u.presta_current_period_end IS NULL OR u.presta_current_period_end > NOW())`);
     }
     if (category) { conditions.push(`p.category=$${i++}`); vals.push(category); }
     if (city) { conditions.push(`p.location_city ILIKE $${i++}`); vals.push(`%${city}%`); }

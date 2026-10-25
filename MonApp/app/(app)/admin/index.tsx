@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -7,6 +8,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  CreatePrestataireModal, GRANT_DURATIONS, generatePassword, grantUntil,
+} from '@/components/admin/create-prestataire-modal';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth, UserRole } from '@/contexts/auth-context';
 import { adminApi } from '@/services/auth/api';
@@ -70,6 +74,7 @@ export default function AdminDashboard() {
   const [sites, setSites] = useState<Record<string, unknown>[]>([]);
   const [reservations, setReservations] = useState<Record<string, unknown>[]>([]);
   const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const token = me?.accessToken;
 
@@ -180,20 +185,83 @@ export default function AdminDashboard() {
     </View>
   );
 
+  /** Offert ↔ payant pour un prestataire existant. */
+  const changeMode = (userId: number, name: string) => {
+    if (!token) return;
+    const apply = async (mode: 'offert' | 'payant', months = 0) => {
+      const res = await adminApi.setPrestataireMode(token, userId, mode, mode === 'offert' ? grantUntil(months) : null);
+      if (!res.success) Alert.alert('Impossible', res.message ?? 'Réessayez.');
+      load();
+    };
+    Alert.alert('Mode de fonctionnement', name, [
+      ...GRANT_DURATIONS.map((d) => ({ text: `Offert · ${d.label}`, onPress: () => apply('offert', d.months) })),
+      { text: 'Payant (le prestataire s\'abonne)', onPress: () => apply('payant') },
+      { text: 'Annuler', style: 'cancel' as const },
+    ]);
+  };
+
+  /** Nouveau mot de passe généré, à transmettre au prestataire. */
+  const resetPassword = (userId: number, email: string) => {
+    if (!token) return;
+    const pwd = generatePassword();
+    Alert.alert('Nouveau mot de passe', `Remplacer le mot de passe de ${email} par :\n\n${pwd}\n\nSes sessions ouvertes seront déconnectées.`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Remplacer', onPress: async () => {
+          const res = await adminApi.setUserPassword(token, userId, pwd);
+          if (!res.success) {
+            Alert.alert('Impossible', res.message ?? 'Réessayez.');
+            return;
+          }
+          const ids = `Identifiants Oheve\nEmail : ${email}\nMot de passe : ${pwd}`;
+          Alert.alert('Mot de passe changé', ids, [
+            { text: 'Copier', onPress: () => Clipboard.setStringAsync(ids) },
+            { text: 'OK' },
+          ]);
+        },
+      },
+    ]);
+  };
+
   const renderPresta = ({ item: p }: { item: Record<string, unknown> }) => {
     const userId = p.user_id as number;
     const verified = p.is_verified as boolean;
     const suspended = p.is_suspended as boolean;
+    const provider = p.presta_sub_provider as string | null;
+    const subActive = ['trialing', 'active'].includes((p.presta_sub_status as string) ?? '');
+    const periodEnd = p.presta_current_period_end ? String(p.presta_current_period_end).slice(0, 10) : null;
+    const modeLabel = provider === 'admin'
+      ? `Offert${periodEnd ? ` jusqu'au ${periodEnd.split('-').reverse().join('/')}` : ' · sans limite'}`
+      : subActive
+        ? `Payant · ${p.presta_sub_status === 'trialing' ? 'essai' : 'actif'}${provider && provider !== 'stripe' ? ` (${provider})` : ''}`
+        : 'Payant · pas encore abonné (invisible)';
+    const stripeId = p.stripe_account_id as string | null;
+    const stripeLabel = !stripeId
+      ? 'Paiements : Stripe non relié'
+      : p.charges_enabled
+        ? `Paiements : actifs · ${stripeId}`
+        : `Paiements : vérification Stripe en cours · ${stripeId}`;
     return (
       <View style={[styles.card, suspended && styles.cardOff]}>
         <View style={styles.cardBody}>
           <ThemedText style={styles.cardTitle}>{p.business_name as string}</ThemedText>
-          <ThemedText style={styles.cardSub}>{p.email as string} · {p.category as string}</ThemedText>
+          <ThemedText style={styles.cardSub}>{p.email as string} · {p.category as string} · ID {userId}</ThemedText>
+          <ThemedText style={[styles.cardMeta, { color: provider === 'admin' || subActive ? '#10b981' : '#b45309' }]}>{modeLabel}</ThemedText>
+          <ThemedText style={[styles.cardMeta, { color: p.charges_enabled ? '#10b981' : '#9a9c93' }]} selectable>{stripeLabel}</ThemedText>
           <View style={styles.badgeRow}>
             {verified && <View style={[styles.badge, { backgroundColor: '#d1fae5' }]}><ThemedText style={[styles.badgeTxt, { color: '#10b981' }]}>vérifié</ThemedText></View>}
             {suspended && <View style={[styles.badge, { backgroundColor: '#fecaca' }]}><ThemedText style={[styles.badgeTxt, { color: '#dc2626' }]}>suspendu</ThemedText></View>}
           </View>
         </View>
+        <View style={styles.cardActionsCol}>
+          <View style={styles.cardActions}>
+            <Pressable style={styles.iconBtn} onPress={() => changeMode(userId, p.business_name as string)}>
+              <Ionicons name="gift-outline" size={16} color="#747e68" />
+            </Pressable>
+            <Pressable style={styles.iconBtn} onPress={() => resetPassword(userId, p.email as string)}>
+              <Ionicons name="key-outline" size={16} color="#747e68" />
+            </Pressable>
+          </View>
         <View style={styles.cardActions}>
           <Pressable style={styles.iconBtn} onPress={async () => {
             if (!token) return;
@@ -221,6 +289,7 @@ export default function AdminDashboard() {
           }}>
             <Ionicons name="trash-outline" size={16} color="#dc2626" />
           </Pressable>
+        </View>
         </View>
       </View>
     );
@@ -441,6 +510,12 @@ export default function AdminDashboard() {
                 ListEmptyComponent={<ThemedText style={styles.empty}>Aucun utilisateur</ThemedText>} />
             )}
             {tab === 'prestataires' && (
+              <Pressable style={styles.createBtn} onPress={() => setCreateOpen(true)}>
+                <Ionicons name="person-add-outline" size={18} color="#fff" />
+                <ThemedText style={styles.createTxt}>Créer un compte prestataire</ThemedText>
+              </Pressable>
+            )}
+            {tab === 'prestataires' && (
               <FlatList data={prestataires} keyExtractor={(p) => String(p.id)} scrollEnabled={false}
                 renderItem={renderPresta} ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
                 ListEmptyComponent={<ThemedText style={styles.empty}>Aucun prestataire</ThemedText>} />
@@ -468,6 +543,10 @@ export default function AdminDashboard() {
           </>
         )}
       </ScrollView>
+
+      {token ? (
+        <CreatePrestataireModal visible={createOpen} token={token} onClose={() => setCreateOpen(false)} onCreated={load} />
+      ) : null}
     </View>
   );
 }
@@ -512,6 +591,9 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
   badgeTxt: { fontSize: 10, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 6 },
+  cardActionsCol: { gap: 6, alignItems: 'flex-end' },
+  createBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#747e68', borderRadius: 14, paddingVertical: 13, marginBottom: 4 },
+  createTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
   iconBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#ece8e0', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfbf9' },
   empty: { textAlign: 'center', color: '#9a9c93', marginTop: 32, fontSize: 14 },
 });
