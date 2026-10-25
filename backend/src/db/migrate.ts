@@ -573,6 +573,18 @@ export async function runMigrations(): Promise<void> {
     await migrateDiskAvatarsToDb().catch((err) => console.error('❌ Import avatars:', (err as Error).message));
     // ── Photos, vidéos (reels), pièces jointes, musique : copie en base ────────
     await pool.query(CREATE_STORED_FILES);
+    // ── Identifiants donnés par l'admin aux prestataires qu'il a créés ─────────
+    // Gardés pour pouvoir les retrouver dans Admin → Prestataires (lecture
+    // réservée à l'admin). Remplacés à chaque nouveau mot de passe admin.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_presta_credentials (
+        user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        email      TEXT NOT NULL,
+        password   TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
 
     console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp, payments, stripe_connect, devis, reservations, calendar, admin, photo_likes, photo_comments)');
   } catch (err) {

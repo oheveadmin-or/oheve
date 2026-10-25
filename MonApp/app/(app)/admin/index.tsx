@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -223,6 +224,28 @@ export default function AdminDashboard() {
     ]);
   };
 
+  /** Photo de couverture choisie par l'admin (fiche annuaire + carte « Mon mariage sera »). */
+  const changeCover = async (userId: number) => {
+    if (!token) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission requise', "Autorisez l'accès à votre galerie dans les Réglages.");
+      return;
+    }
+    let uri: string | undefined;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
+      if (result.canceled) return;
+      uri = result.assets[0]?.uri;
+    } catch {
+      Alert.alert('Photo illisible', "Cette photo n'a pas pu être lue. Choisissez-en une autre.");
+      return;
+    }
+    if (!uri) return;
+    const res = await adminApi.uploadPrestataireCover(token, userId, uri);
+    Alert.alert(res.success ? 'Photo de couverture mise à jour' : 'Envoi impossible', res.success ? undefined : res.message ?? 'Réessayez.');
+  };
+
   const renderPresta = ({ item: p }: { item: Record<string, unknown> }) => {
     const userId = p.user_id as number;
     const verified = p.is_verified as boolean;
@@ -246,6 +269,19 @@ export default function AdminDashboard() {
         <View style={styles.cardBody}>
           <ThemedText style={styles.cardTitle}>{p.business_name as string}</ThemedText>
           <ThemedText style={styles.cardSub}>{p.email as string} · {p.category as string} · ID {userId}</ThemedText>
+          {p.admin_password ? (
+            <Pressable onPress={() => {
+              const ids = `Identifiants Oheve\nEmail : ${p.email as string}\nMot de passe : ${p.admin_password as string}`;
+              Clipboard.setStringAsync(ids);
+              Alert.alert('Identifiants copiés', ids);
+            }}>
+              <ThemedText style={styles.cardIds} selectable>
+                Identifiants : {p.email as string} · {p.admin_password as string}  (toucher pour copier)
+              </ThemedText>
+            </Pressable>
+          ) : (
+            <ThemedText style={styles.cardMeta}>Mot de passe : choisi par le prestataire (clé = en générer un nouveau)</ThemedText>
+          )}
           <ThemedText style={[styles.cardMeta, { color: provider === 'admin' || subActive ? '#10b981' : '#b45309' }]}>{modeLabel}</ThemedText>
           <ThemedText style={[styles.cardMeta, { color: p.charges_enabled ? '#10b981' : '#9a9c93' }]} selectable>{stripeLabel}</ThemedText>
           <View style={styles.badgeRow}>
@@ -257,6 +293,9 @@ export default function AdminDashboard() {
           <View style={styles.cardActions}>
             <Pressable style={styles.iconBtn} onPress={() => changeMode(userId, p.business_name as string)}>
               <Ionicons name="gift-outline" size={16} color="#747e68" />
+            </Pressable>
+            <Pressable style={styles.iconBtn} onPress={() => changeCover(userId)}>
+              <Ionicons name="image-outline" size={16} color="#747e68" />
             </Pressable>
             <Pressable style={styles.iconBtn} onPress={() => resetPassword(userId, p.email as string)}>
               <Ionicons name="key-outline" size={16} color="#747e68" />
@@ -586,6 +625,7 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, gap: 3 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#343630' },
   cardSub: { fontSize: 12, color: '#9a9c93' },
+  cardIds: { fontSize: 12, fontWeight: '700', color: '#343630', backgroundColor: '#f3f5ef', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, marginTop: 4, overflow: 'hidden' },
   cardMeta: { fontSize: 11, color: '#5c5f57', marginTop: 2 },
   badgeRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 4 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },

@@ -232,6 +232,8 @@ export class ConnexionInscriptionRepository {
 
   async setPasswordById(userId: number, hash: string) {
     await pool.query(`UPDATE users SET mot_de_passe=$1 WHERE id=$2`, [hash, userId]);
+    // Le mot de passe donné par l'admin ne vaut plus : on ne l'affiche plus.
+    await pool.query(`DELETE FROM admin_presta_credentials WHERE user_id=$1`, [userId]).catch(() => {});
   }
 
   /**
@@ -336,6 +338,9 @@ export class ConnexionInscriptionRepository {
       `UPDATE users SET mot_de_passe=$1 WHERE email=$2 RETURNING id, email`,
       [hash, email]
     );
+    if (r.rows[0]) {
+      await pool.query(`DELETE FROM admin_presta_credentials WHERE user_id=$1`, [r.rows[0].id]).catch(() => {});
+    }
     return r.rows[0] ?? null;
   }
 

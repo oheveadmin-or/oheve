@@ -2,6 +2,7 @@ import path from 'path';
 import { Router } from 'express';
 import multer from 'multer';
 
+import { requireAdmin } from '../middleware/requireAdmin';
 import { optionalAuth, requireAuth } from '../middleware/requireAuth';
 import { optimizeUploadedImage } from '../utils/image-optim';
 import { persistUploadedFile } from '../utils/persistent-uploads';
@@ -52,6 +53,8 @@ prestatairesRoutes.get('/feed/photos', optionalAuth, photos.getFeedPhotos.bind(p
 // ── Photos (me) ───────────────────────────────────────────────────────────────
 prestatairesRoutes.get('/me/photos', requireAuth, photos.getMyPhotos.bind(photos));
 prestatairesRoutes.post('/me/photos', requireAuth, upload.single('photo'), optimizeUploadedImage(), optimizeUploadedVideo(), persistUploadedFile(), photos.uploadPhoto.bind(photos));
+// Admin : photo de couverture d'un prestataire qu'il a créé.
+prestatairesRoutes.post('/:userId/cover', requireAdmin, upload.single('photo'), optimizeUploadedImage(), persistUploadedFile(), photos.adminUploadCover.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/cover', requireAuth, photos.setCover.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/caption', requireAuth, photos.updateCaption.bind(photos));
 prestatairesRoutes.delete('/me/photos/:photoId', requireAuth, photos.deletePhoto.bind(photos));

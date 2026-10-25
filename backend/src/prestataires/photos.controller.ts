@@ -186,6 +186,28 @@ export class PhotosController {
     }
   }
 
+  /** Admin : ajoute une image et en fait la couverture du prestataire `:userId`. */
+  async adminUploadCover(req: Request, res: Response) {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
+    }
+    try {
+      const prestataireId = await repo.findPrestataireIdByUserId(parseInt(req.params.userId, 10));
+      if (prestataireId === null) {
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
+      }
+      const photo = await repo.insert(prestataireId, '', req.file.filename, '', 'image');
+      await repo.setCover(prestataireId, photo.id);
+      const url = buildPhotoUrl(req, req.file.filename);
+      return res.status(201).json({ success: true, data: { ...photo, is_cover: true, url } });
+    } catch (err) {
+      console.error('adminUploadCover:', err);
+      if (req.file) { try { fs.unlinkSync(req.file.path); } catch { /* ignoré */ } }
+      return res.status(500).json({ success: false, message: 'Erreur upload' });
+    }
+  }
+
   async setCover(req: Request, res: Response) {
     try {
       const photoId = parseInt(req.params.photoId, 10);

@@ -190,11 +190,13 @@ adminRoutes.get('/prestataires', async (req: Request, res: Response) => {
                 WHEN u.presta_sub_id IS NOT NULL THEN 'stripe'
               END AS presta_sub_provider,
               (u.mot_de_passe IS NOT NULL) AS has_password,
+              apc.password AS admin_password,
               sca.stripe_account_id, COALESCE(sca.charges_enabled, false) AS charges_enabled,
               COALESCE(sca.payouts_enabled, false) AS payouts_enabled
        FROM prestataire_profiles pp
        JOIN users u ON u.id = pp.user_id
        LEFT JOIN stripe_connect_accounts sca ON sca.user_id = pp.user_id
+       LEFT JOIN admin_presta_credentials apc ON apc.user_id = pp.user_id
        ${where}
        ORDER BY pp.created_at DESC LIMIT $${i++} OFFSET $${i}`,
       vals
@@ -215,7 +217,7 @@ adminRoutes.get('/prestataires', async (req: Request, res: Response) => {
 adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
   const {
     email, mot_de_passe, prenom, nom, business_name, category,
-    location_city, phone, description, mode, offert_until,
+    location_city, phone, description, instagram_url, mode, offert_until,
   } = req.body ?? {};
 
   const normalizedEmail = String(email ?? '').trim().toLowerCase();
@@ -268,14 +270,19 @@ adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
     const user = u.rows[0];
     await client.query(
       `INSERT INTO prestataire_profiles
-         (user_id, business_name, category, description, location_city, phone, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,NOW())`,
+         (user_id, business_name, category, description, location_city, phone, instagram_url, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
       [
         user.id, bizName, cat,
         description ? String(description).trim() : null,
         location_city ? String(location_city).trim() : null,
         phone ? String(phone).trim() : null,
+        instagram_url ? String(instagram_url).trim().slice(0, 300) : null,
       ]
+    );
+    await client.query(
+      `INSERT INTO admin_presta_credentials (user_id, email, password) VALUES ($1,$2,$3)`,
+      [user.id, normalizedEmail, String(mot_de_passe)]
     );
     await client.query('COMMIT');
     return res.status(201).json({
@@ -366,6 +373,11 @@ adminRoutes.patch('/users/:id/password', async (req: Request, res: Response) => 
     }
     const hash = await bcrypt.hash(String(mot_de_passe), SALT_ROUNDS);
     await pool.query(`UPDATE users SET mot_de_passe=$1 WHERE id=$2`, [hash, userId]);
+    await pool.query(
+      `INSERT INTO admin_presta_credentials (user_id, email, password) VALUES ($1,$2,$3)
+       ON CONFLICT (user_id) DO UPDATE SET email=EXCLUDED.email, password=EXCLUDED.password, updated_at=NOW()`,
+      [userId, row.email, String(mot_de_passe)]
+    );
     // Déconnecte les sessions existantes : l'ancien mot de passe ne doit plus servir.
     await pool.query(`DELETE FROM refresh_tokens WHERE user_id=$1`, [userId]).catch(() => {});
     return res.json({ success: true, message: 'Mot de passe mis à jour' });

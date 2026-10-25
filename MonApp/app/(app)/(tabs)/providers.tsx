@@ -3,10 +3,6 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,12 +10,13 @@ import {
   View,
 } from 'react-native';
 
+import { CreatePrestataireModal } from '@/components/admin/create-prestataire-modal';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
-import { type ProviderContact, saveProviderContact } from '@/lib/providers-store';
+import { type ProviderContact } from '@/lib/providers-store';
 import { prestatairesApi } from '@/services/auth/api';
 import { computeMatch, type WeddingProfile } from '@/services/matching';
 
@@ -50,19 +47,6 @@ const MAIN_CATEGORIES: CategoryItem[] = [
 ];
 
 
-// ── Formulaire ─────────────────────────────────────────────────────────────
-
-const FORM_CATEGORIES = [
-  { slug: 'photographe', label: 'Photographe' },
-  { slug: 'traiteur', label: 'Traiteur' },
-  { slug: 'salle', label: 'Salle' },
-  { slug: 'fleuriste', label: 'Fleuriste' },
-  { slug: 'musicien', label: 'Musicien / DJ' },
-  { slug: 'organisateur', label: 'Organisateur' },
-];
-
-let nextProviderId = 200;
-
 export default function ProvidersScreen() {
   const { horizontalPadding } = useResponsive();
   const { user } = useAuth();
@@ -72,14 +56,10 @@ export default function ProvidersScreen() {
 
   const [apiProviders, setApiProviders] = useState<ProviderContact[]>([]);
   const [search, setSearch] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [formNom, setFormNom] = useState('');
-  const [formTelephone, setFormTelephone] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formAdresse, setFormAdresse] = useState('');
-  const [formVille, setFormVille] = useState('');
-  const [formInstagram, setFormInstagram] = useState('');
-  const [formCateg, setFormCateg] = useState('photographe');
+  // Ajout admin = vrai compte prestataire sur le serveur (identifiants +
+  // fiche annuaire), plus une simple fiche locale au téléphone.
+  const [createOpen, setCreateOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -115,41 +95,9 @@ export default function ProvidersScreen() {
         }
       })
       .catch(() => {});
-  }, [user?.accessToken, user?.wedding_city]);
+  }, [user?.accessToken, user?.wedding_city, reloadKey]);
 
   const toggleFavorite = (id: string) => setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  const openModal = () => {
-    setFormNom(''); setFormTelephone(''); setFormEmail('');
-    setFormAdresse(''); setFormVille(''); setFormInstagram('');
-    setFormCateg('photographe');
-    setModalVisible(true);
-  };
-
-  const closeModal = () => setModalVisible(false);
-
-  const handleAddPrestataire = () => {
-    const nom = formNom.trim();
-    const telephone = formTelephone.trim();
-    const email = formEmail.trim();
-    const adresse = formAdresse.trim();
-    const ville = formVille.trim();
-    const instagram = formInstagram.trim();
-    if (!nom || !telephone || !email || !adresse || !ville || !instagram) {
-      Alert.alert('Champs requis', 'Renseigne tous les champs pour enregistrer le prestataire.');
-      return;
-    }
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (!emailOk) { Alert.alert('Email invalide', 'Verifie le format de l adresse email.'); return; }
-    nextProviderId += 1;
-    const newItem: ProviderContact = {
-      id: String(nextProviderId), nom, categorie: formCateg,
-      ville, note: 5, telephone, email, adresse, instagram,
-    };
-    saveProviderContact(newItem);
-    closeModal();
-  };
-
 
   return (
     <ScreenLayout constrainWidth={false} edges={['top', 'left', 'right']}>
@@ -304,71 +252,21 @@ export default function ProvidersScreen() {
       {user?.role === 'admin' && (
         <Pressable
           style={({ pressed }) => [styles.addBtn, { bottom: fabBottom }, pressed && styles.addBtnPressed]}
-          onPress={openModal}
+          onPress={() => setCreateOpen(true)}
         >
           <Ionicons name="add-circle" size={24} color="#fff" />
           <ThemedText style={styles.addBtnText}>Ajouter un prestataire</ThemedText>
         </Pressable>
       )}
 
-      {/* Modal ajout */}
-      <Modal visible={modalVisible} animationType="fade" transparent onRequestClose={closeModal}>
-        <KeyboardAvoidingView style={styles.modalRoot} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <Pressable style={styles.modalBackdrop} onPress={closeModal} />
-          <ScrollView
-            contentContainerStyle={styles.modalCenter}
-            keyboardShouldPersistTaps="always"
-            style={styles.modalScroll}
-            showsVerticalScrollIndicator={false}
-          >
-            <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-              <ThemedText style={styles.modalTitle}>Nouveau prestataire</ThemedText>
-              <ThemedText style={styles.modalHint}>Tous les champs sont requis.</ThemedText>
-
-              {[
-                { label: 'Nom', value: formNom, onChange: setFormNom, placeholder: 'Nom du prestataire' },
-                { label: 'Téléphone', value: formTelephone, onChange: setFormTelephone, placeholder: 'Téléphone', keyboardType: 'phone-pad' as const },
-                { label: 'Email', value: formEmail, onChange: setFormEmail, placeholder: 'Email', keyboardType: 'email-address' as const },
-                { label: 'Adresse', value: formAdresse, onChange: setFormAdresse, placeholder: 'Numéro et rue' },
-                { label: 'Ville', value: formVille, onChange: setFormVille, placeholder: 'Ville' },
-                { label: 'Instagram', value: formInstagram, onChange: setFormInstagram, placeholder: '@prestataire' },
-              ].map(({ label, value, onChange, placeholder, keyboardType }) => (
-                <View key={label}>
-                  <ThemedText style={styles.modalLabel}>{label}</ThemedText>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder={placeholder}
-                    placeholderTextColor="#9A9C93"
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType={keyboardType}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
-              ))}
-
-              <ThemedText style={styles.modalLabel}>Catégorie</ThemedText>
-              <ScrollView horizontal style={styles.categPick} showsHorizontalScrollIndicator={false}>
-                {FORM_CATEGORIES.map(({ slug, label }) => (
-                  <Pressable key={slug} style={[styles.categChip, formCateg === slug && styles.categChipActive]} onPress={() => setFormCateg(slug)}>
-                    <ThemedText style={formCateg === slug ? styles.categChipTextActive : styles.categChipText}>{label}</ThemedText>
-                  </Pressable>
-                ))}
-              </ScrollView>
-
-              <View style={styles.modalActions}>
-                <Pressable style={styles.modalBtnSecondary} onPress={closeModal}>
-                  <ThemedText style={styles.modalBtnSecondaryText}>Annuler</ThemedText>
-                </Pressable>
-                <Pressable style={styles.modalBtnPrimary} onPress={handleAddPrestataire}>
-                  <ThemedText style={styles.modalBtnPrimaryText}>Enregistrer</ThemedText>
-                </Pressable>
-              </View>
-            </Pressable>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Modal>
+      {user?.role === 'admin' && user.accessToken && (
+        <CreatePrestataireModal
+          visible={createOpen}
+          token={user.accessToken}
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => setReloadKey((k) => k + 1)}
+        />
+      )}
     </ScreenLayout>
   );
 }

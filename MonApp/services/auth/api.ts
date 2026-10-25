@@ -405,8 +405,12 @@ export const adminApi = {
   createPrestataire: (accessToken: string, data: {
     email: string; mot_de_passe: string; prenom?: string; nom?: string;
     business_name: string; category: string; location_city?: string; phone?: string;
-    mode: 'offert' | 'payant'; offert_until?: string | null;
+    instagram_url?: string; mode: 'offert' | 'payant'; offert_until?: string | null;
   }) => adminFetch(accessToken, API_ENDPOINTS.adminPrestataires, 'POST', data),
+
+  /** Photo de couverture d'un prestataire (envoyée par l'admin). */
+  uploadPrestataireCover: (accessToken: string, userId: number, fileUri: string) =>
+    uploadFile(`${API_ENDPOINTS.prestataires}/${userId}/cover`, accessToken, fileUri),
 
   setPrestataireMode: (accessToken: string, userId: number, mode: 'offert' | 'payant', offert_until?: string | null) =>
     adminFetch(accessToken, `${API_ENDPOINTS.adminPrestataires}/${userId}/mode`, 'PATCH', { mode, offert_until }),
