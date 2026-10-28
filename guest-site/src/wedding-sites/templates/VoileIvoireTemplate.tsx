@@ -21,7 +21,8 @@ import { voileTokens } from '../themes/VoileIvoireTheme';
 import type { VoileTokens } from '../themes/VoileIvoireTheme';
 import { VoileFrame, VoileDivider } from './VoileOrnaments';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
-import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationTextsBlock, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationDetails, InvitationThanks, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
+import type { InvitationStyle } from './templateParts';
 import type { ResolvedFamilyColumn } from './templateParts';
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -130,8 +131,12 @@ function HeroCard({
   dateLabel,
   venue,
   city,
+  lead,
+  details,
 }: {
   tk: VoileTokens;
+  lead?: React.ReactNode;
+  details?: React.ReactNode;
   monogramSvg?: string;
   monogramSizePx?: number;
   hebrewQuote?: string;
@@ -186,6 +191,9 @@ function HeroCard({
           </p>
         ) : null}
 
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        {lead ? <div style={{ alignSelf: 'stretch', margin: '0.4rem 0 1.1rem' }}>{lead}</div> : null}
+
         {/* Prénoms calligraphiés */}
         <div
           style={{
@@ -235,7 +243,9 @@ function HeroCard({
 
         <VoileDivider color={tk.colors.accent} width={170} style={{ marginTop: '1.2rem' }} />
 
-        {dateLabel ? (
+        {details ? <div style={{ alignSelf: 'stretch', marginTop: '1.1rem' }}>{details}</div> : null}
+
+        {dateLabel && !details ? (
           <div
             style={{
               fontFamily: tk.fonts.label,
@@ -250,7 +260,7 @@ function HeroCard({
           </div>
         ) : null}
 
-        {(venue || city) ? (
+        {(venue || city) && !details ? (
           <div
             style={{
               fontFamily: tk.fonts.body,
@@ -421,6 +431,18 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
 
   const hasTwoNames = !!(site.brideName?.trim() && site.groomName?.trim());
+  // Garde au format faire-part : familles et phrases dans la carte d'en-tête
+  const garde = hasInvitationTexts(site);
+  const familyColumns = getFamilyColumns(site);
+  const inv: InvitationStyle = {
+    text: tk.colors.text,
+    muted: tk.colors.textMuted,
+    accent: tk.colors.text,
+    body: tk.fonts.body,
+    display: tk.fonts.body,
+    size: '1.06rem',
+    dateSize: '1.3rem',
+  };
 
   return (
     <div
@@ -477,6 +499,26 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
           dateLabel={formatWeddingDate(site.date, site.language)}
           venue={site.venue || site.content?.venue?.name || undefined}
           city={site.city || undefined}
+          lead={garde ? (
+            <>
+              {familyColumns.length ? (
+                <div style={{ marginBottom: '1rem' }}>
+                  <FamilyColumnsRow
+                    columns={familyColumns}
+                    accent={tk.colors.accent}
+                    textColor={tk.colors.text}
+                    titleFontFamily={tk.fonts.script}
+                    bodyFontFamily={tk.fonts.body}
+                    titleVariant="script"
+                    lineSize="1rem"
+                    hideTitles
+                  />
+                </div>
+              ) : null}
+              <InvitationThanks site={site} s={inv} />
+            </>
+          ) : undefined}
+          details={garde ? <InvitationDetails site={site} s={inv} /> : undefined}
         />
       ) : null}
 
@@ -519,22 +561,8 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
         <CountdownCard tk={tk} targetDate={site.date} language={site.language} title={L.countdownTitle} />
       ) : null}
 
-      <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} />
+      {garde ? null : <FamiliesCard tk={tk} columns={familyColumns} title={L.families} />}
 
-      {/* Phrases du faire-part (remerciements → invitation → réception → pensée → tenue) */}
-      {hasInvitationTexts(site) ? (
-        <Card tk={tk}>
-          <InvitationTextsBlock
-            site={site}
-            textColor={tk.colors.text}
-            mutedColor={tk.colors.textMuted}
-            // L'argent des ornements est trop pâle pour la date et le lieu : encre du texte
-            accent={tk.colors.text}
-            bodyFontFamily={tk.fonts.body}
-            size="1.08rem"
-          />
-        </Card>
-      ) : null}
 
 
 

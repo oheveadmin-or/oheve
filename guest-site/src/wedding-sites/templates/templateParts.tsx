@@ -261,6 +261,7 @@ export function HeroMeta({ site, hideMonogram = false }: { site: WeddingSite; hi
   const countdown = useCountdown(site.date);
 
   const familyColumns = getFamilyColumns(site);
+  const garde = hasInvitationTexts(site);
 
   return (
     <>
@@ -273,11 +274,16 @@ export function HeroMeta({ site, hideMonogram = false }: { site: WeddingSite; hi
           {site.welcomeText}
         </p>
       ) : null}
-      <p style={{ margin: '0.5rem 0 0', fontSize: '1.02rem', fontWeight: 600, letterSpacing: '0.02em', color: site.theme.primaryColor }}>
-        {line}
-      </p>
+      {garde ? (
+        <InvitationDetails site={site} s={universalInvitationStyle(site)} style={{ margin: '0.75rem auto 0', maxWidth: 520 }} />
+      ) : (
+        <p style={{ margin: '0.5rem 0 0', fontSize: '1.02rem', fontWeight: 600, letterSpacing: '0.02em', color: site.theme.primaryColor }}>
+          {line}
+        </p>
+      )}
       <CountdownRow site={site} countdown={countdown} />
-      {familyColumns.length ? (
+      {/* Garde au format faire-part : les familles sont déjà en tête (HeroLead) */}
+      {familyColumns.length && !garde ? (
         <div style={{ marginTop: '1.5rem' }}>
           <FamilyColumnsRow
             columns={familyColumns}
@@ -292,18 +298,126 @@ export function HeroMeta({ site, hideMonogram = false }: { site: WeddingSite; hi
   );
 }
 
-/** Le site a-t-il au moins une phrase de faire-part à afficher ? */
+/**
+ * Le site a-t-il ses phrases de faire-part ? Si oui, la carte de garde suit
+ * l'ordre d'une invitation papier (voir InvitationThanks / InvitationDetails) ;
+ * sinon (anciens sites) chaque thème garde sa mise en page d'origine.
+ */
 export function hasInvitationTexts(site: WeddingSite): boolean {
   const t = site.content?.invitationTexts;
   return !!t && Object.values(t).some((v) => v?.fr?.trim());
 }
 
+/** Habillage des phrases : chaque thème passe ses polices et couleurs. */
+export type InvitationStyle = {
+  text: string;
+  muted?: string;
+  /** Couleur de la date et du lieu */
+  accent: string;
+  /** Police des phrases */
+  body?: string;
+  /** Police de la date et du lieu */
+  display?: string;
+  /** Taille des phrases */
+  size?: string;
+  /** Taille de la date */
+  dateSize?: string;
+  /** Petites capitales espacées (identité Vintage) */
+  caps?: boolean;
+};
+
+const HEBREW_FONT = "'Frank Ruhl Libre', 'Noto Serif Hebrew', serif";
+
+function InvitationPhrase({ text, s, soft = false }: { text?: { fr: string; he?: string }; s: InvitationStyle; soft?: boolean }) {
+  if (!text?.fr?.trim()) return null;
+  const size = s.size ?? '1rem';
+  const style: CSSProperties = {
+    margin: 0,
+    fontFamily: s.body,
+    fontSize: size,
+    lineHeight: s.caps ? 1.9 : 1.7,
+    color: soft ? (s.muted ?? s.text) : s.text,
+    fontStyle: soft && !s.caps ? 'italic' : undefined,
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'anywhere',
+    ...(s.caps ? { textTransform: 'uppercase', letterSpacing: '0.1em' } : null),
+  };
+  return (
+    <div>
+      <p style={style}>{text.fr.trim()}</p>
+      {text.he?.trim() ? (
+        <p dir="rtl" lang="he" style={{ margin: '0.3rem 0 0', fontFamily: HEBREW_FONT, fontSize: `calc(${size} * ${s.caps ? 1.15 : 0.95})`, lineHeight: 1.65, color: s.muted ?? s.text, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+          {text.he.trim()}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Garde, au-dessus des prénoms (juste après les familles) : « Remercient Hachem… » */
+export function InvitationThanks({ site, s, style }: { site: WeddingSite; s: InvitationStyle; style?: CSSProperties }) {
+  const thanks = site.content?.invitationTexts?.thanks;
+  if (!thanks?.fr?.trim()) return null;
+  return (
+    <div style={{ textAlign: 'center', ...style }}>
+      <InvitationPhrase text={thanks} s={s} />
+    </div>
+  );
+}
+
 /**
- * Phrases du faire-part, dans l'ordre d'une invitation papier :
- * remerciements → invitation + date → réception + lieu → pensée → tenue.
- * La date ne suit que la phrase d'invitation, le lieu que la réception :
- * vider l'une retire aussi sa ligne (la carte d'en-tête les affiche déjà).
- * Chaque thème passe ses polices/couleurs — la STRUCTURE est identique partout.
+ * Garde, sous les prénoms : invitation → date (+ date hébraïque, heure) →
+ * réception → lieu → pensée → tenue. La date et le lieu sont TOUJOURS
+ * affichés ici (la garde ne les répète pas ailleurs) ; les phrases vidées
+ * dans le builder disparaissent simplement.
+ */
+export function InvitationDetails({ site, s, style }: { site: WeddingSite; s: InvitationStyle; style?: CSSProperties }) {
+  const texts = site.content?.invitationTexts ?? {};
+  const dateIso = site.date?.slice(0, 10) ?? '';
+  const longDate = dateIso ? frenchLongDate(dateIso) : '';
+  const hebDate = dateIso ? hebrewDateFromIso(dateIso)?.fr : '';
+  const time = /^\d{1,2}:\d{2}/.test(site.time ?? '') ? site.time.slice(0, 5).replace(':', 'h') : '';
+  // Ville et salle identiques : affichées une fois
+  const seen = new Set<string>();
+  const place = [site.venue || site.content?.venue?.name, site.city]
+    .map((x) => x?.trim())
+    .filter((x): x is string => !!x && !seen.has(x.toLowerCase()) && !!seen.add(x.toLowerCase()))
+    .join(' — ');
+
+  const size = s.size ?? '1rem';
+  const lineStyle: CSSProperties = {
+    margin: 0,
+    fontFamily: s.display ?? s.body,
+    color: s.accent,
+    lineHeight: 1.4,
+    overflowWrap: 'anywhere',
+    ...(s.caps ? { textTransform: 'uppercase', letterSpacing: '0.08em' } : null),
+  };
+
+  return (
+    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '1.1rem', ...style }}>
+      <InvitationPhrase text={texts.invitation} s={s} />
+      {longDate ? (
+        <div>
+          <p style={{ ...lineStyle, fontSize: s.dateSize ?? `calc(${size} * 1.25)` }}>{longDate}</p>
+          {hebDate || time ? (
+            <p style={{ ...lineStyle, marginTop: '0.25rem', fontSize: size, opacity: 0.85 }}>
+              {[hebDate, time ? `à ${time}` : ''].filter(Boolean).join(' · ')}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <InvitationPhrase text={texts.reception} s={s} />
+      {place ? <p style={{ ...lineStyle, fontSize: `calc(${size} * 1.08)` }}>{place}</p> : null}
+      <InvitationPhrase text={texts.memorial} s={s} soft />
+      <InvitationPhrase text={texts.dressCode} s={s} soft />
+    </div>
+  );
+}
+
+/**
+ * Compatibilité : toutes les phrases d'un bloc (remerciements puis détails),
+ * pour un modèle qui n'a pas encore de garde au format faire-part.
  */
 export function InvitationTextsBlock({
   site,
@@ -322,54 +436,53 @@ export function InvitationTextsBlock({
   dateFontFamily?: string;
   size?: string;
 }) {
-  const texts = site.content?.invitationTexts;
-  if (!texts || !hasInvitationTexts(site)) return null;
-
-  const muted = mutedColor ?? textColor;
-  const phrase: CSSProperties = { margin: 0, fontFamily: bodyFontFamily, fontSize: size, lineHeight: 1.75, color: textColor, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' };
-  const soft: CSSProperties = { ...phrase, fontStyle: 'italic', color: muted };
-  const hebrew: CSSProperties = { margin: '0.3rem 0 0', fontFamily: "'Frank Ruhl Libre', 'Noto Serif Hebrew', serif", fontSize: `calc(${size} * 0.95)`, lineHeight: 1.7, color: muted, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' };
-  const line: CSSProperties = { margin: '0.35rem 0 0', fontFamily: dateFontFamily ?? bodyFontFamily, fontSize: `calc(${size} * 1.12)`, lineHeight: 1.5, color: accent, overflowWrap: 'anywhere' };
-
-  const Phrase = ({ text, style }: { text?: { fr: string; he?: string }; style: CSSProperties }) =>
-    text?.fr?.trim() ? (
-      <>
-        <p style={style}>{text.fr.trim()}</p>
-        {text.he?.trim() ? <p dir="rtl" lang="he" style={hebrew}>{text.he.trim()}</p> : null}
-      </>
-    ) : null;
-
-  const dateIso = site.date?.slice(0, 10) ?? '';
-  const longDate = dateIso ? frenchLongDate(dateIso) : '';
-  const hebDate = dateIso ? hebrewDateFromIso(dateIso)?.fr : '';
-  const time = /^\d{1,2}:\d{2}/.test(site.time ?? '') ? site.time.slice(0, 5).replace(':', 'h') : '';
-  const place = [site.venue || site.content?.venue?.name, site.city].map((s) => s?.trim()).filter(Boolean).join(' — ');
-
-  const groups: ReactNode[] = [];
-  if (texts.thanks?.fr?.trim()) groups.push(<Phrase key="thanks" text={texts.thanks} style={phrase} />);
-  if (texts.invitation?.fr?.trim()) {
-    groups.push(
-      <div key="invitation">
-        <Phrase text={texts.invitation} style={phrase} />
-        {longDate ? <p style={line}>{[longDate, hebDate].filter(Boolean).join(' — ')}</p> : null}
-        {time ? <p style={{ ...line, marginTop: '0.1rem', fontSize: size }}>à {time}</p> : null}
-      </div>,
-    );
-  }
-  if (texts.reception?.fr?.trim()) {
-    groups.push(
-      <div key="reception">
-        <Phrase text={texts.reception} style={phrase} />
-        {place ? <p style={line}>{place}</p> : null}
-      </div>,
-    );
-  }
-  if (texts.memorial?.fr?.trim()) groups.push(<Phrase key="memorial" text={texts.memorial} style={soft} />);
-  if (texts.dressCode?.fr?.trim()) groups.push(<Phrase key="dressCode" text={texts.dressCode} style={soft} />);
-
+  if (!hasInvitationTexts(site)) return null;
+  const s: InvitationStyle = { text: textColor, muted: mutedColor, accent, body: bodyFontFamily, display: dateFontFamily, size };
   return (
-    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '1.35rem' }}>
-      {groups}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+      <InvitationThanks site={site} s={s} />
+      <InvitationDetails site={site} s={s} />
+    </div>
+  );
+}
+
+/** Style des phrases pour les gardes du modèle universel (Classique & co.). */
+function universalInvitationStyle(site: WeddingSite): InvitationStyle {
+  const t = site.theme;
+  return {
+    text: t.textColor,
+    muted: t.mutedTextColor ?? t.textColor,
+    accent: t.primaryColor,
+    body: t.fontFamily,
+    display: t.titleFontFamily || t.fontFamily,
+    size: '1.02rem',
+  };
+}
+
+/**
+ * Garde du modèle universel, AVANT les prénoms : familles puis remerciements
+ * (« M. et Mme … remercient Hachem… »). Rien pour les anciens sites sans
+ * phrases : HeroMeta garde alors les familles sous le décompte.
+ */
+export function HeroLead({ site }: { site: WeddingSite }) {
+  if (!hasInvitationTexts(site)) return null;
+  const columns = getFamilyColumns(site);
+  const t = site.theme;
+  return (
+    <div style={{ marginBottom: '1.5rem' }}>
+      {columns.length ? (
+        <div style={{ marginBottom: '1.1rem' }}>
+          <FamilyColumnsRow
+            columns={columns}
+            accent={t.primaryColor}
+            textColor={t.textColor}
+            titleFontFamily={t.titleFontFamily || t.fontFamily}
+            bodyFontFamily={t.fontFamily}
+            hideTitles
+          />
+        </div>
+      ) : null}
+      <InvitationThanks site={site} s={universalInvitationStyle(site)} />
     </div>
   );
 }

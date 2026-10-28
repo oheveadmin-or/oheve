@@ -20,7 +20,8 @@ import { TITLE_SIZE_SCALE } from '../types';
 import { sectionLabels } from '../i18n';
 import { formatWeddingDate } from '../utils/date';
 import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
-import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationTextsBlock, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationDetails, InvitationThanks, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
+import type { InvitationStyle } from './templateParts';
 import { FloralLayer, PatternOverlay } from './PatternOverlay';
 import { SectionSeparator } from './SectionSeparator';
 import { cardStyleSurface } from './templateCardStyles';
@@ -89,6 +90,15 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
   const cardBg     = `color-mix(in srgb, ${bg} 45%, #FFFFFF)`;    // panneau du faire-part (fond éclairci)
   const inkProg    = ink;                                         // texte principal (couleur Texte du thème)
   const mutedProg  = `color-mix(in srgb, ${ink} 62%, ${bg})`;     // texte secondaire
+  const stripesInv: InvitationStyle = {
+    text: inkProg,
+    muted: mutedProg,
+    accent: inkProg,
+    body: fontTitle,
+    display: fontTitle,
+    size: 'clamp(0.92rem,2.3cqw,1.08rem)',
+    dateSize: 'clamp(1.1rem,3cqw,1.4rem)',
+  };
   const lineProg   = `color-mix(in srgb, ${ink} 22%, ${bg})`;     // filets de la timeline
   const btnProg    = buttonBg;                                    // bouton (couleur secondaire du thème)
 
@@ -110,7 +120,9 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
   const familyText = site.content?.texts?.familyText?.trim();
   const hebrewQuote = site.content?.hebrewQuote?.trim();
   const familyColumns = getFamilyColumns(site);
-  const hasFamilies = familyColumns.length > 0;
+  // Garde au format faire-part : familles et phrases entrent dans la carte rayée
+  const garde = hasInvitationTexts(site);
+  const hasFamilies = familyColumns.length > 0 && !garde;
   const hasSiteTexts = !!(memorialText || familyText || hasFamilies);
 
   /* ── Données ── */
@@ -349,7 +361,25 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                   )}
                 </div>
               )}
-              {site.date && (
+              {garde && (
+                <div style={{ margin: '0 0 clamp(1rem,2.6cqw,1.6rem)' }}>
+                  {familyColumns.length > 0 && (
+                    <div style={{ marginBottom: '0.9rem' }}>
+                      <FamilyColumnsRow
+                        columns={familyColumns}
+                        accent={stripe}
+                        textColor={inkProg}
+                        titleFontFamily={fontBody}
+                        bodyFontFamily={fontBody}
+                        lineSize="clamp(0.78rem,2.1cqw,0.92rem)"
+                        hideTitles
+                      />
+                    </div>
+                  )}
+                  <InvitationThanks site={site} s={stripesInv} />
+                </div>
+              )}
+              {site.date && !garde && (
                 <p style={{ fontFamily: fontBody, fontSize: 'clamp(0.6rem,1.6cqw,0.74rem)', letterSpacing: '0.26em', textTransform: 'uppercase', color: mutedProg, margin: '0 0 clamp(0.8rem,2cqw,1.4rem)' }}>
                   {formatWeddingDate(site.date, site.language)}
                 </p>
@@ -370,7 +400,8 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
                   ? `${site.brideName} & ${site.groomName}`
                   : site.coupleName || site.brideName || site.groomName || ''}
               </h1>
-              {(site.venue?.trim() || site.city?.trim()) && (
+              {garde && <InvitationDetails site={site} s={stripesInv} style={{ marginTop: 'clamp(1rem,2.6cqw,1.6rem)' }} />}
+              {(site.venue?.trim() || site.city?.trim()) && !garde && (
                 <p style={{ fontFamily: fontBody, fontSize: 'clamp(0.6rem,1.6cqw,0.74rem)', letterSpacing: '0.18em', textTransform: 'uppercase', color: mutedProg, margin: 'clamp(0.9rem,2.2cqw,1.4rem) 0 0' }}>
                   {[site.venue, site.city].filter(Boolean).join(' · ')}
                 </p>
@@ -434,22 +465,6 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
         </section>
       )}
 
-      {/* ── 1b-bis. Phrases du faire-part — sous les familles, comme sur l'invitation papier ── */}
-      {hasInvitationTexts(site) && (
-        <section style={{ background: 'transparent', padding: '0 clamp(1.2rem,5cqw,2rem) clamp(1.5rem,4cqw,2.5rem)' }}>
-          <div style={{ maxWidth: 620, margin: '0 auto' }}>
-            <InvitationTextsBlock
-              site={site}
-              textColor={inkProg}
-              mutedColor={mutedProg}
-              accent={stripe}
-              bodyFontFamily={fontBody}
-              dateFontFamily={fontTitle}
-              size="0.98rem"
-            />
-          </div>
-        </section>
-      )}
 
       {/* ── 1c. Texte principal (mot d'accueil libre) — même carte que les
               sections fonctionnelles plus bas, pour épouser la largeur et la

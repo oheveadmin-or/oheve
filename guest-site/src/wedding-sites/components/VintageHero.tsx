@@ -2,6 +2,7 @@
  * VintageHero — carte d'invitation ovale (papeterie vintage).
  * 100 % piloté par VintageTheme — aucune couleur en dur.
  */
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import type { WeddingTheme } from '../types';
 import { TITLE_SIZE_SCALE } from '../types';
@@ -88,6 +89,10 @@ export type VintageHeroProps = {
   hebrewQuote?: string;
   /** Thème live du builder — polices Titres/Prénoms/Texte + taille des prénoms */
   theme?: WeddingTheme;
+  /** Garde faire-part : familles + remerciements, AU-DESSUS des prénoms */
+  lead?: ReactNode;
+  /** Garde faire-part : invitation, date, réception, lieu… — remplace la date et le lieu */
+  details?: ReactNode;
 };
 
 export type VintageFamiliesProps = {
@@ -111,6 +116,8 @@ export function VintageHero({
   monogramSizePx,
   hebrewQuote,
   theme,
+  lead,
+  details,
 }: VintageHeroProps) {
   // Plafond relevé à 140 : L (250 px) et XL (320 px) restent distincts
   const logoSize = monogramSizePx ? Math.round(Math.min(monogramSizePx * 0.44, 140)) : 52;
@@ -293,6 +300,8 @@ export function VintageHero({
         {/* ── Ruban ── */}
         <VintageRibbon width={104} color={V.colors.primary} style={{ marginTop: '0.2rem', marginBottom: '0.6rem' }} />
 
+        {lead ? <div style={{ alignSelf: 'stretch', margin: '0.2rem 0 0.9rem' }}>{lead}</div> : null}
+
         {/* ── Titre 1 — même police script que le titre 2 ── */}
         <div
           style={{
@@ -345,8 +354,10 @@ export function VintageHero({
           </p>
         ) : null}
 
+        {details ? <div style={{ alignSelf: 'stretch', marginTop: '1rem' }}>{details}</div> : null}
+
         {/* ── Date — Playfair Display, grande et centrée ── */}
-        {dateLabel ? (
+        {dateLabel && !details ? (
           <div
             style={{
               fontFamily: F.display,
@@ -362,7 +373,7 @@ export function VintageHero({
         ) : null}
 
         {/* ── Lieu — salle (en valeur) puis ville ── */}
-        {(venue?.trim() || city?.trim()) ? (
+        {(venue?.trim() || city?.trim()) && !details ? (
           <div style={{ marginTop: '0.8rem' }}>
             {venue?.trim() ? (
               <div

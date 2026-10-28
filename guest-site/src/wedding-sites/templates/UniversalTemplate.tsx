@@ -8,7 +8,8 @@
  */
 import type { WeddingTemplateProps } from '../types';
 import { cardStyleSurface } from './templateCardStyles';
-import { getFamilyColumns, HiddenAutoMusic, InvitationTextsBlock, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationDetails, InvitationThanks, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
+import type { InvitationStyle } from './templateParts';
 import { SectionSeparator } from './SectionSeparator';
 import { PatternOverlay } from './PatternOverlay';
 import {
@@ -69,6 +70,37 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
 
   // Carte d'invitation ovale + décompte dédiés au thème Vintage
   const hasTwoNames = !!(site.brideName?.trim() && site.groomName?.trim());
+  // Garde au format faire-part : les phrases et les familles entrent dans la carte ovale
+  const garde = hasInvitationTexts(site);
+  const vintageInv: InvitationStyle = {
+    text: V.colors.ink,
+    muted: V.colors.inkMuted,
+    accent: V.colors.ink,
+    body: V.fonts.body,
+    display: t.titleFontFamily || V.fonts.display,
+    size: '0.66rem',
+    dateSize: '1.15rem',
+    caps: true,
+  };
+  const familyColumns = getFamilyColumns(site);
+  const vintageLead = garde ? (
+    <div>
+      {familyColumns.length ? (
+        <div style={{ marginBottom: '0.8rem' }}>
+          <FamilyColumnsRow
+            columns={familyColumns}
+            accent={V.colors.primary}
+            textColor={V.colors.ink}
+            titleFontFamily={V.fonts.body}
+            bodyFontFamily={V.fonts.body}
+            lineSize="0.66rem"
+            hideTitles
+          />
+        </div>
+      ) : null}
+      <InvitationThanks site={site} s={vintageInv} />
+    </div>
+  ) : undefined;
   const VintageHeroSection = (
     <>
       <VintageHero
@@ -82,10 +114,12 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         monogramSizePx={site.content?.monogramSizePx}
         hebrewQuote={site.content?.hebrewQuote}
         theme={t}
+        lead={vintageLead}
+        details={garde ? <InvitationDetails site={site} s={vintageInv} /> : undefined}
       />
       <VintageCountdown targetDate={site.date} language={site.language} theme={t} />
-      {/* Familles — affichées juste sous le décompte */}
-      <VintageFamilies columns={getFamilyColumns(site)} hideTitles theme={t} />
+      {/* Familles — sous le décompte, sauf garde faire-part (déjà dans la carte) */}
+      {garde ? null : <VintageFamilies columns={familyColumns} hideTitles theme={t} />}
     </>
   );
 
@@ -258,37 +292,6 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
               ) : null}
             </div>
           </section>
-        ) : null}
-
-        {/* Phrases du faire-part (remerciements → invitation → réception → pensée → tenue) */}
-        {hasInvitationTexts(site) ? (
-          isVintage ? (
-            <section style={{ marginBottom: '1.5rem' }}>
-              <VintageRibbon width={100} color={V.colors.primary} style={{ marginBottom: '0.9rem' }} />
-              <InvitationTextsBlock
-                site={site}
-                textColor={V.colors.ink}
-                mutedColor={V.colors.inkMuted}
-                accent={V.colors.primary}
-                bodyFontFamily={V.fonts.body}
-                size="0.95rem"
-              />
-              <VintageDivider width={180} color={V.colors.primary} style={{ marginTop: '1.2rem' }} />
-            </section>
-          ) : (
-            <section style={{ marginBottom: '2rem' }}>
-              <div style={cardStyleSurface({ theme: t })}>
-                <InvitationTextsBlock
-                  site={site}
-                  textColor={t.textColor}
-                  mutedColor={t.mutedTextColor}
-                  accent={t.accentColor ?? t.primaryColor}
-                  bodyFontFamily={t.fontFamily}
-                  dateFontFamily={t.titleFontFamily}
-                />
-              </div>
-            </section>
-          )
         ) : null}
 
         <div style={{ textAlign: site.language === 'he' ? 'right' : 'center' }}>

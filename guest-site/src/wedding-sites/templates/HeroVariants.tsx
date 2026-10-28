@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { WeddingSite } from '../types';
-import { HeroMeta, HeroMonogram, tintMonogram } from './templateParts';
+import { HeroLead, HeroMeta, HeroMonogram, tintMonogram } from './templateParts';
 import { titleFontSize } from './templateCardStyles';
 import { HeroPattern } from './PatternOverlay';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
@@ -150,6 +150,8 @@ export function HeroEditorial({ site }: HeroProps) {
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 680 }}>
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         {/* Names grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 32px 1fr', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
           {/* Bride */}
@@ -220,6 +222,8 @@ export function HeroSplit({ site }: HeroProps) {
       >
         <HeroVerse site={site} width={300} style={{ margin: '0 0 1.5rem' }} />
         <HeroMonogram site={site} />
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         <h1
           style={{
             fontSize: `clamp(2rem, 5cqw, 4rem)`,
@@ -323,6 +327,8 @@ export function HeroFairepart({ site }: HeroProps) {
         <HeroVerse site={site} width={320} />
         <HeroMonogram site={site} />
 
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem', opacity: 0.7, fontStyle: 'italic' }}>
           {site.content?.parentsBride?.father || site.content?.parentsBride?.mother
             ? `Famille ${site.content?.brideFamilyName || site.brideName.split(' ').pop()}`
@@ -417,6 +423,8 @@ export function HeroMonogramStyle({ site }: HeroProps) {
         )}
 
         <HeroVerse site={site} width={360} />
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         <h1
           style={{
             fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 84, 0.55),
@@ -480,6 +488,8 @@ export function HeroLuxe({ site }: HeroProps) {
         <HeroVerse site={site} width={380} style={{ marginBottom: '2rem' }} />
         <HeroMonogram site={site} />
 
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         <h1
           style={{
             fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 76, 0.58),
@@ -565,6 +575,8 @@ export function HeroArtDeco({ site }: HeroProps) {
         <HeroVerse site={site} width={380} />
         <HeroMonogram site={site} />
 
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         <h1
           style={{
             fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 84, 0.8),
@@ -642,6 +654,8 @@ export function HeroMagazine({ site }: HeroProps) {
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto', width: '100%', padding: '0 3rem 0 5rem' }}>
         <HeroVerse site={site} width={340} style={{ margin: '0 0 1rem' }} />
         <HeroMonogram site={site} />
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         <h1
           style={{
             fontSize: fitNames('clamp(3rem, 8cqw, 5.5rem)', [site.brideName, site.groomName], 66, 0.62),
@@ -683,6 +697,8 @@ export function HeroMinimal({ site }: HeroProps) {
     >
       <HeroVerse site={site} width={360} style={{ marginBottom: '2.5rem' }} />
       <HeroMonogram site={site} />
+      {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+      <HeroLead site={site} />
       <h1
         style={{
           fontSize: fitNames('clamp(1.8rem, 5cqw, 3rem)', [site.brideName, site.groomName], 84, 0.6),
@@ -781,6 +797,8 @@ export function HeroRoyal({ site }: HeroProps) {
         <HeroVerse site={site} width={360} style={{ margin: '1.75rem auto 0.5rem' }} />
         <div style={{ height: '1.25rem' }} />
 
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         <h1 style={{ fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 76, 0.6), fontWeight: 700, color: t.textColor, margin: '0 0 0.25rem', lineHeight: 1.1, fontStyle: 'italic' }}>
           {site.brideName}
         </h1>
@@ -908,6 +926,8 @@ export function HeroGarden({ site }: HeroProps) {
 
         <HeroVerse site={site} width={360} style={{ marginBottom: '1.25rem' }} />
 
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         <h1
           style={{
             fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 84, 0.55),
@@ -979,6 +999,8 @@ export function HeroCinematic({ site }: HeroProps) {
         <HeroMonogram site={site} />
         {/* Both names at equal visual weight */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
+          {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+          <HeroLead site={site} />
           <h1
             style={{
               fontSize: fitNames('clamp(3rem, 11cqw, 7rem)', [site.brideName, site.groomName], 74, 0.78),
@@ -1110,6 +1132,8 @@ export function HeroLetterpress({ site }: HeroProps) {
         </div>
         )}
 
+        {/* Garde faire-part : familles puis « Remercient Hachem… » */}
+        <HeroLead site={site} />
         <h1 style={{ fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 55, 0.6), fontWeight: 600, color: t.textColor, margin: '0 0 0.2rem', lineHeight: 1.15, letterSpacing: '0.03em', fontStyle: 'italic' }}>
           {site.brideName}
         </h1>
