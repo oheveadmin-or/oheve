@@ -21,7 +21,7 @@
  * coupe tout (pétales masqués, contenu affiché d'emblée, éclats retirés).
  */
 import type { CSSProperties, ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import type { GuestContact, WeddingSite, WeddingTemplateProps } from '../types';
@@ -327,6 +327,7 @@ function Monogram({ site, tk }: { site: WeddingSite; tk: InvitationTokens }) {
   const b = realName(site.groomName).charAt(0).toUpperCase();
   const initials = a && b ? `${a}${b}` : a || b || realName(site.coupleName).charAt(0).toUpperCase();
   if (!initials) return null;
+  if (tk.effects.pages) return <GoldMonogram initials={initials} tk={tk} />;
   return (
     <svg aria-hidden className="inv-rise" width="92" height="92" viewBox="0 0 100 100" style={{ display: 'block', margin: '0 auto 0.7rem', animationDelay: '0.1s' }}>
       <circle cx="50" cy="50" r="46" fill="none" stroke={tk.colors.foil} strokeWidth="1" />
@@ -358,6 +359,143 @@ function Bsd({ tk }: { tk: InvitationTokens }) {
     <p dir="rtl" lang="he" style={{ margin: 0, padding: '0.6rem 16px 0', textAlign: 'right', fontFamily: `'Frank Ruhl Libre', 'Noto Serif Hebrew', ${tk.fonts.body}, serif`, fontSize: '0.85rem', color: tk.colors.muted }}>
       בס״ד
     </p>
+  );
+}
+
+/** Mélange une couleur hex #rrggbb avec du blanc (t > 0) ou du noir (t < 0). */
+function shade(hex: string, t: number): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex.trim());
+  if (!m) return hex;
+  const target = t > 0 ? 255 : 0;
+  const k = Math.abs(t);
+  return `#${[m[1], m[2], m[3]]
+    .map((h) => Math.round(parseInt(h, 16) + (target - parseInt(h, 16)) * k).toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+/** Mélange deux couleurs hex #rrggbb (t = part de la seconde). */
+function mixHex(a: string, b: string, t: number): string {
+  const pa = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(a.trim());
+  const pb = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(b.trim());
+  if (!pa || !pb) return a;
+  return `#${[1, 2, 3]
+    .map((i) => Math.round(parseInt(pa[i], 16) * (1 - t) + parseInt(pb[i], 16) * t).toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+/**
+ * Monogramme « métal doré » : les initiales du couple en capitales romaines
+ * resserrées, remplies d'un dégradé or (dérivé de la couleur du thème) et
+ * mises en relief par un éclairage SVG — aucun fichier, aucune police à part.
+ */
+function GoldMonogram({ initials, tk }: { initials: string; tk: InvitationTokens }) {
+  const id = useId().replace(/[^a-zA-Z0-9]/g, '');
+  // Teinte du thème réchauffée vers l'or métallique
+  const base = mixHex(tk.colors.foil, '#C89B45', 0.55);
+  const two = initials.length > 1;
+  return (
+    <svg aria-hidden className="inv-rise" viewBox="0 0 220 130" width="190" style={{ display: 'block', maxWidth: '56%', height: 'auto', margin: '0 auto 0.4rem', overflow: 'visible', animationDelay: '0.1s' }}>
+      <defs>
+        <linearGradient id={`g${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={shade(base, -0.25)} />
+          <stop offset="0.28" stopColor={shade(base, 0.55)} />
+          <stop offset="0.5" stopColor={shade(base, -0.05)} />
+          <stop offset="0.72" stopColor={shade(base, 0.45)} />
+          <stop offset="1" stopColor={shade(base, -0.3)} />
+        </linearGradient>
+        <filter id={`b${id}`} x="-10%" y="-10%" width="120%" height="130%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="1.4" result="blur" />
+          <feSpecularLighting in="blur" surfaceScale="4" specularConstant="0.85" specularExponent="22" lightingColor="#fff7e6" result="spec">
+            <feDistantLight azimuth="235" elevation="48" />
+          </feSpecularLighting>
+          <feComposite in="spec" in2="SourceAlpha" operator="in" result="specIn" />
+          <feComposite in="SourceGraphic" in2="specIn" operator="arithmetic" k1="0" k2="1" k3="0.75" k4="0" result="lit" />
+          <feDropShadow in="lit" dx="0" dy="2.5" stdDeviation="2.5" floodColor={shade(base, -0.6)} floodOpacity="0.35" />
+        </filter>
+      </defs>
+      <text
+        x="110"
+        y="104"
+        textAnchor="middle"
+        fontFamily="'Cinzel', 'Cormorant Garamond', Georgia, serif"
+        fontWeight="700"
+        fontSize={two ? 118 : 124}
+        letterSpacing={two ? -20 : 0}
+        fill={`url(#g${id})`}
+        stroke={shade(base, -0.35)}
+        strokeWidth="0.6"
+        filter={`url(#b${id})`}
+      >
+        {initials}
+      </text>
+    </svg>
+  );
+}
+
+/** Pétales d'une couronne de la rose : rayon, longueur, largeur, décalage angulaire */
+const ROSE_RINGS = [
+  { n: 7, r: 0.0, len: 300, wid: 250, rot: 8, tone: 0 },
+  { n: 6, r: 0.0, len: 235, wid: 205, rot: 36, tone: 1 },
+  { n: 6, r: 0.0, len: 170, wid: 155, rot: 4, tone: 2 },
+  { n: 5, r: 0.0, len: 110, wid: 105, rot: 40, tone: 3 },
+  { n: 4, r: 0.0, len: 62, wid: 66, rot: 15, tone: 4 },
+];
+
+/**
+ * Grande rose ivoire dessinée en SVG (dessin original) : couronnes de pétales
+ * superposées, chacune légèrement ombrée pour donner du volume. Elle reste
+ * derrière le contenu pendant le défilement (ancre sticky, pas de `fixed`).
+ */
+function RoseBackdrop({ tk }: { tk: InvitationTokens }) {
+  const id = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const paper = tk.colors.paper;
+  const tones = [0.6, 0.45, 0.3, 0.2, 0.1].map((k) => shade(paper, k));
+  const shadowTone = shade(paper, -0.18);
+  return (
+    <div className="inv-rose-anchor" aria-hidden>
+      <svg className="inv-rose" viewBox="-400 -400 800 800" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <radialGradient id={`p${id}`} cx="0.5" cy="1" r="1.05">
+            <stop offset="0" stopColor={shadowTone} stopOpacity="0.55" />
+            <stop offset="0.55" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
+          <filter id={`s${id}`} x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="soft" />
+            <feDropShadow in="soft" dx="0" dy="6" stdDeviation="10" floodColor={shade(paper, -0.45)} floodOpacity="0.22" />
+          </filter>
+        </defs>
+        {ROSE_RINGS.map((ring, ri) =>
+          Array.from({ length: ring.n }, (_, i) => {
+            const angle = ring.rot + (360 / ring.n) * i;
+            const L = ring.len;
+            const W = ring.wid / 2;
+            // Pétale en coupe arrondie, bord supérieur légèrement ondulé
+            const d = `M0 0 C ${-W * 0.95} ${-L * 0.15}, ${-W * 1.15} ${-L * 0.8}, ${-W * 0.45} ${-L * 0.98}
+              Q ${-W * 0.1} ${-L * 1.05}, 0 ${-L * 0.96} Q ${W * 0.15} ${-L * 1.06}, ${W * 0.5} ${-L * 0.97}
+              C ${W * 1.15} ${-L * 0.78}, ${W * 0.95} ${-L * 0.15}, 0 0 Z`;
+            return (
+              <g key={`${ri}-${i}`} transform={`rotate(${angle})`} filter={`url(#s${id})`}>
+                <path d={d} fill={tones[ring.tone]} />
+                <path d={d} fill={`url(#p${id})`} />
+                <path
+                  d={`M${-W * 0.45} ${-L * 0.98} Q ${-W * 0.1} ${-L * 1.05}, 0 ${-L * 0.96} Q ${W * 0.15} ${-L * 1.06}, ${W * 0.5} ${-L * 0.97}`}
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeOpacity="0.9"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+              </g>
+            );
+          }),
+        )}
+        {/* Cœur de la rose : pétales enroulés */}
+        <g filter={`url(#s${id})`}>
+          <path d="M-14 6 C -30 -18, 10 -40, 26 -14 C 34 4, 12 22, -6 16" fill={tones[4]} stroke={shadowTone} strokeOpacity="0.35" strokeWidth="1.5" />
+          <path d="M-4 2 C -10 -14, 14 -20, 16 -6 C 17 4, 6 10, -2 6" fill={tones[3]} stroke={shadowTone} strokeOpacity="0.4" strokeWidth="1.2" />
+        </g>
+      </svg>
+    </div>
   );
 }
 
@@ -1102,7 +1240,7 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
       id="top"
       dir={dir}
       lang={site.language}
-      className="wedding-template-root inv-root"
+      className={`wedding-template-root inv-root${pagesMode ? ' inv-frameless' : ''}`}
       style={{
         ...cssVars,
         fontFamily: tk.fonts.body,
@@ -1117,6 +1255,7 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
       {pagesMode ? <MusicFab url={site.content?.musicUrl} tk={tk} S={S} /> : <PublicStickyNav site={site} />}
       {/* ♫ Musique choisie dans l'étape Musique — lecture au 1er geste */}
       <HiddenAutoMusic url={site.content?.musicUrl} />
+      {pagesMode ? <RoseBackdrop tk={tk} /> : null}
       {tk.effects.bsd ? <Bsd tk={tk} /> : null}
 
       {pagesMode ? (
@@ -1399,6 +1538,14 @@ const INVITATION_CSS = `
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere;
 }
 .inv-tab[aria-current="page"] .inv-tab-label { color: var(--inv-ink); }
+
+/* ── Fond rose et faire-part sans cadre (mode pages) ── */
+.inv-rose-anchor { position: sticky; top: 0; height: 100vh; height: 100svh; margin-bottom: -100vh; margin-bottom: -100svh; z-index: 0; pointer-events: none; overflow: hidden; }
+.inv-rose { position: absolute; left: 50%; top: 50%; width: max(150%, 640px); aspect-ratio: 1; transform: translate(-50%, -48%); opacity: 0.85; }
+.inv-frameless .inv-stack, .inv-frameless .inv-tabs, .inv-frameless > p { position: relative; z-index: 1; }
+.inv-frameless .inv-card { background: transparent; border: 0; outline: 0; box-shadow: none; overflow: visible; }
+.inv-frameless .inv-band { margin-inline: calc(-1.6rem - 16px); border-radius: 0; }
+.inv-frameless .inv-tabs { background: color-mix(in srgb, var(--inv-paper) 92%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 
 /* Réduction des animations : contenu immédiat, rien ne bouge */
 @media (prefers-reduced-motion: reduce) {
