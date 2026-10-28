@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EXPORT_CHOICES, exportAdminExcel } from '@/components/admin/admin-export';
 import {
   CreatePrestataireModal, GRANT_DURATIONS, generatePassword, grantUntil,
 } from '@/components/admin/create-prestataire-modal';
@@ -53,6 +54,12 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'payments', label: 'Paiements', icon: 'card-outline' },
 ];
 
+/** Onglet de la liste → export Excel correspondant. */
+const TAB_EXPORT: Partial<Record<Tab, string>> = {
+  users: 'utilisateurs', prestataires: 'prestataires', contenus: 'sites',
+  reservations: 'reservations', payments: 'paiements',
+};
+
 const ROLE_OPTIONS: UserRole[] = ['client', 'prestataire', 'boutique'];
 
 function formatEuros(cents: number) {
@@ -76,6 +83,8 @@ export default function AdminDashboard() {
   const [reservations, setReservations] = useState<Record<string, unknown>[]>([]);
   const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  /** Export en cours : 'all' ou la clé de l'onglet exporté. */
+  const [exporting, setExporting] = useState<string | null>(null);
 
   const token = me?.accessToken;
 
@@ -114,6 +123,18 @@ export default function AdminDashboard() {
   }, [token, tab, search, roleFilter]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const runExport = async (key: string | null) => {
+    if (!token || exporting) return;
+    setExporting(key ?? 'all');
+    try {
+      const error = await exportAdminExcel(token, key ? [key] : []);
+      if (error) Alert.alert('Export impossible', error);
+    } catch {
+      Alert.alert('Export impossible', 'Le fichier Excel n\'a pas pu être créé. Réessayez.');
+    }
+    setExporting(null);
+  };
 
   const toggleActive = async (userId: number, current: boolean) => {
     if (!token) return;
@@ -519,6 +540,26 @@ export default function AdminDashboard() {
                 </ThemedText>
               </View>
             )}
+            <View style={styles.stripeCard}>
+              <ThemedText style={styles.stripeTitle}>Exports Excel</ThemedText>
+              <ThemedText style={styles.stripeTxt}>Toutes les lignes, un onglet par sujet. Le fichier s&apos;ouvre dans le menu de partage (Mail, Fichiers, WhatsApp…).</ThemedText>
+              <Pressable style={[styles.createBtn, styles.exportAllBtn, !!exporting && { opacity: 0.6 }]} onPress={() => runExport(null)} disabled={!!exporting}>
+                {exporting === 'all'
+                  ? <ActivityIndicator color="#fff" />
+                  : <Ionicons name="download-outline" size={18} color="#fff" />}
+                <ThemedText style={styles.createTxt}>Tout exporter (1 fichier)</ThemedText>
+              </Pressable>
+              <View style={styles.exportGrid}>
+                {EXPORT_CHOICES.map((c) => (
+                  <Pressable key={c.key} style={[styles.exportChip, !!exporting && { opacity: 0.6 }]} onPress={() => runExport(c.key)} disabled={!!exporting}>
+                    {exporting === c.key
+                      ? <ActivityIndicator size="small" color="#747e68" />
+                      : <Ionicons name={c.icon} size={15} color="#747e68" />}
+                    <ThemedText style={styles.exportChipTxt} numberOfLines={1}>{c.label}</ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           </View>
         )}
 
@@ -533,6 +574,15 @@ export default function AdminDashboard() {
             onSubmitEditing={load}
           />
         )}
+
+        {TAB_EXPORT[tab] ? (
+          <Pressable style={[styles.exportChip, styles.exportTabBtn, !!exporting && { opacity: 0.6 }]} onPress={() => runExport(TAB_EXPORT[tab]!)} disabled={!!exporting}>
+            {exporting === TAB_EXPORT[tab]
+              ? <ActivityIndicator size="small" color="#747e68" />
+              : <Ionicons name="download-outline" size={15} color="#747e68" />}
+            <ThemedText style={styles.exportChipTxt}>Exporter en Excel</ThemedText>
+          </Pressable>
+        ) : null}
 
         {tab === 'users' && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -638,6 +688,14 @@ const styles = StyleSheet.create({
   cardActions: { flexDirection: 'row', gap: 6 },
   cardActionsCol: { gap: 6, alignItems: 'flex-end' },
   createBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#747e68', borderRadius: 14, paddingVertical: 13, marginBottom: 4 },
+  exportAllBtn: { marginTop: 12, marginBottom: 0 },
+  exportGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  exportChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9,
+    borderRadius: 99, borderWidth: 1.5, borderColor: '#d9ddd0', backgroundColor: '#fcfbf9', maxWidth: '100%',
+  },
+  exportChipTxt: { fontSize: 12, fontWeight: '600', color: '#4a5240', flexShrink: 1 },
+  exportTabBtn: { alignSelf: 'flex-start' },
   createTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
   iconBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#ece8e0', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfbf9' },
   empty: { textAlign: 'center', color: '#9a9c93', marginTop: 32, fontSize: 14 },

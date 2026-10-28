@@ -6,6 +6,7 @@ import {
   USERNAME_RULE, normalizeUsername, placeholderEmail, sqlVisibleEmail,
 } from '../auth/username';
 import { pool } from '../config/database';
+import { EXPORT_SHEETS, buildAdminExport, isExportSheetKey } from './export';
 import { ADMIN_GRANT_SUB_ID, isAdminGrant, isPrestaSubActive } from '../prestataire-subscription';
 import { requireAdmin } from '../middleware/requireAdmin';
 
@@ -162,6 +163,21 @@ adminRoutes.get('/stats', async (_req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: 'Erreur' });
+  }
+});
+
+// ── GET /api/admin/export?sheets=utilisateurs,paiements ───────────────────────
+// Données des exports Excel (toutes les lignes, colonnes déjà titrées en
+// français). Sans `sheets` : tous les onglets.
+adminRoutes.get('/export', async (req: Request, res: Response) => {
+  const asked = String(req.query.sheets ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const keys = asked.length ? asked.filter(isExportSheetKey) : (Object.keys(EXPORT_SHEETS) as (keyof typeof EXPORT_SHEETS)[]);
+  if (!keys.length) return res.status(400).json({ success: false, message: 'Export inconnu' });
+  try {
+    return res.json({ success: true, data: { generated_at: new Date().toISOString(), sheets: await buildAdminExport(keys) } });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Impossible de préparer l'export" });
   }
 });
 

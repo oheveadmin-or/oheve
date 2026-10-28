@@ -25,6 +25,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
+
 import { FeedVideo } from '@/components/feed-video';
 import { VideoThumbnail } from '@/components/video-thumbnail';
 import { ThemedText } from '@/components/themed-text';
@@ -82,6 +84,11 @@ type Post = {
   category: Exclude<MainCategory, 'tout'>;
   subCategory?: SubCategory;
   author: string;
+  /** Nom de l'établissement, ville et note du prestataire (cartes Explore). */
+  businessName?: string;
+  city?: string;
+  rating?: number;
+  reviewsCount?: number;
   likes: number;
   isLiked: boolean;
   cardH: number;
@@ -157,35 +164,40 @@ const DEMO_PROVIDERS: Record<string, ProviderProfile> = {
 const DEMO: Post[] = [];
 
 // ── Categories ───────────────────────────────────────────────────────────────
+type IconName = keyof typeof Ionicons.glyphMap;
+
+// Icônes au trait (pas d'emoji) : rendu homogène sur tous les téléphones.
 const CATEGORIES: {
-  key: MainCategory; label: string; emoji: string;
-  subcategories?: { key: SubCategory; label: string; emoji: string }[];
+  key: MainCategory; label: string; icon: IconName;
+  subcategories?: { key: SubCategory; label: string; icon: IconName }[];
 }[] = [
-  { key: 'tout', label: 'Tout', emoji: '✨' },
-  { key: 'salle', label: 'Salle / Lieu', emoji: '💒' },
-  { key: 'traiteur', label: 'Traiteur', emoji: '🍽️' },
-  { key: 'photos', label: 'Photo & Vidéo', emoji: '📸' },
-  { key: 'musique', label: 'Musique', emoji: '🎵' },
-  { key: 'décoration', label: 'Déco', emoji: '🕯️' },
-  { key: 'fleurs', label: 'Fleurs', emoji: '🌸' },
-  { key: 'beaute', label: 'Beauté', emoji: '💄' },
+  { key: 'tout', label: 'Tout', icon: 'sparkles-outline' },
+  { key: 'salle', label: 'Salles / Lieux', icon: 'home-outline' },
+  { key: 'traiteur', label: 'Traiteur', icon: 'restaurant-outline' },
+  { key: 'photos', label: 'Photo & Vidéo', icon: 'camera-outline' },
+  { key: 'décoration', label: 'Décoration', icon: 'flame-outline' },
+  { key: 'musique', label: 'DJ / Musique', icon: 'musical-notes-outline' },
+  { key: 'beaute', label: 'Beauté', icon: 'brush-outline' },
+  { key: 'fleurs', label: 'Fleurs', icon: 'flower-outline' },
   {
-    key: 'tenues', label: 'Tenues', emoji: '👗',
+    key: 'tenues', label: 'Tenues', icon: 'shirt-outline',
     subcategories: [
-      { key: 'robes', label: 'Robes de mariée', emoji: '👰' },
-      { key: 'accessoires', label: 'Accessoires', emoji: '💍' },
-      { key: 'tenue-soiree', label: 'Tenues de soirée', emoji: '👠' },
+      { key: 'robes', label: 'Robes de mariée', icon: 'woman-outline' },
+      { key: 'accessoires', label: 'Accessoires', icon: 'diamond-outline' },
+      { key: 'tenue-soiree', label: 'Tenues de soirée', icon: 'moon-outline' },
     ],
   },
-  { key: 'transport', label: 'Transport', emoji: '🚗' },
-  { key: 'juif', label: 'Mariage Juif', emoji: '✡️' },
-  { key: 'chabbat-hattan', label: 'Chabbat Hattan', emoji: '🕍' },
-  { key: 'patisserie', label: 'Pâtisserie', emoji: '🧁' },
-  { key: 'planner', label: 'Wedding Planner', emoji: '📋' },
-  { key: 'animation', label: 'Animation', emoji: '🎉' },
-  { key: 'souvenirs', label: 'Souvenirs', emoji: '💝' },
-  { key: 'autres', label: 'Autre', emoji: '🎊' },
+  { key: 'transport', label: 'Transport', icon: 'car-outline' },
+  { key: 'juif', label: 'Mariage Juif', icon: 'star-outline' },
+  { key: 'chabbat-hattan', label: 'Chabbat Hattan', icon: 'book-outline' },
+  { key: 'patisserie', label: 'Pâtisserie', icon: 'ice-cream-outline' },
+  { key: 'planner', label: 'Wedding Planner', icon: 'clipboard-outline' },
+  { key: 'animation', label: 'Animation', icon: 'balloon-outline' },
+  { key: 'souvenirs', label: 'Souvenirs', icon: 'gift-outline' },
+  { key: 'autres', label: 'Autre', icon: 'ellipsis-horizontal' },
 ];
+
+const catDef = (key: MainCategory) => CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1];
 
 const CAT_COLORS: Record<Exclude<MainCategory, 'tout'>, string> = {
   décoration: '#929B83',
@@ -343,7 +355,7 @@ function ProviderModal({
                     {p.mediaUri && p.mediaType === 'image' ? (
                       <Image source={{ uri: p.mediaUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
                     ) : (
-                      <ThemedText style={provStyles.postThumbEmoji}>{p.bgEmoji}</ThemedText>
+                      <Ionicons name={catDef(p.category).icon} size={28} color="#929B83" />
                     )}
                     <View style={provStyles.postThumbOverlay}>
                       <Ionicons name={p.isLiked ? 'heart' : 'heart-outline'} size={11} color="#fff" />
@@ -556,7 +568,7 @@ function ReelCardBase({
         <Image source={{ uri: post.mediaUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: post.bgColor, alignItems: 'center', justifyContent: 'center' }]}>
-          <ThemedText style={reelStyles.bigEmoji}>{post.bgEmoji}</ThemedText>
+          <Ionicons name={catDef(post.category).icon} size={80} color="#929B83" />
         </View>
       )}
       <View style={reelStyles.gradient} />
@@ -649,6 +661,13 @@ const reelStyles = StyleSheet.create({
 });
 
 // ── Grid Card ────────────────────────────────────────────────────────────────
+// Carte « vitrine » : photo plein cadre, dégradé sombre en bas, nom de
+// l'établissement en serif, ville, note et étiquette de catégorie.
+const GRID_GAP = 10;
+const GRID_PAD = 14;
+const CARD_W = (W - GRID_PAD * 2 - GRID_GAP) / 2;
+const CARD_H = Math.round(CARD_W * 1.08);
+
 function GridCard({
   post,
   onLike,
@@ -658,34 +677,66 @@ function GridCard({
   onLike: (id: string) => void;
   onOpen: (id: string) => void;
 }) {
-  const catColor = CAT_COLORS[post.category] ?? '#929B83';
+  const title = post.businessName || post.author;
+  const hasRating = !!post.rating && post.rating > 0;
   return (
-    <Pressable style={[gridStyles.card, { height: post.cardH }]} onPress={() => onOpen(post.id)} hitSlop={6}>
+    <Pressable style={gridStyles.card} onPress={() => onOpen(post.id)}>
       {post.mediaUri && post.mediaType === 'video' ? (
-        <VideoThumbnail
-          uri={post.mediaUri}
-          iconSize={42}
-          style={[StyleSheet.absoluteFill, { borderRadius: 14 }]}
-        />
+        <VideoThumbnail uri={post.mediaUri} iconSize={34} style={StyleSheet.absoluteFill} />
       ) : post.mediaUri ? (
-        <Image source={{ uri: post.mediaUri }} style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} contentFit="cover" />
+        <Image source={{ uri: post.mediaUri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
       ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: post.bgColor, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }]}>
-          <ThemedText style={gridStyles.emoji}>{post.bgEmoji}</ThemedText>
+        <View style={[StyleSheet.absoluteFill, gridStyles.placeholder]}>
+          <Ionicons name={catDef(post.category).icon} size={44} color="#929B83" />
         </View>
       )}
-      <View style={gridStyles.overlay} />
-      <View style={[gridStyles.catChip, { backgroundColor: catColor }]}>
-        <ThemedText style={gridStyles.catChipTxt}>{post.category}</ThemedText>
-      </View>
+
+      {/* Dégradé bas : lisibilité du texte blanc sur n'importe quelle photo */}
+      <Svg style={gridStyles.shade} width="100%" height="100%" preserveAspectRatio="none">
+        <Defs>
+          <SvgLinearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#1f1d18" stopOpacity="0" />
+            <Stop offset="0.45" stopColor="#1f1d18" stopOpacity="0.35" />
+            <Stop offset="1" stopColor="#1f1d18" stopOpacity="0.85" />
+          </SvgLinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#shade)" />
+      </Svg>
+
+      <Pressable
+        style={gridStyles.heart}
+        onPress={(e) => { e.stopPropagation(); onLike(post.id); }}
+        hitSlop={10}
+        accessibilityLabel={post.isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+      >
+        <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={24} color="#fff" />
+      </Pressable>
+
       <View style={gridStyles.bottom}>
-        <ThemedText style={gridStyles.caption} numberOfLines={2}>{post.caption}</ThemedText>
+        <ThemedText style={gridStyles.title} numberOfLines={1}>{title}</ThemedText>
+        <ThemedText style={gridStyles.sub} numberOfLines={1}>
+          {post.city || (post.caption && post.caption !== title ? post.caption : post.author)}
+        </ThemedText>
         <View style={gridStyles.footerRow}>
-          <ThemedText style={gridStyles.author} numberOfLines={1}>{post.author}</ThemedText>
-          <Pressable style={gridStyles.likeBtn} onPress={(e) => { e.stopPropagation(); onLike(post.id); }} hitSlop={12}>
-            <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={13} color={post.isLiked ? '#f43f5e' : 'rgba(255,255,255,0.8)'} />
-            <ThemedText style={gridStyles.likeCount}>{post.likes}</ThemedText>
-          </Pressable>
+          <View style={gridStyles.ratingRow}>
+            {hasRating ? (
+              <>
+                <Ionicons name="star" size={12} color="#E9C46A" />
+                <ThemedText style={gridStyles.ratingTxt} numberOfLines={1}>
+                  {post.rating!.toFixed(1)}
+                  {post.reviewsCount ? `  (${post.reviewsCount} avis)` : ''}
+                </ThemedText>
+              </>
+            ) : (
+              <>
+                <Ionicons name="heart" size={11} color="rgba(255,255,255,0.85)" />
+                <ThemedText style={gridStyles.ratingTxt} numberOfLines={1}>{post.likes}</ThemedText>
+              </>
+            )}
+          </View>
+          <View style={gridStyles.tag}>
+            <ThemedText style={gridStyles.tagTxt} numberOfLines={1}>{catDef(post.category).label}</ThemedText>
+          </View>
         </View>
       </View>
     </Pressable>
@@ -693,22 +744,24 @@ function GridCard({
 }
 
 const gridStyles = StyleSheet.create({
-  card: { borderRadius: 14, overflow: 'hidden', marginBottom: 10, position: 'relative' },
-  videoBg: { backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center' },
-  emoji: { fontSize: 52 },
-  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 14 },
-  catChip: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
-  catChipTxt: { color: '#fff', fontSize: 9, fontWeight: '700' },
-  bottom: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, padding: 10,
-    backgroundColor: 'rgba(0,0,0,0.38)',
-    borderBottomLeftRadius: 14, borderBottomRightRadius: 14, gap: 4,
+  card: {
+    width: CARD_W, height: CARD_H, borderRadius: 16, overflow: 'hidden',
+    marginBottom: GRID_GAP, backgroundColor: '#EFEBE3',
   },
-  caption: { color: '#fff', fontSize: 11, fontWeight: '600', lineHeight: 14 },
-  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  author: { color: 'rgba(255,255,255,0.75)', fontSize: 10, flex: 1 },
-  likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 4, paddingVertical: 4, marginRight: -4 },
-  likeCount: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '600' },
+  placeholder: { backgroundColor: '#F3EFE7', alignItems: 'center', justifyContent: 'center' },
+  shade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  heart: { position: 'absolute', top: 10, right: 10 },
+  bottom: { position: 'absolute', left: 12, right: 10, bottom: 10, gap: 2 },
+  title: { color: '#fff', fontSize: 18, fontFamily: 'OheveSerif-Medium', letterSpacing: -0.2 },
+  sub: { color: 'rgba(255,255,255,0.88)', fontSize: 12 },
+  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 3 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 },
+  ratingTxt: { color: '#fff', fontSize: 11, fontWeight: '500', flexShrink: 1 },
+  tag: {
+    backgroundColor: 'rgba(240,234,222,0.92)', borderRadius: 8,
+    paddingHorizontal: 7, paddingVertical: 3, maxWidth: CARD_W * 0.5, flexShrink: 0,
+  },
+  tagTxt: { color: '#343630', fontSize: 10, fontWeight: '600' },
 });
 
 // ── Post Detail Modal ────────────────────────────────────────────────────────
@@ -749,7 +802,7 @@ function PostDetailModal({
                 style={StyleSheet.absoluteFill}
               />
             ) : (
-              <ThemedText style={detailStyles.emoji}>{post.bgEmoji}</ThemedText>
+              <Ionicons name={catDef(post.category).icon} size={72} color="#929B83" />
             )}
             <View style={[detailStyles.catChip, { backgroundColor: catColor }]}>
               <ThemedText style={detailStyles.catChipTxt}>{post.category}</ThemedText>
@@ -939,7 +992,7 @@ function CreatePostModal({
                     style={[createStyles.chip, active && { backgroundColor: color, borderColor: color }]}
                     onPress={() => { setNewCategory(c.key as Exclude<MainCategory, 'tout'>); setNewSubCategory(undefined); }}
                   >
-                    <ThemedText style={createStyles.chipEmoji}>{c.emoji}</ThemedText>
+                    <Ionicons name={c.icon} size={14} color={active ? '#fff' : '#747E68'} />
                     <ThemedText style={[createStyles.chipLbl, active && { color: '#fff' }]}>{c.label}</ThemedText>
                   </Pressable>
                 );
@@ -960,7 +1013,7 @@ function CreatePostModal({
                         style={[createStyles.chip, active && { backgroundColor: color, borderColor: color }]}
                         onPress={() => setNewSubCategory(sc.key as SubCategory)}
                       >
-                        <ThemedText style={createStyles.chipEmoji}>{sc.emoji}</ThemedText>
+                        <Ionicons name={sc.icon} size={14} color={active ? '#fff' : '#747E68'} />
                         <ThemedText style={[createStyles.chipLbl, active && { color: '#fff' }]}>{sc.label}</ThemedText>
                       </Pressable>
                     );
@@ -1044,6 +1097,7 @@ export default function ExploreScreen() {
   const { reels: boutiqueReels, toggleReelLike, recordReelView } = useBoutique();
   const [posts, setPosts] = useState<Post[]>(DEMO);
   const [category, setCategory] = useState<MainCategory>('tout');
+  const [search, setSearch] = useState('');
   const [subCategory, setSubCategory] = useState<SubCategory | null>(null);
   const [mode, setMode] = useState<'grid' | 'reels'>('grid');
 
@@ -1167,7 +1221,7 @@ export default function ExploreScreen() {
           id: number; url: string; is_cover: boolean; created_at: string;
           user_id: number; business_name: string; category: string; prenom: string; nom: string;
           like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null;
-          media_type?: string;
+          media_type?: string; location_city?: string | null; rating?: number | null; reviews_count?: number | null;
         }) => ({
           id: `feed-${p.id}`,
           photoId: p.id,
@@ -1179,6 +1233,10 @@ export default function ExploreScreen() {
           caption: (p.caption && p.caption.trim()) || p.business_name || `${p.prenom} ${p.nom}`.trim(),
           category: CAT_MAP[p.category?.toLowerCase()?.trim()] ?? 'autres',
           author: `${p.prenom} ${p.nom ? p.nom[0] + '.' : ''}`.trim(),
+          businessName: p.business_name || undefined,
+          city: p.location_city || undefined,
+          rating: p.rating != null ? Number(p.rating) : undefined,
+          reviewsCount: p.reviews_count ?? undefined,
           likes: p.like_count ?? 0,
           isLiked: p.liked_by_me ?? false,
           cardH: 200,
@@ -1261,15 +1319,21 @@ export default function ExploreScreen() {
   // ── Filtering ─────────────────────────────────────────────────────────────
   const selectedCatDef = CATEGORIES.find((c) => c.key === category);
 
+  // Recherche insensible aux accents et à la casse (nom, ville, description…).
+  const norm = (v?: string) => (v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const query = norm(search.trim());
+
   const filtered = posts.filter((p) => {
-    if (category === 'tout') return true;
-    if (p.category !== category) return false;
-    if (subCategory && p.subCategory !== subCategory) return false;
+    if (category !== 'tout') {
+      if (p.category !== category) return false;
+      if (subCategory && p.subCategory !== subCategory) return false;
+    }
+    if (query) {
+      const hay = norm([p.businessName, p.author, p.city, p.caption, catDef(p.category).label].join(' '));
+      if (!hay.includes(query)) return false;
+    }
     return true;
   });
-
-  const leftCol = filtered.filter((_, i) => i % 2 === 0);
-  const rightCol = filtered.filter((_, i) => i % 2 === 1);
 
   const openedPost = posts.find((p) => p.id === openedPostId) ?? null;
 
@@ -1521,20 +1585,44 @@ export default function ExploreScreen() {
           <ThemedText style={styles.title}>Explore</ThemedText>
         </View>
         <View style={styles.headerRight}>
-          <View style={styles.modeToggle}>
-            <Pressable style={[styles.modeBtn, mode === 'grid' && styles.modeBtnOn]} onPress={() => setMode('grid')} hitSlop={10}>
-              <Ionicons name="grid-outline" size={16} color={mode === 'grid' ? '#fff' : '#929B83'} />
-            </Pressable>
-            <Pressable style={[styles.modeBtn, mode === 'reels' && styles.modeBtnOn]} onPress={() => setMode('reels')} hitSlop={10}>
-              <Ionicons name="play-outline" size={16} color={mode === 'reels' ? '#fff' : '#929B83'} />
-            </Pressable>
-          </View>
+          <Pressable
+            style={styles.roundBtn}
+            onPress={() => setMode('reels')}
+            hitSlop={8}
+            accessibilityLabel="Voir en mode reels"
+          >
+            <Ionicons name="play-outline" size={20} color="#343630" />
+          </Pressable>
           {isPrestataire && (
-            <Pressable style={styles.publishBtn} onPress={() => setCreateModal(true)} hitSlop={10}>
-              <Ionicons name="add" size={20} color="#fff" />
+            <Pressable
+              style={[styles.roundBtn, styles.roundBtnFilled]}
+              onPress={() => setCreateModal(true)}
+              hitSlop={8}
+              accessibilityLabel="Publier une réalisation"
+            >
+              <Ionicons name="add" size={22} color="#fff" />
             </Pressable>
           )}
         </View>
+      </View>
+
+      {/* Search */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={19} color="#8A8C83" />
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Rechercher un prestataire, une salle, un lieu…"
+          placeholderTextColor="#9A9C93"
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch('')} hitSlop={10} accessibilityLabel="Effacer la recherche">
+            <Ionicons name="close-circle" size={18} color="#B5B6AE" />
+          </Pressable>
+        )}
       </View>
 
       {/* Category filters */}
@@ -1544,19 +1632,20 @@ export default function ExploreScreen() {
         contentContainerStyle={styles.filtersRow}
         style={styles.filtersScroll}
       >
-        {CATEGORIES.map((c) => (
-          <Pressable
-            key={c.key}
-            style={[styles.filterChip, category === c.key && styles.filterChipOn]}
-            onPress={() => handleCategoryChange(c.key)}
-            hitSlop={8}
-          >
-            <ThemedText style={styles.filterEmoji}>{c.emoji}</ThemedText>
-            <ThemedText style={[styles.filterLabel, category === c.key && styles.filterLabelOn]}>
-              {c.label}
-            </ThemedText>
-          </Pressable>
-        ))}
+        {CATEGORIES.map((c) => {
+          const on = category === c.key;
+          return (
+            <Pressable key={c.key} style={styles.filterItem} onPress={() => handleCategoryChange(c.key)} hitSlop={4}>
+              <View style={[styles.filterCircle, on && styles.filterCircleOn]}>
+                <Ionicons name={c.icon} size={22} color={on ? '#fff' : '#5c5f57'} />
+              </View>
+              <ThemedText style={[styles.filterLabel, on && styles.filterLabelOn]} numberOfLines={1}>
+                {c.label}
+              </ThemedText>
+              <View style={[styles.filterUnderline, on && styles.filterUnderlineOn]} />
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       {/* Subcategory filters */}
@@ -1581,7 +1670,7 @@ export default function ExploreScreen() {
               onPress={() => setSubCategory(sc.key as SubCategory)}
               hitSlop={6}
             >
-              <ThemedText style={styles.subChipEmoji}>{sc.emoji}</ThemedText>
+              <Ionicons name={sc.icon} size={13} color={subCategory === sc.key ? '#747E68' : '#5c5f57'} />
               <ThemedText style={[styles.subChipLbl, subCategory === sc.key && styles.subChipLblOn]}>
                 {sc.label}
               </ThemedText>
@@ -1598,8 +1687,10 @@ export default function ExploreScreen() {
         >
           {filtered.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <ThemedText style={styles.emptyEmoji}>✨</ThemedText>
-              <ThemedText style={styles.emptyTitle}>Aucune réalisation pour l'instant</ThemedText>
+              <Ionicons name={query ? 'search-outline' : 'sparkles-outline'} size={44} color="#929B83" />
+              <ThemedText style={styles.emptyTitle}>
+                {query ? 'Aucun résultat' : "Aucune réalisation pour l'instant"}
+              </ThemedText>
               <ThemedText style={styles.emptySub}>
                 {isPrestataire
                   ? 'Partagez vos plus belles réalisations pour inspirer les futurs mariés !'
@@ -1613,16 +1704,9 @@ export default function ExploreScreen() {
             </View>
           ) : (
             <View style={styles.grid}>
-              <View style={styles.col}>
-                {leftCol.map((p) => (
-                  <GridCard key={p.id} post={p} onLike={handleLike} onOpen={handleOpenPost} />
-                ))}
-              </View>
-              <View style={styles.col}>
-                {rightCol.map((p) => (
-                  <GridCard key={p.id} post={p} onLike={handleLike} onOpen={handleOpenPost} />
-                ))}
-              </View>
+              {filtered.map((p) => (
+                <GridCard key={p.id} post={p} onLike={handleLike} onOpen={handleOpenPost} />
+              ))}
             </View>
           )}
         </ScrollView>
@@ -1656,7 +1740,7 @@ export default function ExploreScreen() {
             }
             ListEmptyComponent={
               <View style={[styles.emptyWrap, { height: reelH, backgroundColor: '#111' }]}>
-                <ThemedText style={[styles.emptyEmoji]}>✨</ThemedText>
+                <Ionicons name="sparkles-outline" size={44} color="#fff" />
                 <ThemedText style={[styles.emptyTitle, { color: '#fff' }]}>Aucune réalisation pour l'instant</ThemedText>
                 <ThemedText style={[styles.emptySub, { color: 'rgba(255,255,255,0.65)', textAlign: 'center' }]}>
                   {isPrestataire
@@ -1723,35 +1807,44 @@ export default function ExploreScreen() {
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff' },
+  root: { flex: 1, backgroundColor: '#FBF9F4' },
 
   header: {
     flexDirection: 'row', alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10,
   },
-  overline: { fontSize: 13, color: '#9A9C93', fontWeight: '500' },
-  title: { fontSize: 30, lineHeight: 38, fontFamily: 'OheveSerif-Medium', color: '#343630', letterSpacing: -0.5 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 4 },
-  modeToggle: { flexDirection: 'row', borderRadius: 10, borderWidth: 1.5, borderColor: '#f5f2ed', overflow: 'hidden' },
-  modeBtn: { padding: 7, backgroundColor: '#fcfbf9' },
-  modeBtnOn: { backgroundColor: '#929B83' },
-  publishBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#929B83', alignItems: 'center', justifyContent: 'center' },
+  overline: { fontSize: 12, color: '#8A8C83', fontWeight: '500', letterSpacing: 2.4, textTransform: 'uppercase' },
+  title: { fontSize: 40, lineHeight: 48, fontFamily: 'OheveSerif-Medium', color: '#25261F', letterSpacing: -0.8 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingBottom: 6 },
+  roundBtn: {
+    width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FBF9F4', borderWidth: 1, borderColor: '#E6E1D6',
+  },
+  roundBtnFilled: { backgroundColor: '#747E68', borderColor: '#747E68' },
+
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 16, marginBottom: 14, paddingHorizontal: 16, height: 46,
+    borderRadius: 23, backgroundColor: '#F1EDE5',
+  },
+  searchInput: { flex: 1, fontSize: 14, color: '#343630', paddingVertical: 0 },
 
   // flexGrow:0 → la rangée se dimensionne à son contenu (puces + emojis) sans
   // s'étirer verticalement. Un maxHeight fixe rognait les emojis/labels selon
   // la police du téléphone.
-  filtersScroll: { flexGrow: 0 },
-  filtersRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
-  filterChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 99, borderWidth: 1.5, borderColor: '#ece8e0', backgroundColor: '#fcfbf9',
+  filtersScroll: { flexGrow: 0, flexShrink: 0 },
+  filtersRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingBottom: 10 },
+  filterItem: { alignItems: 'center', minWidth: 64, paddingHorizontal: 2 },
+  filterCircle: {
+    width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F1EDE5',
   },
-  filterChipOn: { backgroundColor: '#929B83', borderColor: '#929B83' },
-  filterEmoji: { fontSize: 13 },
-  filterLabel: { fontSize: 12, fontWeight: '600', color: '#5c5f57' },
-  filterLabelOn: { color: '#fff' },
+  filterCircleOn: { backgroundColor: '#747E68' },
+  filterLabel: { marginTop: 6, fontSize: 11, color: '#5c5f57' },
+  filterLabelOn: { color: '#25261F', fontWeight: '600' },
+  filterUnderline: { marginTop: 5, width: 22, height: 2, borderRadius: 1, backgroundColor: 'transparent' },
+  filterUnderlineOn: { backgroundColor: '#747E68' },
 
   subFiltersScroll: { flexGrow: 0 },
   subFiltersRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingBottom: 8 },
@@ -1761,16 +1854,13 @@ const styles = StyleSheet.create({
     borderRadius: 99, borderWidth: 1, borderColor: '#ece8e0', backgroundColor: '#fcfbf9',
   },
   subChipOn: { backgroundColor: '#f5f2ed', borderColor: '#929B83' },
-  subChipEmoji: { fontSize: 12 },
   subChipLbl: { fontSize: 11, fontWeight: '600', color: '#5c5f57' },
   subChipLblOn: { color: '#929B83' },
 
-  gridContent: { paddingHorizontal: 12, paddingTop: 4 },
-  grid: { flexDirection: 'row', gap: 10 },
-  col: { flex: 1 },
+  gridContent: { paddingHorizontal: GRID_PAD, paddingTop: 4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
 
   emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 },
-  emptyEmoji: { fontSize: 52 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#343630' },
   emptySub: { fontSize: 14, color: '#9A9C93', textAlign: 'center', paddingHorizontal: 30 },
   emptyBtn: { marginTop: 8, backgroundColor: '#929B83', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },

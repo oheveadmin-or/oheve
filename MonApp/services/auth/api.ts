@@ -368,6 +368,10 @@ function adminFetch(accessToken: string, url: string, method: string, body?: obj
 }
 
 export const adminApi = {
+  /** Lignes des exports Excel (tous les onglets si `sheets` est vide). */
+  getExport: (accessToken: string, sheets?: string[]) =>
+    get(`${API_ENDPOINTS.adminExport}${sheets?.length ? `?sheets=${sheets.join(',')}` : ''}`, accessToken),
+
   getStats: (accessToken: string) =>
     get(API_ENDPOINTS.adminStats, accessToken),
 
