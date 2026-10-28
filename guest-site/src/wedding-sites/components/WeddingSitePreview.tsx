@@ -9,6 +9,8 @@ type Props = {
   draft: WeddingSite;
   /** Incrémenté par le builder (« ▶ Voir ») pour rejouer l'ouverture dans l'aperçu */
   openingReplay?: number;
+  /** Nom d'invité écrit sur l'enveloppe rejouée (essai d'un lien personnalisé) */
+  openingGuestName?: string;
 };
 
 /**
@@ -65,7 +67,7 @@ function usePhoneScale(shellRef: React.RefObject<HTMLDivElement>) {
   return scale;
 }
 
-export function WeddingSitePreview({ draft, openingReplay = 0 }: Props) {
+export function WeddingSitePreview({ draft, openingReplay = 0, openingGuestName }: Props) {
   const Template = getTemplateByTheme(draft.theme, draft.language);
   const shellRef = useRef<HTMLDivElement>(null);
   const scale = usePhoneScale(shellRef);
@@ -77,7 +79,8 @@ export function WeddingSitePreview({ draft, openingReplay = 0 }: Props) {
   // L'enveloppe ne s'affiche dans l'aperçu qu'à la demande (sinon elle masquerait
   // le site pendant toute l'édition) ; elle disparaît une fois ouverte.
   const [envelopeShownFor, setEnvelopeShownFor] = useState(0);
-  const showEnvelope = draft.theme.opening === 'envelope' && openingReplay > 0 && envelopeShownFor !== openingReplay;
+  const showEnvelope =
+    (draft.theme.opening === 'envelope' || !!openingGuestName) && openingReplay > 0 && envelopeShownFor !== openingReplay;
 
   return (
     <div className="wedding-preview-shell" ref={shellRef}>
@@ -132,6 +135,7 @@ export function WeddingSitePreview({ draft, openingReplay = 0 }: Props) {
                   key={openingReplay}
                   site={draft}
                   contained
+                  guestName={openingGuestName}
                   onDone={() => setEnvelopeShownFor(openingReplay)}
                 />
               </div>

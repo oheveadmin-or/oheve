@@ -4,6 +4,9 @@
  * brise, le rabat s'ouvre, la carte sort de l'enveloppe puis s'agrandit et
  * dévoile le site.
  *
+ * Lien au nom d'un invité (?pour=) : son nom s'écrit à la main sur l'enveloppe
+ * avant qu'il ne brise le sceau, comme une enveloppe adressée.
+ *
  * Aucune dépendance : CSS 3D + SVG. Toutes les tailles dérivent de la boîte
  * conteneur (container-type: size → unités cqw/cqh), jamais de vw/vh : le même
  * composant fonctionne en plein écran ET dans l'aperçu iPhone mis à l'échelle.
@@ -29,8 +32,28 @@ type Props = {
   site: WeddingSite;
   /** true : occupe son parent (aperçu iPhone) au lieu de tout l'écran */
   contained?: boolean;
+  /** Nom de l'invité (lien personnalisé) : écrit sur l'enveloppe à la place des prénoms */
+  guestName?: string | null;
   onDone: () => void;
 };
+
+/** Écriture du nom : début (après l'arrivée de l'enveloppe) et durée selon sa longueur */
+const WRITE_DELAY = 1000;
+function writeDuration(line: string): number {
+  return Math.min(2200, Math.max(800, line.length * 90));
+}
+
+const HEBREW_FONT = "'Frank Ruhl Libre', 'Noto Serif Hebrew', serif";
+
+/** Nom long (« M. et Mme … et leurs enfants ») : deux lignes coupées au plus près du milieu */
+function guestLinesOf(name: string): string[] {
+  if (name.length <= 30) return name ? [name] : [];
+  let best = -1;
+  for (let i = name.indexOf(' '); i !== -1; i = name.indexOf(' ', i + 1)) {
+    if (best === -1 || Math.abs(i - name.length / 2) < Math.abs(best - name.length / 2)) best = i;
+  }
+  return best === -1 ? [name] : [name.slice(0, best), name.slice(best + 1)];
+}
 
 /** Prénom réel, ou '' pour un champ vide / le « … » provisoire de l'aperçu */
 function realName(s?: string): string {
@@ -80,7 +103,7 @@ function prefersReducedMotion(): boolean {
   }
 }
 
-export function EnvelopeOpening({ site, contained = false, onDone }: Props) {
+export function EnvelopeOpening({ site, contained = false, guestName, onDone }: Props) {
   const [stage, setStage] = useState<Stage>('closed');
   const timers = useRef<number[]>([]);
   const t = site.theme;
@@ -91,6 +114,20 @@ export function EnvelopeOpening({ site, contained = false, onDone }: Props) {
   // Carte : un prénom par ligne ; enveloppe : tout sur 2 lignes max
   const cardNameSize = fitSize(nameLines.reduce((m, l) => (l.length > m.length ? l : m), ''), 0.78, 0.085, 0.04);
   const frontNameSize = fitSize(names, 1.1, 0.062, 0.036);
+  const guest = guestName?.trim() || '';
+  const guestRtl = /[\u0590-\u05FF]/.test(guest);
+  const guestLines = guestLinesOf(guest);
+  const guestLongest = guestLines.reduce((m, l) => (l.length > m.length ? l : m), '');
+  // L'hébreu (police à empattements, plus large que la calligraphie) reste plus petit
+  const guestSize = fitSize(guestLongest, 0.74, guestRtl ? 0.056 : 0.07, guestRtl ? 0.034 : 0.04) * (guestLines.length > 1 ? 0.9 : 1);
+  // Chaque ligne s'écrit après la précédente, comme à la plume
+  const guestTimings = guestLines.reduce<{ delay: number; ms: number }[]>((acc, l) => {
+    const prev = acc[acc.length - 1];
+    return [...acc, { delay: prev ? prev.delay + prev.ms + 120 : WRITE_DELAY, ms: writeDuration(l) }];
+  }, []);
+  const lastWrite = guestTimings[guestTimings.length - 1];
+  // L'invitation à toucher le sceau attend que le nom soit écrit
+  const hintDelay = lastWrite ? lastWrite.delay + lastWrite.ms + 150 : 500;
   const dateIso = site.date?.slice(0, 10) ?? '';
   const dateLabel = dateIso ? frenchLongDate(dateIso) : '';
 
@@ -202,9 +239,23 @@ export function EnvelopeOpening({ site, contained = false, onDone }: Props) {
             <polyline points="100,0 48,38" fill="none" style={{ stroke: 'color-mix(in srgb, var(--env-ink) 9%, transparent)' }} strokeWidth="0.2" />
           </svg>
 
-          {/* Mot sur l'enveloppe */}
+          {/* Mot sur l'enveloppe : le nom de l'invité (écrit à la main) ou les prénoms */}
           <div className={`env-front-text${opened ? ' env-fade' : ''}`}>
-            {names ? <div className="env-front-names" style={{ fontFamily: script, fontSize: `calc(var(--w) * ${frontNameSize.toFixed(4)})` }}>{names}</div> : null}
+            {guest ? (
+              <div className="env-guest" dir={guestRtl ? 'rtl' : 'ltr'} style={{ fontFamily: guestRtl ? HEBREW_FONT : script, fontSize: `calc(var(--w) * ${guestSize.toFixed(4)})` }}>
+                {guestLines.map((line, i) => (
+                  <span
+                    key={i}
+                    className={`env-guest-ink${guestRtl ? ' env-guest-rtl' : ''}`}
+                    style={{ animationDuration: `${guestTimings[i].ms}ms`, animationDelay: `${guestTimings[i].delay}ms` }}
+                  >
+                    {line}
+                  </span>
+                ))}
+              </div>
+            ) : names ? (
+              <div className="env-front-names" style={{ fontFamily: script, fontSize: `calc(var(--w) * ${frontNameSize.toFixed(4)})` }}>{names}</div>
+            ) : null}
           </div>
 
           {/* Rabat supérieur : recto (papier) / verso (intérieur) */}
@@ -218,14 +269,14 @@ export function EnvelopeOpening({ site, contained = false, onDone }: Props) {
             type="button"
             className={`env-seal${stage === 'closed' ? ' env-seal-idle' : ''}${opened ? ' env-seal-broken' : ''}`}
             onClick={open}
-            aria-label="Briser le sceau et ouvrir l'invitation"
+            aria-label={guest ? `Invitation pour ${guest} : briser le sceau pour l'ouvrir` : "Briser le sceau et ouvrir l'invitation"}
           >
             <WaxHalf side="left" init1={init1} init2={init2} serif={serif} script={script} />
             <WaxHalf side="right" init1={init1} init2={init2} serif={serif} script={script} />
           </button>
         </div>
 
-        <p className={`env-hint${opened ? ' env-fade' : ''}`} style={{ fontFamily: body }}>
+        <p className={`env-hint${opened ? ' env-fade' : ''}`} style={{ fontFamily: body, animationDelay: `${hintDelay}ms, ${hintDelay + 900}ms` }}>
           Touchez le sceau pour ouvrir
         </p>
       </div>
@@ -468,6 +519,33 @@ const ENVELOPE_CSS = `
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.env-guest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: -2%;
+  padding: 0 10%;
+  line-height: 1.25;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--env-ink) 88%, transparent);
+}
+/* Le nom apparaît comme tracé à la plume : dévoilement progressif dans le sens d'écriture */
+.env-guest-ink {
+  display: block;
+  padding: 0 0.15em;
+  animation-name: env-write;
+  animation-timing-function: cubic-bezier(.45,.05,.55,.95);
+  animation-fill-mode: both;
+}
+.env-guest-rtl { animation-name: env-write-rtl; }
+@keyframes env-write {
+  from { clip-path: inset(-30% 100% -30% -10%); }
+  to { clip-path: inset(-30% -10% -30% -10%); }
+}
+@keyframes env-write-rtl {
+  from { clip-path: inset(-30% -10% -30% 100%); }
+  to { clip-path: inset(-30% -10% -30% -10%); }
+}
 .env-flap {
   position: absolute;
   left: 0;
@@ -572,6 +650,6 @@ const ENVELOPE_CSS = `
 @keyframes env-out { to { opacity: 0; visibility: hidden; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .env-box, .env-kicker, .env-hint, .env-seal-idle, .env-seal-idle::after { animation: none; }
+  .env-box, .env-kicker, .env-hint, .env-seal-idle, .env-seal-idle::after, .env-guest-ink { animation: none !important; }
 }
 `;

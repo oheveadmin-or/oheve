@@ -41,6 +41,7 @@ import { generateSlugFromDisplayName, slugify } from '../utils/slug';
 import { applyThemePreset } from '../templates/themePresets';
 
 import { WeddingSitePreview } from './WeddingSitePreview';
+import { GuestEnvelopeLinks } from './GuestEnvelopeLinks';
 import { ThemePicker } from './ThemePicker';
 
 // ─── Design Studio options ────────────────────────────────────────────────────
@@ -229,6 +230,8 @@ export function WeddingSiteBuilder() {
   const [theme, setTheme] = useState<WeddingTheme>(() => applyThemePreset({ ...defaultWeddingTheme(), opening: 'envelope' }));
   /** Rejoue l'ouverture dans l'aperçu (« ▶ Voir ») */
   const [openingReplay, setOpeningReplay] = useState(0);
+  // Nom d'invité de l'essai « ▶ Voir » d'un lien personnalisé ('' = enveloppe sans nom)
+  const [openingGuest, setOpeningGuest] = useState('');
   const [sections, setSections] = useState<WeddingSections>(() => defaultWeddingSections());
   const [hideSignature, setHideSignature] = useState(false);
   const [content, setContent] = useState<WeddingSiteContent>({
@@ -1266,7 +1269,7 @@ export function WeddingSiteBuilder() {
               {(
                 [
                   { v: 'direct', icon: '💌', title: 'Accueil direct', desc: "Vos prénoms et le compte à rebours s'affichent tout de suite." },
-                  { v: 'envelope', icon: '✉️', title: 'Enveloppe cachetée', desc: "La carte arrive dans une enveloppe scellée à la cire, à vos initiales. L'invité touche le sceau pour le briser : le rabat s'ouvre et la carte sort de l'enveloppe." },
+                  { v: 'envelope', icon: '✉️', title: 'Enveloppe cachetée', desc: "La carte arrive dans une enveloppe scellée à la cire, à vos initiales. L'invité touche le sceau pour le briser : le rabat s'ouvre et la carte sort de l'enveloppe. Une fois le site publié, chaque invité peut recevoir un lien où son nom s'écrit sur l'enveloppe." },
                 ] as const
               ).map((o) => {
                 const active = (theme.opening ?? 'direct') === o.v;
@@ -1290,6 +1293,7 @@ export function WeddingSiteBuilder() {
                         onClick={(e) => {
                           e.stopPropagation();
                           setTheme({ ...theme, opening: 'envelope' });
+                          setOpeningGuest('');
                           setOpeningReplay((n) => n + 1);
                           setPreviewOpen(true);
                         }}
@@ -2456,6 +2460,17 @@ export function WeddingSiteBuilder() {
                 </button>
               </div>
             ))}
+
+            <GuestEnvelopeLinks
+              slug={publishedSlug}
+              accessKey={publishedKey}
+              coupleLabel={[brideName, groomName].map((n) => n.trim()).filter(Boolean).join(' & ') || 'nos mariés'}
+              onPreview={(name) => {
+                setOpeningGuest(name);
+                setOpeningReplay((n) => n + 1);
+                setPreviewOpen(true);
+              }}
+            />
           </div>
         )}
       </div>
@@ -2465,7 +2480,7 @@ export function WeddingSiteBuilder() {
           <span>Aperçu du site</span>
           <button type="button" onClick={() => setPreviewOpen(false)}>Fermer ✕</button>
         </div>
-        <WeddingSitePreview draft={draft} openingReplay={openingReplay} />
+        <WeddingSitePreview draft={draft} openingReplay={openingReplay} openingGuestName={openingGuest || undefined} />
         <ErrorBoundary>
           <RSVPPreview site={draft} form={rsvpForm} />
         </ErrorBoundary>

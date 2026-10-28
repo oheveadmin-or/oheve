@@ -422,3 +422,23 @@ export async function adaptPhotoToTheme(
   if (res && (res.status === 401 || res.status === 403)) throw new Error(AUTH_REQUIRED_MSG);
   throw new Error(res ? await readApiError(res) : 'Connexion au serveur impossible');
 }
+
+/**
+ * Invités du compte connecté (liste tenue dans l'app), pour leur créer une
+ * enveloppe à leur nom. Seuls l'id, le nom et le groupe sont gardés : le reste
+ * (téléphone, email, réponses) n'est pas utile ici. Liste vide sans session.
+ */
+export async function listOwnerGuests(): Promise<{ id: string; name: string; group: string }[]> {
+  const url = apiUrl('/api/guests');
+  if (url === null || !_authToken) return [];
+  const res = await fetch(url, { headers: authHeaders() }).catch(() => null);
+  if (!res?.ok) return [];
+  try {
+    const json = (await res.json()) as { success?: boolean; data?: { id?: unknown; name?: unknown; group?: unknown }[] };
+    return (json.data ?? [])
+      .filter((g) => typeof g.name === 'string' && g.name.trim())
+      .map((g) => ({ id: String(g.id), name: String(g.name).trim(), group: typeof g.group === 'string' ? g.group : '' }));
+  } catch {
+    return [];
+  }
+}

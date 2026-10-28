@@ -9,6 +9,7 @@ import type { WeddingSite } from '../types';
 import { defaultWeddingSections, defaultWeddingTheme } from '../types';
 import { getTemplateByTheme } from '../utils/template-selector';
 import { filterSiteForInvite, getActiveInviteToken, setActiveInviteToken } from '../utils/inviteFilter';
+import { resolveGuestName } from '../utils/guestName';
 import { EnvelopeOpening } from './EnvelopeOpening';
 
 export function WeddingPublicPage() {
@@ -26,6 +27,8 @@ export function WeddingPublicPage() {
   if (accessKey) setSiteAccessKey(accessKey);
   // Lien général (?k=) : on oublie un éventuel lien d'invitation de groupe ouvert avant.
   if (accessKey && slug) setActiveInviteToken(slug, null);
+  // Lien au nom d'un invité (?pour=) : son nom s'écrit sur l'enveloppe
+  const guestName = slug ? resolveGuestName(slug, searchParams) : null;
 
   useEffect(() => {
     const s = slug ?? '';
@@ -122,7 +125,9 @@ export function WeddingPublicPage() {
   const pageTitle = `${coupleLabel} — Site de mariage`;
   const heroImage = (site?.content as Record<string, unknown> | undefined)?.heroImageUrl as string | undefined;
 
-  const showEnvelope = !!site && site.theme?.opening === 'envelope' && !envelopeDone && !envelopeSeen(site.slug);
+  // Un lien au nom d'un invité ouvre toujours l'enveloppe (c'est tout son intérêt)
+  const showEnvelope =
+    !!site && (site.theme?.opening === 'envelope' || !!guestName) && !envelopeDone && !envelopeSeen(site.slug);
 
   // Pas de défilement du site derrière l'enveloppe fermée
   useEffect(() => {
@@ -180,6 +185,7 @@ export function WeddingPublicPage() {
       {showEnvelope && (
         <EnvelopeOpening
           site={site}
+          guestName={guestName}
           onDone={() => {
             markEnvelopeSeen(site.slug);
             setEnvelopeDone(true);
