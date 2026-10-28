@@ -7,7 +7,7 @@ import { RSVPBuilder } from '@guest/rsvp/RSVPBuilder';
 import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
-import { ALL_STYLE_PRESETS, FONT_OPTIONS } from '../data/weddingThemes';
+import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS, type ThemePreset } from '../data/weddingThemes';
 import { defaultInvitationTexts, INVITATION_TEXT_FIELDS, withInvitationTexts, type InvitationTextKey } from '../data/invitationTexts';
 import { applyColorCombination, COLOR_COMBINATIONS, type ColorCombination } from '../data/colorCombinations';
 import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId, isYouTubeUrl } from '../data/musicSuggestions';
@@ -18,6 +18,7 @@ import type {
   FamilyColumn,
   FAQItem,
   HeroStyle,
+  InvitationEffects,
   InviteLink,
   JewishWeddingEvent,
   PatternId,
@@ -39,6 +40,9 @@ import { eventDateTextToIso, frenchLongDate, hebrewDateFromIso, isoToEventDateTe
 import { jewishRsvpId } from '../utils/inviteFilter';
 import { generateSlugFromDisplayName, slugify } from '../utils/slug';
 import { applyThemePreset } from '../templates/themePresets';
+import { invitationEffects } from '../themes/InvitationTheme';
+import { calendarSlot } from '../utils/calendar';
+import { weddingYear } from '../utils/eventOrder';
 
 import { WeddingSitePreview } from './WeddingSitePreview';
 import { GuestEnvelopeLinks } from './GuestEnvelopeLinks';
@@ -163,6 +167,7 @@ const WIZARD_STEPS = [
   { id: 'date', tab: 'Date & lieu', title: 'Date & lieu', sub: 'La date, la salle et le programme de vos événements.' },
   { id: 'textes', tab: 'Textes', title: 'Les textes', sub: 'Chaque phrase, à votre façon.' },
   { id: 'style', tab: 'Style', title: 'Le style du site', sub: 'Couleurs, polices et sections affichées.' },
+  { id: 'invitation', tab: 'Invitation', title: "L'invitation animée", sub: "L'ouverture, les animations et ce que vos invités pourront faire." },
   { id: 'musique', tab: 'Musique', title: 'La musique', sub: 'La chanson qui accompagne votre site.' },
   { id: 'photos', tab: 'Photos', title: 'Vos photos', sub: 'La galerie de votre site.' },
   { id: 'invites', tab: 'Invités', title: 'Vos invités', sub: 'Le formulaire de réponse, les hébergements et les questions.' },
@@ -920,6 +925,12 @@ export function WeddingSiteBuilder() {
     });
   }
 
+  /** Passe au modèle `preset` en gardant le contenu (textes, photos, réponses) */
+  function chooseStylePreset(preset: ThemePreset) {
+    const { heroStyle: _h, patternId: _p, separatorStyle: _s, cardStyle: _c, cornerDecor: _co, ...rest } = theme;
+    setTheme(applyThemePreset({ ...rest, ...preset.theme, style: preset.id } as WeddingTheme));
+  }
+
   if (step === 'pick') {
     return (
       <ThemePicker
@@ -930,8 +941,7 @@ export function WeddingSiteBuilder() {
         onSelect={(preset) => {
           // Même thème que le site enregistré : on garde ses réglages tels quels
           if (preset.id === theme.style && loadedStyle != null) { setStep('build'); return; }
-          const { heroStyle: _h, patternId: _p, separatorStyle: _s, cardStyle: _c, cornerDecor: _co, ...rest } = theme;
-          setTheme(applyThemePreset({ ...rest, ...preset.theme, style: preset.id } as WeddingTheme));
+          chooseStylePreset(preset);
           setStep('build');
         }}
       />
@@ -1353,7 +1363,7 @@ export function WeddingSiteBuilder() {
               )}
 
               {/* Hero Style — sans effet sur les templates autonomes (hero sur-mesure). Voile Ivoire et Vintage Bleu n'ont même pas de bandeau d'info : section masquée entièrement. */}
-              {theme.style === 'voile-ivoire' || theme.style === 'vintage-blue' ? null : ['stripes-editorial', 'editorial-cards'].includes(theme.style) ? (
+              {theme.style === 'voile-ivoire' || theme.style === 'vintage-blue' || theme.style === 'invitation-animee' ? null : ['stripes-editorial', 'editorial-cards'].includes(theme.style) ? (
                 <p style={{ margin: '0 0 1.25rem', padding: '0.6rem 0.75rem', background: '#fffdf5', border: '1px solid #e7dfc9', borderRadius: 10, fontSize: '0.74rem', color: '#8a8060', lineHeight: 1.5 }}>
                   ℹ️ Ce thème a un haut de page sur-mesure : le « style du hero » ne s'applique pas.
                   Les motifs, séparateurs, cartes et couleurs ci-dessous restent actifs.
@@ -1393,7 +1403,7 @@ export function WeddingSiteBuilder() {
               )}
 
               {/* Pattern de fond — Voile Ivoire et Vintage Bleu ont leur propre fond, section masquée. */}
-              {theme.style !== 'voile-ivoire' && theme.style !== 'vintage-blue' && (
+              {theme.style !== 'voile-ivoire' && theme.style !== 'vintage-blue' && theme.style !== 'invitation-animee' && (
               <>
               <p style={studioSectionLabel}>Motif de fond</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 5, marginBottom: '0.75rem' }}>
@@ -1921,6 +1931,182 @@ export function WeddingSiteBuilder() {
             </label>
           </section>
           )}
+
+          {wiz === 'invitation' && (() => {
+            const invitationPreset = STYLE_PRESETS.find((p) => p.id === 'invitation-animee');
+            const isInvitation = theme.style === 'invitation-animee';
+            const fx = invitationEffects(theme);
+            const setFx = (key: keyof InvitationEffects, on: boolean) =>
+              setTheme((t) => ({ ...t, invitation: { ...t.invitation, [key]: on } }));
+            const stepIndex = (id: WizardStepId) => WIZARD_STEPS.findIndex((s) => s.id === id);
+            const enabledEvents = (content.jewishEvents ?? []).filter((e) => e.enabled);
+            // Dates de programme illisibles → pas de bouton « Ajouter à mon agenda » pour elles
+            const unplaceable = enabledEvents.filter((e) => !calendarSlot({ title: e.label, date: e.date, time: e.time }, weddingYear(isoDate)));
+            const checks: { ok: boolean; label: string; hint: string; step: WizardStepId; optional?: boolean }[] = [
+              { ok: !!(groomName.trim() && brideName.trim()), label: 'Vos prénoms', hint: "Calligraphiés sur la carte d'ouverture.", step: 'maries' },
+              { ok: !!date, label: 'La date', hint: 'Pour le compte à rebours et « Ajouter à mon agenda ».', step: 'date' },
+              { ok: !!(content.venue?.name?.trim() || content.venue?.address?.trim() || city.trim()), label: 'Le lieu', hint: 'Pour le bouton « Itinéraire ».', step: 'date' },
+              {
+                ok: enabledEvents.length > 0,
+                label: 'Le programme',
+                hint: enabledEvents.length
+                  ? `${enabledEvents.length} événement${enabledEvents.length > 1 ? 's' : ''}, chacun sur sa carte.`
+                  : 'Sans programme, une seule carte « Le mariage » est créée avec la date et le lieu.',
+                step: 'date',
+              },
+              { ok: sections.rsvp, label: 'Le formulaire de réponse', hint: 'Section « RSVP » des sections affichées.', step: 'style' },
+              { ok: !!content.musicUrl, label: 'La musique', hint: 'Elle démarre au premier geste de l’invité.', step: 'musique', optional: true },
+            ];
+            const effectRows: { key: keyof InvitationEffects; title: string; desc: string }[] = [
+              { key: 'petals', title: 'Pétales qui tombent', desc: "Quelques pétales aux couleurs du site glissent sur la carte d'ouverture." },
+              { key: 'reveal', title: 'Apparition au défilement', desc: 'Chaque carte se dévoile en douceur quand l’invité descend.' },
+              { key: 'calendar', title: 'Ajouter à mon agenda', desc: 'Sur chaque événement : iPhone, Outlook ou Google Agenda.' },
+              { key: 'glass', title: '« Cassez le verre »', desc: "L'invité touche le verre, il se brise : Mazal Tov !" },
+              { key: 'bottomBar', title: 'Barre Répondre · Itinéraire', desc: 'Toujours à portée de pouce, en bas de l’écran.' },
+            ];
+            const welcomeTooLong = welcomeText.trim().length > 90;
+
+            return (
+              <>
+                <section style={block}>
+                  <h2 style={h2}>Le modèle</h2>
+                  {isInvitation ? (
+                    <p style={{ margin: 0, fontSize: '0.86rem', color: '#4f5a43', lineHeight: 1.5 }}>
+                      ✓ Votre site est une <strong>Invitation animée</strong>. Les réglages ci-dessous s'appliquent en direct à l'aperçu.
+                    </p>
+                  ) : (
+                    <div>
+                      <p style={{ margin: '0 0 0.85rem', fontSize: '0.86rem', color: '#555', lineHeight: 1.55 }}>
+                        Transformez votre site en faire-part qui prend vie : pétales, prénoms qui apparaissent l'un après l'autre,
+                        compte à rebours, programme à ajouter à l'agenda, « Cassez le verre » et réponse en un geste.
+                      </p>
+                      <p style={{ margin: '0 0 0.85rem', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
+                        Vos textes, photos, familles et réponses sont conservés : seule la présentation change.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={!invitationPreset}
+                        onClick={() => invitationPreset && chooseStylePreset(invitationPreset)}
+                        style={inviteSolidBtn}
+                      >
+                        ✦ Utiliser l'Invitation animée
+                      </button>
+                    </div>
+                  )}
+                </section>
+
+                {isInvitation && (
+                  <>
+                    <section style={block}>
+                      <h2 style={h2}>L'ouverture</h2>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                        <label style={inviteToggleRow}>
+                          <input
+                            type="checkbox"
+                            checked={theme.opening === 'envelope'}
+                            onChange={(e) => setTheme({ ...theme, opening: e.target.checked ? 'envelope' : 'direct' })}
+                            style={inviteCheckbox}
+                          />
+                          <span>
+                            <strong style={{ display: 'block', fontSize: '0.92rem' }}>Enveloppe cachetée</strong>
+                            <span style={{ display: 'block', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.45 }}>
+                              L'invitation arrive scellée à vos initiales ; l'invité brise le sceau pour l'ouvrir.
+                            </span>
+                          </span>
+                        </label>
+                        {theme.opening === 'envelope' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpeningReplay((n) => n + 1);
+                              setPreviewOpen(true);
+                            }}
+                            style={inviteGhostBtn}
+                          >
+                            ▶ Voir
+                          </button>
+                        )}
+                      </div>
+                    </section>
+
+                    <section style={block}>
+                      <h2 style={h2}>Le texte d'accueil</h2>
+                      <label style={lab}>
+                        Au-dessus de vos prénoms
+                        <input
+                          style={{ ...inp, borderColor: welcomeTooLong ? '#d9b26a' : '#E2DED5' }}
+                          value={welcomeText}
+                          maxLength={140}
+                          placeholder="Ex. Ont la joie de vous inviter au mariage de"
+                          aria-describedby="invitation-welcome-help"
+                          onChange={(e) => setWelcomeText(e.target.value)}
+                        />
+                      </label>
+                      <p id="invitation-welcome-help" style={{ margin: '-0.3rem 0 0', fontSize: '0.74rem', color: welcomeTooLong ? '#8a6414' : '#7e8178', lineHeight: 1.45 }}>
+                        {welcomeTooLong
+                          ? `Phrase longue (${welcomeText.trim().length}/140) : elle s'affichera sur plusieurs lignes en petites capitales.`
+                          : `Facultatif · ${welcomeText.trim().length}/140 · même phrase que dans l'étape Textes.`}
+                      </p>
+                    </section>
+
+                    <section style={block}>
+                      <h2 style={h2}>Animations et interactions</h2>
+                      <p style={{ margin: '0 0 0.85rem', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
+                        Les invités qui ont demandé à leur téléphone de réduire les animations voient l'invitation immobile.
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                        {effectRows.map((row) => (
+                          <label key={row.key} style={inviteToggleRow}>
+                            <input type="checkbox" checked={fx[row.key]} onChange={(e) => setFx(row.key, e.target.checked)} style={inviteCheckbox} />
+                            <span>
+                              <strong style={{ display: 'block', fontSize: '0.92rem' }}>{row.title}</strong>
+                              <span style={{ display: 'block', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.45 }}>{row.desc}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      <p style={{ margin: '0.85rem 0 0', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
+                        Couleurs et polices : étape{' '}
+                        <button type="button" onClick={() => goToStep(stepIndex('style'))} style={inviteLinkBtn}>Style</button>.
+                      </p>
+                    </section>
+
+                    <section style={block}>
+                      <h2 style={h2}>Ce que contiendra votre invitation</h2>
+                      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {checks.map((c) => (
+                          <li key={c.label} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.55rem 0.7rem', borderRadius: 10, background: c.ok ? '#f5f3ee' : '#fffaf0', border: `1px solid ${c.ok ? '#ece8e0' : '#efe1c2'}` }}>
+                            <span aria-hidden style={{ flexShrink: 0, width: 22, height: 22, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: '0.72rem', fontWeight: 800, color: '#fff', background: c.ok ? '#929B83' : c.optional ? '#c9c4b8' : '#d9b26a' }}>
+                              {c.ok ? '✓' : '!'}
+                            </span>
+                            <span style={{ flex: 1, minWidth: 0 }}>
+                              <strong style={{ display: 'block', fontSize: '0.86rem' }}>
+                                {c.label}
+                                <span style={visuallyHidden}> : {c.ok ? 'prêt' : c.optional ? 'facultatif, non renseigné' : 'à compléter'}</span>
+                              </strong>
+                              <span style={{ display: 'block', fontSize: '0.75rem', color: '#7e8178', lineHeight: 1.4 }}>{c.hint}</span>
+                            </span>
+                            {!c.ok && (
+                              <button type="button" onClick={() => goToStep(stepIndex(c.step))} style={inviteGhostBtn}>
+                                {c.optional ? 'Ajouter' : 'Compléter'}
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {fx.calendar && unplaceable.length > 0 && (
+                        <p role="note" style={{ margin: '0.85rem 0 0', padding: '0.6rem 0.75rem', borderRadius: 10, background: '#fffaf0', border: '1px solid #efe1c2', fontSize: '0.78rem', color: '#8a6414', lineHeight: 1.5 }}>
+                          Date non reconnue pour {unplaceable.map((e) => `« ${e.label} »`).join(', ')} : le bouton « Ajouter à mon agenda »
+                          n'y apparaîtra pas. Choisissez la date dans le calendrier de l'étape{' '}
+                          <button type="button" onClick={() => goToStep(stepIndex('date'))} style={inviteLinkBtn}>Date &amp; lieu</button>.
+                        </p>
+                      )}
+                    </section>
+                  </>
+                )}
+              </>
+            );
+          })()}
 
           {wiz === 'musique' && (
           <section style={block}>
@@ -2608,6 +2794,64 @@ const footerNextBtn: CSSProperties = {
   fontWeight: 700,
   fontSize: '0.95rem',
   cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+
+// ─── Étape « Invitation » ───
+const inviteToggleRow: CSSProperties = {
+  flex: 1,
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: '0.7rem',
+  padding: '0.7rem 0.8rem',
+  borderRadius: 12,
+  border: '1px solid #ece8e0',
+  background: '#fff',
+  cursor: 'pointer',
+};
+
+const inviteCheckbox: CSSProperties = { width: 18, height: 18, marginTop: 2, flexShrink: 0, accentColor: '#747E68', cursor: 'pointer' };
+
+const inviteGhostBtn: CSSProperties = {
+  flexShrink: 0,
+  border: '1px solid #d9d4c8',
+  background: '#fff',
+  borderRadius: 999,
+  padding: '0.4rem 0.85rem',
+  fontSize: '0.8rem',
+  fontWeight: 700,
+  color: '#747E68',
+  cursor: 'pointer',
+};
+
+const inviteSolidBtn: CSSProperties = {
+  border: 'none',
+  borderRadius: 999,
+  padding: '0.7rem 1.3rem',
+  background: '#747E68',
+  color: '#fff',
+  fontSize: '0.9rem',
+  fontWeight: 700,
+  cursor: 'pointer',
+};
+
+const inviteLinkBtn: CSSProperties = {
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  color: '#747E68',
+  fontWeight: 700,
+  textDecoration: 'underline',
+  cursor: 'pointer',
+  font: 'inherit',
+};
+
+const visuallyHidden: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
   whiteSpace: 'nowrap',
 };
 

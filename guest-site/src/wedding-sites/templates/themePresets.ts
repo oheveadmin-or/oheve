@@ -384,6 +384,19 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cornerDecor: true,
     fontFamily: "'Cormorant Garamond', Georgia, serif",
   },
+
+  // ─── INVITATION ANIMÉE (faire-part animé, étape « Invitation ») ───────────
+  // Modèle autonome : routé directement vers InvitationTemplate
+  // (cf. template-selector). 'faire-part' donne aux sections déléguées un
+  // titre italique centré assorti.
+  'invitation-animee': {
+    heroStyle: 'faire-part',
+    patternId: 'none',
+    separatorStyle: 'none',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+  },
 };
 
 /** Merge preset overrides into the theme, preserving explicit user values */

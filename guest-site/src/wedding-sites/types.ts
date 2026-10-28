@@ -41,7 +41,8 @@ export type ThemeStyle =
   | 'vintage-blue'
   | 'editorial-cards'
   | 'stripes-editorial'
-  | 'voile-ivoire';
+  | 'voile-ivoire'
+  | 'invitation-animee';
 
 export type TitleSize = 'small' | 'medium' | 'large' | 'huge';
 
@@ -109,6 +110,23 @@ export type SeparatorStyle =
   | 'geometric'      // Losange central
   | 'ornate';        // Vague ornementée
 
+/**
+ * Effets du modèle « Invitation animée », réglés dans l'étape « Invitation »
+ * du builder. Chaque effet absent vaut `true` (activé par défaut).
+ */
+export type InvitationEffects = {
+  /** Pétales qui tombent doucement sur la carte d'en-tête */
+  petals?: boolean;
+  /** Les cartes apparaissent en douceur au défilement */
+  reveal?: boolean;
+  /** Mini-jeu « Cassez le verre » → Mazal Tov */
+  glass?: boolean;
+  /** Boutons « Ajouter à mon agenda » sur chaque événement */
+  calendar?: boolean;
+  /** Barre fixe en bas : Répondre · Itinéraire */
+  bottomBar?: boolean;
+};
+
 export type WeddingTheme = {
   style: ThemeStyle;
   /** Ambiance guides template selection & density; persisted with the site */
@@ -142,6 +160,8 @@ export type WeddingTheme = {
   navStyle?: 'horizontal' | 'hamburger' | 'minimal';
   /** Arrivée de l'invité : site tout de suite (défaut) ou enveloppe cachetée à ouvrir */
   opening?: 'direct' | 'envelope';
+  /** Invitation animée uniquement — effets activables (cf. InvitationEffects) */
+  invitation?: InvitationEffects;
   /** Éditorial Rayures uniquement — largeur d'une rayure du hero, en px (défaut 8) */
   stripeWidth?: number;
   /** Éditorial Rayures uniquement — opacité des rayures du hero, 0–1 (défaut 1) */

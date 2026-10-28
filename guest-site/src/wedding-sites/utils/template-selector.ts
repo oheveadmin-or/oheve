@@ -7,6 +7,7 @@ import { UniversalTemplate } from '@guest/wedding-sites/templates/UniversalTempl
 import { EditorialCardsTemplate } from '@guest/wedding-sites/templates/EditorialCardsTemplate';
 import { StripesEditorialTemplate } from '@guest/wedding-sites/templates/StripesEditorialTemplate';
 import { VoileIvoireTemplate } from '@guest/wedding-sites/templates/VoileIvoireTemplate';
+import { InvitationTemplate } from '@guest/wedding-sites/templates/InvitationTemplate';
 
 // Legacy templates — kept for sites created before the UniversalTemplate system
 import { ArtDecoTemplate } from '@guest/wedding-sites/templates/ArtDecoTemplate';
@@ -41,6 +42,7 @@ export function getTemplateByTheme(
   if (theme.style === 'stripes-editorial') return StripesEditorialTemplate;
   if (theme.style === 'editorial-cards') return EditorialCardsTemplate;
   if (theme.style === 'voile-ivoire') return VoileIvoireTemplate;
+  if (theme.style === 'invitation-animee') return InvitationTemplate;
 
   // v2 sites: heroStyle is set → use the new universal template
   if (theme.heroStyle) return UniversalTemplate;

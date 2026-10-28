@@ -75,6 +75,22 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
     },
   },
   {
+    id: 'invitation-animee',
+    label: '✦ Invitation animée',
+    description: 'Faire-part qui prend vie : pétales, compte à rebours, programme à ajouter à l’agenda, « Cassez le verre »',
+    theme: {
+      style: 'invitation-animee',
+      backgroundColor: '#FAF6EF',
+      textColor: '#343630',
+      primaryColor: '#9A7B55',
+      secondaryColor: '#929B83',
+      fontFamily: "'Cormorant Garamond', Georgia, serif",
+      cardStyle: 'shadow',
+      layout: 'centered',
+      borderRadius: 4,
+    },
+  },
+  {
     id: 'provence',
     label: 'Provence',
     description: 'Beige, ocre, vert olivier, serif doux',
@@ -595,7 +611,7 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
 
 /**
  * Univers proposés au client dans le sélecteur (ThemePicker) et le dropdown
- * du builder. Volontairement restreint aux quatre thèmes phares, dans cet
+ * du builder. Volontairement restreint aux thèmes phares, dans cet
  * ordre. Les autres presets restent dans `ALL_STYLE_PRESETS` pour les sites
  * existants, mais ne sont plus proposés à la création.
  */
@@ -603,6 +619,7 @@ const VISIBLE_STYLE_IDS: ThemeStyle[] = [
   'stripes-editorial',
   'vintage-blue',
   'voile-ivoire',
+  'invitation-animee',
   'classic',
 ];
 
