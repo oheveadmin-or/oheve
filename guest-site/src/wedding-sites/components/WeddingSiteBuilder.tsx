@@ -41,8 +41,6 @@ import { jewishRsvpId } from '../utils/inviteFilter';
 import { generateSlugFromDisplayName, slugify } from '../utils/slug';
 import { applyThemePreset } from '../templates/themePresets';
 import { invitationEffects } from '../themes/InvitationTheme';
-import { calendarSlot } from '../utils/calendar';
-import { weddingYear } from '../utils/eventOrder';
 
 import { WeddingSitePreview } from './WeddingSitePreview';
 import { GuestEnvelopeLinks } from './GuestEnvelopeLinks';
@@ -1940,31 +1938,28 @@ export function WeddingSiteBuilder() {
               setTheme((t) => ({ ...t, invitation: { ...t.invitation, [key]: on } }));
             const stepIndex = (id: WizardStepId) => WIZARD_STEPS.findIndex((s) => s.id === id);
             const enabledEvents = (content.jewishEvents ?? []).filter((e) => e.enabled);
-            // Dates de programme illisibles → pas de bouton « Ajouter à mon agenda » pour elles
-            const unplaceable = enabledEvents.filter((e) => !calendarSlot({ title: e.label, date: e.date, time: e.time }, weddingYear(isoDate)));
+            const pageCount = enabledEvents.filter((e) => e.type !== 'houppa').length + 1;
             const checks: { ok: boolean; label: string; hint: string; step: WizardStepId; optional?: boolean }[] = [
-              { ok: !!(groomName.trim() && brideName.trim()), label: 'Vos prénoms', hint: "Calligraphiés sur la carte d'ouverture.", step: 'maries' },
-              { ok: !!date, label: 'La date', hint: 'Pour le compte à rebours et « Ajouter à mon agenda ».', step: 'date' },
-              { ok: !!(content.venue?.name?.trim() || content.venue?.address?.trim() || city.trim()), label: 'Le lieu', hint: 'Pour le bouton « Itinéraire ».', step: 'date' },
+              { ok: !!(groomName.trim() && brideName.trim()), label: 'Vos prénoms', hint: 'Calligraphiés sur la carte, l’enveloppe et chaque page ; vos initiales forment le monogramme doré.', step: 'maries' },
+              { ok: !!date, label: 'La date', hint: "Pour le compte à rebours de l'écran d'accueil et la page du mariage.", step: 'date' },
+              { ok: !!(content.venue?.name?.trim() || content.venue?.address?.trim() || city.trim()), label: 'Le lieu', hint: 'Pour le bandeau « Itinéraire » sous la page du mariage.', step: 'date' },
               {
                 ok: enabledEvents.length > 0,
                 label: 'Le programme',
                 hint: enabledEvents.length
-                  ? `${enabledEvents.length} événement${enabledEvents.length > 1 ? 's' : ''}, chacun sur sa carte.`
-                  : 'Sans programme, une seule carte « Le mariage » est créée avec la date et le lieu.',
+                  ? `${pageCount} page${pageCount > 1 ? 's' : ''} (mairie, henné… et le mariage), chacune avec son onglet en bas.`
+                  : 'Sans programme, une seule page : le faire-part du mariage.',
                 step: 'date',
               },
-              { ok: sections.rsvp, label: 'Le formulaire de réponse', hint: 'Section « RSVP » des sections affichées.', step: 'style' },
-              { ok: !!content.musicUrl, label: 'La musique', hint: 'Elle démarre au premier geste de l’invité.', step: 'musique', optional: true },
+              { ok: sections.rsvp, label: 'Le formulaire de réponse', hint: "Intégré en bas de l'invitation, avec un onglet « Réponses ».", step: 'invites' },
+              { ok: !!content.musicUrl, label: 'La musique', hint: 'Bouton rond en haut à gauche ; elle démarre au premier geste de l’invité.', step: 'musique', optional: true },
             ];
             const effectRows: { key: keyof InvitationEffects; title: string; desc: string }[] = [
-              { key: 'petals', title: 'Pétales qui tombent', desc: "Quelques pétales aux couleurs du site glissent sur la carte d'ouverture." },
-              { key: 'reveal', title: 'Apparition au défilement', desc: 'Chaque carte se dévoile en douceur quand l’invité descend.' },
-              { key: 'calendar', title: 'Ajouter à mon agenda', desc: 'Sur chaque événement : iPhone, Outlook ou Google Agenda.' },
-              { key: 'glass', title: '« Cassez le verre »', desc: "L'invité touche le verre, il se brise : Mazal Tov !" },
-              { key: 'bottomBar', title: 'Barre Répondre · Itinéraire', desc: 'Toujours à portée de pouce, en bas de l’écran.' },
+              { key: 'countdown', title: 'Compte à rebours', desc: "Jours, heures, minutes et secondes sur l'écran d'accueil." },
+              { key: 'reveal', title: 'Apparition au défilement', desc: 'Chaque page se dévoile en douceur quand l’invité descend.' },
+              { key: 'bsd', title: 'Mention בס״ד', desc: 'En haut de chaque page.' },
+              { key: 'bottomBar', title: "Barre d'onglets", desc: 'En bas de l’écran : un onglet par événement et « Réponses ».' },
             ];
-            const welcomeTooLong = welcomeText.trim().length > 90;
 
             return (
               <>
@@ -1977,8 +1972,8 @@ export function WeddingSiteBuilder() {
                   ) : (
                     <div>
                       <p style={{ margin: '0 0 0.85rem', fontSize: '0.86rem', color: '#555', lineHeight: 1.55 }}>
-                        Transformez votre site en faire-part qui prend vie : pétales, prénoms qui apparaissent l'un après l'autre,
-                        compte à rebours, programme à ajouter à l'agenda, « Cassez le verre » et réponse en un geste.
+                        Une carte au nom de votre invité qui se retourne en enveloppe cachetée, une grande fleur ivoire,
+                        votre monogramme doré, puis une page par événement avec son itinéraire et la réponse intégrée.
                       </p>
                       <p style={{ margin: '0 0 0.85rem', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
                         Vos textes, photos, familles et réponses sont conservés : seule la présentation change.
@@ -2001,20 +1996,16 @@ export function WeddingSiteBuilder() {
                       <h2 style={h2}>L'ouverture</h2>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
                         <label style={inviteToggleRow}>
-                          <input
-                            type="checkbox"
-                            checked={theme.opening === 'envelope'}
-                            onChange={(e) => setTheme({ ...theme, opening: e.target.checked ? 'envelope' : 'direct' })}
-                            style={inviteCheckbox}
-                          />
+                          <input type="checkbox" checked={fx.opening} onChange={(e) => setFx('opening', e.target.checked)} style={inviteCheckbox} />
                           <span>
-                            <strong style={{ display: 'block', fontSize: '0.92rem' }}>Enveloppe cachetée</strong>
+                            <strong style={{ display: 'block', fontSize: '0.92rem' }}>Carte, enveloppe et écran d'accueil</strong>
                             <span style={{ display: 'block', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.45 }}>
-                              L'invitation arrive scellée à vos initiales ; l'invité brise le sceau pour l'ouvrir.
+                              L'invité touche la carte : elle se retourne, l'enveloppe s'ouvre, puis vos prénoms et le compte à rebours
+                              apparaissent avec « Voir l'invitation ».
                             </span>
                           </span>
                         </label>
-                        {theme.opening === 'envelope' && (
+                        {fx.opening && (
                           <button
                             type="button"
                             onClick={() => {
@@ -2027,30 +2018,15 @@ export function WeddingSiteBuilder() {
                           </button>
                         )}
                       </div>
-                    </section>
-
-                    <section style={block}>
-                      <h2 style={h2}>Le texte d'accueil</h2>
-                      <label style={lab}>
-                        Au-dessus de vos prénoms
-                        <input
-                          style={{ ...inp, borderColor: welcomeTooLong ? '#d9b26a' : '#E2DED5' }}
-                          value={welcomeText}
-                          maxLength={140}
-                          placeholder="Ex. Ont la joie de vous inviter au mariage de"
-                          aria-describedby="invitation-welcome-help"
-                          onChange={(e) => setWelcomeText(e.target.value)}
-                        />
-                      </label>
-                      <p id="invitation-welcome-help" style={{ margin: '-0.3rem 0 0', fontSize: '0.74rem', color: welcomeTooLong ? '#8a6414' : '#7e8178', lineHeight: 1.45 }}>
-                        {welcomeTooLong
-                          ? `Phrase longue (${welcomeText.trim().length}/140) : elle s'affichera sur plusieurs lignes en petites capitales.`
-                          : `Facultatif · ${welcomeText.trim().length}/140 · même phrase que dans l'étape Textes.`}
+                      <p style={{ margin: '0.75rem 0 0', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
+                        Avec un lien au nom d'un invité (étape{' '}
+                        <button type="button" onClick={() => goToStep(stepIndex('invites'))} style={inviteLinkBtn}>Invités</button>), son nom
+                        s'écrit sur la carte, et l'ouverture lui est toujours montrée.
                       </p>
                     </section>
 
                     <section style={block}>
-                      <h2 style={h2}>Animations et interactions</h2>
+                      <h2 style={h2}>Animations et pages</h2>
                       <p style={{ margin: '0 0 0.85rem', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
                         Les invités qui ont demandé à leur téléphone de réduire les animations voient l'invitation immobile.
                       </p>
@@ -2094,13 +2070,6 @@ export function WeddingSiteBuilder() {
                           </li>
                         ))}
                       </ul>
-                      {fx.calendar && unplaceable.length > 0 && (
-                        <p role="note" style={{ margin: '0.85rem 0 0', padding: '0.6rem 0.75rem', borderRadius: 10, background: '#fffaf0', border: '1px solid #efe1c2', fontSize: '0.78rem', color: '#8a6414', lineHeight: 1.5 }}>
-                          Date non reconnue pour {unplaceable.map((e) => `« ${e.label} »`).join(', ')} : le bouton « Ajouter à mon agenda »
-                          n'y apparaîtra pas. Choisissez la date dans le calendrier de l'étape{' '}
-                          <button type="button" onClick={() => goToStep(stepIndex('date'))} style={inviteLinkBtn}>Date &amp; lieu</button>.
-                        </p>
-                      )}
                     </section>
                   </>
                 )}

@@ -77,13 +77,13 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
   {
     id: 'invitation-animee',
     label: '✦ Invitation animée',
-    description: 'Faire-part qui prend vie : pétales, compte à rebours, programme à ajouter à l’agenda, « Cassez le verre »',
+    description: 'Carte au nom de l’invité qui s’ouvre en enveloppe, fleur ivoire, une page par événement et réponse intégrée',
     theme: {
       style: 'invitation-animee',
-      backgroundColor: '#FAF6EF',
-      textColor: '#343630',
-      primaryColor: '#9A7B55',
-      secondaryColor: '#929B83',
+      backgroundColor: '#FFF9F2',
+      textColor: '#6F5B46',
+      primaryColor: '#A88D70',
+      secondaryColor: '#C9B79F',
       fontFamily: "'Cormorant Garamond', Georgia, serif",
       cardStyle: 'shadow',
       layout: 'centered',

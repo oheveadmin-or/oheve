@@ -491,19 +491,8 @@ export function renderOptionalSections(site: WeddingSite, useCard: typeof cardSt
   return <OptionalSections site={site} useCard={useCard} />;
 }
 
-export function PublicStickyNav({ site }: { site: WeddingSite }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [visible, setVisible] = useState(true);
-  const lastY = useRef(0);
-  const L = sectionLabels(site.language);
-  const navStyle = site.theme.navStyle ?? 'horizontal';
-  const t = site.theme;
-
-  // Musique : lecture auto au 1er geste de l'invité + pastille pour la couper,
-  // logée dans la barre de nav (sticky, déjà éprouvée) plutôt qu'un bouton
-  // flottant `position: fixed` — celui-ci « sortait de l'écran » dès qu'un
-  // ancêtre pose un `transform`/`container-type` (aperçu iPhone du builder,
-  // cartes en `containerType: inline-size`…), qui redéfinit son point d'ancrage.
+/** Musique du site : lecture au 1er geste de l'invité (toucher, clavier, défilement). */
+function usePublicMusic(site: WeddingSite) {
   const { hasMusic, playing, toggle, requestPlay } = useMusicPlayer(site.content?.musicUrl);
   useEffect(() => {
     if (!hasMusic || playing) return;
@@ -525,6 +514,56 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasMusic, playing, site.content?.musicUrl]);
+  return { hasMusic, playing, toggle };
+}
+
+/**
+ * Bouton rond lecture / pause, seul (sans barre de navigation) — pour les
+ * modèles plein écran. Même lecture automatique que `PublicStickyNav`.
+ */
+export function PublicMusicButton({ site, color, background, className }: { site: WeddingSite; color: string; background: string; className?: string }) {
+  const { hasMusic, playing, toggle } = usePublicMusic(site);
+  if (!hasMusic) return null;
+  const label = playing ? 'Couper la musique' : 'Lancer la musique';
+  return (
+    <button
+      type="button"
+      data-music-toggle
+      className={className}
+      onClick={toggle}
+      aria-label={label}
+      aria-pressed={playing}
+      title={label}
+      style={{ width: 44, height: 44, borderRadius: '50%', border: `1.5px solid ${color}`, background, color, display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0 }}
+    >
+      <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        {playing ? (
+          <>
+            <rect x="6.5" y="5" width="3.6" height="14" rx="1" />
+            <rect x="13.9" y="5" width="3.6" height="14" rx="1" />
+          </>
+        ) : (
+          <path d="M8 5.5v13l10.5-6.5z" />
+        )}
+      </svg>
+    </button>
+  );
+}
+
+export function PublicStickyNav({ site }: { site: WeddingSite }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const lastY = useRef(0);
+  const L = sectionLabels(site.language);
+  const navStyle = site.theme.navStyle ?? 'horizontal';
+  const t = site.theme;
+
+  // Musique : lecture auto au 1er geste de l'invité + pastille pour la couper,
+  // logée dans la barre de nav (sticky, déjà éprouvée) plutôt qu'un bouton
+  // flottant `position: fixed` — celui-ci « sortait de l'écran » dès qu'un
+  // ancêtre pose un `transform`/`container-type` (aperçu iPhone du builder,
+  // cartes en `containerType: inline-size`…), qui redéfinit son point d'ancrage.
+  const { hasMusic, playing, toggle } = usePublicMusic(site);
 
   const musicBtn = hasMusic ? (
     <button

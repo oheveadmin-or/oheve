@@ -1,41 +1,42 @@
 /**
  * InvitationTemplate — modèle « Invitation animée ».
  *
- * Un faire-part qui prend vie : carte d'en-tête où tombent quelques pétales,
- * prénoms calligraphiés qui apparaissent l'un après l'autre, compte à rebours
- * à chiffres basculants, programme en cartes (itinéraire + « Ajouter à mon
- * agenda »), réponse via le RSVP existant, mini-jeu « Cassez le verre » et
- * barre fixe Répondre · Itinéraire.
+ * L'invité arrive par l'ouverture (`InvitationOpening` : carte à son nom →
+ * enveloppe → écran d'accueil), puis découvre ici une page par événement,
+ * posée sur une grande fleur ivoire immobile :
+ *   בס״ד · monogramme doré · TITRE · prénoms calligraphiés · date · lieu,
+ *   puis un bandeau « Itinéraire ». Le mariage lui-même est la page du
+ *   faire-part (familles, phrases, date hébraïque, lieu, photo du lieu).
+ * Suivent les informations pratiques (sections existantes), la réponse
+ * (formulaire RSVP existant, intégré) et la signature. Une barre d'onglets en
+ * bas mène à chaque page et suit le défilement.
  *
  * Tout le contenu vient de `site` ; couleurs et polices du thème live via
- * `invitationTokens`. Les effets se règlent dans l'étape « Invitation » du
- * builder (`theme.invitation`). Les sections fonctionnelles restantes (Lieu,
- * Hébergements, FAQ, Galerie…) sont déléguées à `renderOptionalSections`.
- *
- * Animations : CSS uniquement, aucune dépendance. `prefers-reduced-motion`
- * coupe tout (pétales masqués, contenu affiché d'emblée, éclats retirés).
+ * `invitationTokens`. Les réglages sont dans l'étape « Invitation » du builder
+ * (`theme.invitation`). Animations : CSS uniquement ; `prefers-reduced-motion`
+ * les coupe toutes, le contenu reste toujours visible.
  */
 import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 
-import type { WeddingSite, WeddingTemplateProps } from '../types';
-import { sectionLabels } from '../i18n';
-import { frenchLongDate, hebrewDateFromIso } from '../utils/hebrewDate';
-import { parseEventTime, sortEventsChronologically, weddingYear } from '../utils/eventOrder';
-import { calendarSlot, directionsLinks, downloadIcs, googleCalendarUrl } from '../utils/calendar';
-import { invitationTokens } from '../themes/InvitationTheme';
+import type { JewishWeddingEvent, WeddingSite, WeddingTemplateProps } from '../types';
+import { parseEventDate, parseEventTime, sortEventsChronologically, weddingYear } from '../utils/eventOrder';
+import { directionsLinks } from '../utils/directions';
+import { invitationTokens, shade } from '../themes/InvitationTheme';
 import type { InvitationTokens } from '../themes/InvitationTheme';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
+import { WeddingRSVPForm } from '@guest/rsvp/WeddingRSVPForm';
+import { createDefaultRSVPForm } from '@guest/rsvp/types';
 import {
   FamilyColumnsRow,
   getFamilyColumns,
-  hasInvitationTexts,
-  HiddenAutoMusic,
-  InvitationTextsBlock,
-  PublicStickyNav,
+  InvitationDetails,
+  InvitationThanks,
+  PublicMusicButton,
   renderOptionalSections,
 } from './templateParts';
+import type { InvitationStyle } from './templateParts';
+import { coupleNames, GoldMonogram, INVITATION_PARTS_CSS, IvoryBloom, prefersReducedMotion } from './invitationParts';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Textes de l'interface                                                      */
@@ -43,64 +44,45 @@ import {
 
 const STRINGS = {
   fr: {
-    discover: "Découvrir l'invitation",
-    countdownDone: "C'est le grand jour !",
-    countdownUnits: ['Jours', 'Heures', 'Min', 'Sec'],
-    timeTbc: 'Horaire à confirmer',
+    bsd: 'בס״ד',
     at: 'à',
     directions: 'Itinéraire',
-    addToCalendar: 'Ajouter à mon agenda',
-    ics: 'iPhone, Outlook (.ics)',
-    google: 'Google Agenda',
-    rsvpTitle: 'Merci de confirmer votre présence',
-    glassTitle: 'Cassez le verre',
-    glassText: 'Sous la Houppa, le marié brise un verre en souvenir de Jérusalem. À votre tour !',
-    glassBtn: 'Touchez le verre pour le briser',
-    glassAgain: 'Encore un Mazal Tov',
-    mazal: 'Mazal Tov !',
-    reply: 'Répondre',
-    mainEvent: 'Le mariage',
-    weddingOf: 'Mariage de',
+    rsvpTitle: 'Merci de confirmer\nvotre présence',
+    tabs: "Pages de l'invitation",
+    mainTab: 'Mariage',
+    answersTab: 'Réponses',
+    and: 'et',
+    phrases: {
+      mairie: 'Se diront « Oui »',
+      henne: 'vous invitent à célébrer le Henné',
+      'chabbat-hatan': 'vous invitent au Chabbat Hatan',
+      brunch: 'vous convient au brunch du lendemain',
+      'sheva-berakhot': 'vous invitent aux Sheva Berakhot',
+    } as Partial<Record<JewishWeddingEvent['type'], string>>,
   },
   he: {
-    discover: 'לגלות את ההזמנה',
-    countdownDone: 'היום הגדול הגיע!',
-    countdownUnits: ['ימים', 'שעות', 'דק׳', 'שנ׳'],
-    timeTbc: 'השעה תימסר בהמשך',
+    bsd: 'בס״ד',
     at: 'בשעה',
     directions: 'הוראות הגעה',
-    addToCalendar: 'הוספה ליומן',
-    ics: 'iPhone, Outlook (.ics)',
-    google: 'Google Calendar',
-    rsvpTitle: 'נשמח לאישור הגעתכם',
-    glassTitle: 'שוברים את הכוס',
-    glassText: 'תחת החופה החתן שובר כוס זכר לחורבן ירושלים. תורכם!',
-    glassBtn: 'געו בכוס כדי לשבור אותה',
-    glassAgain: 'עוד מזל טוב',
-    mazal: '!מזל טוב',
-    reply: 'אישור הגעה',
-    mainEvent: 'החתונה',
-    weddingOf: 'החתונה של',
+    rsvpTitle: 'נשמח לאישור\nהגעתכם',
+    tabs: 'עמודי ההזמנה',
+    mainTab: 'חתונה',
+    answersTab: 'אישור הגעה',
+    and: 'ו',
+    phrases: {} as Partial<Record<JewishWeddingEvent['type'], string>>,
   },
   en: {
-    discover: 'Open the invitation',
-    countdownDone: 'The big day is here!',
-    countdownUnits: ['Days', 'Hours', 'Min', 'Sec'],
-    timeTbc: 'Time to be confirmed',
+    bsd: 'בס״ד',
     at: 'at',
     directions: 'Directions',
-    addToCalendar: 'Add to my calendar',
-    ics: 'iPhone, Outlook (.ics)',
-    google: 'Google Calendar',
-    rsvpTitle: 'Kindly confirm your attendance',
-    glassTitle: 'Break the glass',
-    glassText: 'Under the Chuppah, the groom breaks a glass in memory of Jerusalem. Your turn!',
-    glassBtn: 'Tap the glass to break it',
-    glassAgain: 'One more Mazal Tov',
-    mazal: 'Mazal Tov!',
-    reply: 'Reply',
-    mainEvent: 'The wedding',
-    weddingOf: 'Wedding of',
+    rsvpTitle: 'Kindly confirm\nyour attendance',
+    tabs: 'Invitation pages',
+    mainTab: 'Wedding',
+    answersTab: 'Reply',
+    and: 'and',
+    phrases: {
+      mairie: 'Will say “I do”',
+    } as Partial<Record<JewishWeddingEvent['type'], string>>,
   },
 };
 type Strings = (typeof STRINGS)['fr'];
@@ -109,20 +91,6 @@ type Strings = (typeof STRINGS)['fr'];
 /*  Utilitaires                                                                */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-/** Prénom réel, ou '' pour un champ vide / le « … » provisoire de l'aperçu */
-function realName(s?: string): string {
-  const v = s?.trim() ?? '';
-  return /\p{L}/u.test(v) ? v : '';
-}
-
-function prefersReducedMotion(): boolean {
-  try {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  } catch {
-    return false;
-  }
-}
-
 /** « 19h30 » à partir d'une heure saisie librement (sinon le texte tel quel) */
 function prettyTime(raw?: string): string {
   const min = parseEventTime(raw);
@@ -130,14 +98,30 @@ function prettyTime(raw?: string): string {
   return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
 }
 
-/** Date ISO (AAAA-MM-JJ) → « jeudi 26 novembre 2026 » ; texte libre conservé */
-function prettyDate(raw?: string): string {
-  const v = raw?.trim() ?? '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? frenchLongDate(v) || v : v;
+/** « Mercredi 18 novembre 2026 » si la date est reconnue, sinon le texte saisi */
+function prettyDate(raw: string | undefined, lang: string, fallbackYear?: number): string {
+  const key = parseEventDate(raw, fallbackYear);
+  if (!key || key < 10000000) return raw?.trim() ?? '';
+  const d = new Date(Math.floor(key / 10000), Math.floor((key % 10000) / 100) - 1, key % 100);
+  const locale = lang === 'he' ? 'he-IL' : lang === 'en' ? 'en-GB' : 'fr-FR';
+  const s = d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** « La Mairie » → « Mairie » pour l'onglet */
+function tabLabel(label: string): string {
+  return label.replace(/^(la|le|les|l['’])\s*/i, '').trim() || label;
+}
+
+/** Lieu saisi en une ligne : « Salle, 12 rue …, Ville » → nom + adresse */
+function splitPlace(place: string): { name: string; address: string } {
+  const i = place.indexOf(',');
+  if (i < 0) return { name: place.trim(), address: '' };
+  return { name: place.slice(0, i).trim(), address: place.slice(i + 1).trim() };
 }
 
 /**
- * Apparition au défilement : les éléments `.inv-reveal` restent visibles tant
+ * Apparition au défilement : les éléments `.ia-reveal` restent visibles tant
  * que le script n'a pas « armé » la racine (pas d'IntersectionObserver,
  * animations réduites, capture d'écran…) — jamais de contenu bloqué invisible.
  */
@@ -160,7 +144,7 @@ function useReveal(enabled: boolean) {
           }
         }
       },
-      { threshold: 0.12, rootMargin: '0px 0px -6% 0px' },
+      { threshold: 0.08, rootMargin: '0px 0px -6% 0px' },
     );
     ioRef.current = io;
     root.setAttribute('data-reveal', 'on');
@@ -171,481 +155,290 @@ function useReveal(enabled: boolean) {
     };
   }, [enabled]);
 
-  // Les cartes apparues pendant l'édition (aperçu) sont observées à leur tour
+  // Les blocs apparus pendant l'édition (aperçu) sont observés à leur tour
   useEffect(() => {
     const io = ioRef.current;
     if (!io) return;
-    rootRef.current?.querySelectorAll('.inv-reveal:not(.is-in)').forEach((el) => io.observe(el));
+    rootRef.current?.querySelectorAll('.ia-reveal:not(.is-in)').forEach((el) => io.observe(el));
   });
 
   return rootRef;
 }
 
-function useCountdown(iso: string) {
-  const [now, setNow] = useState(() => Date.now());
+/** Onglet actif : la page qui occupe le milieu de l'écran */
+function useActivePage(ids: string[]) {
+  const [active, setActive] = useState(ids[0] ?? '');
+  const key = ids.join('|');
   useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
-  const target = new Date(iso).getTime();
-  const diff = Number.isNaN(target) ? 0 : Math.max(0, target - now);
-  return {
-    done: !Number.isNaN(target) && diff === 0,
-    d: Math.floor(diff / 86400000),
-    h: Math.floor((diff % 86400000) / 3600000),
-    m: Math.floor((diff % 3600000) / 60000),
-    s: Math.floor((diff % 60000) / 1000),
-  };
+    if (typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setActive(e.target.id);
+      },
+      { rootMargin: '-45% 0px -50% 0px' },
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) io.observe(el);
+    });
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return active;
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  Briques visuelles                                                          */
+/*  Pages                                                                      */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function Card({ tk, children, id, className = '', style, label }: { tk: InvitationTokens; children: ReactNode; id?: string; className?: string; style?: CSSProperties; label?: string }) {
+type IconKind = JewishWeddingEvent['type'] | 'main' | 'answers';
+
+type Page = {
+  id: string;
+  tab: string;
+  icon: IconKind;
+  /** Événement du programme ; absent pour la page du faire-part */
+  ev?: JewishWeddingEvent;
+};
+
+const MAIN_ID = 'ia-mariage';
+
+function buildPages(site: WeddingSite, S: Strings): Page[] {
+  const events = site.sections.program ? (site.content?.jewishEvents ?? []).filter((e) => e.enabled) : [];
+  // La Houppa est le faire-part lui-même : pas de page en double
+  const houppa = events.find((e) => e.type === 'houppa');
+  const others = events.filter((e) => e !== houppa);
+  const main = { id: MAIN_ID, date: site.date?.slice(0, 10) || houppa?.date || '', time: site.time || houppa?.time || '' };
+  const ordered = sortEventsChronologically<{ id: string; date: string; time: string; ev?: JewishWeddingEvent }>(
+    [...others.map((ev) => ({ id: `ia-${ev.id}`, date: ev.date, time: ev.time, ev })), main],
+    (e) => e.date,
+    (e) => e.time,
+    weddingYear(site.date),
+  );
+  return ordered.map((p) =>
+    p.ev ? { id: p.id, tab: tabLabel(p.ev.label), icon: p.ev.type, ev: p.ev } : { id: MAIN_ID, tab: S.mainTab, icon: 'main' },
+  );
+}
+
+function Bsd({ tk, S }: { tk: InvitationTokens; S: Strings }) {
+  if (!tk.effects.bsd) return null;
   return (
-    <section
-      id={id}
-      aria-label={label}
-      className={`inv-card inv-reveal ${className}`}
-      style={{ borderRadius: tk.radius, ...style }}
-    >
-      {children}
+    <p className="ia-bsd" lang="he" dir="rtl">
+      {S.bsd}
+    </p>
+  );
+}
+
+/** Prénoms empilés : « Léa / & / Noam » */
+function StackedNames({ names, tk, as: Tag = 'p' }: { names: string[]; tk: InvitationTokens; as?: 'p' | 'h1' }) {
+  if (!names.length) return null;
+  return (
+    <Tag className="ia-names" style={{ fontFamily: tk.fonts.script, fontSize: tk.sizes.names }}>
+      <span>{names[0]}</span>
+      {names[1] ? (
+        <>
+          <span className="ia-amp">&amp;</span>
+          <span>{names[1]}</span>
+        </>
+      ) : null}
+    </Tag>
+  );
+}
+
+/** Bandeau pleine largeur : Itinéraire (Google Maps) · Waze */
+function DirectionsBand({ place, label, googleMapsUrl, wazeUrl, S }: { place: string; label: string; googleMapsUrl?: string; wazeUrl?: string; S: Strings }) {
+  const found = directionsLinks(place, googleMapsUrl, wazeUrl);
+  // Waze seulement si le couple a collé son lien : un seul bandeau sinon
+  const links = { google: found.google, waze: wazeUrl?.trim() ? found.waze : undefined };
+  if (!links.google && !links.waze) return null;
+  return (
+    <div className="ia-band">
+      {links.google ? (
+        <a className="ia-band-link" href={links.google} target="_blank" rel="noopener noreferrer">
+          <PinIcon />
+          <span>
+            {S.directions}
+            {label ? ` ${label}` : ''}
+          </span>
+        </a>
+      ) : null}
+      {links.waze ? (
+        <a className="ia-band-link" href={links.waze} target="_blank" rel="noopener noreferrer">
+          <PinIcon />
+          <span>Waze</span>
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z" />
+      <circle cx="12" cy="10" r="2.3" />
+    </svg>
+  );
+}
+
+function PageShell({ id, label, children, band }: { id: string; label: string; children: ReactNode; band?: ReactNode }) {
+  return (
+    <section id={id} aria-label={label} className="ia-page">
+      <div className="ia-page-body ia-reveal">{children}</div>
+      {band}
     </section>
   );
 }
 
-/** Ornement : fin trait qui se dessine, avec un losange au centre */
-function Flourish({ color, width = 180 }: { color: string; width?: number }) {
-  return (
-    <svg className="inv-flourish" aria-hidden width={width} height="14" viewBox="0 0 180 14" style={{ maxWidth: '70%', display: 'block', margin: '0 auto' }}>
-      <path className="inv-draw" d="M4 7 H76 M104 7 H176" stroke={color} strokeWidth="1" fill="none" strokeLinecap="round" />
-      <path className="inv-draw" d="M90 1 L96 7 L90 13 L84 7 Z" stroke={color} strokeWidth="1" fill="none" />
-      <circle cx="80" cy="7" r="1.4" fill={color} />
-      <circle cx="100" cy="7" r="1.4" fill={color} />
-    </svg>
-  );
-}
-
-function ScriptTitle({ tk, children }: { tk: InvitationTokens; children: ReactNode }) {
-  return (
-    <div style={{ textAlign: 'center', marginBottom: '1.3rem' }}>
-      <h2 style={{ margin: 0, fontFamily: tk.fonts.script, fontWeight: 400, fontSize: tk.sizes.title, lineHeight: 1.15, color: tk.colors.ink, overflowWrap: 'anywhere' }}>
-        {children}
-      </h2>
-      <div style={{ marginTop: '0.6rem' }}>
-        <Flourish color={tk.colors.foil} width={150} />
-      </div>
-    </div>
-  );
-}
-
-/** Pétales : positions fixes (rendu identique serveur/aperçu), décalages négatifs pour démarrer en pleine chute */
-const PETALS = [
-  { x: 6, delay: -1, dur: 13, size: 12, drift: 18, tone: 0 },
-  { x: 17, delay: -7, dur: 16, size: 9, drift: -14, tone: 1 },
-  { x: 28, delay: -3.5, dur: 12, size: 14, drift: 22, tone: 2 },
-  { x: 39, delay: -10, dur: 17, size: 10, drift: -20, tone: 0 },
-  { x: 50, delay: -5, dur: 14, size: 13, drift: 16, tone: 1 },
-  { x: 61, delay: -12.5, dur: 18, size: 9, drift: -12, tone: 2 },
-  { x: 72, delay: -2, dur: 13.5, size: 15, drift: 20, tone: 0 },
-  { x: 83, delay: -8.5, dur: 15.5, size: 11, drift: -18, tone: 1 },
-  { x: 92, delay: -4, dur: 16.5, size: 12, drift: 14, tone: 2 },
-  { x: 45, delay: -14, dur: 19, size: 10, drift: -16, tone: 0 },
-];
-
-function Petals({ tk }: { tk: InvitationTokens }) {
-  const tones = [tk.colors.foil, tk.colors.sage, '#E7C6BC'];
-  return (
-    <div className="inv-petals" aria-hidden>
-      {PETALS.map((p, i) => (
-        <span
-          key={i}
-          className="inv-petal-col"
-          style={{ left: `${p.x}%`, animationDuration: `${p.dur}s`, animationDelay: `${p.delay}s` } as CSSProperties}
-        >
-          <svg
-            className="inv-petal"
-            width={p.size}
-            height={p.size * 1.35}
-            viewBox="0 0 18 26"
-            style={{ '--inv-drift': `${p.drift}px`, animationDuration: `${p.dur / 2.2}s`, animationDelay: `${p.delay}s` } as CSSProperties}
-          >
-            <path d="M9 2 Q12 0 14 3 C17 9 14 18 9 24 C4 18 1 9 4 3 Q6 0 9 2 Z" fill={tones[p.tone]} fillOpacity="0.55" />
-            <path d="M9 4 C10 10 10 16 9 21" stroke="#fff" strokeOpacity="0.45" strokeWidth="0.8" fill="none" />
-          </svg>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-/** Monogramme du couple (généré dans l'étape Mariés) ou médaillon à leurs initiales */
-function Monogram({ site, tk }: { site: WeddingSite; tk: InvitationTokens }) {
-  const svg = site.content?.monogramSvg;
-  if (svg) {
-    const size = Math.min(site.content?.monogramSizePx ?? 96, 220);
-    return (
-      <div
-        aria-hidden
-        className="inv-rise"
-        style={{ width: size, maxWidth: '58%', aspectRatio: '1 / 1', margin: '0 auto 0.6rem', color: tk.colors.foil, animationDelay: '0.1s' }}
-        dangerouslySetInnerHTML={{ __html: svg.replace(/width="[^"]*"/, 'width="100%"').replace(/height="[^"]*"/, 'height="100%"') }}
-      />
-    );
-  }
-  const a = realName(site.brideName).charAt(0).toUpperCase();
-  const b = realName(site.groomName).charAt(0).toUpperCase();
-  const initials = a && b ? `${a}${b}` : a || b || realName(site.coupleName).charAt(0).toUpperCase();
-  if (!initials) return null;
-  return (
-    <svg aria-hidden className="inv-rise" width="92" height="92" viewBox="0 0 100 100" style={{ display: 'block', margin: '0 auto 0.7rem', animationDelay: '0.1s' }}>
-      <circle cx="50" cy="50" r="46" fill="none" stroke={tk.colors.foil} strokeWidth="1" />
-      <circle cx="50" cy="50" r="41" fill="none" stroke={tk.colors.foil} strokeWidth="0.6" strokeDasharray="1.5 3" />
-      <text x="50" y="50" textAnchor="middle" dominantBaseline="central" fontFamily={tk.fonts.script} fontSize={initials.length > 1 ? 34 : 40} fill={tk.colors.foil}>
-        {initials.length > 1 ? `${initials[0]}·${initials[1]}` : initials}
-      </text>
-    </svg>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  1. Carte d'en-tête                                                         */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-function HeroCard({ site, tk, S, onDiscover }: { site: WeddingSite; tk: InvitationTokens; S: Strings; onDiscover: () => void }) {
-  const bride = realName(site.brideName);
-  const groom = realName(site.groomName);
-  const two = !!(bride && groom);
-  const name1 = two ? bride : realName(site.coupleName) || bride || groom || '…';
-  const iso = site.date?.slice(0, 10) ?? '';
-  const [y, m, d] = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-') : [];
-  const longDate = iso ? frenchLongDate(iso) : '';
-  const hebDate = iso ? hebrewDateFromIso(iso)?.fr ?? '' : '';
-  const place = [site.venue || site.content?.venue?.name, site.city].map((s) => s?.trim()).filter(Boolean).join(' · ');
-  const nameStyle: CSSProperties = {
-    fontFamily: tk.fonts.script,
-    fontSize: tk.sizes.names,
-    fontWeight: 400,
-    lineHeight: 1.08,
-    color: tk.colors.ink,
-    overflowWrap: 'anywhere',
-    maxWidth: '100%',
-  };
-  // Entrées échelonnées : chaque élément apparaît un peu après le précédent
-  let step = 0;
-  const delay = () => ({ animationDelay: `${0.2 + 0.18 * step++}s` });
-
-  return (
-    <Card tk={tk} className="inv-hero" label={two ? `${bride} & ${groom}` : name1}>
-      {tk.effects.petals ? <Petals tk={tk} /> : null}
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-        {site.content?.hebrewQuote?.trim() ? (
-          <div className="inv-rise" style={{ width: '100%', marginBottom: '0.4rem', ...delay() }}>
-            <HebrewVerseArc
-              text={site.content.hebrewQuote}
-              color={tk.colors.ink}
-              dotColor={tk.colors.foil}
-              font={`'Frank Ruhl Libre', 'Noto Serif Hebrew', ${tk.fonts.body}, serif`}
-              width={500}
-              rx={226}
-              ry={66}
-              maxFontSize={30}
-              minFontSize={12}
-              maxSpread={2.0}
-            />
-          </div>
-        ) : null}
-
-        <Monogram site={site} tk={tk} />
-
-        {site.welcomeText?.trim() ? (
-          <p className="inv-rise inv-kicker" style={{ color: tk.colors.muted, fontFamily: tk.fonts.label, ...delay() }}>
-            {site.welcomeText.trim()}
-          </p>
-        ) : null}
-
-        <h1 style={{ margin: 0, fontWeight: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '100%' }}>
-          <span className="inv-rise" style={{ ...nameStyle, ...delay() }}>{name1}</span>
-          {two ? (
-            <>
-              <span className="inv-rise" style={{ fontFamily: tk.fonts.script, fontSize: `calc(${tk.sizes.names} * 0.55)`, color: tk.colors.foil, lineHeight: 1, margin: '0.15rem 0', ...delay() }}>
-                &amp;
-              </span>
-              <span className="inv-rise" style={{ ...nameStyle, ...delay() }}>{groom}</span>
-            </>
-          ) : null}
-        </h1>
-
-        <div className="inv-rise" style={{ margin: '1.3rem 0 1.1rem', width: '100%', ...delay() }}>
-          <Flourish color={tk.colors.foil} />
-        </div>
-
-        {d ? (
-          <p className="inv-rise" style={{ margin: 0, fontFamily: tk.fonts.label, fontSize: '1.35rem', letterSpacing: '0.32em', color: tk.colors.ink, paddingInlineStart: '0.32em', ...delay() }}>
-            {d} · {m} · {y}
-          </p>
-        ) : null}
-        {longDate || hebDate ? (
-          <p className="inv-rise" style={{ margin: '0.35rem 0 0', fontFamily: tk.fonts.body, fontStyle: 'italic', fontSize: '1rem', color: tk.colors.muted, ...delay() }}>
-            {[longDate, hebDate].filter(Boolean).join(' — ')}
-          </p>
-        ) : null}
-        {place ? (
-          <p className="inv-rise" style={{ margin: '0.5rem 0 0', fontFamily: tk.fonts.label, fontSize: '0.78rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: tk.colors.ink, overflowWrap: 'anywhere', ...delay() }}>
-            {place}
-          </p>
-        ) : null}
-
-        <button type="button" className="inv-rise inv-cue" onClick={onDiscover} style={{ color: tk.colors.foil, fontFamily: tk.fonts.label, ...delay() }}>
-          <span>{S.discover}</span>
-          <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </button>
-      </div>
-    </Card>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  2. Compte à rebours à chiffres basculants                                  */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-function FlipCountdown({ tk, iso, S, title }: { tk: InvitationTokens; iso: string; S: Strings; title: string }) {
-  const c = useCountdown(iso);
-  const cells = [String(c.d), String(c.h).padStart(2, '0'), String(c.m).padStart(2, '0'), String(c.s).padStart(2, '0')];
-  return (
-    <Card tk={tk} label={title}>
-      <ScriptTitle tk={tk}>{title}</ScriptTitle>
-      {c.done ? (
-        <p style={{ margin: 0, textAlign: 'center', fontFamily: tk.fonts.script, fontSize: tk.sizes.title, color: tk.colors.foil }}>{S.countdownDone}</p>
-      ) : (
-        // Lecteurs d'écran : une seule phrase, pas l'annonce de chaque seconde
-        <div role="timer" aria-live="off" aria-label={`${c.d} ${S.countdownUnits[0]}, ${c.h} ${S.countdownUnits[1]}, ${c.m} ${S.countdownUnits[2]}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'clamp(6px, 2.5cqw, 14px)' }}>
-          {cells.map((v, i) => (
-            <div key={i} aria-hidden style={{ textAlign: 'center' }}>
-              <div className="inv-flipbox" style={{ borderColor: tk.colors.hairline, background: tk.colors.paper, borderRadius: Math.min(tk.radius, 10) }}>
-                <span key={v} className="inv-flip" style={{ fontFamily: tk.fonts.label, color: tk.colors.ink }}>
-                  {v}
-                </span>
-              </div>
-              <div style={{ marginTop: 7, fontFamily: tk.fonts.label, fontSize: '0.62rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: tk.colors.muted }}>
-                {S.countdownUnits[i]}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  3. Programme : une carte par événement                                     */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-type InvEvent = {
-  id: string;
-  label: string;
-  date?: string;
-  time?: string;
-  place?: string;
-  description?: string;
-  googleMapsUrl?: string;
-  wazeUrl?: string;
-};
-
-function programEvents(site: WeddingSite, S: Strings): InvEvent[] {
-  const year = weddingYear(site.date);
-  const jewish = (site.content?.jewishEvents ?? []).filter((e) => e.enabled);
-  if (jewish.length) {
-    return sortEventsChronologically(
-      jewish.map((e) => ({ id: e.id, label: e.label, date: e.date, time: e.time, place: e.place, description: e.description, googleMapsUrl: e.googleMapsUrl, wazeUrl: e.wazeUrl })),
-      (e) => e.date,
-      (e) => e.time,
-      year,
-    );
-  }
-  const rsvp = (site.rsvpForm?.events ?? []).filter((e) => e.enabled && (e.dayLabel?.trim() || e.time?.trim() || e.place?.trim()));
-  if (rsvp.length) {
-    return sortEventsChronologically(
-      rsvp.map((e) => ({ id: e.id, label: e.label, date: e.dayLabel, time: e.time, place: e.place, description: e.shortDescription })),
-      (e) => e.date,
-      (e) => e.time,
-      year,
-    );
-  }
-  // Aucun programme saisi : le mariage lui-même, avec la date et la salle principales
-  const iso = site.date?.slice(0, 10) ?? '';
-  if (!iso) return [];
-  const venue = site.content?.venue;
-  return [
-    {
-      id: 'main',
-      label: S.mainEvent,
-      date: iso,
-      time: site.time,
-      place: [venue?.name || site.venue, venue?.address || site.city].map((s) => s?.trim()).filter(Boolean).join(', '),
-      googleMapsUrl: venue?.googleMapsUrl,
-      wazeUrl: venue?.wazeUrl,
-    },
-  ];
-}
-
-function EventCard({ ev, site, tk, S, index }: { ev: InvEvent; site: WeddingSite; tk: InvitationTokens; S: Strings; index: number }) {
-  const date = prettyDate(ev.date);
+function EventPage({ page, site, tk, S }: { page: Page; site: WeddingSite; tk: InvitationTokens; S: Strings }) {
+  const ev = page.ev!;
+  const names = coupleNames(site);
+  const phrase = ev.description?.trim() || S.phrases[ev.type] || '';
+  const date = prettyDate(ev.date, site.language, weddingYear(site.date));
   const time = prettyTime(ev.time);
-  const place = ev.place?.trim() ?? '';
-  const links = directionsLinks(place, ev.googleMapsUrl, ev.wazeUrl);
-  const couple = [realName(site.brideName), realName(site.groomName)].filter(Boolean).join(' & ');
-  const calInput = {
-    title: couple ? `${ev.label} — ${couple}` : ev.label,
-    date: ev.date,
-    time: ev.time,
-    place,
-    description: [couple ? `${S.weddingOf} ${couple}` : '', ev.description?.trim()].filter(Boolean).join('\n'),
-  };
-  const slot = tk.effects.calendar ? calendarSlot(calInput, weddingYear(site.date)) : null;
-  const uid = `${site.slug || 'mariage'}-${ev.id}`.replace(/[^a-zA-Z0-9-]/g, '');
-
+  const place = splitPlace(ev.place ?? '');
   return (
-    <Card tk={tk} className="inv-event" style={{ transitionDelay: `${Math.min(index, 3) * 0.08}s` }} label={ev.label}>
-      <div style={{ textAlign: 'center' }}>
-        {date ? (
-          <p style={{ margin: 0, fontFamily: tk.fonts.label, fontSize: '0.72rem', letterSpacing: '0.24em', textTransform: 'uppercase', color: tk.colors.foil, overflowWrap: 'anywhere' }}>
-            {date}
-          </p>
-        ) : null}
-        <h3 style={{ margin: '0.35rem 0 0', fontFamily: tk.fonts.script, fontWeight: 400, fontSize: tk.sizes.title, lineHeight: 1.15, color: tk.colors.ink, overflowWrap: 'anywhere' }}>
-          {ev.label}
-        </h3>
-        <p style={{ margin: '0.55rem 0 0', fontFamily: tk.fonts.body, fontSize: '1.15rem', color: tk.colors.ink }}>
-          {time ? `${S.at} ${time}` : <span style={{ fontStyle: 'italic', color: tk.colors.muted }}>{S.timeTbc}</span>}
-        </p>
-        {place ? (
-          <p style={{ margin: '0.3rem 0 0', fontFamily: tk.fonts.body, fontSize: '1.02rem', lineHeight: 1.55, color: tk.colors.muted, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{place}</p>
-        ) : null}
-        {ev.description?.trim() ? (
-          <p style={{ margin: '0.6rem 0 0', fontFamily: tk.fonts.body, fontStyle: 'italic', fontSize: '1rem', lineHeight: 1.6, color: tk.colors.ink, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{ev.description.trim()}</p>
-        ) : null}
-
-        {links.google || slot ? (
-          <div className="inv-actions">
-            {links.google ? (
-              <a className="inv-btn" href={links.google} target="_blank" rel="noopener noreferrer">
-                <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z" />
-                  <circle cx="12" cy="10" r="2.3" />
-                </svg>
-                {S.directions}
-                <span className="inv-sr"> — Google Maps</span>
-              </a>
-            ) : null}
-            {links.waze ? (
-              <a className="inv-btn inv-btn-ghost" href={links.waze} target="_blank" rel="noopener noreferrer">
-                Waze
-              </a>
-            ) : null}
-            {slot ? (
-              <details className="inv-cal">
-                <summary className="inv-btn inv-btn-ghost">
-                  <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
-                    <path d="M8 3.5v4M16 3.5v4M4 10h16M12 13v4M10 15h4" />
-                  </svg>
-                  {S.addToCalendar}
-                </summary>
-                <div className="inv-cal-menu">
-                  <button type="button" className="inv-btn inv-btn-ghost" onClick={() => downloadIcs(calInput, slot, uid)}>
-                    {S.ics}
-                  </button>
-                  <a className="inv-btn inv-btn-ghost" href={googleCalendarUrl(calInput, slot)} target="_blank" rel="noopener noreferrer">
-                    {S.google}
-                  </a>
-                </div>
-              </details>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </Card>
+    <PageShell
+      id={page.id}
+      label={ev.label}
+      band={<DirectionsBand place={ev.place ?? ''} label={place.name} googleMapsUrl={ev.googleMapsUrl} wazeUrl={ev.wazeUrl} S={S} />}
+    >
+      <Bsd tk={tk} S={S} />
+      <GoldMonogram site={site} tk={tk} size="min(16cqw, 84px)" />
+      <h2 className="ia-title" style={{ fontSize: tk.sizes.title }}>
+        {ev.label}
+      </h2>
+      <StackedNames names={names} tk={tk} />
+      {phrase ? <p className="ia-phrase">{phrase}</p> : null}
+      {date ? <p className="ia-date">{date}</p> : null}
+      {time ? <p className="ia-time">{/^\d/.test(time) ? `${S.at} ${time}` : time}</p> : null}
+      {place.name ? <p className="ia-place">{place.name}</p> : null}
+      {place.address ? <p className="ia-address">{place.address}</p> : null}
+    </PageShell>
   );
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  4. Cassez le verre                                                         */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-const SHARDS = [
-  { dx: -70, dy: -40, r: -160, path: 'M0 0 L9 -4 L6 8 Z' },
-  { dx: 64, dy: -52, r: 140, path: 'M0 0 L7 -7 L10 5 Z' },
-  { dx: -48, dy: 46, r: 220, path: 'M0 0 L10 2 L3 9 Z' },
-  { dx: 78, dy: 30, r: -200, path: 'M0 0 L6 -8 L11 1 Z' },
-  { dx: -92, dy: 4, r: 110, path: 'M0 0 L8 -3 L5 6 Z' },
-  { dx: 30, dy: 62, r: -120, path: 'M0 0 L9 3 L2 8 Z' },
-  { dx: 6, dy: -78, r: 260, path: 'M0 0 L5 -9 L9 0 Z' },
-];
-const CONFETTI = Array.from({ length: 16 }, (_, i) => {
-  const a = (i / 16) * Math.PI * 2;
-  const dist = 70 + (i % 3) * 22;
-  return { dx: Math.round(Math.cos(a) * dist), dy: Math.round(Math.sin(a) * dist * 0.8), tone: i % 3 };
-});
-
-function GlassCard({ tk, S }: { tk: InvitationTokens; S: Strings }) {
-  const [broken, setBroken] = useState(0);
-  const isBroken = broken > 0;
-  const tones = [tk.colors.foil, tk.colors.sage, '#E7C6BC'];
-
-  const breakGlass = () => {
-    setBroken((n) => n + 1);
-    try {
-      navigator.vibrate?.(35);
-    } catch {
-      /* vibration indisponible */
-    }
+function MainPage({ site, tk, S }: { site: WeddingSite; tk: InvitationTokens; S: Strings }) {
+  const names = coupleNames(site);
+  const columns = getFamilyColumns(site);
+  const familyText = site.content?.texts?.familyText?.trim();
+  const venue = site.content?.venue;
+  const placeName = venue?.name?.trim() || site.venue?.trim() || '';
+  const place = [placeName, venue?.address?.trim() || site.city?.trim()].filter(Boolean).join(', ');
+  const phraseStyle: InvitationStyle = {
+    text: tk.colors.ink,
+    muted: tk.colors.muted,
+    accent: tk.colors.ink,
+    body: tk.fonts.body,
+    display: tk.fonts.body,
+    size: '1.08rem',
+    dateSize: '1.55rem',
   };
-
   return (
-    <Card tk={tk} label={S.glassTitle}>
-      <ScriptTitle tk={tk}>{S.glassTitle}</ScriptTitle>
-      <p style={{ margin: '0 auto 1rem', maxWidth: 360, textAlign: 'center', fontFamily: tk.fonts.body, fontStyle: 'italic', fontSize: '1.02rem', lineHeight: 1.6, color: tk.colors.muted }}>
-        {S.glassText}
-      </p>
-      <div className="inv-glass-stage">
-        {!isBroken ? (
-          <button type="button" className="inv-glass-btn" onClick={breakGlass} aria-label={S.glassBtn} title={S.glassBtn}>
-            <svg aria-hidden width="76" height="112" viewBox="0 0 76 112" fill="none" stroke={tk.colors.foil} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 6 H62 C62 34 52 50 38 52 C24 50 14 34 14 6 Z" fill={tk.colors.foil} fillOpacity="0.08" />
-              <path d="M20 14 C21 26 26 36 32 40" strokeOpacity="0.5" />
-              <path d="M38 52 V92" />
-              <path d="M22 100 C28 94 48 94 54 100 Z" fill={tk.colors.foil} fillOpacity="0.12" />
-            </svg>
-          </button>
-        ) : (
-          <div key={broken} className="inv-burst" aria-hidden>
-            {SHARDS.map((s, i) => (
-              <svg key={`s${i}`} className="inv-shard" width="14" height="14" viewBox="-2 -10 14 20" style={{ '--dx': `${s.dx}px`, '--dy': `${s.dy}px`, '--r': `${s.r}deg` } as CSSProperties}>
-                <path d={s.path} fill={tk.colors.foil} fillOpacity="0.35" stroke={tk.colors.foil} strokeWidth="0.8" />
-              </svg>
-            ))}
-            {CONFETTI.map((c, i) => (
-              <span key={`c${i}`} className="inv-confetti" style={{ background: tones[c.tone], '--dx': `${c.dx}px`, '--dy': `${c.dy}px` } as CSSProperties} />
-            ))}
-          </div>
-        )}
-        <p role="status" className={isBroken ? 'inv-mazal' : 'inv-sr'} style={{ fontFamily: tk.fonts.script, color: tk.colors.foil }}>
-          {isBroken ? S.mazal : ''}
-        </p>
-      </div>
-      {isBroken ? (
-        <div style={{ textAlign: 'center', marginTop: '0.4rem' }}>
-          <button type="button" className="inv-btn inv-btn-ghost" onClick={() => setBroken(0)}>
-            {S.glassAgain}
-          </button>
+    <PageShell id={MAIN_ID} label={S.mainTab} band={<DirectionsBand place={place} label={placeName} googleMapsUrl={venue?.googleMapsUrl} wazeUrl={venue?.wazeUrl} S={S} />}>
+      <Bsd tk={tk} S={S} />
+      {site.content?.hebrewQuote?.trim() ? (
+        <div style={{ width: '100%', marginBottom: '-0.4rem' }}>
+          <HebrewVerseArc
+            text={site.content.hebrewQuote}
+            color={tk.colors.ink}
+            dotColor={tk.colors.foil}
+            font={`'Frank Ruhl Libre', 'Noto Serif Hebrew', ${tk.fonts.body}, serif`}
+            width={500}
+            rx={226}
+            ry={66}
+            maxFontSize={30}
+            minFontSize={12}
+            maxSpread={2.0}
+          />
         </div>
       ) : null}
-    </Card>
+      <GoldMonogram site={site} tk={tk} size="min(20cqw, 104px)" />
+      {columns.length ? (
+        <div className="ia-families">
+          <FamilyColumnsRow columns={columns} accent={tk.colors.foil} textColor={tk.colors.ink} titleFontFamily={tk.fonts.script} bodyFontFamily={tk.fonts.body} titleVariant="script" lineSize="0.98rem" hideTitles />
+        </div>
+      ) : null}
+      {familyText ? <p className="ia-phrase">{familyText}</p> : null}
+      <InvitationThanks site={site} s={phraseStyle} style={{ marginTop: '0.4rem' }} />
+      {names.length ? (
+        <StackedNames names={names} tk={tk} as="h1" />
+      ) : (
+        <h1 className="ia-title" style={{ fontSize: tk.sizes.title }}>
+          {S.mainTab}
+        </h1>
+      )}
+      <InvitationDetails site={site} s={phraseStyle} style={{ marginTop: '0.6rem', width: '100%' }} />
+      {site.mainText?.trim() ? <p className="ia-phrase">{site.mainText.trim()}</p> : null}
+      {venue?.photoUrl ? (
+        <div className="ia-photo">
+          <img src={venue.photoUrl} alt={placeName} loading="lazy" decoding="async" />
+        </div>
+      ) : null}
+    </PageShell>
+  );
+}
+
+function RsvpPage({ site, S }: { site: WeddingSite; S: Strings }) {
+  const form = site.rsvpForm ?? createDefaultRSVPForm(site.id);
+  return (
+    <section id="ia-reponses" aria-label={S.answersTab} className="ia-page">
+      <div className="ia-page-body ia-reveal">
+        <h2 className="ia-rsvp-title">{S.rsvpTitle}</h2>
+        <div className="ia-rsvp">
+          <WeddingRSVPForm site={site} form={form} embedded />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Onglets ─────────────────────────────────────────────────────────────── */
+
+const CHUPPAH = 'M4.5 21V9M19.5 21V9M2.5 9c3-4.5 16-4.5 19 0M4.5 9h15M2.5 21h4M17.5 21h4';
+const SPARKLE = 'M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2z';
+
+const ICONS: Record<IconKind, string> = {
+  mairie: 'M3 21h18M5 21V10.5M19 21V10.5M9 21v-6.5M15 21v-6.5M3 10.5 12 4l9 6.5z',
+  henne: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1',
+  houppa: CHUPPAH,
+  main: CHUPPAH,
+  'chabbat-hatan': 'M8 21v-9h3v9M13 21v-9h3v9M9.5 9c-.6-1 0-2 .7-3M14.5 9c-.6-1 0-2 .7-3M5 21h14',
+  brunch: 'M5 9h11v4.5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5zM16 10.5h1.5a2.25 2.25 0 0 1 0 4.5H16M8.5 3v3M12.5 3v3',
+  'sheva-berakhot': 'M8 3h8l-.8 6.5a3.2 3.2 0 0 1-6.4 0zM12 13v7M8.5 21h7',
+  depart: SPARKLE,
+  'pool-party': 'M3 17c2 0 2-1.5 4.5-1.5S9.5 17 12 17s2.5-1.5 4.5-1.5S19 17 21 17M7 14V5a2 2 0 0 1 4 0M13 14V5a2 2 0 0 1 4 0M7 9h6',
+  custom: SPARKLE,
+  answers: 'M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5',
+};
+
+function TabBar({ tabs, S }: { tabs: { id: string; label: string; icon: IconKind }[]; S: Strings }) {
+  const active = useActivePage(tabs.map((t) => t.id));
+  const go = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  };
+  return (
+    <nav className="ia-tabs" aria-label={S.tabs}>
+      <div className="ia-tabs-inner">
+        {tabs.map((t) => (
+          <a
+            key={t.id}
+            href={`#${t.id}`}
+            className={`ia-tab${active === t.id ? ' is-active' : ''}`}
+            aria-current={active === t.id ? 'location' : undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              go(t.id);
+            }}
+          >
+            <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d={ICONS[t.icon]} />
+            </svg>
+            <span>{t.label}</span>
+          </a>
+        ))}
+      </div>
+    </nav>
   );
 }
 
@@ -655,50 +448,44 @@ function GlassCard({ tk, S }: { tk: InvitationTokens; S: Strings }) {
 
 export function InvitationTemplate({ site }: WeddingTemplateProps) {
   const tk = invitationTokens(site.theme);
-  const L = sectionLabels(site.language);
   const S = STRINGS[site.language] ?? STRINGS.fr;
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
   const rootRef = useReveal(tk.effects.reveal);
 
-  const bride = realName(site.brideName);
-  const groom = realName(site.groomName);
-  const events = site.sections.program ? programEvents(site, S) : [];
-  const columns = getFamilyColumns(site);
-  const familyText = site.content?.texts?.familyText?.trim();
-  const memorialText = site.content?.texts?.memorialText?.trim();
-
-  const venue = site.content?.venue;
-  const mainPlace = [venue?.name || site.venue, venue?.address || site.city].map((s) => s?.trim()).filter(Boolean).join(', ');
-  const mainDirections = directionsLinks(mainPlace, venue?.googleMapsUrl, venue?.wazeUrl).google;
-  const showBar = tk.effects.bottomBar && (site.sections.rsvp || !!mainDirections);
-
-  // Programme et réponse sont rendus ici, en cartes ; le reste est délégué
-  const delegated: WeddingSite = { ...site, sections: { ...site.sections, program: false, rsvp: false } };
+  const names = coupleNames(site);
+  const pages = buildPages(site, S);
+  // Programme, lieu et réponse sont rendus ici ; le reste (hébergements, FAQ,
+  // galerie, infos pratiques…) passe par les sections existantes.
+  const delegated: WeddingSite = {
+    ...site,
+    sections: { ...site.sections, program: false, rsvp: false, location: false, jewishSection: false, hero: false },
+  };
   const surface = () => ({
-    background: tk.colors.card,
+    background: 'rgba(255,255,255,0.72)',
     border: `1px solid ${tk.colors.hairline}`,
-    borderRadius: tk.radius,
-    boxShadow: `0 18px 40px -28px ${tk.colors.shadow}`,
-    padding: '1.8rem 1.4rem',
+    borderRadius: 3,
+    boxShadow: `0 18px 40px -30px ${tk.colors.shadow}`,
+    padding: '1.6rem 1.25rem',
   });
 
-  const discover = () => {
-    const target = rootRef.current?.querySelector<HTMLElement>('#inv-faire-part');
-    target?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
-  };
+  const tabs = [
+    ...pages.map((p) => ({ id: p.id, label: p.tab, icon: p.icon })),
+    ...(site.sections.rsvp ? [{ id: 'ia-reponses', label: S.answersTab, icon: 'answers' as IconKind }] : []),
+  ];
 
   const cssVars = {
-    '--inv-foil': tk.colors.foil,
-    '--inv-ink': tk.colors.ink,
-    '--inv-muted': tk.colors.muted,
-    '--inv-paper': tk.colors.paper,
-    '--inv-card': tk.colors.card,
-    '--inv-hair': tk.colors.hairline,
-    '--inv-shadow': tk.colors.shadow,
-    '--inv-btn': tk.colors.button,
-    '--inv-on-btn': tk.colors.onButton,
-    '--inv-radius': `${tk.radius}px`,
-    '--inv-label': tk.fonts.label,
+    '--ia-paper': tk.colors.paper,
+    '--ia-ink': tk.colors.ink,
+    '--ia-muted': tk.colors.muted,
+    '--ia-foil': tk.colors.foil,
+    '--ia-hair': tk.colors.hairline,
+    '--ia-shadow': tk.colors.shadow,
+    '--ia-band': tk.colors.band,
+    '--ia-band-ink': tk.colors.bandInk,
+    '--ia-btn': tk.colors.button,
+    '--ia-label': tk.fonts.label,
+    '--ia-body': tk.fonts.body,
+    '--ia-bar': `${tk.colors.paper}eb`,
   } as CSSProperties;
 
   return (
@@ -707,109 +494,37 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
       id="top"
       dir={dir}
       lang={site.language}
-      className="wedding-template-root inv-root"
-      style={{
-        ...cssVars,
-        fontFamily: tk.fonts.body,
-        color: tk.colors.ink,
-        minHeight: '100vh',
-        background: `radial-gradient(120% 55% at 50% 0%, ${tk.colors.card} 0%, ${tk.colors.paper} 62%)`,
-        backgroundColor: tk.colors.paper,
-        textAlign: site.language === 'he' ? 'right' : 'left',
-      }}
+      className="wedding-template-root ia-root"
+      style={{ ...cssVars, fontFamily: tk.fonts.body, color: tk.colors.ink, background: tk.colors.paper }}
     >
-      <style>{INVITATION_CSS}</style>
-      <PublicStickyNav site={site} />
-      {/* ♫ Musique choisie dans l'étape Musique — lecture au 1er geste */}
-      <HiddenAutoMusic url={site.content?.musicUrl} />
+      <style>{INVITATION_CSS + INVITATION_PARTS_CSS}</style>
 
-      <div className="inv-stack">
-        {site.sections.hero ? <HeroCard site={site} tk={tk} S={S} onDiscover={discover} /> : null}
-
-        {/* Le faire-part : familles, phrases, texte principal */}
-        <div id="inv-faire-part" style={{ scrollMarginTop: 80 }}>
-          {columns.length || hasInvitationTexts(site) || familyText || memorialText || site.mainText?.trim() ? (
-            <Card tk={tk} label={L.families}>
-              {columns.length ? (
-                <FamilyColumnsRow
-                  columns={columns}
-                  accent={tk.colors.foil}
-                  textColor={tk.colors.ink}
-                  titleFontFamily={tk.fonts.script}
-                  bodyFontFamily={tk.fonts.body}
-                  titleVariant="script"
-                  lineSize="1rem"
-                  hideTitles
-                />
-              ) : null}
-              {familyText ? <p className="inv-para">{familyText}</p> : null}
-              {hasInvitationTexts(site) ? (
-                <div style={{ marginTop: columns.length || familyText ? '1.4rem' : 0 }}>
-                  <InvitationTextsBlock site={site} textColor={tk.colors.ink} mutedColor={tk.colors.muted} accent={tk.colors.ink} bodyFontFamily={tk.fonts.body} size="1.08rem" />
-                </div>
-              ) : null}
-              {site.mainText?.trim() ? <p className="inv-para">{site.mainText.trim()}</p> : null}
-              {memorialText ? <p className="inv-para" style={{ fontStyle: 'italic', color: tk.colors.muted }}>{memorialText}</p> : null}
-            </Card>
-          ) : null}
-        </div>
-
-        {site.date ? <FlipCountdown tk={tk} iso={site.date} S={S} title={L.countdownTitle} /> : null}
-
-        {events.length ? (
-          <div id="program" style={{ scrollMarginTop: 80 }}>
-            <div className="inv-reveal" style={{ textAlign: 'center', margin: '0.6rem 0 1.1rem' }}>
-              <p style={{ margin: 0, fontFamily: tk.fonts.label, fontSize: '0.72rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: tk.colors.muted }}>{L.program}</p>
-            </div>
-            {events.map((ev, i) => (
-              <EventCard key={ev.id} ev={ev} site={site} tk={tk} S={S} index={i} />
-            ))}
-          </div>
-        ) : null}
-
-        {site.sections.rsvp ? (
-          <Card tk={tk} id="rsvp" label={S.rsvpTitle} style={{ textAlign: 'center' }}>
-            <ScriptTitle tk={tk}>{S.rsvpTitle}</ScriptTitle>
-            {site.rsvpForm?.introText?.trim() ? (
-              <p style={{ margin: '0 auto 1.2rem', maxWidth: 380, fontFamily: tk.fonts.body, fontSize: '1.05rem', lineHeight: 1.65, color: tk.colors.ink, whiteSpace: 'pre-wrap' }}>{site.rsvpForm.introText.trim()}</p>
-            ) : null}
-            <Link to={`/wedding/${site.slug}/rsvp`} className="inv-btn inv-btn-solid">
-              {L.rsvpCta}
-            </Link>
-          </Card>
-        ) : null}
-
-        {tk.effects.glass ? <GlassCard tk={tk} S={S} /> : null}
-
-        {/* Lieu, hébergements, FAQ, galerie, liste de mariage… */}
-        <div className="inv-delegated">{renderOptionalSections(delegated, surface as never)}</div>
-
-        {bride && groom ? (
-          <div className="inv-reveal" style={{ textAlign: 'center', padding: '2.2rem 0 1.5rem', containerType: 'inline-size' }}>
-            <Flourish color={tk.colors.foil} width={120} />
-            <p style={{ margin: '0.8rem 0 0', fontFamily: tk.fonts.script, fontSize: 'clamp(2rem, 11cqw, 3rem)', lineHeight: 1.15, color: tk.colors.ink, overflowWrap: 'anywhere' }}>
-              {bride} <span style={{ color: tk.colors.foil }}>&amp;</span> {groom}
-            </p>
-          </div>
-        ) : null}
+      {/* Fleur ivoire immobile derrière toutes les pages */}
+      <div className="ia-bloom-layer" aria-hidden>
+        <IvoryBloom tint={shade(tk.colors.paper, -0.07)} uid="page" className="ia-bloom" />
       </div>
 
-      {showBar ? (
-        <nav className="inv-bar" aria-label={S.reply}>
-          <div className="inv-bar-inner">
-            {site.sections.rsvp ? (
-              <Link to={`/wedding/${site.slug}/rsvp`} className="inv-btn inv-btn-solid">
-                {S.reply}
-              </Link>
-            ) : null}
-            {mainDirections ? (
-              <a href={mainDirections} target="_blank" rel="noopener noreferrer" className="inv-btn inv-btn-paper">
-                {S.directions}
-              </a>
-            ) : null}
-          </div>
-        </nav>
-      ) : null}
+      <div className="ia-music">
+        <PublicMusicButton site={site} color={tk.colors.foil} background={`${tk.colors.paper}e6`} />
+      </div>
+
+      <main className="ia-pages">
+        {pages.map((p) =>
+          p.ev ? <EventPage key={p.id} page={p} site={site} tk={tk} S={S} /> : <MainPage key={p.id} site={site} tk={tk} S={S} />,
+        )}
+
+        {/* Hébergements, FAQ, galerie, infos pratiques… */}
+        <div className="ia-page ia-delegated">{renderOptionalSections(delegated, surface as never)}</div>
+
+        {site.sections.rsvp ? <RsvpPage site={site} S={S} /> : null}
+
+        <footer className="ia-sign ia-reveal">
+          <GoldMonogram site={site} tk={tk} size="min(14cqw, 72px)" />
+          {names.length ? <p className="ia-sign-names">{names.join(` ${S.and} `)}</p> : null}
+        </footer>
+      </main>
+
+      {tk.effects.bottomBar && tabs.length > 1 ? <TabBar tabs={tabs} S={S} /> : null}
     </div>
   );
 }
@@ -817,127 +532,124 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
 export default InvitationTemplate;
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  Styles (préfixe .inv-)                                                     */
+/*  Styles (préfixe .ia-)                                                      */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 const INVITATION_CSS = `
-.inv-root { overflow-x: clip; }
-.inv-stack { width: min(520px, calc(100% - 32px)); margin: 0 auto; padding: 1.4rem 0 2rem; }
-.inv-card {
-  position: relative; overflow: hidden; container-type: inline-size;
-  background: var(--inv-card); border: 1px solid var(--inv-hair);
-  outline: 1px solid var(--inv-hair); outline-offset: -9px;
-  box-shadow: 0 22px 48px -30px var(--inv-shadow);
-  padding: 2.4rem 1.6rem; margin: 0 0 1.25rem;
+.ia-root {
+  position: relative; min-height: 100vh; overflow-x: clip; text-align: center;
+  font-variant-numeric: lining-nums;
+  text-shadow: 0 0 10px var(--ia-paper), 0 0 3px var(--ia-paper);
 }
-.inv-hero { padding: 2.6rem 1.4rem 1.8rem; min-height: 560px; display: flex; flex-direction: column; justify-content: center; }
-.inv-kicker { margin: 0 0 0.8rem; font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase; max-width: 100%; overflow-wrap: anywhere; }
-.inv-para { margin: 1.1rem 0 0; text-align: center; font-size: 1.05rem; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
-.inv-para:first-child { margin-top: 0; }
-.inv-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: -1px; padding: 0; border: 0; }
-.inv-delegated > section:first-child { margin-top: 0.6rem !important; }
+.ia-bloom-layer {
+  position: sticky; top: 0; height: 100vh; margin-bottom: -100vh; z-index: 0;
+  display: flex; align-items: center; justify-content: center; pointer-events: none; overflow: hidden;
+}
+.ia-bloom { width: min(112%, 92vh, 760px); aspect-ratio: 1; opacity: 0.26; }
+.ia-music { position: sticky; top: 12px; height: 0; z-index: 1002; }
+.ia-music > button { position: absolute; inset-inline-start: 14px; top: 0; box-shadow: 0 6px 16px -10px var(--ia-shadow); }
 
-/* Boutons */
-.inv-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 1.2rem; }
-.inv-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  min-height: 42px; padding: 0.55rem 1.05rem; border-radius: 999px;
-  border: 1px solid var(--inv-foil); color: var(--inv-ink); background: transparent;
-  font-family: var(--inv-label); font-size: 0.82rem; letter-spacing: 0.06em; text-decoration: none;
-  cursor: pointer; transition: background-color .2s, color .2s, transform .2s; list-style: none;
+.ia-pages { position: relative; z-index: 1; }
+.ia-page {
+  position: relative; width: min(560px, 100%); margin: 0 auto; padding: 3.2rem 0 0;
+  container-type: inline-size;
 }
-.inv-btn::-webkit-details-marker { display: none; }
-.inv-btn:hover { background: color-mix(in srgb, var(--inv-foil) 12%, transparent); }
-.inv-btn-ghost { border-color: var(--inv-hair); }
-.inv-btn-solid { background: var(--inv-btn); border-color: var(--inv-btn); color: var(--inv-on-btn); padding-inline: 1.6rem; font-size: 0.9rem; letter-spacing: 0.1em; }
-.inv-btn-solid:hover { background: var(--inv-btn); transform: translateY(-1px); }
-.inv-btn-paper { background: var(--inv-card); }
-.inv-root a:focus-visible, .inv-root button:focus-visible, .inv-root summary:focus-visible {
-  outline: 2px solid var(--inv-foil); outline-offset: 3px;
+.ia-page-body {
+  display: flex; flex-direction: column; align-items: center; gap: 0.55rem;
+  padding: 0 16px 2.4rem;
 }
-.inv-cal { position: relative; }
-.inv-cal[open] > summary { background: color-mix(in srgb, var(--inv-foil) 12%, transparent); }
-.inv-cal-menu { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; animation: inv-rise .25s ease both; }
+.ia-bsd { align-self: flex-start; margin: -1.6rem 0 0.2rem; font-family: 'Frank Ruhl Libre', serif; font-size: 0.82rem; color: var(--ia-muted); }
+[dir="rtl"] .ia-bsd { align-self: flex-end; }
+.ia-title {
+  margin: 0.5rem 0 0; font-family: var(--ia-body); font-weight: 400; text-transform: uppercase;
+  letter-spacing: 0.22em; padding-inline-start: 0.22em; line-height: 1.3; color: var(--ia-ink); overflow-wrap: anywhere;
+}
+.ia-names {
+  margin: 0.2rem 0 0; display: flex; flex-direction: column; align-items: center; font-weight: 400;
+  line-height: 1.12; color: var(--ia-ink); max-width: 100%; overflow-wrap: anywhere;
+}
+.ia-amp { font-size: 0.62em; line-height: 1; margin: 0.12em 0; color: var(--ia-foil); }
+.ia-phrase { margin: 0.3rem 0 0; font-style: italic; font-size: 1.08rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 30em; }
+.ia-date { margin: 0.9rem 0 0; font-size: clamp(1.35rem, 6.6cqw, 1.7rem); line-height: 1.25; overflow-wrap: anywhere; }
+.ia-time { margin: 0; font-size: clamp(1.2rem, 5.6cqw, 1.45rem); }
+.ia-place { margin: 0.9rem 0 0; font-style: italic; font-size: 1.12rem; overflow-wrap: anywhere; }
+.ia-address { margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--ia-muted); overflow-wrap: anywhere; }
+.ia-families { width: 100%; margin-top: 0.4rem; }
 
-/* Entrées échelonnées de la carte d'en-tête */
-@keyframes inv-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-.inv-rise { animation: inv-rise .9s cubic-bezier(.2,.7,.2,1) both; }
-@keyframes inv-draw { from { stroke-dashoffset: 120; } to { stroke-dashoffset: 0; } }
-.inv-draw { stroke-dasharray: 120; animation: inv-draw 1.6s ease .6s both; }
+.ia-band { background: var(--ia-band); text-shadow: none; }
+.ia-band-link {
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.95rem 1rem;
+  color: var(--ia-band-ink); text-decoration: none; text-transform: uppercase;
+  font-family: var(--ia-label); font-weight: 600; font-size: 11px; letter-spacing: 0.2em;
+  transition: background 0.2s ease; overflow-wrap: anywhere;
+}
+.ia-band-link + .ia-band-link { border-top: 1px solid rgba(255,255,255,0.28); }
+.ia-band-link:hover { background: rgba(255,255,255,0.08); }
+.ia-band-link:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
 
-/* Apparition au défilement (armée par le script uniquement) */
-.inv-reveal { transition: opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1); }
-.inv-root[data-reveal="on"] .inv-reveal:not(.is-in) { opacity: 0; transform: translateY(22px); }
+.ia-photo { width: calc(100% + 32px); margin: 1.4rem -16px -2.4rem; aspect-ratio: 4 / 3; overflow: hidden; }
+.ia-photo img { width: 100%; height: 100%; object-fit: cover; display: block; animation: ia-kenburns 18s ease-in-out infinite alternate; }
+@keyframes ia-kenburns { from { transform: scale(1.04); } to { transform: scale(1.16) translate(-2%, -2%); } }
 
-/* Indice « Découvrir » */
-.inv-cue {
-  margin-top: 1.8rem; display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
-  background: none; border: none; cursor: pointer; padding: 6px 10px;
-  font-size: 0.68rem; letter-spacing: 0.26em; text-transform: uppercase;
-}
-.inv-cue svg { animation: inv-bob 2.4s ease-in-out infinite; }
-@keyframes inv-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+.ia-delegated { padding: 1rem 16px 0; text-align: start; text-shadow: none; }
+.ia-delegated:empty { display: none; }
 
-/* Pétales */
-.inv-petals { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
-.inv-petal-col { position: absolute; top: 0; bottom: 0; width: 20px; animation: inv-fall linear infinite; }
-.inv-petal { display: block; animation: inv-sway ease-in-out infinite alternate; }
-@keyframes inv-fall {
-  0% { transform: translateY(-12%); opacity: 0; }
-  8% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { transform: translateY(100%); opacity: 0; }
+.ia-rsvp-title {
+  margin: 0 0 0.6rem; font-family: var(--ia-body); font-weight: 400; text-transform: uppercase;
+  font-size: clamp(1.2rem, 6cqw, 1.55rem); letter-spacing: 0.2em; line-height: 1.45; white-space: pre-line;
 }
-@keyframes inv-sway {
-  from { transform: translateX(calc(var(--inv-drift) * -1)) rotate(-25deg); }
-  to { transform: translateX(var(--inv-drift)) rotate(35deg); }
+.ia-rsvp { width: 100%; max-width: 460px; text-align: start; text-shadow: none; }
+.ia-rsvp form {
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+  backdrop-filter: none !important; padding: 0 !important; max-width: none !important;
+  font-family: var(--ia-body); color: var(--ia-ink);
+}
+.ia-rsvp input:not([type="checkbox"]):not([type="radio"]), .ia-rsvp textarea, .ia-rsvp select {
+  border-radius: 2px !important; background: rgba(255,255,255,0.85) !important; font-family: var(--ia-body);
+}
+.ia-rsvp button[type="submit"] {
+  background: var(--ia-btn) !important; border-radius: 2px !important; margin-top: 1.2rem !important;
+  font-family: var(--ia-label); font-weight: 600 !important; font-size: 0.72rem !important; letter-spacing: 0.25em !important;
+  box-shadow: 0 10px 24px -12px var(--ia-shadow), inset 0 1px 0 rgba(255,255,255,0.25) !important;
 }
 
-/* Compte à rebours */
-.inv-flipbox {
-  border: 1px solid; padding: 0.7rem 0 0.6rem; perspective: 300px; overflow: hidden;
-  box-shadow: inset 0 -14px 18px -16px var(--inv-shadow);
+.ia-sign { position: relative; padding: 3rem 16px 3.4rem; container-type: inline-size; }
+.ia-sign-names {
+  margin: 0.9rem 0 0; font-family: var(--ia-label); font-size: 0.68rem; font-weight: 600;
+  letter-spacing: 0.3em; padding-inline-start: 0.3em; text-transform: uppercase; color: var(--ia-muted);
 }
-.inv-flip {
-  display: inline-block; font-size: clamp(1.5rem, 8cqw, 2.3rem); line-height: 1; font-variant-numeric: tabular-nums;
-  transform-origin: 50% 0; animation: inv-flip .45s cubic-bezier(.3,.7,.3,1) both;
-}
-@keyframes inv-flip { from { transform: rotateX(80deg); opacity: .25; } to { transform: none; opacity: 1; } }
 
-/* Cassez le verre */
-.inv-glass-stage { position: relative; height: 150px; display: grid; place-items: center; }
-.inv-glass-btn {
-  background: none; border: none; padding: 10px 18px; cursor: pointer; border-radius: 16px;
-  animation: inv-wobble 3.2s ease-in-out infinite; transform-origin: 50% 90%;
-}
-.inv-glass-btn:hover { animation-play-state: paused; }
-@keyframes inv-wobble { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(-5deg); } 94% { transform: rotate(4deg); } 97% { transform: rotate(-2deg); } }
-.inv-burst { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
-.inv-burst > * { grid-area: 1 / 1; }
-.inv-shard { animation: inv-shard 1.1s cubic-bezier(.15,.7,.3,1) both; }
-@keyframes inv-shard { from { transform: none; opacity: 1; } to { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; } }
-.inv-confetti { width: 7px; height: 7px; border-radius: 50%; animation: inv-confetti 1.3s cubic-bezier(.1,.7,.3,1) .1s both; }
-@keyframes inv-confetti { from { transform: none; opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(.5); opacity: 0; } }
-.inv-mazal {
-  position: relative; margin: 0; font-size: clamp(2.2rem, 13cqw, 3.2rem); line-height: 1.1; text-align: center;
-  animation: inv-pop .7s cubic-bezier(.2,1.4,.4,1) .15s both;
-}
-@keyframes inv-pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
-
-/* Barre Répondre · Itinéraire */
-.inv-bar { position: sticky; bottom: 0; z-index: 30; padding: 0 16px calc(12px + env(safe-area-inset-bottom, 0px)); pointer-events: none; }
-.inv-bar-inner {
-  pointer-events: auto; width: min(520px, 100%); margin: 0 auto; display: flex; gap: 8px; padding: 8px;
-  border-radius: 999px; background: var(--inv-card); background: color-mix(in srgb, var(--inv-card) 88%, transparent);
-  border: 1px solid var(--inv-hair); box-shadow: 0 12px 30px -16px var(--inv-shadow);
+.ia-tabs {
+  position: sticky; bottom: 0; z-index: 60; text-shadow: none;
+  background: var(--ia-bar); border-top: 1px solid var(--ia-hair);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 -10px 30px -18px var(--ia-shadow);
+  padding-bottom: env(safe-area-inset-bottom);
 }
-.inv-bar-inner > * { flex: 1; }
+.ia-tabs-inner {
+  display: flex; gap: 6px; width: min(560px, 100%); margin: 0 auto; padding: 7px 8px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.ia-tabs-inner::-webkit-scrollbar { display: none; }
+.ia-tab {
+  flex: 1 0 64px; min-width: 64px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 7px 4px 6px; border: 1px solid transparent; border-radius: 3px;
+  color: var(--ia-muted); text-decoration: none; font-family: var(--ia-body); font-size: 0.74rem; line-height: 1.1;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+.ia-tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ia-tab.is-active { background: #fff; border-color: var(--ia-hair); color: var(--ia-ink); box-shadow: 0 4px 12px -8px var(--ia-shadow); }
+.ia-tab:focus-visible { outline: 2px solid var(--ia-foil); outline-offset: 1px; }
 
-/* Réduction des animations : contenu immédiat, rien ne bouge */
+/* Apparition au défilement — seulement une fois la racine armée par le script */
+.ia-root[data-reveal="on"] .ia-reveal {
+  opacity: 0; transform: translateY(28px);
+  transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ia-root[data-reveal="on"] .ia-reveal.is-in { opacity: 1; transform: none; }
+
 @media (prefers-reduced-motion: reduce) {
-  .inv-root *, .inv-root *::before, .inv-root *::after { animation: none !important; transition: none !important; }
-  .inv-petals, .inv-burst { display: none !important; }
-  .inv-draw { stroke-dasharray: none; }
+  .ia-photo img { animation: none; }
+  .ia-tab { transition: none; }
 }
 `;
