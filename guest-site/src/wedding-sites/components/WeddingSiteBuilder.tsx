@@ -18,6 +18,7 @@ import type {
   FamilyColumn,
   FAQItem,
   HeroStyle,
+  GuestContact,
   InvitationEffects,
   InviteLink,
   JewishWeddingEvent,
@@ -1047,6 +1048,30 @@ export function WeddingSiteBuilder() {
                 )}
               </label>
             </div>
+            <div style={grid2}>
+              <label style={lab}>
+                Prénom du marié en hébreu (facultatif)
+                <input
+                  style={{ ...inp, direction: 'rtl' }}
+                  dir="rtl"
+                  lang="he"
+                  placeholder="Ex. דוד"
+                  value={content.groomNameHe ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, groomNameHe: e.target.value }))}
+                />
+              </label>
+              <label style={lab}>
+                Prénom de la mariée en hébreu (facultatif)
+                <input
+                  style={{ ...inp, direction: 'rtl' }}
+                  dir="rtl"
+                  lang="he"
+                  placeholder="Ex. שרה"
+                  value={content.brideNameHe ?? ''}
+                  onChange={(e) => setContent((c) => ({ ...c, brideNameHe: e.target.value }))}
+                />
+              </label>
+            </div>
             {namesLocked && (
               <p style={{ fontSize: '0.78rem', color: '#92400e', background: '#fef3c7', borderRadius: 8, padding: '0.5rem 0.75rem', margin: 0 }}>
                 Les prénoms sont verrouillés — ils ont été définis depuis l'application Oheve.
@@ -2047,6 +2072,73 @@ export function WeddingSiteBuilder() {
                           ? `Phrase longue (${welcomeText.trim().length}/140) : elle s'affichera sur plusieurs lignes en petites capitales.`
                           : `Facultatif · ${welcomeText.trim().length}/140 · même phrase que dans l'étape Textes.`}
                       </p>
+                    </section>
+
+                    <section style={block}>
+                      <h2 style={h2}>La présentation</h2>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                        <label style={inviteToggleRow}>
+                          <input type="checkbox" checked={fx.pages} onChange={(e) => setFx('pages', e.target.checked)} style={inviteCheckbox} />
+                          <span>
+                            <strong style={{ display: 'block', fontSize: '0.92rem' }}>Une page par événement</strong>
+                            <span style={{ display: 'block', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.45 }}>
+                              Onglets en bas de l'écran ({[...enabledEvents.map((e) => e.label), 'Réponses'].join(' · ')}) : chaque événement a sa page
+                              avec date hébraïque, adresse et boutons Waze · Plans · Google Maps. Le formulaire de réponse s'ouvre dans l'onglet « Réponses ».
+                            </span>
+                          </span>
+                        </label>
+                        <label style={inviteToggleRow}>
+                          <input type="checkbox" checked={fx.bsd} onChange={(e) => setFx('bsd', e.target.checked)} style={inviteCheckbox} />
+                          <span>
+                            <strong style={{ display: 'block', fontSize: '0.92rem' }}>Mention « בס״ד »</strong>
+                            <span style={{ display: 'block', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.45 }}>En haut à droite de l'invitation.</span>
+                          </span>
+                        </label>
+                      </div>
+                    </section>
+
+                    <section style={block}>
+                      <h2 style={h2}>Contacts WhatsApp</h2>
+                      <p style={{ margin: '0 0 0.85rem', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
+                        Affichés au-dessus du formulaire de réponse : l'invité vous écrit sur WhatsApp en un geste.
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                        {(content.contacts ?? []).map((ct) => {
+                          const setCt = (patch: Partial<GuestContact>) =>
+                            setContent((c) => ({ ...c, contacts: (c.contacts ?? []).map((x) => (x.id === ct.id ? { ...x, ...patch } : x)) }));
+                          return (
+                            <div key={ct.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: '0.5rem', alignItems: 'end' }}>
+                              <label style={lab}>
+                                Prénom
+                                <input style={inp} value={ct.name} placeholder="Ex. Sarah" onChange={(e) => setCt({ name: e.target.value })} />
+                              </label>
+                              <label style={lab}>
+                                Téléphone
+                                <input style={inp} type="tel" inputMode="tel" value={ct.phone} placeholder="06 12 34 56 78" onChange={(e) => setCt({ phone: e.target.value })} />
+                              </label>
+                              <button
+                                type="button"
+                                aria-label={`Retirer le contact ${ct.name || ''}`.trim()}
+                                onClick={() => setContent((c) => ({ ...c, contacts: (c.contacts ?? []).filter((x) => x.id !== ct.id) }))}
+                                style={{ ...inviteGhostBtn, marginBottom: 2 }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {(content.contacts ?? []).length < 4 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setContent((c) => ({ ...c, contacts: [...(c.contacts ?? []), { id: `ct-${Date.now().toString(36)}`, name: '', phone: '' }] }))
+                          }
+                          style={{ ...inviteGhostBtn, marginTop: '0.7rem' }}
+                        >
+                          + Ajouter un contact
+                        </button>
+                      )}
                     </section>
 
                     <section style={block}>

@@ -22,13 +22,19 @@ export function WeddingRSVPForm({
   form,
   preview = false,
   slugHint,
+  embedded = false,
 }: {
   site: WeddingSite;
   form: RSVPForm;
   preview?: boolean;
   slugHint?: string;
+  /** Intégré dans une page du site (onglet « Réponses ») : sans fond pleine page ni lien retour */
+  embedded?: boolean;
 }) {
   const ui = useWeddingTheme(site, form);
+  const pageStyle: CSSProperties = embedded
+    ? { fontFamily: ui.page.fontFamily, color: ui.page.color, padding: 0 }
+    : ui.page;
   const lang = site.language;
   const S = useMemo(() => rsvpStrings(lang), [lang]);
   const settings = normalizeSettings(form);
@@ -122,13 +128,14 @@ export function WeddingRSVPForm({
 
   if (success) {
     return (
-      <main dir={dir} style={ui.page}>
+      <main dir={dir} style={pageStyle}>
         <div style={{ ...ui.card, ...successCardPulse }} className="rsvp-success-pop">
           <p style={{ ...ui.heading }}>RSVP</p>
           <h1 style={ui.titleMain}>{S.successTitle}</h1>
           <p style={{ margin: '0.5rem 0 0', opacity: 0.9, lineHeight: 1.6 }}>
             {form.thankYouText?.trim() || S.successBody}
           </p>
+          {embedded ? null : (
           <Link
             to={`/wedding/${site.slug}`}
             style={{
@@ -142,18 +149,21 @@ export function WeddingRSVPForm({
           >
             RETOUR AU SITE
           </Link>
+          )}
         </div>
       </main>
     );
   }
 
   return (
-    <main dir={dir} style={ui.page}>
-      <div style={{ maxWidth: 560, margin: '0 auto 1rem', textAlign: rtl ? 'right' : 'left' }}>
-        <Link style={{ fontSize: '0.92rem', color: ui.secondaryColor }} to={`/wedding/${site.slug}`}>
-          ← Site du mariage
-        </Link>
-      </div>
+    <main dir={dir} style={pageStyle}>
+      {embedded ? null : (
+        <div style={{ maxWidth: 560, margin: '0 auto 1rem', textAlign: rtl ? 'right' : 'left' }}>
+          <Link style={{ fontSize: '0.92rem', color: ui.secondaryColor }} to={`/wedding/${site.slug}`}>
+            ← Site du mariage
+          </Link>
+        </div>
+      )}
       <form onSubmit={handleSubmit} style={ui.card}>
         <p style={{ ...ui.heading, textAlign }}>{coupleEyebrow(site)}</p>
         <h1 style={{ ...ui.titleMain, textAlign }}>{form.title?.trim() || S.pageTitle}</h1>

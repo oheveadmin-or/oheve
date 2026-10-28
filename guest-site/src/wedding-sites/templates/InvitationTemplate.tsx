@@ -12,6 +12,11 @@
  * builder (`theme.invitation`). Les sections fonctionnelles restantes (Lieu,
  * Hébergements, FAQ, Galerie…) sont déléguées à `renderOptionalSections`.
  *
+ * Option « Une page par événement » (`theme.invitation.pages`) : chaque
+ * événement du programme a sa page (date hébraïque, adresse, bandeau
+ * Waze · Plans · Google Maps), choisie dans une barre d'onglets en bas ; un
+ * dernier onglet « Réponses » réunit contacts WhatsApp et formulaire RSVP.
+ *
  * Animations : CSS uniquement, aucune dépendance. `prefers-reduced-motion`
  * coupe tout (pétales masqués, contenu affiché d'emblée, éclats retirés).
  */
@@ -19,7 +24,9 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import type { WeddingSite, WeddingTemplateProps } from '../types';
+import type { GuestContact, WeddingSite, WeddingTemplateProps } from '../types';
+import { WeddingRSVPForm } from '../../rsvp/WeddingRSVPForm';
+import { createDefaultRSVPForm } from '../../rsvp/types';
 import { sectionLabels } from '../i18n';
 import { frenchLongDate, hebrewDateFromIso } from '../utils/hebrewDate';
 import { parseEventTime, sortEventsChronologically, weddingYear } from '../utils/eventOrder';
@@ -35,6 +42,7 @@ import {
   InvitationTextsBlock,
   PublicStickyNav,
   renderOptionalSections,
+  useMusicPlayer,
 } from './templateParts';
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -61,6 +69,13 @@ const STRINGS = {
     reply: 'Répondre',
     mainEvent: 'Le mariage',
     weddingOf: 'Mariage de',
+    plans: 'Plans',
+    replies: 'Réponses',
+    questions: 'Pour toute question, contactez :',
+    whatsapp: 'WhatsApp',
+    musicOn: 'Activer la musique',
+    musicOff: 'Couper la musique',
+    pagesNav: 'Pages de l’invitation',
   },
   he: {
     discover: 'לגלות את ההזמנה',
@@ -81,6 +96,13 @@ const STRINGS = {
     reply: 'אישור הגעה',
     mainEvent: 'החתונה',
     weddingOf: 'החתונה של',
+    plans: 'Apple Maps',
+    replies: 'אישורי הגעה',
+    questions: 'לכל שאלה ניתן לפנות אל:',
+    whatsapp: 'WhatsApp',
+    musicOn: 'הפעלת מוזיקה',
+    musicOff: 'השתקת מוזיקה',
+    pagesNav: 'עמודי ההזמנה',
   },
   en: {
     discover: 'Open the invitation',
@@ -101,6 +123,13 @@ const STRINGS = {
     reply: 'Reply',
     mainEvent: 'The wedding',
     weddingOf: 'Wedding of',
+    plans: 'Apple Maps',
+    replies: 'Replies',
+    questions: 'Any question? Contact:',
+    whatsapp: 'WhatsApp',
+    musicOn: 'Play music',
+    musicOff: 'Mute music',
+    pagesNav: 'Invitation pages',
   },
 };
 type Strings = (typeof STRINGS)['fr'];
@@ -309,6 +338,29 @@ function Monogram({ site, tk }: { site: WeddingSite; tk: InvitationTokens }) {
   );
 }
 
+/** Prénom en hébreu, sous le prénom calligraphié */
+function HebrewName({ tk, name, style }: { tk: InvitationTokens; name: string; style?: CSSProperties }) {
+  return (
+    <span
+      className="inv-rise"
+      dir="rtl"
+      lang="he"
+      style={{ fontFamily: `'Frank Ruhl Libre', 'Noto Serif Hebrew', ${tk.fonts.body}, serif`, fontSize: 'clamp(1.2rem, 6cqw, 1.6rem)', color: tk.colors.muted, lineHeight: 1.3, margin: '0.1rem 0 0.2rem', ...style }}
+    >
+      {name}
+    </span>
+  );
+}
+
+/** Mention « בס״ד », en haut à droite comme sur un faire-part papier */
+function Bsd({ tk }: { tk: InvitationTokens }) {
+  return (
+    <p dir="rtl" lang="he" style={{ margin: 0, padding: '0.6rem 16px 0', textAlign: 'right', fontFamily: `'Frank Ruhl Libre', 'Noto Serif Hebrew', ${tk.fonts.body}, serif`, fontSize: '0.85rem', color: tk.colors.muted }}>
+      בס״ד
+    </p>
+  );
+}
+
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  1. Carte d'en-tête                                                         */
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -318,6 +370,8 @@ function HeroCard({ site, tk, S, onDiscover }: { site: WeddingSite; tk: Invitati
   const groom = realName(site.groomName);
   const two = !!(bride && groom);
   const name1 = two ? bride : realName(site.coupleName) || bride || groom || '…';
+  const he1 = (two ? site.content?.brideNameHe : '')?.trim();
+  const he2 = site.content?.groomNameHe?.trim();
   const iso = site.date?.slice(0, 10) ?? '';
   const [y, m, d] = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-') : [];
   const longDate = iso ? frenchLongDate(iso) : '';
@@ -367,12 +421,14 @@ function HeroCard({ site, tk, S, onDiscover }: { site: WeddingSite; tk: Invitati
 
         <h1 style={{ margin: 0, fontWeight: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '100%' }}>
           <span className="inv-rise" style={{ ...nameStyle, ...delay() }}>{name1}</span>
+          {he1 ? <HebrewName tk={tk} name={he1} style={delay()} /> : null}
           {two ? (
             <>
               <span className="inv-rise" style={{ fontFamily: tk.fonts.script, fontSize: `calc(${tk.sizes.names} * 0.55)`, color: tk.colors.foil, lineHeight: 1, margin: '0.15rem 0', ...delay() }}>
                 &amp;
               </span>
               <span className="inv-rise" style={{ ...nameStyle, ...delay() }}>{groom}</span>
+              {he2 ? <HebrewName tk={tk} name={he2} style={delay()} /> : null}
             </>
           ) : null}
         </h1>
@@ -447,6 +503,8 @@ function FlipCountdown({ tk, iso, S, title }: { tk: InvitationTokens; iso: strin
 
 type InvEvent = {
   id: string;
+  /** Type d'événement juif (mairie, henne, houppa…) : choisit l'icône de l'onglet */
+  type?: string;
   label: string;
   date?: string;
   time?: string;
@@ -461,7 +519,7 @@ function programEvents(site: WeddingSite, S: Strings): InvEvent[] {
   const jewish = (site.content?.jewishEvents ?? []).filter((e) => e.enabled);
   if (jewish.length) {
     return sortEventsChronologically(
-      jewish.map((e) => ({ id: e.id, label: e.label, date: e.date, time: e.time, place: e.place, description: e.description, googleMapsUrl: e.googleMapsUrl, wazeUrl: e.wazeUrl })),
+      jewish.map((e) => ({ id: e.id, type: e.type, label: e.label, date: e.date, time: e.time, place: e.place, description: e.description, googleMapsUrl: e.googleMapsUrl, wazeUrl: e.wazeUrl })),
       (e) => e.date,
       (e) => e.time,
       year,
@@ -483,6 +541,7 @@ function programEvents(site: WeddingSite, S: Strings): InvEvent[] {
   return [
     {
       id: 'main',
+      type: 'houppa',
       label: S.mainEvent,
       date: iso,
       time: site.time,
@@ -650,6 +709,287 @@ function GlassCard({ tk, S }: { tk: InvitationTokens; S: Strings }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
+/*  5. « Une page par événement » : onglets, pages, bandeau itinéraire        */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+/** Pictogrammes des onglets — trait fin, couleur du thème */
+function TabIcon({ type }: { type?: string }) {
+  const common = { width: 30, height: 30, viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 1.3, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+  switch (type) {
+    case 'mairie':
+      return (
+        <svg {...common}>
+          <path d="M4 12 16 5l12 7z" />
+          <path d="M7 13v10M12 13v10M20 13v10M25 13v10M16 13v10" />
+          <path d="M5 24h22M3 27h26" />
+        </svg>
+      );
+    case 'henne':
+      return (
+        <svg {...common}>
+          <circle cx="16" cy="16" r="3.2" />
+          {Array.from({ length: 8 }, (_, i) => {
+            const a = (i / 8) * Math.PI * 2;
+            return <circle key={i} cx={16 + Math.cos(a) * 8} cy={16 + Math.sin(a) * 8} r="2.6" />;
+          })}
+          <circle cx="16" cy="16" r="12.5" strokeDasharray="1 2.6" />
+        </svg>
+      );
+    case 'chabbat-hatan':
+      return (
+        <svg {...common}>
+          <path d="M10 14h4v13h-4zM18 14h4v13h-4z" />
+          <path d="M12 11c-1.4-1.4-.6-3 0-4.2.6 1.2 1.4 2.8 0 4.2zM20 11c-1.4-1.4-.6-3 0-4.2.6 1.2 1.4 2.8 0 4.2z" />
+          <path d="M6 27h20" />
+        </svg>
+      );
+    case 'brunch':
+      return (
+        <svg {...common}>
+          <path d="M7 13h15v5a7 7 0 0 1-7 7h-1a7 7 0 0 1-7-7z" />
+          <path d="M22 15h1.5a3 3 0 0 1 0 6H21" />
+          <path d="M12 9c-1-1.5 1-2.5 0-4M17 9c-1-1.5 1-2.5 0-4" />
+        </svg>
+      );
+    case 'sheva-berakhot':
+      return (
+        <svg {...common}>
+          <path d="M8 5h7l-.6 7a2.9 2.9 0 0 1-5.8 0zM11.5 15v9M8.5 26h6" />
+          <path d="M17 5h7l-.6 7a2.9 2.9 0 0 1-5.8 0zM20.5 15v9M17.5 26h6" />
+        </svg>
+      );
+    case 'pool-party':
+      return (
+        <svg {...common}>
+          <path d="M4 14c3 0 3-2 6-2s3 2 6 2 3-2 6-2 3 2 6 2M4 20c3 0 3-2 6-2s3 2 6 2 3-2 6-2 3 2 6 2M4 26c3 0 3-2 6-2s3 2 6 2 3-2 6-2 3 2 6 2" />
+        </svg>
+      );
+    case 'rsvp':
+      return (
+        <svg {...common}>
+          <path d="M8 4h11l5 5v19H8z" />
+          <path d="M19 4v5h5M12 14h8M12 18h8M12 22h5" />
+        </svg>
+      );
+    case 'houppa':
+      return (
+        <svg {...common}>
+          <path d="M4 9c4-3 20-3 24 0" />
+          <path d="M4 9c3 3 6 3 8 1.5 2 1.5 6 1.5 8 0 2 1.5 5 1.5 8-1.5" />
+          <path d="M6 10v17M26 10v17M3 27h26" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common}>
+          <path d="M16 5l2.4 8.6L27 16l-8.6 2.4L16 27l-2.4-8.6L5 16l8.6-2.4z" />
+        </svg>
+      );
+  }
+}
+
+/** Numéro WhatsApp international (chiffres seuls) ; un 06… français devient 336… */
+function whatsappNumber(raw: string): string {
+  let n = raw.replace(/[^\d+]/g, '');
+  if (n.startsWith('+')) n = n.slice(1);
+  else if (n.startsWith('00')) n = n.slice(2);
+  else if (/^0\d{9}$/.test(n)) n = `33${n.slice(1)}`;
+  return n.replace(/\D/g, '');
+}
+
+function usableContacts(site: WeddingSite): GuestContact[] {
+  return (site.content?.contacts ?? []).filter((c) => c.name.trim() && whatsappNumber(c.phone).length >= 8);
+}
+
+/** Bandeau pleine largeur en bas de la carte : Waze · Plans · Google Maps */
+function ItineraryBand({ S, place, googleMapsUrl, wazeUrl }: { S: Strings; place: string; googleMapsUrl?: string; wazeUrl?: string }) {
+  const links = directionsLinks(place, googleMapsUrl, wazeUrl);
+  const q = place.replace(/\s*\n\s*/g, ', ').trim();
+  const apple = q ? `https://maps.apple.com/?q=${encodeURIComponent(q)}` : undefined;
+  if (!links.google && !links.waze && !apple) return null;
+  const placeName = place.split(/\n|,/)[0]?.trim();
+  const items = [
+    { href: links.waze, label: 'Waze' },
+    { href: apple, label: S.plans },
+    { href: links.google, label: 'Google Maps' },
+  ].filter((i): i is { href: string; label: string } => !!i.href);
+  return (
+    <div className="inv-band">
+      <p className="inv-band-title">
+        <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z" />
+          <circle cx="12" cy="10" r="2.3" />
+        </svg>
+        {placeName ? `${S.directions} · ${placeName}` : S.directions}
+      </p>
+      <div className="inv-band-links" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+        {items.map((i) => (
+          <a key={i.label} href={i.href} target="_blank" rel="noopener noreferrer" className="inv-band-btn">
+            {i.label}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Page d'un événement : monogramme, prénoms, date (+ hébraïque), heure, lieu, itinéraire, agenda */
+function EventPage({ ev, site, tk, S, main }: { ev: InvEvent; site: WeddingSite; tk: InvitationTokens; S: Strings; main: boolean }) {
+  const bride = realName(site.brideName);
+  const groom = realName(site.groomName);
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(ev.date?.trim() ?? '') ? ev.date!.trim() : '';
+  const date = prettyDate(ev.date);
+  const hebDate = iso ? hebrewDateFromIso(iso)?.fr ?? '' : '';
+  const time = prettyTime(ev.time);
+  const place = ev.place?.trim() ?? '';
+  const [placeName, ...placeRest] = place.split('\n');
+  const couple = [bride, groom].filter(Boolean).join(' & ');
+  const calInput = {
+    title: couple ? `${ev.label} — ${couple}` : ev.label,
+    date: ev.date,
+    time: ev.time,
+    place,
+    description: [couple ? `${S.weddingOf} ${couple}` : '', ev.description?.trim()].filter(Boolean).join('\n'),
+  };
+  const slot = tk.effects.calendar ? calendarSlot(calInput, weddingYear(site.date)) : null;
+  const uid = `${site.slug || 'mariage'}-${ev.id}`.replace(/[^a-zA-Z0-9-]/g, '');
+  const nameStyle: CSSProperties = { fontFamily: tk.fonts.script, fontSize: `calc(${tk.sizes.names} * 0.85)`, fontWeight: 400, lineHeight: 1.1, color: tk.colors.ink, overflowWrap: 'anywhere' };
+  const heBride = main ? site.content?.brideNameHe?.trim() : '';
+  const heGroom = main ? site.content?.groomNameHe?.trim() : '';
+
+  return (
+    <Card tk={tk} className="inv-page-card" label={ev.label}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        <Monogram site={site} tk={tk} />
+        <p className="inv-page-kicker" style={{ fontFamily: tk.fonts.label, color: tk.colors.ink }}>{ev.label}</p>
+        {bride || groom ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0.6rem 0 0', maxWidth: '100%' }}>
+            {bride ? <span style={nameStyle}>{bride}</span> : null}
+            {heBride ? <HebrewName tk={tk} name={heBride} /> : null}
+            {bride && groom ? <span style={{ fontFamily: tk.fonts.script, fontSize: `calc(${tk.sizes.names} * 0.5)`, color: tk.colors.foil, lineHeight: 1 }}>&amp;</span> : null}
+            {groom ? <span style={nameStyle}>{groom}</span> : null}
+            {heGroom ? <HebrewName tk={tk} name={heGroom} /> : null}
+          </div>
+        ) : null}
+        {ev.description?.trim() ? (
+          <p style={{ margin: '0.8rem 0 0', fontFamily: tk.fonts.body, fontStyle: 'italic', fontSize: '1.08rem', lineHeight: 1.6, color: tk.colors.ink, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{ev.description.trim()}</p>
+        ) : null}
+        <div style={{ margin: '1.2rem 0 1rem', width: '100%' }}>
+          <Flourish color={tk.colors.foil} width={140} />
+        </div>
+        {date ? (
+          <p style={{ margin: 0, fontFamily: tk.fonts.body, fontSize: 'clamp(1.35rem, 7cqw, 1.8rem)', lineHeight: 1.25, color: tk.colors.ink, overflowWrap: 'anywhere' }}>
+            {date.charAt(0).toUpperCase() + date.slice(1)}
+          </p>
+        ) : null}
+        {hebDate ? (
+          <p style={{ margin: '0.35rem 0 0', fontFamily: tk.fonts.label, fontSize: '0.78rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: tk.colors.muted, paddingInlineStart: '0.3em' }}>{hebDate}</p>
+        ) : null}
+        <p style={{ margin: '0.4rem 0 0', fontFamily: tk.fonts.body, fontSize: 'clamp(1.3rem, 6.5cqw, 1.7rem)', color: tk.colors.ink }}>
+          {time ? `${S.at} ${time}` : <span style={{ fontStyle: 'italic', fontSize: '1rem', color: tk.colors.muted }}>{S.timeTbc}</span>}
+        </p>
+        {placeName ? (
+          <p style={{ margin: '1rem 0 0', fontFamily: tk.fonts.body, fontStyle: 'italic', fontSize: '1.2rem', color: tk.colors.ink, overflowWrap: 'anywhere' }}>{placeName}</p>
+        ) : null}
+        {placeRest.length ? (
+          <p style={{ margin: '0.2rem 0 0', fontFamily: tk.fonts.body, fontSize: '0.98rem', lineHeight: 1.5, color: tk.colors.muted, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{placeRest.join('\n')}</p>
+        ) : null}
+        {slot ? (
+          <div className="inv-actions">
+            <details className="inv-cal">
+              <summary className="inv-btn inv-btn-ghost">
+                <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
+                  <path d="M8 3.5v4M16 3.5v4M4 10h16M12 13v4M10 15h4" />
+                </svg>
+                {S.addToCalendar}
+              </summary>
+              <div className="inv-cal-menu">
+                <button type="button" className="inv-btn inv-btn-ghost" onClick={() => downloadIcs(calInput, slot, uid)}>
+                  {S.ics}
+                </button>
+                <a className="inv-btn inv-btn-ghost" href={googleCalendarUrl(calInput, slot)} target="_blank" rel="noopener noreferrer">
+                  {S.google}
+                </a>
+              </div>
+            </details>
+          </div>
+        ) : null}
+      </div>
+      {place ? <ItineraryBand S={S} place={place} googleMapsUrl={ev.googleMapsUrl} wazeUrl={ev.wazeUrl} /> : null}
+    </Card>
+  );
+}
+
+/** Contacts des mariés : boutons WhatsApp et numéros cliquables */
+function ContactsCard({ tk, S, contacts }: { tk: InvitationTokens; S: Strings; contacts: GuestContact[] }) {
+  return (
+    <Card tk={tk} label={S.questions} style={{ textAlign: 'center', padding: '1.8rem 1.4rem' }}>
+      <p style={{ margin: '0 0 0.8rem', fontFamily: tk.fonts.body, fontStyle: 'italic', fontSize: '1.05rem', color: tk.colors.muted }}>{S.questions}</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {contacts.map((c) => (
+          <div key={c.id}>
+            <p style={{ margin: '0 0 0.4rem', fontFamily: tk.fonts.body, fontSize: '1.05rem', color: tk.colors.ink }}>
+              {c.name.trim()} · <a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit' }}>{c.phone.trim()}</a>
+            </p>
+            <a className="inv-btn inv-btn-solid inv-wa" href={`https://wa.me/${whatsappNumber(c.phone)}`} target="_blank" rel="noopener noreferrer">
+              <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8z" />
+              </svg>
+              {S.whatsapp} {c.name.trim()}
+            </a>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/** Bouton rond ♫ toujours visible en haut à gauche (pages) — lecture au 1er geste */
+function MusicFab({ url, tk, S }: { url?: string; tk: InvitationTokens; S: Strings }) {
+  const { hasMusic, playing, toggle, requestPlay } = useMusicPlayer(url);
+  useEffect(() => {
+    if (!hasMusic || playing) return;
+    const start = (e: Event) => {
+      if (e.target instanceof Element && e.target.closest('[data-music-toggle]')) return;
+      requestPlay();
+    };
+    window.addEventListener('pointerdown', start);
+    window.addEventListener('touchstart', start, { passive: true });
+    window.addEventListener('keydown', start);
+    window.addEventListener('scroll', start, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('touchstart', start);
+      window.removeEventListener('keydown', start);
+      window.removeEventListener('scroll', start);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMusic, playing, url]);
+  if (!hasMusic) return null;
+  // Ancre sticky de hauteur nulle : reste en haut de l'écran sans `position: fixed`
+  // (qui se décroche sous un ancêtre transformé, comme l'aperçu iPhone du builder).
+  return (
+    <div className="inv-fab-anchor">
+      <button type="button" data-music-toggle className="inv-fab" onClick={toggle} aria-label={playing ? S.musicOff : S.musicOn} title={playing ? S.musicOff : S.musicOn} style={{ color: tk.colors.foil }}>
+        {playing ? (
+          <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.2" height="14" rx="1" /><rect x="13.8" y="5" width="3.2" height="14" rx="1" /></svg>
+        ) : (
+          <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z" /></svg>
+        )}
+      </button>
+    </div>
+  );
+}
+
+type PageTab = { id: string; label: string; type?: string };
+
+/** L'événement principal (Houppa, sinon le dernier) porte le faire-part complet */
+function mainEventId(events: InvEvent[]): string | undefined {
+  return (events.find((e) => e.type === 'houppa') ?? events[events.length - 1])?.id;
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
 /*  Template                                                                   */
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -687,6 +1027,61 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
     target?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
   };
 
+  // ── Mode « une page par événement » ──
+  const contacts = usableContacts(site);
+  const pageEvents = tk.effects.pages ? programEvents(site, S) : [];
+  const mainId = mainEventId(pageEvents);
+  const tabs: PageTab[] = pageEvents.map((e) => ({ id: e.id, label: e.label, type: e.type }));
+  if (tk.effects.pages && (site.sections.rsvp || contacts.length)) tabs.push({ id: 'rsvp', label: S.replies, type: 'rsvp' });
+  const pagesMode = tk.effects.pages && tabs.length > 0;
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const currentTab = tabs.some((t) => t.id === activeTab) ? activeTab! : mainId ?? tabs[0]?.id;
+  const selectTab = (id: string) => {
+    setActiveTab(id);
+    rootRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+  };
+
+  // Le faire-part : familles, phrases, texte principal
+  const fairePart = (
+    <div id="inv-faire-part" style={{ scrollMarginTop: 80 }}>
+      {columns.length || hasInvitationTexts(site) || familyText || memorialText || site.mainText?.trim() ? (
+        <Card tk={tk} label={L.families}>
+          {columns.length ? (
+            <FamilyColumnsRow
+              columns={columns}
+              accent={tk.colors.foil}
+              textColor={tk.colors.ink}
+              titleFontFamily={tk.fonts.script}
+              bodyFontFamily={tk.fonts.body}
+              titleVariant="script"
+              lineSize="1rem"
+              hideTitles
+            />
+          ) : null}
+          {familyText ? <p className="inv-para">{familyText}</p> : null}
+          {hasInvitationTexts(site) ? (
+            <div style={{ marginTop: columns.length || familyText ? '1.4rem' : 0 }}>
+              <InvitationTextsBlock site={site} textColor={tk.colors.ink} mutedColor={tk.colors.muted} accent={tk.colors.ink} bodyFontFamily={tk.fonts.body} size="1.08rem" />
+            </div>
+          ) : null}
+          {site.mainText?.trim() ? <p className="inv-para">{site.mainText.trim()}</p> : null}
+          {memorialText ? <p className="inv-para" style={{ fontStyle: 'italic', color: tk.colors.muted }}>{memorialText}</p> : null}
+        </Card>
+      ) : null}
+    </div>
+  );
+
+  const glass = tk.effects.glass ? <GlassCard tk={tk} S={S} /> : null;
+  const signature =
+    bride && groom ? (
+      <div className="inv-reveal" style={{ textAlign: 'center', padding: '2.2rem 0 1.5rem', containerType: 'inline-size' }}>
+        <Flourish color={tk.colors.foil} width={120} />
+        <p style={{ margin: '0.8rem 0 0', fontFamily: tk.fonts.script, fontSize: 'clamp(2rem, 11cqw, 3rem)', lineHeight: 1.15, color: tk.colors.ink, overflowWrap: 'anywhere' }}>
+          {bride} <span style={{ color: tk.colors.foil }}>&amp;</span> {groom}
+        </p>
+      </div>
+    ) : null;
+
   const cssVars = {
     '--inv-foil': tk.colors.foil,
     '--inv-ink': tk.colors.ink,
@@ -719,40 +1114,73 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
       }}
     >
       <style>{INVITATION_CSS}</style>
-      <PublicStickyNav site={site} />
+      {pagesMode ? <MusicFab url={site.content?.musicUrl} tk={tk} S={S} /> : <PublicStickyNav site={site} />}
       {/* ♫ Musique choisie dans l'étape Musique — lecture au 1er geste */}
       <HiddenAutoMusic url={site.content?.musicUrl} />
+      {tk.effects.bsd ? <Bsd tk={tk} /> : null}
 
+      {pagesMode ? (
+        <>
+          <div key={currentTab} className="inv-stack inv-page">
+            {currentTab === 'rsvp' ? (
+              <>
+                <div className="inv-rise" style={{ textAlign: 'center', margin: '0.8rem 0 1.4rem' }}>
+                  <Monogram site={site} tk={tk} />
+                  <ScriptTitle tk={tk}>{S.rsvpTitle}</ScriptTitle>
+                </div>
+                {contacts.length ? <ContactsCard tk={tk} S={S} contacts={contacts} /> : null}
+                {site.sections.rsvp ? (
+                  <div id="rsvp" className="inv-rsvp-embed">
+                    <WeddingRSVPForm site={site} form={site.rsvpForm ?? createDefaultRSVPForm(site.id)} slugHint={site.slug} embedded />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              pageEvents
+                .filter((ev) => ev.id === currentTab)
+                .map((ev) =>
+                  ev.id === mainId ? (
+                    <div key={ev.id}>
+                      {site.sections.hero ? <HeroCard site={site} tk={tk} S={S} onDiscover={discover} /> : null}
+                      {fairePart}
+                      {site.date ? <FlipCountdown tk={tk} iso={site.date} S={S} title={L.countdownTitle} /> : null}
+                      <EventPage ev={ev} site={site} tk={tk} S={S} main />
+                      {glass}
+                      {/* Infos d'accès, hébergements, FAQ, galerie… */}
+                      <div className="inv-delegated">{renderOptionalSections(delegated, surface as never)}</div>
+                      {signature}
+                    </div>
+                  ) : (
+                    <EventPage key={ev.id} ev={ev} site={site} tk={tk} S={S} main={false} />
+                  ),
+                )
+            )}
+          </div>
+
+          {tabs.length > 1 ? (
+            <nav className="inv-tabs" aria-label={S.pagesNav}>
+              <div className="inv-tabs-inner" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+                {tabs.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className="inv-tab"
+                    aria-current={t.id === currentTab ? 'page' : undefined}
+                    onClick={() => selectTab(t.id)}
+                  >
+                    <TabIcon type={t.type} />
+                    <span className="inv-tab-label">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </nav>
+          ) : null}
+        </>
+      ) : (
       <div className="inv-stack">
         {site.sections.hero ? <HeroCard site={site} tk={tk} S={S} onDiscover={discover} /> : null}
 
-        {/* Le faire-part : familles, phrases, texte principal */}
-        <div id="inv-faire-part" style={{ scrollMarginTop: 80 }}>
-          {columns.length || hasInvitationTexts(site) || familyText || memorialText || site.mainText?.trim() ? (
-            <Card tk={tk} label={L.families}>
-              {columns.length ? (
-                <FamilyColumnsRow
-                  columns={columns}
-                  accent={tk.colors.foil}
-                  textColor={tk.colors.ink}
-                  titleFontFamily={tk.fonts.script}
-                  bodyFontFamily={tk.fonts.body}
-                  titleVariant="script"
-                  lineSize="1rem"
-                  hideTitles
-                />
-              ) : null}
-              {familyText ? <p className="inv-para">{familyText}</p> : null}
-              {hasInvitationTexts(site) ? (
-                <div style={{ marginTop: columns.length || familyText ? '1.4rem' : 0 }}>
-                  <InvitationTextsBlock site={site} textColor={tk.colors.ink} mutedColor={tk.colors.muted} accent={tk.colors.ink} bodyFontFamily={tk.fonts.body} size="1.08rem" />
-                </div>
-              ) : null}
-              {site.mainText?.trim() ? <p className="inv-para">{site.mainText.trim()}</p> : null}
-              {memorialText ? <p className="inv-para" style={{ fontStyle: 'italic', color: tk.colors.muted }}>{memorialText}</p> : null}
-            </Card>
-          ) : null}
-        </div>
+        {fairePart}
 
         {site.date ? <FlipCountdown tk={tk} iso={site.date} S={S} title={L.countdownTitle} /> : null}
 
@@ -779,22 +1207,16 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
           </Card>
         ) : null}
 
-        {tk.effects.glass ? <GlassCard tk={tk} S={S} /> : null}
+        {glass}
 
         {/* Lieu, hébergements, FAQ, galerie, liste de mariage… */}
         <div className="inv-delegated">{renderOptionalSections(delegated, surface as never)}</div>
 
-        {bride && groom ? (
-          <div className="inv-reveal" style={{ textAlign: 'center', padding: '2.2rem 0 1.5rem', containerType: 'inline-size' }}>
-            <Flourish color={tk.colors.foil} width={120} />
-            <p style={{ margin: '0.8rem 0 0', fontFamily: tk.fonts.script, fontSize: 'clamp(2rem, 11cqw, 3rem)', lineHeight: 1.15, color: tk.colors.ink, overflowWrap: 'anywhere' }}>
-              {bride} <span style={{ color: tk.colors.foil }}>&amp;</span> {groom}
-            </p>
-          </div>
-        ) : null}
+        {signature}
       </div>
+      )}
 
-      {showBar ? (
+      {showBar && !pagesMode ? (
         <nav className="inv-bar" aria-label={S.reply}>
           <div className="inv-bar-inner">
             {site.sections.rsvp ? (
@@ -933,6 +1355,50 @@ const INVITATION_CSS = `
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
 .inv-bar-inner > * { flex: 1; }
+
+/* ── Une page par événement ── */
+.inv-page { padding-bottom: 1rem; animation: inv-rise .55s cubic-bezier(.2,.7,.2,1) both; }
+.inv-page-card { padding-bottom: 0; }
+.inv-page-kicker { margin: 0.2rem 0 0; font-size: clamp(1.05rem, 6cqw, 1.5rem); letter-spacing: 0.3em; text-transform: uppercase; padding-inline-start: 0.3em; overflow-wrap: anywhere; }
+.inv-band { margin: 1.6rem -1.6rem 0; padding: 1rem 1rem 1.15rem; background: var(--inv-btn); color: var(--inv-on-btn); text-align: center; }
+.inv-band-title {
+  margin: 0 0 0.8rem; display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--inv-label); font-size: 0.78rem; letter-spacing: 0.2em; text-transform: uppercase; overflow-wrap: anywhere;
+}
+.inv-band-links { display: grid; gap: 8px; }
+.inv-band-btn {
+  display: flex; align-items: center; justify-content: center; min-height: 42px; padding: 0.4rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--inv-on-btn) 70%, transparent); border-radius: 999px;
+  color: inherit; text-decoration: none; font-family: var(--inv-label); font-size: 0.86rem; letter-spacing: 0.06em;
+  transition: background-color .2s;
+}
+.inv-band-btn:hover { background: color-mix(in srgb, var(--inv-on-btn) 14%, transparent); }
+.inv-wa { width: 100%; }
+.inv-rsvp-embed { margin-bottom: 1.25rem; }
+
+/* Bouton musique rond (ancre sticky de hauteur nulle) */
+.inv-fab-anchor { position: sticky; top: 12px; z-index: 40; height: 0; }
+.inv-fab {
+  position: absolute; top: 0; inset-inline-start: 14px; width: 46px; height: 46px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer; padding: 0;
+  background: var(--inv-card); border: 1.5px solid var(--inv-foil);
+  box-shadow: 0 8px 20px -10px var(--inv-shadow);
+}
+
+/* Onglets en bas */
+.inv-tabs { position: sticky; bottom: 0; z-index: 30; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--inv-paper); border-top: 1px solid var(--inv-hair); }
+.inv-tabs-inner { width: min(520px, 100%); margin: 0 auto; display: grid; gap: 6px; }
+.inv-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 64px; padding: 6px 4px;
+  background: color-mix(in srgb, var(--inv-foil) 7%, var(--inv-paper)); border: 1px solid var(--inv-hair); border-radius: 6px;
+  color: var(--inv-foil); cursor: pointer; transition: background-color .2s, border-color .2s;
+}
+.inv-tab[aria-current="page"] { background: var(--inv-card); border-color: var(--inv-foil); box-shadow: 0 6px 16px -12px var(--inv-shadow); }
+.inv-tab-label {
+  font-family: var(--inv-label); font-size: 0.8rem; line-height: 1.15; color: var(--inv-muted); max-width: 100%;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere;
+}
+.inv-tab[aria-current="page"] .inv-tab-label { color: var(--inv-ink); }
 
 /* Réduction des animations : contenu immédiat, rien ne bouge */
 @media (prefers-reduced-motion: reduce) {
