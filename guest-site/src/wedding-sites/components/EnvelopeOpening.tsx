@@ -32,8 +32,14 @@ type Props = {
   onDone: () => void;
 };
 
+/** Prénom réel, ou '' pour un champ vide / le « … » provisoire de l'aperçu */
+function realName(s?: string): string {
+  const v = s?.trim() ?? '';
+  return /\p{L}/u.test(v) ? v : '';
+}
+
 function initialsOf(site: WeddingSite): [string, string | null] {
-  const first = (s?: string) => s?.trim().charAt(0).toUpperCase() || '';
+  const first = (s?: string) => realName(s).charAt(0).toUpperCase();
   const a = first(site.brideName);
   const b = first(site.groomName);
   if (a && b) return [a, b];
@@ -51,19 +57,19 @@ function fitSize(text: string, room: number, max: number, min: number): number {
 }
 
 function nameLinesOf(site: WeddingSite): string[] {
-  const a = site.brideName?.trim();
-  const b = site.groomName?.trim();
+  const a = realName(site.brideName);
+  const b = realName(site.groomName);
   // Prénoms courts : une seule ligne (la date reste visible au-dessus des poches)
   if (a && b) return `${a} & ${b}`.length <= 22 ? [`${a} & ${b}`] : [a, `& ${b}`];
-  const one = a || b || site.coupleName?.trim();
+  const one = a || b || realName(site.coupleName);
   return one ? [one] : [];
 }
 
 function namesOf(site: WeddingSite): string {
-  const a = site.brideName?.trim();
-  const b = site.groomName?.trim();
+  const a = realName(site.brideName);
+  const b = realName(site.groomName);
   if (a && b) return `${a} & ${b}`;
-  return a || b || site.coupleName?.trim() || '';
+  return a || b || realName(site.coupleName);
 }
 
 function prefersReducedMotion(): boolean {
