@@ -8,6 +8,7 @@ import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
 import { ALL_STYLE_PRESETS, FONT_OPTIONS } from '../data/weddingThemes';
+import { defaultInvitationTexts, INVITATION_TEXT_FIELDS, withInvitationTexts, type InvitationTextKey } from '../data/invitationTexts';
 import { applyColorCombination, COLOR_COMBINATIONS, type ColorCombination } from '../data/colorCombinations';
 import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId, isYouTubeUrl } from '../data/musicSuggestions';
 import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, uploadWeddingMusic, adaptPhotoToTheme } from '../services/weddingSiteService';
@@ -224,7 +225,10 @@ export function WeddingSiteBuilder() {
   const [mainText, setMainText] = useState('');
   // Site uniquement en français — le sélecteur de langue a été retiré.
   const language: SiteLanguage = 'fr';
-  const [theme, setTheme] = useState<WeddingTheme>(() => applyThemePreset(defaultWeddingTheme()));
+  // Nouveau site : l'enveloppe cachetée est proposée d'office (les sites existants gardent leur arrivée)
+  const [theme, setTheme] = useState<WeddingTheme>(() => applyThemePreset({ ...defaultWeddingTheme(), opening: 'envelope' }));
+  /** Rejoue l'ouverture dans l'aperçu (« ▶ Voir ») */
+  const [openingReplay, setOpeningReplay] = useState(0);
   const [sections, setSections] = useState<WeddingSections>(() => defaultWeddingSections());
   const [hideSignature, setHideSignature] = useState(false);
   const [content, setContent] = useState<WeddingSiteContent>({
@@ -243,6 +247,7 @@ export function WeddingSiteBuilder() {
       memorialText: '',
       familyText: '',
     },
+    invitationTexts: defaultInvitationTexts(),
     musicUrl: '',
     dressCode: {
       text: '',
@@ -278,6 +283,8 @@ export function WeddingSiteBuilder() {
       try {
         const url = await uploadGalleryPhoto(file);
         setContent((c) => ({ ...c, galleryPhotos: [...(c.galleryPhotos ?? []), url] }));
+        // Ajouter une photo = vouloir la voir : la section Galerie s'active d'elle-même.
+        setSections((s) => (s.gallery ? s : { ...s, gallery: true }));
       } catch (err) {
         const reason = err instanceof Error && err.message ? ` — ${err.message}` : '';
         failed.push(`${file.name}${reason}`);
@@ -352,6 +359,14 @@ export function WeddingSiteBuilder() {
       if (j < 0 || j >= arr.length) return c;
       [arr[idx], arr[j]] = [arr[j], arr[idx]];
       return { ...c, galleryPhotos: arr };
+    });
+  }
+
+  function setInvitationText(key: InvitationTextKey, patch: { fr?: string; he?: string }) {
+    setContent((c) => {
+      const texts = c.invitationTexts ?? {};
+      const current = texts[key] ?? { fr: '', he: '' };
+      return { ...c, invitationTexts: { ...texts, [key]: { ...current, ...patch } } };
     });
   }
 
@@ -436,7 +451,11 @@ export function WeddingSiteBuilder() {
         setLoadedStyle((site.theme as WeddingTheme).style ?? 'classic');
       }
       if (site.sections && typeof site.sections === 'object') setSections({ ...defaultWeddingSections(), ...(site.sections as WeddingSections) });
-      if (site.content && typeof site.content === 'object') setContent((prev) => ({ ...prev, ...(site.content as WeddingSiteContent) }));
+      if (site.content && typeof site.content === 'object') {
+        const loaded = site.content as WeddingSiteContent;
+        // Site d'avant les phrases du faire-part : préremplies (et « À la mémoire de… » repris)
+        setContent((prev) => withInvitationTexts({ ...prev, ...loaded, invitationTexts: loaded.invitationTexts }));
+      }
       // Source unique du lieu : récupère l'ancien champ « Lieu précis » des
       // sites publiés avant la fusion dans « Lieu principal ».
       if (site.venue) {
@@ -1239,6 +1258,57 @@ export function WeddingSiteBuilder() {
 
           {wiz === 'style' && (
           <section style={block}>
+            <h2 style={h2}>L'ouverture du site</h2>
+            <p style={{ margin: '0 0 0.85rem', fontSize: '0.85rem', color: '#7e8178', lineHeight: 1.55 }}>
+              Ce que vos invités voient en ouvrant le lien.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {(
+                [
+                  { v: 'direct', icon: '💌', title: 'Accueil direct', desc: "Vos prénoms et le compte à rebours s'affichent tout de suite." },
+                  { v: 'envelope', icon: '✉️', title: 'Enveloppe cachetée', desc: "La carte arrive dans une enveloppe scellée à la cire, à vos initiales. L'invité touche le sceau pour le briser : le rabat s'ouvre et la carte sort de l'enveloppe." },
+                ] as const
+              ).map((o) => {
+                const active = (theme.opening ?? 'direct') === o.v;
+                return (
+                  <div
+                    key={o.v}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setTheme({ ...theme, opening: o.v })}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTheme({ ...theme, opening: o.v }); } }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.85rem 1rem', borderRadius: 14, cursor: 'pointer', border: active ? '1.5px solid #929B83' : '1px solid #ece8e0', background: active ? '#f5f3ee' : '#fff' }}
+                  >
+                    <span style={{ flexShrink: 0, width: 42, height: 42, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: '1.15rem', background: active ? '#929B83' : '#f5f3ee' }}>{o.icon}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <strong style={{ display: 'block', fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.15rem', fontWeight: 600 }}>{o.title}</strong>
+                      <span style={{ display: 'block', fontSize: '0.8rem', color: '#7e8178', lineHeight: 1.45 }}>{o.desc}</span>
+                    </span>
+                    {o.v === 'envelope' ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTheme({ ...theme, opening: 'envelope' });
+                          setOpeningReplay((n) => n + 1);
+                          setPreviewOpen(true);
+                        }}
+                        style={{ flexShrink: 0, border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#747E68' }}
+                      >
+                        ▶ Voir
+                      </button>
+                    ) : active ? (
+                      <span style={{ flexShrink: 0, fontSize: '0.85rem', fontWeight: 700, color: '#747E68' }}>✓ Choisi</span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+          )}
+
+          {wiz === 'style' && (
+          <section style={block}>
             <h2 style={h2}>🎨 Style & thème</h2>
 
             {/* ── Studio de Design ─────────────────────────────────────────── */}
@@ -1476,6 +1546,7 @@ export function WeddingSiteBuilder() {
                     return (
                       <button
                         key={c.name}
+                        type="button"
                         onClick={() => setTheme(applyColorCombination(theme, c))}
                         style={{ border: isActive ? '2px solid #929B83' : '1.5px solid #ece8e0', borderRadius: 8, padding: '0.4rem 0.3rem', background: isActive ? '#f5f3ee' : '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
                       >
@@ -1789,19 +1860,57 @@ export function WeddingSiteBuilder() {
 
           {wiz === 'textes' && (
           <section style={block}>
-            <h2 style={h2}>Textes du site</h2>
-            <label style={lab}>
-              À la mémoire de... (optionnel)
+            <h2 style={h2}>Les phrases du faire-part</h2>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: '#7e8178', lineHeight: 1.55 }}>
+              Tout est déjà rédigé : modifiez une phrase si vous le souhaitez, ou videz sa case pour la retirer du site.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {INVITATION_TEXT_FIELDS.map((f) => {
+                const value = content.invitationTexts?.[f.key] ?? { fr: '', he: '' };
+                const removed = !value.fr.trim();
+                return (
+                  <div key={f.key} style={{ border: '1px solid #ece8e0', borderRadius: 14, padding: '0.95rem 1rem', background: removed ? '#faf9f6' : '#fff' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                      <strong style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.2rem', fontWeight: 600 }}>{f.title}</strong>
+                      {removed ? (
+                        <button type="button" onClick={() => setInvitationText(f.key, { fr: f.fr })} style={invitationLinkBtn}>
+                          ↺ Remettre le texte proposé
+                        </button>
+                      ) : null}
+                    </div>
+                    <p style={{ margin: '0.15rem 0 0.6rem', fontSize: '0.78rem', color: '#7e8178' }}>
+                      {f.hint} {removed ? '— retirée du site' : '(videz pour retirer)'}
+                    </p>
+                    <textarea
+                      style={{ ...inp, minHeight: 64, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
+                      value={value.fr}
+                      placeholder="Phrase retirée du site"
+                      onChange={(e) => setInvitationText(f.key, { fr: e.target.value })}
+                    />
+                    <details style={{ marginTop: '0.6rem', border: '1px dashed #d8d2c4', borderRadius: 10, padding: '0.5rem 0.75rem' }} open={!!value.he?.trim()}>
+                      <summary style={{ cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#7a6a45' }}>Version hébraïque</summary>
+                      <textarea
+                        dir="rtl"
+                        lang="he"
+                        style={{ ...inp, minHeight: 52, resize: 'vertical', marginTop: '0.5rem', fontFamily: "'Frank Ruhl Libre', serif" }}
+                        value={value.he ?? ''}
+                        placeholder={f.he}
+                        onChange={(e) => setInvitationText(f.key, { he: e.target.value })}
+                      />
+                      {!value.he?.trim() ? (
+                        <button type="button" onClick={() => setInvitationText(f.key, { he: f.he })} style={{ ...invitationLinkBtn, marginTop: '0.4rem' }}>
+                          Insérer la proposition en hébreu
+                        </button>
+                      ) : null}
+                    </details>
+                  </div>
+                );
+              })}
+            </div>
+            <label style={{ ...lab, marginTop: '1rem' }}>
+              Autre texte pour les familles (optionnel)
               <textarea
                 style={{ ...inp, minHeight: 64, resize: 'vertical' }}
-                value={content.texts?.memorialText ?? ''}
-                onChange={(e) => setContent((c) => ({ ...c, texts: { ...(c.texts ?? {}), memorialText: e.target.value } }))}
-              />
-            </label>
-            <label style={lab}>
-              Texte famille (optionnel)
-              <textarea
-                style={{ ...inp, minHeight: 80, resize: 'vertical' }}
                 value={content.texts?.familyText ?? ''}
                 onChange={(e) => setContent((c) => ({ ...c, texts: { ...(c.texts ?? {}), familyText: e.target.value } }))}
               />
@@ -2356,7 +2465,7 @@ export function WeddingSiteBuilder() {
           <span>Aperçu du site</span>
           <button type="button" onClick={() => setPreviewOpen(false)}>Fermer ✕</button>
         </div>
-        <WeddingSitePreview draft={draft} />
+        <WeddingSitePreview draft={draft} openingReplay={openingReplay} />
         <ErrorBoundary>
           <RSVPPreview site={draft} form={rsvpForm} />
         </ErrorBoundary>
@@ -2368,6 +2477,17 @@ export function WeddingSiteBuilder() {
 const formColumn: CSSProperties = { minWidth: 0 };
 
 const h1: CSSProperties = { fontSize: '1.85rem', margin: '0 0 0.5rem', fontWeight: 800 };
+
+const invitationLinkBtn: CSSProperties = {
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  cursor: 'pointer',
+  fontSize: '0.78rem',
+  fontWeight: 600,
+  color: '#7a6a45',
+  textDecoration: 'underline',
+};
 
 const h2: CSSProperties = { fontSize: '1.08rem', margin: '0 0 0.85rem', fontWeight: 700 };
 

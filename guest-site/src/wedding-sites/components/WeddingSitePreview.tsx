@@ -3,9 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import type { WeddingSite } from '../types';
 import { getTemplateByTheme } from '../utils/template-selector';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
+import { EnvelopeOpening } from './EnvelopeOpening';
 
 type Props = {
   draft: WeddingSite;
+  /** Incrémenté par le builder (« ▶ Voir ») pour rejouer l'ouverture dans l'aperçu */
+  openingReplay?: number;
 };
 
 /**
@@ -62,7 +65,7 @@ function usePhoneScale(shellRef: React.RefObject<HTMLDivElement>) {
   return scale;
 }
 
-export function WeddingSitePreview({ draft }: Props) {
+export function WeddingSitePreview({ draft, openingReplay = 0 }: Props) {
   const Template = getTemplateByTheme(draft.theme, draft.language);
   const shellRef = useRef<HTMLDivElement>(null);
   const scale = usePhoneScale(shellRef);
@@ -70,6 +73,11 @@ export function WeddingSitePreview({ draft }: Props) {
   const screenW = Math.round(IPHONE_W * scale); // largeur écran affichée
   const screenH = Math.round(IPHONE_H * scale); // hauteur écran affichée
   const scrollH = screenH - STATUSBAR_H;
+
+  // L'enveloppe ne s'affiche dans l'aperçu qu'à la demande (sinon elle masquerait
+  // le site pendant toute l'édition) ; elle disparaît une fois ouverte.
+  const [envelopeShownFor, setEnvelopeShownFor] = useState(0);
+  const showEnvelope = draft.theme.opening === 'envelope' && openingReplay > 0 && envelopeShownFor !== openingReplay;
 
   return (
     <div className="wedding-preview-shell" ref={shellRef}>
@@ -107,6 +115,27 @@ export function WeddingSitePreview({ draft }: Props) {
                 <Template site={draft} />
               </div>
             </div>
+            {showEnvelope && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: STATUSBAR_H,
+                  left: 0,
+                  width: IPHONE_W,
+                  height: Math.round(scrollH / scale),
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                  zIndex: 4,
+                }}
+              >
+                <EnvelopeOpening
+                  key={openingReplay}
+                  site={draft}
+                  contained
+                  onDone={() => setEnvelopeShownFor(openingReplay)}
+                />
+              </div>
+            )}
           </ErrorBoundary>
         </div>
       </div>

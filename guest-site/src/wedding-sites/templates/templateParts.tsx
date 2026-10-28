@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import type { WeddingSite } from '../types';
 
 import { formatWeddingDate } from '../utils/date';
+import { frenchLongDate, hebrewDateFromIso } from '../utils/hebrewDate';
 import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
 import { sectionLabels } from '../i18n';
 import { deezerTrackId, defaultStartSeconds, fullTrackForDeezer, isYouTubeUrl, resolveDeezerPreview } from '../data/musicSuggestions';
@@ -288,6 +289,88 @@ export function HeroMeta({ site, hideMonogram = false }: { site: WeddingSite; hi
         </div>
       ) : null}
     </>
+  );
+}
+
+/** Le site a-t-il au moins une phrase de faire-part à afficher ? */
+export function hasInvitationTexts(site: WeddingSite): boolean {
+  const t = site.content?.invitationTexts;
+  return !!t && Object.values(t).some((v) => v?.fr?.trim());
+}
+
+/**
+ * Phrases du faire-part, dans l'ordre d'une invitation papier :
+ * remerciements → invitation + date → réception + lieu → pensée → tenue.
+ * La date ne suit que la phrase d'invitation, le lieu que la réception :
+ * vider l'une retire aussi sa ligne (la carte d'en-tête les affiche déjà).
+ * Chaque thème passe ses polices/couleurs — la STRUCTURE est identique partout.
+ */
+export function InvitationTextsBlock({
+  site,
+  textColor,
+  mutedColor,
+  accent,
+  bodyFontFamily,
+  dateFontFamily,
+  size = '1rem',
+}: {
+  site: WeddingSite;
+  textColor: string;
+  mutedColor?: string;
+  accent: string;
+  bodyFontFamily?: string;
+  dateFontFamily?: string;
+  size?: string;
+}) {
+  const texts = site.content?.invitationTexts;
+  if (!texts || !hasInvitationTexts(site)) return null;
+
+  const muted = mutedColor ?? textColor;
+  const phrase: CSSProperties = { margin: 0, fontFamily: bodyFontFamily, fontSize: size, lineHeight: 1.75, color: textColor, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' };
+  const soft: CSSProperties = { ...phrase, fontStyle: 'italic', color: muted };
+  const hebrew: CSSProperties = { margin: '0.3rem 0 0', fontFamily: "'Frank Ruhl Libre', 'Noto Serif Hebrew', serif", fontSize: `calc(${size} * 0.95)`, lineHeight: 1.7, color: muted, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' };
+  const line: CSSProperties = { margin: '0.35rem 0 0', fontFamily: dateFontFamily ?? bodyFontFamily, fontSize: `calc(${size} * 1.12)`, lineHeight: 1.5, color: accent, overflowWrap: 'anywhere' };
+
+  const Phrase = ({ text, style }: { text?: { fr: string; he?: string }; style: CSSProperties }) =>
+    text?.fr?.trim() ? (
+      <>
+        <p style={style}>{text.fr.trim()}</p>
+        {text.he?.trim() ? <p dir="rtl" lang="he" style={hebrew}>{text.he.trim()}</p> : null}
+      </>
+    ) : null;
+
+  const dateIso = site.date?.slice(0, 10) ?? '';
+  const longDate = dateIso ? frenchLongDate(dateIso) : '';
+  const hebDate = dateIso ? hebrewDateFromIso(dateIso)?.fr : '';
+  const time = /^\d{1,2}:\d{2}/.test(site.time ?? '') ? site.time.slice(0, 5).replace(':', 'h') : '';
+  const place = [site.venue || site.content?.venue?.name, site.city].map((s) => s?.trim()).filter(Boolean).join(' — ');
+
+  const groups: ReactNode[] = [];
+  if (texts.thanks?.fr?.trim()) groups.push(<Phrase key="thanks" text={texts.thanks} style={phrase} />);
+  if (texts.invitation?.fr?.trim()) {
+    groups.push(
+      <div key="invitation">
+        <Phrase text={texts.invitation} style={phrase} />
+        {longDate ? <p style={line}>{[longDate, hebDate].filter(Boolean).join(' — ')}</p> : null}
+        {time ? <p style={{ ...line, marginTop: '0.1rem', fontSize: size }}>à {time}</p> : null}
+      </div>,
+    );
+  }
+  if (texts.reception?.fr?.trim()) {
+    groups.push(
+      <div key="reception">
+        <Phrase text={texts.reception} style={phrase} />
+        {place ? <p style={line}>{place}</p> : null}
+      </div>,
+    );
+  }
+  if (texts.memorial?.fr?.trim()) groups.push(<Phrase key="memorial" text={texts.memorial} style={soft} />);
+  if (texts.dressCode?.fr?.trim()) groups.push(<Phrase key="dressCode" text={texts.dressCode} style={soft} />);
+
+  return (
+    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '1.35rem' }}>
+      {groups}
+    </div>
   );
 }
 
@@ -974,7 +1057,8 @@ export function PhotoGallery({ site, photos }: { site: WeddingSite; photos: stri
 
   return (
     <>
-      {/* Mise en avant de la 1re photo quand il y en a ≥ 3 */}
+      {/* Mise en avant de la 1re photo quand il y en a ≥ 3 — proportions d'origine
+          (pas de recadrage forcé : un portrait reste un portrait). */}
       {photos.length >= 3 && (
         <button
           type="button"
@@ -985,7 +1069,7 @@ export function PhotoGallery({ site, photos }: { site: WeddingSite; photos: stri
             src={photos[0]}
             alt="Photo 1"
             loading="lazy"
-            style={{ width: '100%', aspectRatio: '16 / 9', objectFit: 'cover', display: 'block', borderRadius: radius, boxShadow: `0 18px 50px -22px ${t.primaryColor}66` }}
+            style={{ width: '100%', height: 'auto', display: 'block', borderRadius: radius, boxShadow: `0 18px 50px -22px ${t.primaryColor}66` }}
           />
         </button>
       )}

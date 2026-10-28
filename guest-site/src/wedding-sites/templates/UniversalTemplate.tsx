@@ -8,7 +8,7 @@
  */
 import type { WeddingTemplateProps } from '../types';
 import { cardStyleSurface } from './templateCardStyles';
-import { getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { getFamilyColumns, HiddenAutoMusic, InvitationTextsBlock, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
 import { SectionSeparator } from './SectionSeparator';
 import { PatternOverlay } from './PatternOverlay';
 import {
@@ -258,6 +258,37 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
               ) : null}
             </div>
           </section>
+        ) : null}
+
+        {/* Phrases du faire-part (remerciements → invitation → réception → pensée → tenue) */}
+        {hasInvitationTexts(site) ? (
+          isVintage ? (
+            <section style={{ marginBottom: '1.5rem' }}>
+              <VintageRibbon width={100} color={V.colors.primary} style={{ marginBottom: '0.9rem' }} />
+              <InvitationTextsBlock
+                site={site}
+                textColor={V.colors.ink}
+                mutedColor={V.colors.inkMuted}
+                accent={V.colors.primary}
+                bodyFontFamily={V.fonts.body}
+                size="0.95rem"
+              />
+              <VintageDivider width={180} color={V.colors.primary} style={{ marginTop: '1.2rem' }} />
+            </section>
+          ) : (
+            <section style={{ marginBottom: '2rem' }}>
+              <div style={cardStyleSurface({ theme: t })}>
+                <InvitationTextsBlock
+                  site={site}
+                  textColor={t.textColor}
+                  mutedColor={t.mutedTextColor}
+                  accent={t.accentColor ?? t.primaryColor}
+                  bodyFontFamily={t.fontFamily}
+                  dateFontFamily={t.titleFontFamily}
+                />
+              </div>
+            </section>
+          )
         ) : null}
 
         <div style={{ textAlign: site.language === 'he' ? 'right' : 'center' }}>

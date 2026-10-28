@@ -9,6 +9,7 @@ import type { WeddingSite } from '../types';
 import { defaultWeddingSections, defaultWeddingTheme } from '../types';
 import { getTemplateByTheme } from '../utils/template-selector';
 import { filterSiteForInvite, getActiveInviteToken, setActiveInviteToken } from '../utils/inviteFilter';
+import { EnvelopeOpening } from './EnvelopeOpening';
 
 export function WeddingPublicPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -16,6 +17,8 @@ export function WeddingPublicPage() {
   const [site, setSite] = useState<WeddingSite | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Enveloppe cachetée : ouverte une fois par session de navigation (pas à chaque retour du RSVP)
+  const [envelopeDone, setEnvelopeDone] = useState(false);
 
   // Clé privée du site : arrive via ?k= dans le lien partagé aux invités.
   // Captée avant le fetch (et mémorisée pour les navigations internes → /rsvp).
@@ -119,6 +122,19 @@ export function WeddingPublicPage() {
   const pageTitle = `${coupleLabel} — Site de mariage`;
   const heroImage = (site?.content as Record<string, unknown> | undefined)?.heroImageUrl as string | undefined;
 
+  const showEnvelope = !!site && site.theme?.opening === 'envelope' && !envelopeDone && !envelopeSeen(site.slug);
+
+  // Pas de défilement du site derrière l'enveloppe fermée
+  useEffect(() => {
+    if (!showEnvelope) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.scrollTo(0, 0);
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showEnvelope]);
+
   // Must be before any conditional return — hooks must always run in the same order
   useEffect(() => {
     if (!site) return;
@@ -161,6 +177,15 @@ export function WeddingPublicPage() {
   return (
     <>
       <Template site={visibleSite} />
+      {showEnvelope && (
+        <EnvelopeOpening
+          site={site}
+          onDone={() => {
+            markEnvelopeSeen(site.slug);
+            setEnvelopeDone(true);
+          }}
+        />
+      )}
       {!site.hideSignature && (
         <footer style={footerStyle}>
           <a href="mailto:support@ohevewedding.com" style={footerLinkStyle}>
@@ -204,3 +229,22 @@ const footerLinkStyle: CSSProperties = {
 const footerSepStyle: CSSProperties = {
   color: '#d1d5db',
 };
+
+const ENVELOPE_SEEN_KEY = 'oheve_envelope_seen:';
+
+/** Confort de navigation seulement (sessionStorage peut être indisponible : on rejoue alors l'enveloppe). */
+function envelopeSeen(slug: string): boolean {
+  try {
+    return sessionStorage.getItem(ENVELOPE_SEEN_KEY + slug) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markEnvelopeSeen(slug: string) {
+  try {
+    sessionStorage.setItem(ENVELOPE_SEEN_KEY + slug, '1');
+  } catch {
+    /* navigation privée : sans conséquence */
+  }
+}

@@ -21,7 +21,7 @@ import { voileTokens } from '../themes/VoileIvoireTheme';
 import type { VoileTokens } from '../themes/VoileIvoireTheme';
 import { VoileFrame, VoileDivider } from './VoileOrnaments';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
-import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationTextsBlock, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
 import type { ResolvedFamilyColumn } from './templateParts';
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -520,6 +520,21 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
       ) : null}
 
       <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} />
+
+      {/* Phrases du faire-part (remerciements → invitation → réception → pensée → tenue) */}
+      {hasInvitationTexts(site) ? (
+        <Card tk={tk}>
+          <InvitationTextsBlock
+            site={site}
+            textColor={tk.colors.text}
+            mutedColor={tk.colors.textMuted}
+            // L'argent des ornements est trop pâle pour la date et le lieu : encre du texte
+            accent={tk.colors.text}
+            bodyFontFamily={tk.fonts.body}
+            size="1.08rem"
+          />
+        </Card>
+      ) : null}
 
 
 

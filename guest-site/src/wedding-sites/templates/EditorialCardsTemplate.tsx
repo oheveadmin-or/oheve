@@ -23,7 +23,7 @@ import { editorialTokens } from '../themes/EditorialCardsTheme';
 import type { EditorialTokens } from '../themes/EditorialCardsTheme';
 import { EditorialDivider, EditorialIcon } from './EditorialCardIcons';
 import type { EditorialIconKey } from './EditorialCardIcons';
-import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationTextsBlock, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
 import { PatternOverlay } from './PatternOverlay';
 import type { ResolvedFamilyColumn } from './templateParts';
 
@@ -532,6 +532,21 @@ export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
       ) : null}
 
       <FamiliesCard tk={tk} columns={getFamilyColumns(site)} title={L.families} icon={icon} />
+
+      {/* Phrases du faire-part (remerciements → invitation → réception → pensée → tenue) */}
+      {hasInvitationTexts(site) ? (
+        <Card tk={tk}>
+          <InvitationTextsBlock
+            site={site}
+            textColor={tk.colors.text}
+            mutedColor={tk.colors.textMuted}
+            accent={tk.colors.accent}
+            bodyFontFamily={tk.fonts.body}
+            dateFontFamily={tk.fonts.display}
+            size="1.05rem"
+          />
+        </Card>
+      ) : null}
 
 
 

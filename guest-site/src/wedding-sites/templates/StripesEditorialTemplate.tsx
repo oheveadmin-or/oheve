@@ -20,7 +20,7 @@ import { TITLE_SIZE_SCALE } from '../types';
 import { sectionLabels } from '../i18n';
 import { formatWeddingDate } from '../utils/date';
 import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
-import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, PublicStickyNav, renderOptionalSections } from './templateParts';
+import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationTextsBlock, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
 import { FloralLayer, PatternOverlay } from './PatternOverlay';
 import { SectionSeparator } from './SectionSeparator';
 import { cardStyleSurface } from './templateCardStyles';
@@ -434,6 +434,23 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
         </section>
       )}
 
+      {/* ── 1b-bis. Phrases du faire-part — sous les familles, comme sur l'invitation papier ── */}
+      {hasInvitationTexts(site) && (
+        <section style={{ background: 'transparent', padding: '0 clamp(1.2rem,5cqw,2rem) clamp(1.5rem,4cqw,2.5rem)' }}>
+          <div style={{ maxWidth: 620, margin: '0 auto' }}>
+            <InvitationTextsBlock
+              site={site}
+              textColor={inkProg}
+              mutedColor={mutedProg}
+              accent={stripe}
+              bodyFontFamily={fontBody}
+              dateFontFamily={fontTitle}
+              size="0.98rem"
+            />
+          </div>
+        </section>
+      )}
+
       {/* ── 1c. Texte principal (mot d'accueil libre) — même carte que les
               sections fonctionnelles plus bas, pour épouser la largeur et la
               hauteur de son contenu quel que soit le thème. Toujours affiché
@@ -658,7 +675,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
             src={featuredPhoto}
             alt=""
             loading="lazy"
-            style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block' }}
+            style={{ width: '100%', height: 'auto', display: 'block' }}
           />
         </div>
       )}
@@ -668,7 +685,14 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
       <section style={{ background: 'transparent', padding: '0 clamp(1.2rem,5cqw,2rem)' }}>
         <div style={{ maxWidth: 620, margin: '0 auto' }}>
           {renderOptionalSections(
-            { ...site, sections: { ...site.sections, program: false, rsvp: false } },
+            {
+              ...site,
+              sections: { ...site.sections, program: false, rsvp: false },
+              // La 1re photo est déjà affichée en pleine largeur ci-dessus : pas de doublon dans la galerie.
+              content: featuredPhoto
+                ? { ...site.content, galleryPhotos: (site.content?.galleryPhotos ?? []).filter(Boolean).slice(1) }
+                : site.content,
+            },
             cardStyleSurface,
           )}
         </div>

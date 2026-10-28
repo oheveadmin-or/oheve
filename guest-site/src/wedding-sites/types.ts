@@ -140,6 +140,8 @@ export type WeddingTheme = {
   cornerDecor?: boolean;
   /** Navigation style shown to guests on the public site */
   navStyle?: 'horizontal' | 'hamburger' | 'minimal';
+  /** Arrivée de l'invité : site tout de suite (défaut) ou enveloppe cachetée à ouvrir */
+  opening?: 'direct' | 'envelope';
   /** Éditorial Rayures uniquement — largeur d'une rayure du hero, en px (défaut 8) */
   stripeWidth?: number;
   /** Éditorial Rayures uniquement — opacité des rayures du hero, 0–1 (défaut 1) */
@@ -241,6 +243,29 @@ export type WeddingNarrativeTexts = {
   familyText?: string;
 };
 
+/** Phrase du faire-part en français, avec sa version hébraïque facultative. */
+export type BilingualText = {
+  fr: string;
+  he?: string;
+};
+
+/**
+ * Phrases toutes faites du faire-part, préremplies dans le builder.
+ * Une phrase vidée (fr === '') est retirée du site.
+ */
+export type InvitationTexts = {
+  /** Sous les noms des familles : « Remercient Hachem… » */
+  thanks?: BilingualText;
+  /** Juste avant la date : « et vous prient d'assister à la Houppa… » */
+  invitation?: BilingualText;
+  /** Après la date : « Ainsi qu'à la réception qui suivra. » + le lieu */
+  reception?: BilingualText;
+  /** Pensée pour les proches disparus */
+  memorial?: BilingualText;
+  /** Le petit mot de la fin : la tenue */
+  dressCode?: BilingualText;
+};
+
 export type CoupleStoryItem = {
   id: string;
   year: string;
@@ -290,6 +315,8 @@ export type WeddingSiteContent = {
   accommodations?: AccommodationItem[];
   faq?: FAQItem[];
   texts?: WeddingNarrativeTexts;
+  /** Phrases du faire-part (remerciements, invitation, réception, pensée, tenue) */
+  invitationTexts?: InvitationTexts;
   musicUrl?: string;
   dressCode?: DressCodeConfig;
   coupleStory?: CoupleStoryItem[];
