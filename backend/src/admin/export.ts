@@ -31,7 +31,6 @@ export const EXPORT_SHEETS = {
       SELECT pp.user_id AS "ID", pp.business_name AS "Entreprise", pp.category AS "Catégorie",
              u.prenom AS "Prénom", u.nom AS "Nom",
              ${sqlVisibleEmail('u.email')} AS "Email", u.username AS "Identifiant",
-             apc.password AS "Mot de passe provisoire",
              COALESCE(pp.phone, u.phone) AS "Téléphone", pp.location_city AS "Ville",
              pp.price_range AS "Gamme de prix", pp.website_url AS "Site web", pp.instagram_url AS "Instagram",
              CASE
@@ -48,7 +47,6 @@ export const EXPORT_SHEETS = {
       FROM prestataire_profiles pp
       JOIN users u ON u.id = pp.user_id
       LEFT JOIN stripe_connect_accounts sca ON sca.user_id = pp.user_id
-      LEFT JOIN admin_presta_credentials apc ON apc.user_id = pp.user_id
       ORDER BY pp.created_at DESC`,
   },
   paiements: {
