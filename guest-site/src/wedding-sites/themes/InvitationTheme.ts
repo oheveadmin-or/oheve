@@ -30,7 +30,7 @@ function withAlpha(hex: string, alpha: number): string {
 
 const scaled = (base: string, k: number) => (k === 1 ? base : `calc(${base} * ${k})`);
 
-/** Effets activés : un effet absent du thème vaut « activé ». */
+/** Effets activés : un effet absent du thème vaut « activé » (sauf `bsd`). */
 export function invitationEffects(theme: WeddingTheme): Required<InvitationEffects> {
   const e = theme.invitation ?? {};
   return {
@@ -39,6 +39,10 @@ export function invitationEffects(theme: WeddingTheme): Required<InvitationEffec
     glass: e.glass !== false,
     calendar: e.calendar !== false,
     bottomBar: e.bottomBar !== false,
+    // Le rendu « une page par événement » est le rendu par défaut du modèle
+    pages: e.pages !== false,
+    // Option à activer explicitement : absente = désactivée
+    bsd: e.bsd === true,
   };
 }
 

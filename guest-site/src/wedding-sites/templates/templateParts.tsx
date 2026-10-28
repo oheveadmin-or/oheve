@@ -727,7 +727,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
  * 3. fichier envoyé / URL .mp3 du couple → lu tel quel, en boucle.
  * Les liens YouTube ne sont plus lus (le lecteur ne peut pas être caché).
  */
-function useMusicPlayer(url: string | undefined) {
+export function useMusicPlayer(url: string | undefined) {
   const raw = url?.trim() || '';
   const trimmed = isYouTubeUrl(raw) ? '' : raw;
   const [playing, setPlaying] = useState(false);
