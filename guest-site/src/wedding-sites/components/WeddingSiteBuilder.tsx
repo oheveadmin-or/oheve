@@ -160,6 +160,9 @@ const DEFAULT_JEWISH_EVENTS: { type: JewishWeddingEvent['type']; label: string; 
 
 const initialDate = (): { date: string; time: string } => ({ date: '', time: '' });
 
+/** Modèle unique proposé (cf. VISIBLE_STYLE_IDS) : pas d'écran « Choisissez votre thème » */
+const SINGLE_MODEL: ThemePreset | null = STYLE_PRESETS.length === 1 ? STYLE_PRESETS[0] : null;
+
 // ─── Parcours en étapes (une étape à l'écran à la fois) ──────────────────────
 const WIZARD_STEPS = [
   { id: 'maries', tab: 'Mariés', title: 'Les mariés', sub: 'Vos prénoms, en grand sur le site, et votre monogramme.' },
@@ -167,7 +170,7 @@ const WIZARD_STEPS = [
   { id: 'passouk', tab: 'Passouk', title: 'Le passouk', sub: 'Le verset en arc, en haut du site.' },
   { id: 'date', tab: 'Date & lieu', title: 'Date & lieu', sub: 'La date, la salle et le programme de vos événements.' },
   { id: 'textes', tab: 'Textes', title: 'Les textes', sub: 'Chaque phrase, à votre façon.' },
-  { id: 'style', tab: 'Style', title: 'Le style du site', sub: 'Couleurs, polices et sections affichées.' },
+  { id: 'style', tab: 'Style', title: 'Le style du site', sub: SINGLE_MODEL ? 'Polices et sections affichées.' : 'Couleurs, polices et sections affichées.' },
   { id: 'invitation', tab: 'Invitation', title: "L'invitation animée", sub: "L'ouverture, les animations et ce que vos invités pourront faire." },
   { id: 'musique', tab: 'Musique', title: 'La musique', sub: 'La chanson qui accompagne votre site.' },
   { id: 'photos', tab: 'Photos', title: 'Vos photos', sub: 'La galerie de votre site.' },
@@ -198,7 +201,7 @@ export function WeddingSiteBuilder() {
   const [slugCustom, setSlugCustom] = useState('');
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
 
-  const [step, setStep] = useState<'pick' | 'build'>('pick');
+  const [step, setStep] = useState<'pick' | 'build'>(SINGLE_MODEL ? 'build' : 'pick');
   const [wizIdx, setWizIdx] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
   const formColumnRef = useRef<HTMLDivElement>(null);
@@ -233,7 +236,9 @@ export function WeddingSiteBuilder() {
   // Site uniquement en français — le sélecteur de langue a été retiré.
   const language: SiteLanguage = 'fr';
   // Nouveau site : l'enveloppe cachetée est proposée d'office (les sites existants gardent leur arrivée)
-  const [theme, setTheme] = useState<WeddingTheme>(() => applyThemePreset({ ...defaultWeddingTheme(), opening: 'envelope' }));
+  const [theme, setTheme] = useState<WeddingTheme>(() =>
+    applyThemePreset({ ...defaultWeddingTheme(), ...(SINGLE_MODEL ? { ...SINGLE_MODEL.theme, style: SINGLE_MODEL.id } : {}), opening: 'envelope' } as WeddingTheme),
+  );
   /** Rejoue l'ouverture dans l'aperçu (« ▶ Voir ») */
   const [openingReplay, setOpeningReplay] = useState(0);
   // Nom d'invité de l'essai « ▶ Voir » d'un lien personnalisé ('' = enveloppe sans nom)
@@ -956,7 +961,7 @@ export function WeddingSiteBuilder() {
           <h1 style={h1}>{namesLocked ? `Personnaliser le site · ${groomName} & ${brideName}` : 'Créer le mini-site'}</h1>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <Link to="/" style={{ fontSize: '0.92rem' }}>← Retour</Link>
-            {(
+            {!SINGLE_MODEL && (
               <button
                 type="button"
                 onClick={() => setStep('pick')}
@@ -1350,6 +1355,8 @@ export function WeddingSiteBuilder() {
           <section style={block}>
             <h2 style={h2}>🎨 Style & thème</h2>
 
+            {/* Invitation animée : décor et couleurs fixes du modèle — ni studio ni couleurs à choisir */}
+            {theme.style !== 'invitation-animee' && (<>
             {/* ── Studio de Design ─────────────────────────────────────────── */}
             <div style={{ marginTop: '0.5rem', padding: '1rem', background: 'linear-gradient(135deg, #FCFBF9 0%, #F5F2ED 100%)', borderRadius: 12, border: '1px solid #E2DED5' }}>
               <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', fontWeight: 800, color: '#929B83', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -1388,7 +1395,7 @@ export function WeddingSiteBuilder() {
               )}
 
               {/* Hero Style — sans effet sur les templates autonomes (hero sur-mesure). Voile Ivoire et Vintage Bleu n'ont même pas de bandeau d'info : section masquée entièrement. */}
-              {theme.style === 'voile-ivoire' || theme.style === 'vintage-blue' || theme.style === 'invitation-animee' ? null : ['stripes-editorial', 'editorial-cards'].includes(theme.style) ? (
+              {theme.style === 'voile-ivoire' || theme.style === 'vintage-blue' ? null : ['stripes-editorial', 'editorial-cards'].includes(theme.style) ? (
                 <p style={{ margin: '0 0 1.25rem', padding: '0.6rem 0.75rem', background: '#fffdf5', border: '1px solid #e7dfc9', borderRadius: 10, fontSize: '0.74rem', color: '#8a8060', lineHeight: 1.5 }}>
                   ℹ️ Ce thème a un haut de page sur-mesure : le « style du hero » ne s'applique pas.
                   Les motifs, séparateurs, cartes et couleurs ci-dessous restent actifs.
@@ -1428,7 +1435,7 @@ export function WeddingSiteBuilder() {
               )}
 
               {/* Pattern de fond — Voile Ivoire et Vintage Bleu ont leur propre fond, section masquée. */}
-              {theme.style !== 'voile-ivoire' && theme.style !== 'vintage-blue' && theme.style !== 'invitation-animee' && (
+              {theme.style !== 'voile-ivoire' && theme.style !== 'vintage-blue' && (
               <>
               <p style={studioSectionLabel}>Motif de fond</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 5, marginBottom: '0.75rem' }}>
@@ -1618,6 +1625,7 @@ export function WeddingSiteBuilder() {
                 <input style={{ ...inp, padding: 4, height: 40 }} type="color" value={theme.textColor} onChange={(e) => setTheme({ ...theme, textColor: e.target.value })} />
               </label>
             </div>
+            </>)}
 
             {/* ── Typographie : trois rôles (Titres / Prénoms / Texte) ───────── */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
@@ -2078,16 +2086,6 @@ export function WeddingSiteBuilder() {
                       <h2 style={h2}>La présentation</h2>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
                         <label style={inviteToggleRow}>
-                          <input type="checkbox" checked={fx.pages} onChange={(e) => setFx('pages', e.target.checked)} style={inviteCheckbox} />
-                          <span>
-                            <strong style={{ display: 'block', fontSize: '0.92rem' }}>Une page par événement</strong>
-                            <span style={{ display: 'block', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.45 }}>
-                              Onglets en bas de l'écran ({[...enabledEvents.map((e) => e.label), 'Réponses'].join(' · ')}) : chaque événement a sa page
-                              avec date hébraïque, adresse et boutons Waze · Plans · Google Maps. Le formulaire de réponse s'ouvre dans l'onglet « Réponses ».
-                            </span>
-                          </span>
-                        </label>
-                        <label style={inviteToggleRow}>
                           <input type="checkbox" checked={fx.bsd} onChange={(e) => setFx('bsd', e.target.checked)} style={inviteCheckbox} />
                           <span>
                             <strong style={{ display: 'block', fontSize: '0.92rem' }}>Mention « בס״ד »</strong>
@@ -2158,7 +2156,7 @@ export function WeddingSiteBuilder() {
                         ))}
                       </div>
                       <p style={{ margin: '0.85rem 0 0', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
-                        Couleurs et polices : étape{' '}
+                        Polices : étape{' '}
                         <button type="button" onClick={() => goToStep(stepIndex('style'))} style={inviteLinkBtn}>Style</button>.
                       </p>
                     </section>
