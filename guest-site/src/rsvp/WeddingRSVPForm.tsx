@@ -28,13 +28,10 @@ export function WeddingRSVPForm({
   form: RSVPForm;
   preview?: boolean;
   slugHint?: string;
-  /** Intégré dans une page du site (onglet « Réponses ») : sans fond pleine page ni lien retour */
+  /** Intégré dans la page du site (modèle Invitation animée) : ni cadre de page ni lien retour */
   embedded?: boolean;
 }) {
   const ui = useWeddingTheme(site, form);
-  const pageStyle: CSSProperties = embedded
-    ? { fontFamily: ui.page.fontFamily, color: ui.page.color, padding: 0 }
-    : ui.page;
   const lang = site.language;
   const S = useMemo(() => rsvpStrings(lang), [lang]);
   const settings = normalizeSettings(form);
@@ -126,9 +123,13 @@ export function WeddingRSVPForm({
     return m ? <span style={{ color: '#fecaca', fontSize: '0.8rem', marginTop: 4, display: 'block' }}>{m}</span> : null;
   }
 
+  // Intégré au site : un simple bloc à la place de la page entière
+  const Shell = embedded ? 'div' : 'main';
+  const shellStyle = embedded ? undefined : ui.page;
+
   if (success) {
     return (
-      <main dir={dir} style={pageStyle}>
+      <Shell dir={dir} style={shellStyle} role={embedded ? 'status' : undefined}>
         <div style={{ ...ui.card, ...successCardPulse }} className="rsvp-success-pop">
           <p style={{ ...ui.heading }}>RSVP</p>
           <h1 style={ui.titleMain}>{S.successTitle}</h1>
@@ -136,27 +137,27 @@ export function WeddingRSVPForm({
             {form.thankYouText?.trim() || S.successBody}
           </p>
           {embedded ? null : (
-          <Link
-            to={`/wedding/${site.slug}`}
-            style={{
-              ...ui.submitBtn,
-              display: 'block',
-              textAlign: 'center',
-              marginTop: 16,
-              textDecoration: 'none',
-              lineHeight: 1,
-            }}
-          >
-            RETOUR AU SITE
-          </Link>
+            <Link
+              to={`/wedding/${site.slug}`}
+              style={{
+                ...ui.submitBtn,
+                display: 'block',
+                textAlign: 'center',
+                marginTop: 16,
+                textDecoration: 'none',
+                lineHeight: 1,
+              }}
+            >
+              RETOUR AU SITE
+            </Link>
           )}
         </div>
-      </main>
+      </Shell>
     );
   }
 
   return (
-    <main dir={dir} style={pageStyle}>
+    <Shell dir={dir} style={shellStyle}>
       {embedded ? null : (
         <div style={{ maxWidth: 560, margin: '0 auto 1rem', textAlign: rtl ? 'right' : 'left' }}>
           <Link style={{ fontSize: '0.92rem', color: ui.secondaryColor }} to={`/wedding/${site.slug}`}>
@@ -165,8 +166,13 @@ export function WeddingRSVPForm({
         </div>
       )}
       <form onSubmit={handleSubmit} style={ui.card}>
-        <p style={{ ...ui.heading, textAlign }}>{coupleEyebrow(site)}</p>
-        <h1 style={{ ...ui.titleMain, textAlign }}>{form.title?.trim() || S.pageTitle}</h1>
+        {/* Intégré : le modèle affiche déjà son propre titre au-dessus */}
+        {embedded ? null : (
+          <>
+            <p style={{ ...ui.heading, textAlign }}>{coupleEyebrow(site)}</p>
+            <h1 style={{ ...ui.titleMain, textAlign }}>{form.title?.trim() || S.pageTitle}</h1>
+          </>
+        )}
         <p style={{ ...subtitle, color: ui.primaryColor + 'cc', textAlign }}>
           {form.introText?.trim() || S.subtitle}
         </p>
@@ -385,7 +391,7 @@ export function WeddingRSVPForm({
           </button>
         )}
       </form>
-    </main>
+    </Shell>
   );
 }
 

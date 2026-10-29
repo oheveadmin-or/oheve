@@ -77,13 +77,13 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
   {
     id: 'invitation-animee',
     label: '✦ Invitation animée',
-    description: 'Faire-part qui prend vie : pétales, compte à rebours, programme à ajouter à l’agenda, « Cassez le verre »',
+    description: 'Carte au nom de l’invité qui s’ouvre en enveloppe, fleur ivoire, une page par événement et réponse intégrée',
     theme: {
       style: 'invitation-animee',
-      backgroundColor: '#FAF6EF',
-      textColor: '#343630',
-      primaryColor: '#9A7B55',
-      secondaryColor: '#929B83',
+      backgroundColor: '#FFF9F2',
+      textColor: '#6F5B46',
+      primaryColor: '#A88D70',
+      secondaryColor: '#C9B79F',
       fontFamily: "'Cormorant Garamond', Georgia, serif",
       cardStyle: 'shadow',
       layout: 'centered',
@@ -615,8 +615,8 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
  * ordre. Les autres presets restent dans `ALL_STYLE_PRESETS` pour les sites
  * existants, mais ne sont plus proposés à la création.
  */
-// Un seul modèle proposé : l'Invitation animée (pages, rose, monogramme doré).
-// Le sélecteur de thème est alors sauté dans le builder.
+// Un seul modèle proposé : l'Invitation animée. Le sélecteur de thème est
+// alors sauté dans le builder.
 const VISIBLE_STYLE_IDS: ThemeStyle[] = ['invitation-animee'];
 
 export const STYLE_PRESETS: ThemePreset[] = VISIBLE_STYLE_IDS

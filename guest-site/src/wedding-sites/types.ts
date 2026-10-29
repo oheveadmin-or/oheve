@@ -115,23 +115,16 @@ export type SeparatorStyle =
  * du builder. Chaque effet absent vaut `true` (activé par défaut).
  */
 export type InvitationEffects = {
-  /** Pétales qui tombent doucement sur la carte d'en-tête */
-  petals?: boolean;
-  /** Les cartes apparaissent en douceur au défilement */
+  /** Ouverture : carte au nom de l'invité → enveloppe → écran « Voir l'invitation » */
+  opening?: boolean;
+  /** Compte à rebours sur l'écran d'ouverture */
+  countdown?: boolean;
+  /** Les pages apparaissent en douceur au défilement */
   reveal?: boolean;
-  /** Mini-jeu « Cassez le verre » → Mazal Tov */
-  glass?: boolean;
-  /** Boutons « Ajouter à mon agenda » sur chaque événement */
-  calendar?: boolean;
-  /** Barre fixe en bas : Répondre · Itinéraire */
-  bottomBar?: boolean;
-  /**
-   * Une page par événement, avec onglets en bas (Mairie · Henné · Mariage ·
-   * Réponses). Désactivé par défaut : absent = un seul long défilement.
-   */
-  pages?: boolean;
-  /** Mention « בס״ד » en haut du site. Désactivée par défaut. */
+  /** Mention « בס״ד » en tête de chaque page */
   bsd?: boolean;
+  /** Barre d'onglets en bas : un onglet par événement + Réponses */
+  bottomBar?: boolean;
 };
 
 export type WeddingTheme = {

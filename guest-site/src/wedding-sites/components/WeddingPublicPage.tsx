@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 import { mapLegacyPublicSiteToWeddingSite, type LegacyPublicPayload } from '../utils/legacyPublicSite';
@@ -11,6 +11,8 @@ import { getTemplateByTheme } from '../utils/template-selector';
 import { filterSiteForInvite, getActiveInviteToken, setActiveInviteToken } from '../utils/inviteFilter';
 import { resolveGuestName } from '../utils/guestName';
 import { EnvelopeOpening } from './EnvelopeOpening';
+import { InvitationOpening } from './InvitationOpening';
+import { invitationEffects } from '../themes/InvitationTheme';
 
 export function WeddingPublicPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -125,9 +127,22 @@ export function WeddingPublicPage() {
   const pageTitle = `${coupleLabel} — Site de mariage`;
   const heroImage = (site?.content as Record<string, unknown> | undefined)?.heroImageUrl as string | undefined;
 
+  // Invitation animée : son ouverture (carte → enveloppe → accueil) fait partie du modèle
+  const animatedInvitation = site?.theme?.style === 'invitation-animee';
   // Un lien au nom d'un invité ouvre toujours l'enveloppe (c'est tout son intérêt)
-  const showEnvelope =
-    !!site && (site.theme?.opening === 'envelope' || !!guestName) && !envelopeDone && !envelopeSeen(site.slug);
+  const wantsOpening = site && animatedInvitation
+    ? invitationEffects(site.theme).opening || !!guestName
+    : site?.theme?.opening === 'envelope' || !!guestName;
+  const showEnvelope = !!site && wantsOpening && !envelopeDone && !envelopeSeen(site.slug);
+
+  // Site derrière l'ouverture : ni clavier ni lecteur d'écran tant qu'elle est affichée
+  const behindRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = behindRef.current;
+    if (!el) return;
+    if (showEnvelope) el.setAttribute('inert', '');
+    else el.removeAttribute('inert');
+  }, [showEnvelope, site]);
 
   // Pas de défilement du site derrière l'enveloppe fermée
   useEffect(() => {
@@ -181,17 +196,21 @@ export function WeddingPublicPage() {
   const visibleSite = filterSiteForInvite(site, getActiveInviteToken(site.slug));
   return (
     <>
-      <Template site={visibleSite} />
-      {showEnvelope && (
-        <EnvelopeOpening
-          site={site}
-          guestName={guestName}
-          onDone={() => {
+      <div ref={behindRef}>
+        <Template site={visibleSite} />
+      </div>
+      {showEnvelope &&
+        (() => {
+          const done = () => {
             markEnvelopeSeen(site.slug);
             setEnvelopeDone(true);
-          }}
-        />
-      )}
+          };
+          return animatedInvitation ? (
+            <InvitationOpening site={visibleSite} guestName={guestName} onDone={done} />
+          ) : (
+            <EnvelopeOpening site={site} guestName={guestName} onDone={done} />
+          );
+        })()}
       {!site.hideSignature && (
         <footer style={footerStyle}>
           <a href="mailto:support@ohevewedding.com" style={footerLinkStyle}>

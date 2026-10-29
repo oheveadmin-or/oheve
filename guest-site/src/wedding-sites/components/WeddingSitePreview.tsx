@@ -4,6 +4,8 @@ import type { WeddingSite } from '../types';
 import { getTemplateByTheme } from '../utils/template-selector';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { EnvelopeOpening } from './EnvelopeOpening';
+import { InvitationOpening } from './InvitationOpening';
+import { invitationEffects } from '../themes/InvitationTheme';
 
 type Props = {
   draft: WeddingSite;
@@ -79,8 +81,11 @@ export function WeddingSitePreview({ draft, openingReplay = 0, openingGuestName 
   // L'enveloppe ne s'affiche dans l'aperçu qu'à la demande (sinon elle masquerait
   // le site pendant toute l'édition) ; elle disparaît une fois ouverte.
   const [envelopeShownFor, setEnvelopeShownFor] = useState(0);
-  const showEnvelope =
-    (draft.theme.opening === 'envelope' || !!openingGuestName) && openingReplay > 0 && envelopeShownFor !== openingReplay;
+  const animatedInvitation = draft.theme.style === 'invitation-animee';
+  const wantsOpening = animatedInvitation
+    ? invitationEffects(draft.theme).opening || !!openingGuestName
+    : draft.theme.opening === 'envelope' || !!openingGuestName;
+  const showEnvelope = wantsOpening && openingReplay > 0 && envelopeShownFor !== openingReplay;
 
   return (
     <div className="wedding-preview-shell" ref={shellRef}>
@@ -131,13 +136,23 @@ export function WeddingSitePreview({ draft, openingReplay = 0, openingGuestName 
                   zIndex: 4,
                 }}
               >
-                <EnvelopeOpening
-                  key={openingReplay}
-                  site={draft}
-                  contained
-                  guestName={openingGuestName}
-                  onDone={() => setEnvelopeShownFor(openingReplay)}
-                />
+                {animatedInvitation ? (
+                  <InvitationOpening
+                    key={openingReplay}
+                    site={draft}
+                    contained
+                    guestName={openingGuestName}
+                    onDone={() => setEnvelopeShownFor(openingReplay)}
+                  />
+                ) : (
+                  <EnvelopeOpening
+                    key={openingReplay}
+                    site={draft}
+                    contained
+                    guestName={openingGuestName}
+                    onDone={() => setEnvelopeShownFor(openingReplay)}
+                  />
+                )}
               </div>
             )}
           </ErrorBoundary>
