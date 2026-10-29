@@ -19,7 +19,8 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
-import type { JewishWeddingEvent, WeddingSite, WeddingTemplateProps } from '../types';
+import type { GuestContact, JewishWeddingEvent, WeddingSite, WeddingTemplateProps } from '../types';
+import { hebrewDateFromIso } from '../utils/hebrewDate';
 import { parseEventDate, parseEventTime, sortEventsChronologically, weddingYear } from '../utils/eventOrder';
 import { directionsLinks } from '../utils/directions';
 import { invitationTokens, shade } from '../themes/InvitationTheme';
@@ -52,6 +53,8 @@ const STRINGS = {
     mainTab: 'Mariage',
     answersTab: 'Réponses',
     and: 'et',
+    plans: 'Plans',
+    questions: 'Pour toute question, contactez :',
     phrases: {
       mairie: 'Se diront « Oui »',
       henne: 'vous invitent à célébrer le Henné',
@@ -69,6 +72,8 @@ const STRINGS = {
     mainTab: 'חתונה',
     answersTab: 'אישור הגעה',
     and: 'ו',
+    plans: 'Apple Maps',
+    questions: 'לכל שאלה ניתן לפנות אל:',
     phrases: {} as Partial<Record<JewishWeddingEvent['type'], string>>,
   },
   en: {
@@ -80,6 +85,8 @@ const STRINGS = {
     mainTab: 'Wedding',
     answersTab: 'Reply',
     and: 'and',
+    plans: 'Apple Maps',
+    questions: 'Any question? Contact:',
     phrases: {
       mairie: 'Will say “I do”',
     } as Partial<Record<JewishWeddingEvent['type'], string>>,
@@ -106,6 +113,27 @@ function prettyDate(raw: string | undefined, lang: string, fallbackYear?: number
   const locale = lang === 'he' ? 'he-IL' : lang === 'en' ? 'en-GB' : 'fr-FR';
   const s = d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Date hébraïque (« 16 Kislev 5787 ») d'une date d'événement reconnue */
+function hebrewDateOf(raw: string | undefined, fallbackYear?: number): string {
+  const key = parseEventDate(raw, fallbackYear);
+  if (!key || key < 10000000) return '';
+  const iso = `${Math.floor(key / 10000)}-${String(Math.floor((key % 10000) / 100)).padStart(2, '0')}-${String(key % 100).padStart(2, '0')}`;
+  return hebrewDateFromIso(iso)?.fr ?? '';
+}
+
+/** Numéro WhatsApp international (chiffres seuls) ; un 06… français devient 336… */
+function whatsappNumber(raw: string): string {
+  let n = raw.replace(/[^\d+]/g, '');
+  if (n.startsWith('+')) n = n.slice(1);
+  else if (n.startsWith('00')) n = n.slice(2);
+  else if (/^0\d{9}$/.test(n)) n = `33${n.slice(1)}`;
+  return n.replace(/\D/g, '');
+}
+
+function usableContacts(site: WeddingSite): GuestContact[] {
+  return (site.content?.contacts ?? []).filter((c) => c.name.trim() && whatsappNumber(c.phone).length >= 8);
 }
 
 /** « La Mairie » → « Mairie » pour l'onglet */
@@ -230,44 +258,62 @@ function Bsd({ tk, S }: { tk: InvitationTokens; S: Strings }) {
 }
 
 /** Prénoms empilés : « Léa / & / Noam » */
-function StackedNames({ names, tk, as: Tag = 'p' }: { names: string[]; tk: InvitationTokens; as?: 'p' | 'h1' }) {
+function StackedNames({ names, tk, as: Tag = 'p', heNames }: { names: string[]; tk: InvitationTokens; as?: 'p' | 'h1'; heNames?: string[] }) {
   if (!names.length) return null;
+  const he = (i: number) =>
+    heNames?.[i]?.trim() ? (
+      <span className="ia-he-name" lang="he" dir="rtl">
+        {heNames[i].trim()}
+      </span>
+    ) : null;
   return (
     <Tag className="ia-names" style={{ fontFamily: tk.fonts.script, fontSize: tk.sizes.names }}>
       <span>{names[0]}</span>
+      {he(0)}
       {names[1] ? (
         <>
           <span className="ia-amp">&amp;</span>
           <span>{names[1]}</span>
+          {he(1)}
         </>
       ) : null}
     </Tag>
   );
 }
 
-/** Bandeau pleine largeur : Itinéraire (Google Maps) · Waze */
+/** Prénoms hébreux dans l'ordre de `coupleNames` (mariée puis marié) */
+function hebrewNames(site: WeddingSite): string[] {
+  const bride = site.content?.brideNameHe?.trim() ?? '';
+  const groom = site.content?.groomNameHe?.trim() ?? '';
+  return coupleNames(site).length > 1 ? [bride, groom] : [bride || groom];
+}
+
+/** Bandeau pleine largeur : « Itinéraire … » puis Waze · Plans · Google Maps */
 function DirectionsBand({ place, label, googleMapsUrl, wazeUrl, S }: { place: string; label: string; googleMapsUrl?: string; wazeUrl?: string; S: Strings }) {
-  const found = directionsLinks(place, googleMapsUrl, wazeUrl);
-  // Waze seulement si le couple a collé son lien : un seul bandeau sinon
-  const links = { google: found.google, waze: wazeUrl?.trim() ? found.waze : undefined };
-  if (!links.google && !links.waze) return null;
+  const links = directionsLinks(place, googleMapsUrl, wazeUrl);
+  const q = place.replace(/\s*\n\s*/g, ', ').trim();
+  const items = [
+    { href: links.waze, label: 'Waze' },
+    { href: q ? `https://maps.apple.com/?q=${encodeURIComponent(q)}` : undefined, label: S.plans },
+    { href: links.google, label: 'Google Maps' },
+  ].filter((i): i is { href: string; label: string } => !!i.href);
+  if (!items.length) return null;
   return (
     <div className="ia-band">
-      {links.google ? (
-        <a className="ia-band-link" href={links.google} target="_blank" rel="noopener noreferrer">
-          <PinIcon />
-          <span>
-            {S.directions}
-            {label ? ` ${label}` : ''}
-          </span>
-        </a>
-      ) : null}
-      {links.waze ? (
-        <a className="ia-band-link" href={links.waze} target="_blank" rel="noopener noreferrer">
-          <PinIcon />
-          <span>Waze</span>
-        </a>
-      ) : null}
+      <p className="ia-band-title">
+        <PinIcon />
+        <span>
+          {S.directions}
+          {label ? ` ${label}` : ''}
+        </span>
+      </p>
+      <div className="ia-band-btns" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+        {items.map((i) => (
+          <a key={i.label} className="ia-band-btn" href={i.href} target="_blank" rel="noopener noreferrer">
+            {i.label}
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
@@ -295,6 +341,7 @@ function EventPage({ page, site, tk, S }: { page: Page; site: WeddingSite; tk: I
   const names = coupleNames(site);
   const phrase = ev.description?.trim() || S.phrases[ev.type] || '';
   const date = prettyDate(ev.date, site.language, weddingYear(site.date));
+  const hebDate = hebrewDateOf(ev.date, weddingYear(site.date));
   const time = prettyTime(ev.time);
   const place = splitPlace(ev.place ?? '');
   return (
@@ -311,6 +358,7 @@ function EventPage({ page, site, tk, S }: { page: Page; site: WeddingSite; tk: I
       <StackedNames names={names} tk={tk} />
       {phrase ? <p className="ia-phrase">{phrase}</p> : null}
       {date ? <p className="ia-date">{date}</p> : null}
+      {hebDate ? <p className="ia-hebdate">{hebDate}</p> : null}
       {time ? <p className="ia-time">{/^\d/.test(time) ? `${S.at} ${time}` : time}</p> : null}
       {place.name ? <p className="ia-place">{place.name}</p> : null}
       {place.address ? <p className="ia-address">{place.address}</p> : null}
@@ -362,7 +410,7 @@ function MainPage({ site, tk, S }: { site: WeddingSite; tk: InvitationTokens; S:
       {familyText ? <p className="ia-phrase">{familyText}</p> : null}
       <InvitationThanks site={site} s={phraseStyle} style={{ marginTop: '0.4rem' }} />
       {names.length ? (
-        <StackedNames names={names} tk={tk} as="h1" />
+        <StackedNames names={names} tk={tk} as="h1" heNames={hebrewNames(site)} />
       ) : (
         <h1 className="ia-title" style={{ fontSize: tk.sizes.title }}>
           {S.mainTab}
@@ -379,10 +427,36 @@ function MainPage({ site, tk, S }: { site: WeddingSite; tk: InvitationTokens; S:
   );
 }
 
+/** Contacts des mariés : numéros cliquables et boutons WhatsApp */
+function Contacts({ contacts, S }: { contacts: GuestContact[]; S: Strings }) {
+  if (!contacts.length) return null;
+  return (
+    <div className="ia-contacts">
+      <p className="ia-contacts-lead">{S.questions}</p>
+      {contacts.map((c) => (
+        <p key={c.id} className="ia-contact-line">
+          {c.name.trim()} · <a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}>{c.phone.trim()}</a>
+        </p>
+      ))}
+      <div className="ia-wa-list">
+        {contacts.map((c) => (
+          <a key={c.id} className="ia-wa" href={`https://wa.me/${whatsappNumber(c.phone)}`} target="_blank" rel="noopener noreferrer">
+            <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8z" />
+            </svg>
+            <span>WhatsApp {c.name.trim()}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RsvpPage({ site, S }: { site: WeddingSite; S: Strings }) {
   const form = site.rsvpForm ?? createDefaultRSVPForm(site.id);
   return (
     <section id="ia-reponses" aria-label={S.answersTab} className="ia-page">
+      <Contacts contacts={usableContacts(site)} S={S} />
       <div className="ia-page-body ia-reveal">
         <h2 className="ia-rsvp-title">{S.rsvpTitle}</h2>
         <div className="ia-rsvp">
@@ -576,7 +650,33 @@ const INVITATION_CSS = `
 .ia-address { margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--ia-muted); overflow-wrap: anywhere; }
 .ia-families { width: 100%; margin-top: 0.4rem; }
 
-.ia-band { background: var(--ia-band); text-shadow: none; }
+.ia-band { background: var(--ia-band); text-shadow: none; padding: 0.95rem 16px 1.1rem; color: var(--ia-band-ink); }
+.ia-band-title {
+  margin: 0 0 0.75rem; display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  text-transform: uppercase; font-family: var(--ia-label); font-weight: 600; font-size: 11px; letter-spacing: 0.2em; overflow-wrap: anywhere;
+}
+.ia-band-btns { display: grid; gap: 8px; max-width: 460px; margin: 0 auto; }
+.ia-band-btn {
+  display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 0.35rem 0.5rem;
+  border: 1px solid rgba(255,255,255,0.75); border-radius: 999px; color: var(--ia-band-ink); text-decoration: none;
+  font-family: var(--ia-label); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.06em; transition: background 0.2s ease;
+}
+.ia-band-btn:hover { background: rgba(255,255,255,0.12); }
+.ia-band-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ia-hebdate { margin: 0.15rem 0 0.2rem; font-family: var(--ia-label); font-size: 0.74rem; letter-spacing: 0.3em; text-transform: uppercase; padding-inline-start: 0.3em; color: var(--ia-muted); }
+.ia-he-name { font-family: 'Frank Ruhl Libre', 'Noto Serif Hebrew', serif; font-size: 0.42em; line-height: 1.3; color: var(--ia-muted); margin: 0.05em 0 0.1em; }
+.ia-contacts { background: var(--ia-band); color: var(--ia-band-ink); text-align: center; padding: 1rem 16px 1.1rem; text-shadow: none; }
+.ia-contacts-lead { margin: 0 0 0.4rem; font-style: italic; font-size: 0.98rem; }
+.ia-contact-line { margin: 0.1rem 0; font-size: 0.98rem; }
+.ia-contact-line a { color: inherit; }
+.ia-wa-list { display: flex; flex-direction: column; margin-top: 0.7rem; border-top: 1px solid rgba(255,255,255,0.28); }
+.ia-wa {
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.85rem 1rem;
+  color: var(--ia-band-ink); text-decoration: none; text-transform: uppercase;
+  font-family: var(--ia-label); font-weight: 600; font-size: 11px; letter-spacing: 0.2em;
+}
+.ia-wa + .ia-wa { border-top: 1px solid rgba(255,255,255,0.28); }
+.ia-wa:hover { background: rgba(255,255,255,0.08); }
 .ia-band-link {
   display: flex; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.95rem 1rem;
   color: var(--ia-band-ink); text-decoration: none; text-transform: uppercase;

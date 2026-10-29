@@ -615,13 +615,9 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
  * ordre. Les autres presets restent dans `ALL_STYLE_PRESETS` pour les sites
  * existants, mais ne sont plus proposés à la création.
  */
-const VISIBLE_STYLE_IDS: ThemeStyle[] = [
-  'stripes-editorial',
-  'vintage-blue',
-  'voile-ivoire',
-  'invitation-animee',
-  'classic',
-];
+// Un seul modèle proposé : l'Invitation animée. Le sélecteur de thème est
+// alors sauté dans le builder.
+const VISIBLE_STYLE_IDS: ThemeStyle[] = ['invitation-animee'];
 
 export const STYLE_PRESETS: ThemePreset[] = VISIBLE_STYLE_IDS
   .map((id) => ALL_STYLE_PRESETS.find((p) => p.id === id))

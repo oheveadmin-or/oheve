@@ -329,6 +329,13 @@ export type FamilyColumn = {
   lines: string[];
 };
 
+/** Contact affiché aux invités (bouton WhatsApp sur la page Réponses) */
+export type GuestContact = {
+  id: string;
+  name: string;
+  phone: string;
+};
+
 export type WeddingSiteContent = {
   venue?: VenueInfo;
   accommodationsIntro?: string;
@@ -360,6 +367,11 @@ export type WeddingSiteContent = {
   guestMessageText?: string;
   /** Verset hébraïque (פסוק) affiché en arc au sommet du site */
   hebrewQuote?: string;
+  /** Prénoms en hébreu, affichés sous les prénoms calligraphiés */
+  brideNameHe?: string;
+  groomNameHe?: string;
+  /** Contacts pour les questions des invités (WhatsApp) */
+  contacts?: GuestContact[];
 };
 
 export type InviteLink = {
