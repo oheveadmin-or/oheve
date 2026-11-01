@@ -1091,7 +1091,8 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
       );
     }
   }
-  if (site.sections.jewishSection) {
+  // Le programme affiche déjà ces événements : pas de deuxième liste
+  if (site.sections.jewishSection && !site.sections.program) {
     const jevents = sortEventsChronologically(
       (site.content?.jewishEvents ?? []).filter((e) => e.enabled),
       (e) => e.date,

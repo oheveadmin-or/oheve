@@ -157,7 +157,8 @@ export type WeddingTheme = {
   /** Whether to show corner decorations in hero/cards */
   cornerDecor?: boolean;
   /** Navigation style shown to guests on the public site */
-  navStyle?: 'horizontal' | 'hamburger' | 'minimal';
+  /** 'none' : pas de barre en haut (Invitation animée, qui a ses onglets en bas) */
+  navStyle?: 'horizontal' | 'hamburger' | 'minimal' | 'none';
   /** Arrivée de l'invité : site tout de suite (défaut) ou enveloppe cachetée à ouvrir */
   opening?: 'direct' | 'envelope';
   /** Invitation animée uniquement — effets activables (cf. InvitationEffects) */

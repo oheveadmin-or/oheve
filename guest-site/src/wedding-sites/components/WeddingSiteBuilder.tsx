@@ -28,12 +28,12 @@ import type {
   ThemeAmbiance,
   ThemeLayout,
   TitleSize,
-  WeddingSections,
   WeddingSite,
   WeddingSiteContent,
   WeddingTheme,
 } from '../types';
-import { defaultWeddingSections, defaultWeddingTheme } from '../types';
+import { defaultWeddingTheme } from '../types';
+import { autoSections } from '../utils/autoSections';
 import { getPatternStyle } from '../templates/PatternOverlay';
 import { getFamilyColumns } from '../templates/templateParts';
 import { mergeDateAndTimeToIso } from '../utils/date';
@@ -168,7 +168,7 @@ const WIZARD_STEPS = [
   { id: 'passouk', tab: 'Passouk', title: 'Le passouk', sub: 'Le verset en arc, en haut du site.' },
   { id: 'date', tab: 'Date & lieu', title: 'Date & lieu', sub: 'La date, la salle et le programme de vos événements.' },
   { id: 'textes', tab: 'Textes', title: 'Les textes', sub: 'Chaque phrase, à votre façon.' },
-  { id: 'style', tab: 'Style', title: 'Le style du site', sub: SINGLE_MODEL ? 'Polices et sections affichées.' : 'Couleurs, polices et sections affichées.' },
+  { id: 'style', tab: 'Style', title: 'Le style du site', sub: SINGLE_MODEL ? 'Polices, navigation et signature.' : 'Couleurs, polices, navigation et signature.' },
   { id: 'invitation', tab: 'Invitation', title: "L'invitation animée", sub: "L'ouverture, les animations et ce que vos invités pourront faire." },
   { id: 'musique', tab: 'Musique', title: 'La musique', sub: 'La chanson qui accompagne votre site.' },
   { id: 'photos', tab: 'Photos', title: 'Vos photos', sub: 'La galerie de votre site.' },
@@ -241,7 +241,6 @@ export function WeddingSiteBuilder() {
   const [openingReplay, setOpeningReplay] = useState(0);
   // Nom d'invité de l'essai « ▶ Voir » d'un lien personnalisé ('' = enveloppe sans nom)
   const [openingGuest, setOpeningGuest] = useState('');
-  const [sections, setSections] = useState<WeddingSections>(() => defaultWeddingSections());
   const [hideSignature, setHideSignature] = useState(false);
   const [content, setContent] = useState<WeddingSiteContent>({
     venue: {
@@ -295,8 +294,6 @@ export function WeddingSiteBuilder() {
       try {
         const url = await uploadGalleryPhoto(file);
         setContent((c) => ({ ...c, galleryPhotos: [...(c.galleryPhotos ?? []), url] }));
-        // Ajouter une photo = vouloir la voir : la section Galerie s'active d'elle-même.
-        setSections((s) => (s.gallery ? s : { ...s, gallery: true }));
       } catch (err) {
         const reason = err instanceof Error && err.message ? ` — ${err.message}` : '';
         failed.push(`${file.name}${reason}`);
@@ -392,6 +389,13 @@ export function WeddingSiteBuilder() {
     coupleName.trim() ||
     (brideName && groomName ? `${brideName} & ${groomName}` : coupleName || 'Votre prénoms');
 
+  // Sections déduites du contenu (plus de cases à cocher) : une section
+  // apparaît dès qu'elle a quelque chose à montrer.
+  const sections = useMemo(
+    () => autoSections({ content, rsvpForm, venue: content.venue?.name ?? '', city }),
+    [content, rsvpForm, city],
+  );
+
   const draft = useMemo(
     (): WeddingSite => ({
       id: 'preview-draft',
@@ -462,7 +466,6 @@ export function WeddingSiteBuilder() {
         setTheme(applyThemePreset({ ...defaultWeddingTheme(), ...(site.theme as WeddingTheme) }));
         setLoadedStyle((site.theme as WeddingTheme).style ?? 'classic');
       }
-      if (site.sections && typeof site.sections === 'object') setSections({ ...defaultWeddingSections(), ...(site.sections as WeddingSections) });
       if (site.content && typeof site.content === 'object') {
         const loaded = site.content as WeddingSiteContent;
         // Site d'avant les phrases du faire-part : préremplies (et « À la mémoire de… » repris)
@@ -912,7 +915,6 @@ export function WeddingSiteBuilder() {
       return { ...prev, jewishEvents: list };
     });
     syncJewishEventToRsvp(def.type, { label: def.label, enabled });
-    setSections((s) => ({ ...s, jewishSection: true }));
   }
 
   function upsertJewishEvent(type: JewishWeddingEvent['type'], partial: Partial<JewishWeddingEvent>) {
@@ -1713,46 +1715,25 @@ export function WeddingSiteBuilder() {
 
           {wiz === 'style' && (
           <section style={block}>
-            <h2 style={h2}>Sections affichées</h2>
-            <div style={checks}>
-              {(
-                [
-                  ['hero', 'Accueil'],
-                  ['program', 'Programme'],
-                  ['jewishSection', '✡️ Événements mariage juif'],
-                  ['location', 'Lieux'],
-                  ['accommodations', 'Hébergements'],
-                  ['rsvp', 'RSVP'],
-                  ['faq', 'FAQ'],
-                  ['gallery', '🖼️ Galerie'],
-                  ['practicalInfo', 'Infos pratiques'],
-                  ['guestMessage', 'Message aux invités'],
-                  ['qrCode', 'QR Code'],
-                ] as const
-              ).map(([key, label]) => (
-                <label key={key} style={chk}>
-                  <input
-                    type="checkbox"
-                    checked={sections[key]}
-                    onChange={(e) => setSections({ ...sections, [key]: e.target.checked })}
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
+            <h2 style={h2}>Navigation et signature</h2>
+            <p style={{ fontSize: '0.78rem', color: '#7e8178', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
+              Les rubriques (programme, lieux, hébergements, FAQ, galerie…) apparaissent d'elles-mêmes sur le site dès que vous les remplissez.
+            </p>
 
             {/* ── Style de navigation ── */}
-            <div style={{ marginTop: '1.2rem' }}>
+            <div>
               <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#5c5f57', display: 'block', marginBottom: '0.6rem' }}>
                 Navigation des invités
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
                 {([
+                  // Invitation animée : sans barre en haut par défaut (onglets en bas)
+                  ...(theme.style === 'invitation-animee' ? [{ v: 'none' as const, label: 'Aucune', desc: 'Onglets en bas' }] : []),
                   { v: 'horizontal', label: 'Horizontale', desc: 'Liens en haut' },
                   { v: 'hamburger', label: 'Menu', desc: 'Tiroir latéral' },
                   { v: 'minimal', label: 'Minimale', desc: 'Prénom seul' },
                 ] as const).map(({ v, label, desc }) => {
-                  const cur = (theme.navStyle ?? 'horizontal') as string;
+                  const cur = (theme.navStyle ?? (theme.style === 'invitation-animee' ? 'none' : 'horizontal')) as string;
                   const sel = cur === v;
                   return (
                     <button
@@ -2029,7 +2010,6 @@ export function WeddingSiteBuilder() {
               { ok: !!content.musicUrl, label: 'La musique', hint: 'Bouton rond en haut à gauche ; elle démarre au premier geste de l’invité.', step: 'musique', optional: true },
             ];
             const effectRows: { key: keyof InvitationEffects; title: string; desc: string }[] = [
-              { key: 'countdown', title: 'Compte à rebours', desc: "Jours, heures, minutes et secondes sur l'écran d'accueil." },
               { key: 'reveal', title: 'Apparition au défilement', desc: 'Chaque page se dévoile en douceur quand l’invité descend.' },
               { key: 'bsd', title: 'Mention בס״ד', desc: 'En haut de chaque page.' },
               { key: 'bottomBar', title: "Barre d'onglets", desc: 'En bas de l’écran : un onglet par événement et « Réponses ».' },
@@ -2092,6 +2072,34 @@ export function WeddingSiteBuilder() {
                           </button>
                         )}
                       </div>
+                      {/* Le compte à rebours vit sur l'écran d'accueil, avec « Voir l'invitation » */}
+                      {fx.opening && (() => {
+                        const target = isoDate ? new Date(isoDate).getTime() : NaN;
+                        const past = !Number.isNaN(target) && Date.now() - target > 86400000;
+                        return (
+                          <div style={{ marginTop: '0.6rem' }}>
+                            <label style={inviteToggleRow}>
+                              <input type="checkbox" checked={fx.countdown} onChange={(e) => setFx('countdown', e.target.checked)} style={inviteCheckbox} />
+                              <span>
+                                <strong style={{ display: 'block', fontSize: '0.92rem' }}>Compte à rebours</strong>
+                                <span style={{ display: 'block', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.45 }}>
+                                  Jours, heures, minutes et secondes, juste au-dessus du bouton « Voir l'invitation ». Touchez « ▶ Voir » pour le voir dans l'aperçu.
+                                </span>
+                                {fx.countdown && past ? (
+                                  <span style={{ display: 'block', marginTop: 4, fontSize: '0.78rem', color: '#9a6a1f', lineHeight: 1.45 }}>
+                                    Votre date est passée : le compte à rebours ne s'affiche plus.
+                                  </span>
+                                ) : null}
+                                {fx.countdown && !isoDate ? (
+                                  <span style={{ display: 'block', marginTop: 4, fontSize: '0.78rem', color: '#9a6a1f', lineHeight: 1.45 }}>
+                                    Ajoutez la date du mariage pour l'afficher.
+                                  </span>
+                                ) : null}
+                              </span>
+                            </label>
+                          </div>
+                        );
+                      })()}
                       <p style={{ margin: '0.75rem 0 0', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
                         Avec un lien au nom d'un invité (étape{' '}
                         <button type="button" onClick={() => goToStep(stepIndex('invites'))} style={inviteLinkBtn}>Invités</button>), son nom
@@ -2318,8 +2326,7 @@ export function WeddingSiteBuilder() {
             <h2 style={h2}>🖼️ Galerie photos</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
               Ajoutez vos photos directement depuis votre appareil — elles sont optimisées et hébergées automatiquement.
-              Les photos n'apparaissent sur le site que si la section <strong>« Galerie »</strong> est activée
-              {sections.gallery ? '' : ' (elle est désactivée : aucune photo ne s\'affiche pour l\'instant)'}.
+              La galerie apparaît sur le site dès la première photo.
               La première photo est mise en avant. Touchez <strong>✨ IA</strong> sur une photo pour la
               ré-adapter à l'ambiance du thème choisi.
             </p>
@@ -3022,7 +3029,6 @@ function FontRoleSelect({
   );
 }
 
-const checks: CSSProperties = { display: 'grid', gap: '0.45rem' };
 
 const chk: CSSProperties = { display: 'flex', gap: '0.55rem', alignItems: 'center', fontWeight: 500, fontSize: '0.92rem' };
 

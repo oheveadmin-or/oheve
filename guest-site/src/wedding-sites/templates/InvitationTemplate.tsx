@@ -486,6 +486,63 @@ function RsvpPage({ site, S }: { site: WeddingSite; S: Strings }) {
   );
 }
 
+/* ── Navigation en haut (réglage « Navigation des invités ») ─────────────── */
+
+type NavLink = { id: string; label: string };
+
+function scrollToPage(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+}
+
+/**
+ * Barre du haut : prénoms + liens vers chaque page (horizontale), menu
+ * déroulant (menu) ou prénoms seuls (minimale). La musique y prend place.
+ */
+function TopNav({ site, links, mode, tk, S }: { site: WeddingSite; links: NavLink[]; mode: 'horizontal' | 'hamburger' | 'minimal'; tk: InvitationTokens; S: Strings }) {
+  const [open, setOpen] = useState(false);
+  const names = coupleNames(site).join(' & ');
+  const music = <PublicMusicButton site={site} color={tk.colors.foil} background="transparent" />;
+  const go = (id: string) => {
+    setOpen(false);
+    scrollToPage(id);
+  };
+  return (
+    <nav className="ia-top" aria-label={S.tabs}>
+      <div className="ia-top-row">
+        <a href="#top" className="ia-top-names" style={{ fontFamily: tk.fonts.script }} onClick={(e) => { e.preventDefault(); go('top'); }}>
+          {names}
+        </a>
+        <div className="ia-top-actions">
+          {music}
+          {mode === 'hamburger' && links.length ? (
+            <button type="button" className="ia-top-burger" aria-expanded={open} aria-label="Menu" onClick={() => setOpen((v) => !v)}>
+              {open ? '✕' : '☰'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {mode === 'horizontal' && links.length ? (
+        <div className="ia-top-links">
+          {links.map((l) => (
+            <a key={l.id} href={`#${l.id}`} onClick={(e) => { e.preventDefault(); go(l.id); }}>
+              {l.label}
+            </a>
+          ))}
+        </div>
+      ) : null}
+      {mode === 'hamburger' && open ? (
+        <div className="ia-top-drawer">
+          {links.map((l) => (
+            <a key={l.id} href={`#${l.id}`} onClick={(e) => { e.preventDefault(); go(l.id); }}>
+              {l.label}
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </nav>
+  );
+}
+
 /* ── Onglets ─────────────────────────────────────────────────────────────── */
 
 const CHUPPAH = 'M4.5 21V9M19.5 21V9M2.5 9c3-4.5 16-4.5 19 0M4.5 9h15M2.5 21h4M17.5 21h4';
@@ -507,9 +564,7 @@ const ICONS: Record<IconKind, string> = {
 
 function TabBar({ tabs, S }: { tabs: { id: string; label: string; icon: IconKind }[]; S: Strings }) {
   const active = useActivePage(tabs.map((t) => t.id));
-  const go = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
-  };
+  const go = scrollToPage;
   return (
     <nav className="ia-tabs" aria-label={S.tabs}>
       <div className="ia-tabs-inner">
@@ -566,6 +621,9 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
     ...(site.sections.rsvp ? [{ id: 'ia-reponses', label: S.answersTab, icon: 'answers' as IconKind }] : []),
   ];
 
+  // Pas de réglage = pas de barre en haut (les onglets du bas suffisent)
+  const navMode = site.theme.navStyle && site.theme.navStyle !== 'none' ? site.theme.navStyle : null;
+
   const cssVars = {
     '--ia-paper': tk.colors.paper,
     '--ia-ink': tk.colors.ink,
@@ -588,7 +646,7 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
       id="top"
       dir={dir}
       lang={site.language}
-      className={`wedding-template-root ia-root${tk.effects.bottomBar && tabs.length > 1 ? ' has-tabs' : ''}`}
+      className={`wedding-template-root ia-root${tk.effects.bottomBar && tabs.length > 1 ? ' has-tabs' : ''}${navMode ? ' has-top' : ''}`}
       style={{ ...cssVars, fontFamily: tk.fonts.body, color: tk.colors.ink, background: tk.colors.paper }}
     >
       <style>{INVITATION_CSS + INVITATION_PARTS_CSS}</style>
@@ -602,9 +660,13 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
         <IvoryBloom tint={shade(tk.colors.paper, -0.07)} uid="page" className="ia-bloom" />
       </div>
 
-      <div className="ia-music">
-        <PublicMusicButton site={site} color={tk.colors.foil} background={`${tk.colors.paper}e6`} />
-      </div>
+      {navMode ? (
+        <TopNav site={site} links={tabs.map((t) => ({ id: t.id, label: t.label }))} mode={navMode} tk={tk} S={S} />
+      ) : (
+        <div className="ia-music">
+          <PublicMusicButton site={site} color={tk.colors.foil} background={`${tk.colors.paper}e6`} />
+        </div>
+      )}
 
       <main className="ia-pages">
         {pages.map((p) =>
@@ -648,6 +710,30 @@ const INVITATION_CSS = `
 .ia-music > button { position: absolute; inset-inline-start: 14px; top: 0; box-shadow: 0 6px 16px -10px var(--ia-shadow); }
 
 .ia-pages { position: relative; z-index: 1; }
+
+.ia-top {
+  position: sticky; top: 0; z-index: 61; text-shadow: none;
+  background: var(--ia-bar); border-bottom: 1px solid var(--ia-hair);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.ia-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: min(560px, 100%); margin: 0 auto; padding: 8px 14px; min-height: 48px; box-sizing: border-box; }
+.ia-top-names { color: var(--ia-ink); text-decoration: none; font-size: 1.45rem; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ia-top-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.ia-top-actions > button { position: static !important; }
+.ia-top-burger {
+  border: 1px solid var(--ia-hair); border-radius: 3px; background: transparent; color: var(--ia-ink);
+  width: 36px; height: 34px; font-size: 1rem; cursor: pointer;
+}
+.ia-top-links { display: flex; gap: 18px; justify-content: center; overflow-x: auto; scrollbar-width: none; padding: 0 14px 9px; }
+.ia-top-links::-webkit-scrollbar { display: none; }
+.ia-top-links a, .ia-top-drawer a {
+  color: var(--ia-muted); text-decoration: none; font-family: var(--ia-label); font-weight: 600;
+  font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; white-space: nowrap;
+}
+.ia-top-drawer { display: flex; flex-direction: column; border-top: 1px solid var(--ia-hair); width: min(560px, 100%); margin: 0 auto; }
+.ia-top-drawer a { padding: 0.95rem 16px; text-align: center; }
+.ia-top-drawer a + a { border-top: 1px solid var(--ia-hair); }
+.ia-root.has-top .ia-page, .ia-root.has-top .ia-sign { scroll-margin-top: 64px; }
 .ia-page {
   position: relative; width: min(560px, 100%); margin: 0 auto; padding: 3.2rem 0 0;
   container-type: inline-size;

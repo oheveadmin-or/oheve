@@ -6,7 +6,8 @@ import { mapLegacyPublicSiteToWeddingSite, type LegacyPublicPayload } from '../u
 import { publicSitesFetchUrl } from '../utils/publicApiUrl';
 import { getWeddingSiteBySlug, setSiteAccessKey } from '../services/weddingSiteService';
 import type { WeddingSite } from '../types';
-import { defaultWeddingSections, defaultWeddingTheme } from '../types';
+import { defaultWeddingTheme } from '../types';
+import { autoSections } from '../utils/autoSections';
 import { getTemplateByTheme } from '../utils/template-selector';
 import { filterSiteForInvite, getActiveInviteToken, setActiveInviteToken } from '../utils/inviteFilter';
 import { resolveGuestName } from '../utils/guestName';
@@ -49,7 +50,7 @@ export function WeddingPublicPage() {
           setSite({
             ...local,
             theme: { ...defaultWeddingTheme(), ...(local.theme as object || {}) },
-            sections: { ...defaultWeddingSections(), ...(local.sections as object || {}) },
+            sections: autoSections(local),
           });
           return;
         }
@@ -91,7 +92,7 @@ export function WeddingPublicPage() {
           setSite({
             ...site,
             theme: { ...defaultWeddingTheme(), ...(site.theme as object || {}) },
-            sections: { ...defaultWeddingSections(), ...(site.sections as object || {}) },
+            sections: autoSections(site),
           });
           return;
         }
