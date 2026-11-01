@@ -117,6 +117,9 @@ export function WeddingSitePreview({ draft, openingReplay = 0, openingGuestName 
                 height: Math.round(scrollH / scale),
                 transform: `scale(${scale})`,
                 transformOrigin: 'top left',
+                // Hauteur d'écran pour les templates (ici 100vh = la fenêtre du
+                // navigateur, pas l'écran du téléphone)
+                ['--ia-vh' as string]: `${Math.round(scrollH / scale)}px`,
               }}
             >
               <div style={{ width: IPHONE_W, pointerEvents: 'none', userSelect: 'none' }}>

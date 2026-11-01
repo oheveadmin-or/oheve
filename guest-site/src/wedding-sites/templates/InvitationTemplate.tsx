@@ -53,7 +53,6 @@ const STRINGS = {
     mainTab: 'Mariage',
     answersTab: 'Réponses',
     and: 'et',
-    plans: 'Plans',
     questions: 'Pour toute question, contactez :',
     phrases: {
       mairie: 'Se diront « Oui »',
@@ -72,7 +71,6 @@ const STRINGS = {
     mainTab: 'חתונה',
     answersTab: 'אישור הגעה',
     and: 'ו',
-    plans: 'Apple Maps',
     questions: 'לכל שאלה ניתן לפנות אל:',
     phrases: {} as Partial<Record<JewishWeddingEvent['type'], string>>,
   },
@@ -85,7 +83,6 @@ const STRINGS = {
     mainTab: 'Wedding',
     answersTab: 'Reply',
     and: 'and',
-    plans: 'Apple Maps',
     questions: 'Any question? Contact:',
     phrases: {
       mairie: 'Will say “I do”',
@@ -232,7 +229,9 @@ type Page = {
 const MAIN_ID = 'ia-mariage';
 
 function buildPages(site: WeddingSite, S: Strings): Page[] {
-  const events = site.sections.program ? (site.content?.jewishEvents ?? []).filter((e) => e.enabled) : [];
+  // Une page par événement : c'est le principe de ce modèle, indépendamment
+  // de la section « Programme » des autres thèmes.
+  const events = (site.content?.jewishEvents ?? []).filter((e) => e.enabled);
   // La Houppa est le faire-part lui-même : pas de page en double
   const houppa = events.find((e) => e.type === 'houppa');
   const others = events.filter((e) => e !== houppa);
@@ -288,13 +287,11 @@ function hebrewNames(site: WeddingSite): string[] {
   return coupleNames(site).length > 1 ? [bride, groom] : [bride || groom];
 }
 
-/** Bandeau pleine largeur : « Itinéraire … » puis Waze · Plans · Google Maps */
+/** Bandeau pleine largeur : « Itinéraire … » puis Waze · Google Maps */
 function DirectionsBand({ place, label, googleMapsUrl, wazeUrl, S }: { place: string; label: string; googleMapsUrl?: string; wazeUrl?: string; S: Strings }) {
   const links = directionsLinks(place, googleMapsUrl, wazeUrl);
-  const q = place.replace(/\s*\n\s*/g, ', ').trim();
   const items = [
     { href: links.waze, label: 'Waze' },
-    { href: q ? `https://maps.apple.com/?q=${encodeURIComponent(q)}` : undefined, label: S.plans },
     { href: links.google, label: 'Google Maps' },
   ].filter((i): i is { href: string; label: string } => !!i.href);
   if (!items.length) return null;
@@ -338,7 +335,6 @@ function PageShell({ id, label, children, band }: { id: string; label: string; c
 
 function EventPage({ page, site, tk, S }: { page: Page; site: WeddingSite; tk: InvitationTokens; S: Strings }) {
   const ev = page.ev!;
-  const names = coupleNames(site);
   const phrase = ev.description?.trim() || S.phrases[ev.type] || '';
   const date = prettyDate(ev.date, site.language, weddingYear(site.date));
   const hebDate = hebrewDateOf(ev.date, weddingYear(site.date));
@@ -355,7 +351,6 @@ function EventPage({ page, site, tk, S }: { page: Page; site: WeddingSite; tk: I
       <h2 className="ia-title" style={{ fontSize: tk.sizes.title }}>
         {ev.label}
       </h2>
-      <StackedNames names={names} tk={tk} />
       {phrase ? <p className="ia-phrase">{phrase}</p> : null}
       {date ? <p className="ia-date">{date}</p> : null}
       {hebDate ? <p className="ia-hebdate">{hebDate}</p> : null}
@@ -532,7 +527,7 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
   // galerie, infos pratiques…) passe par les sections existantes.
   const delegated: WeddingSite = {
     ...site,
-    sections: { ...site.sections, program: false, rsvp: false, location: false, jewishSection: false, hero: false },
+    sections: { ...site.sections, program: false, rsvp: false, location: false, jewishSection: false, hero: false, qrCode: false },
   };
   const surface = () => ({
     background: 'rgba(255,255,255,0.72)',
@@ -560,6 +555,7 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
     '--ia-label': tk.fonts.label,
     '--ia-body': tk.fonts.body,
     '--ia-bar': `${tk.colors.paper}eb`,
+    '--ia-tabs-h': '64px',
   } as CSSProperties;
 
   return (
@@ -568,10 +564,14 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
       id="top"
       dir={dir}
       lang={site.language}
-      className="wedding-template-root ia-root"
+      className={`wedding-template-root ia-root${tk.effects.bottomBar && tabs.length > 1 ? ' has-tabs' : ''}`}
       style={{ ...cssVars, fontFamily: tk.fonts.body, color: tk.colors.ink, background: tk.colors.paper }}
     >
       <style>{INVITATION_CSS + INVITATION_PARTS_CSS}</style>
+
+      {/* En tête du DOM : dans l'aperçu iPhone, elle est « collée » en bas par
+          un sticky top (voir CSS .ia-tabs) */}
+      {tk.effects.bottomBar && tabs.length > 1 ? <TabBar tabs={tabs} S={S} /> : null}
 
       {/* Fleur ivoire immobile derrière toutes les pages */}
       <div className="ia-bloom-layer" aria-hidden>
@@ -597,8 +597,6 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
           {names.length ? <p className="ia-sign-names">{names.join(` ${S.and} `)}</p> : null}
         </footer>
       </main>
-
-      {tk.effects.bottomBar && tabs.length > 1 ? <TabBar tabs={tabs} S={S} /> : null}
     </div>
   );
 }
@@ -616,10 +614,12 @@ const INVITATION_CSS = `
   text-shadow: 0 0 10px var(--ia-paper), 0 0 3px var(--ia-paper);
 }
 .ia-bloom-layer {
-  position: sticky; top: 0; height: 100vh; margin-bottom: -100vh; z-index: 0;
+  /* --ia-vh : hauteur d'écran fournie par l'aperçu iPhone du builder (où 100vh
+     serait la fenêtre du navigateur et décentrerait la fleur) */
+  position: sticky; top: 0; height: var(--ia-vh, 100svh); margin-bottom: calc(-1 * var(--ia-vh, 100svh)); z-index: 0;
   display: flex; align-items: center; justify-content: center; pointer-events: none; overflow: hidden;
 }
-.ia-bloom { width: min(112%, 92vh, 760px); aspect-ratio: 1; opacity: 0.26; }
+.ia-bloom { width: min(112%, calc(0.92 * var(--ia-vh, 100svh)), 760px); aspect-ratio: 1; opacity: 0.55; }
 .ia-music { position: sticky; top: 12px; height: 0; z-index: 1002; }
 .ia-music > button { position: absolute; inset-inline-start: 14px; top: 0; box-shadow: 0 6px 16px -10px var(--ia-shadow); }
 
@@ -719,21 +719,36 @@ const INVITATION_CSS = `
   letter-spacing: 0.3em; padding-inline-start: 0.3em; text-transform: uppercase; color: var(--ia-muted);
 }
 
+/* Pas de conteneur de requête sur la racine (chaque page a le sien) : dans
+   Safari, un container-type fait de la racine le repère des position: fixed,
+   et la barre d'onglets se retrouvait en bas du contenu, pas de l'écran. */
+.wedding-template-root.ia-root { container-type: normal; }
+.ia-root.has-tabs { padding-bottom: calc(var(--ia-tabs-h) + env(safe-area-inset-bottom)); }
+/* Barre d'onglets toujours en bas de l'écran. Sur le site : fixed. Dans
+   l'aperçu iPhone du builder (conteneur transformé par scale), fixed suivrait
+   le défilement et Safari place mal un sticky bottom (échelle comptée deux
+   fois) : on la colle donc par un sticky TOP décalé d'une hauteur d'écran. */
 .ia-tabs {
-  position: sticky; bottom: 0; z-index: 60; text-shadow: none;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; text-shadow: none;
+  height: calc(var(--ia-tabs-h) + env(safe-area-inset-bottom)); box-sizing: border-box;
   background: var(--ia-bar); border-top: 1px solid var(--ia-hair);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   box-shadow: 0 -10px 30px -18px var(--ia-shadow);
   padding-bottom: env(safe-area-inset-bottom);
 }
+.iphone-scroll .ia-tabs {
+  position: sticky; top: calc(var(--ia-vh) - var(--ia-tabs-h)); bottom: auto;
+  height: var(--ia-tabs-h); padding-bottom: 0; margin-bottom: calc(-1 * var(--ia-tabs-h));
+}
 .ia-tabs-inner {
+  height: 100%; box-sizing: border-box; align-items: stretch;
   display: flex; gap: 6px; width: min(560px, 100%); margin: 0 auto; padding: 7px 8px;
   overflow-x: auto; scrollbar-width: none;
 }
 .ia-tabs-inner::-webkit-scrollbar { display: none; }
 .ia-tab {
-  flex: 1 0 64px; min-width: 64px; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 7px 4px 6px; border: 1px solid transparent; border-radius: 3px;
+  flex: 1 0 64px; min-width: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 4px; border: 1px solid transparent; border-radius: 3px;
   color: var(--ia-muted); text-decoration: none; font-family: var(--ia-body); font-size: 0.74rem; line-height: 1.1;
   transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
 }

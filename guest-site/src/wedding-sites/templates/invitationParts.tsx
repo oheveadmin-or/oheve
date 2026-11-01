@@ -54,6 +54,8 @@ export function useCountdown(iso: string) {
   return {
     valid,
     done: valid && diff === 0,
+    /** Plus d'un jour après la date : le compte à rebours n'a plus de sens */
+    past: valid && now - target > 86400000,
     d: Math.floor(diff / 86400000),
     h: Math.floor((diff % 86400000) / 3600000),
     m: Math.floor((diff % 3600000) / 60000),
@@ -63,10 +65,12 @@ export function useCountdown(iso: string) {
 
 export function Countdown({ iso, tk, units, doneText, className, style }: { iso: string; tk: InvitationTokens; units: string[]; doneText: string; className?: string; style?: CSSProperties }) {
   const c = useCountdown(iso);
-  if (!c.valid) return null;
+  if (!c.valid || c.past) return null;
   if (c.done) {
+    // width + containerType normal : sans ça, un parent en `container-type:
+    // inline-size` réduit la ligne à 0 de large et chaque mot passe à la ligne.
     return (
-      <p className={className} style={{ margin: 0, fontFamily: tk.fonts.script, fontSize: '2rem', color: tk.colors.foil, ...style }}>
+      <p className={className} style={{ margin: 0, width: '100%', containerType: 'normal', textAlign: 'center', fontFamily: tk.fonts.script, fontSize: '2rem', lineHeight: 1.2, color: tk.colors.foil, ...style }}>
         {doneText}
       </p>
     );
