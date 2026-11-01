@@ -66,18 +66,23 @@ function legacyFamilyColumn(
 export function getFamilyColumns(site: WeddingSite): ResolvedFamilyColumn[] {
   const c = site.content;
   if (!c) return [];
+  // Plus de titre de colonne (« Famille Layani ») : seules les lignes sont
+  // affichées, les colonnes suffisent à séparer les familles. Les titres déjà
+  // enregistrés sont ignorés.
   const explicit = (c.familyColumns ?? [])
     .map((col) => ({
-      title: col.title?.trim() ?? '',
+      title: '',
       lines: (col.lines ?? []).map((l) => (l ?? '').trim()).filter(Boolean),
     }))
-    .filter((col) => col.title || col.lines.length);
+    .filter((col) => col.lines.length);
   if (explicit.length) return explicit;
 
   return [
     legacyFamilyColumn(c.parentsBride, c.grandparentsBride, c.brideFamilyName, site.brideName),
     legacyFamilyColumn(c.parentsGroom, c.grandparentsGroom, c.groomFamilyName, site.groomName),
-  ].filter(Boolean) as ResolvedFamilyColumn[];
+  ]
+    .filter((col): col is ResolvedFamilyColumn => !!col && col.lines.length > 0)
+    .map((col) => ({ ...col, title: '' }));
 }
 
 /**

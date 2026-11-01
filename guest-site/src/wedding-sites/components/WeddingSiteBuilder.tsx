@@ -682,15 +682,7 @@ export function WeddingSiteBuilder() {
     }
   }
 
-  // ── Familles : colonnes libres (titre + lignes) ─────────────────────────────
-  function updateFamilyColumn(idx: number, partial: Partial<FamilyColumn>) {
-    setContent((c) => {
-      const cols = [...(c.familyColumns ?? [])];
-      if (!cols[idx]) return c;
-      cols[idx] = { ...cols[idx], ...partial };
-      return { ...c, familyColumns: cols };
-    });
-  }
+  // ── Familles : colonnes libres (lignes seules, sans titre) ────────────────
 
   function addFamilyColumn() {
     setContent((c) => {
@@ -1211,20 +1203,15 @@ export function WeddingSiteBuilder() {
           <section style={block}>
             <h2 style={h2}>👨‍👩‍👧 Familles (affiché sur le site)</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Une colonne par famille, affichée élégamment sur le site. Ajoutez des lignes et
-              écrivez-les librement (« M. et Mme Attia », « Mamie Simone »…) — aucun intitulé imposé.
+              Une colonne par famille, côte à côte sur le site. Écrivez les lignes librement
+              (« M. et Mme Attia », « Mamie Simone »…).
             </p>
             {(content.familyColumns ?? []).map((col, ci) => (
               <div key={col.id} style={{ border: '1px solid #F5F2ED', borderRadius: 12, padding: '0.75rem', marginBottom: 10, background: '#FBFBF9' }}>
-                <label style={lab}>
-                  Titre de la colonne
-                  <input
-                    style={inp}
-                    placeholder={ci === 0 ? 'ex. Famille Benitah' : 'ex. Famille Cohen'}
-                    value={col.title}
-                    onChange={(e) => updateFamilyColumn(ci, { title: e.target.value })}
-                  />
-                </label>
+                {/* Repère dans le builder seulement : aucun nom de famille n'est affiché sur le site */}
+                <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#747E68' }}>
+                  Famille {ci + 1}
+                </p>
                 {col.lines.map((line, li) => (
                   <div key={li} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
                     <input
