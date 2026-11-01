@@ -27,6 +27,7 @@ import { frenchAt, placeQuery, weddingPlaces } from '../utils/places';
 import { invitationTokens, shade } from '../themes/InvitationTheme';
 import type { InvitationTokens } from '../themes/InvitationTheme';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
+import { EVENT_ICON_PATHS } from '../components/EventIcon';
 import { WeddingRSVPForm } from '@guest/rsvp/WeddingRSVPForm';
 import { createDefaultRSVPForm } from '@guest/rsvp/types';
 import {
@@ -551,22 +552,7 @@ function TopNav({ site, links, mode, tk, S }: { site: WeddingSite; links: NavLin
 
 /* ── Onglets ─────────────────────────────────────────────────────────────── */
 
-const CHUPPAH = 'M4.5 21V9M19.5 21V9M2.5 9c3-4.5 16-4.5 19 0M4.5 9h15M2.5 21h4M17.5 21h4';
-const SPARKLE = 'M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2z';
-
-const ICONS: Record<IconKind, string> = {
-  mairie: 'M3 21h18M5 21V10.5M19 21V10.5M9 21v-6.5M15 21v-6.5M3 10.5 12 4l9 6.5z',
-  henne: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1',
-  houppa: CHUPPAH,
-  main: CHUPPAH,
-  'chabbat-hatan': 'M8 21v-9h3v9M13 21v-9h3v9M9.5 9c-.6-1 0-2 .7-3M14.5 9c-.6-1 0-2 .7-3M5 21h14',
-  brunch: 'M5 9h11v4.5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5zM16 10.5h1.5a2.25 2.25 0 0 1 0 4.5H16M8.5 3v3M12.5 3v3',
-  'sheva-berakhot': 'M8 3h8l-.8 6.5a3.2 3.2 0 0 1-6.4 0zM12 13v7M8.5 21h7',
-  depart: SPARKLE,
-  'pool-party': 'M3 17c2 0 2-1.5 4.5-1.5S9.5 17 12 17s2.5-1.5 4.5-1.5S19 17 21 17M7 14V5a2 2 0 0 1 4 0M13 14V5a2 2 0 0 1 4 0M7 9h6',
-  custom: SPARKLE,
-  answers: 'M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5',
-};
+const ICONS = EVENT_ICON_PATHS;
 
 function TabBar({ tabs, S }: { tabs: { id: string; label: string; icon: IconKind }[]; S: Strings }) {
   const active = useActivePage(tabs.map((t) => t.id));

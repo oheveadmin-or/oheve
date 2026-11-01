@@ -34,6 +34,7 @@ import type {
 } from '../types';
 import { defaultWeddingTheme } from '../types';
 import { autoSections } from '../utils/autoSections';
+import { EventIcon } from './EventIcon';
 import { getPatternStyle } from '../templates/PatternOverlay';
 import { getFamilyColumns } from '../templates/templateParts';
 import { mergeDateAndTimeToIso } from '../utils/date';
@@ -144,6 +145,14 @@ const JEWISH_META: Record<JewishWeddingEvent['type'], { emoji: string; label: st
   'pool-party':     { emoji: '🏊', label: 'Pool Party' },
   'custom':         { emoji: '✨', label: 'Événement' },
 };
+
+/** Icône d'un événement RSVP : « jewish-chabbat-hatan » → chabbat-hatan, sinon par son ancien emoji */
+function rsvpEventKind(ev: { id: string; emojiIcon?: string }): JewishWeddingEvent['type'] {
+  const fromId = ev.id.startsWith('jewish-') ? ev.id.slice(7) : '';
+  if (fromId in JEWISH_META) return fromId as JewishWeddingEvent['type'];
+  const byEmoji = (Object.keys(JEWISH_META) as JewishWeddingEvent['type'][]).find((k) => JEWISH_META[k].emoji === ev.emojiIcon);
+  return byEmoji ?? 'custom';
+}
 
 const DEFAULT_JEWISH_EVENTS: { type: JewishWeddingEvent['type']; label: string; emoji: string; optional?: boolean }[] = [
   { type: 'henne', label: 'Henné', emoji: '🌸' },
@@ -2283,7 +2292,8 @@ export function WeddingSiteBuilder() {
                         checked={enabled}
                         onChange={(e) => toggleJewishEvent(def, e.target.checked)}
                       />
-                      {def.emoji} {def.label}
+                      <EventIcon kind={def.type} size={22} color="#747E68" />
+                      {def.label}
                     </label>
                     {enabled && existing ? (
                       <div style={{ display: 'grid', gap: 8 }}>
@@ -2307,7 +2317,12 @@ export function WeddingSiteBuilder() {
                             <span dir="rtl" style={{ fontFamily: "'Frank Ruhl Libre', serif", unicodeBidi: 'isolate', whiteSpace: 'nowrap' }}>{hebrewDateFromIso(eventDateTextToIso(existing.date))?.he}</span>
                           </span>
                         ) : null}
-                        <input style={inp} placeholder="Lieu" value={existing.place} onChange={(e) => upsertJewishEvent(def.type, { place: e.target.value })} />
+                        <input style={inp} placeholder="Lieu et adresse (ex. Synagogue Beth Haim, 12 rue Breteuil, Marseille)" value={existing.place} onChange={(e) => upsertJewishEvent(def.type, { place: e.target.value })} />
+                        <span style={{ fontSize: '0.74rem', color: existing.place?.trim() || existing.googleMapsUrl?.trim() || existing.wazeUrl?.trim() ? '#7e8178' : '#9a6a1f', lineHeight: 1.45 }}>
+                          {existing.place?.trim() || existing.googleMapsUrl?.trim() || existing.wazeUrl?.trim()
+                            ? 'Boutons Waze et Google Maps ajoutés automatiquement sur le site (liens ci-dessous facultatifs).'
+                            : 'Ajoutez le lieu pour afficher les boutons Waze et Google Maps de cet événement.'}
+                        </span>
                         <textarea style={{ ...inp, minHeight: 56, resize: 'vertical' }} placeholder="Description (optionnel)" value={existing.description} onChange={(e) => upsertJewishEvent(def.type, { description: e.target.value })} />
                         <input style={inp} placeholder="Google Maps URL (optionnel)" value={existing.googleMapsUrl ?? ''} onChange={(e) => upsertJewishEvent(def.type, { googleMapsUrl: e.target.value })} />
                         <input style={inp} placeholder="Waze URL (optionnel)" value={existing.wazeUrl ?? ''} onChange={(e) => upsertJewishEvent(def.type, { wazeUrl: e.target.value })} />
@@ -2518,7 +2533,8 @@ export function WeddingSiteBuilder() {
                               setInviteLinks(next);
                             }}
                           />
-                          {ev.emojiIcon} {ev.label}
+                          <EventIcon kind={rsvpEventKind(ev)} size={18} color="#747E68" />
+                          {ev.label}
                           {ev.time ? ` · ${ev.time}` : ''}
                         </label>
                       ))}
