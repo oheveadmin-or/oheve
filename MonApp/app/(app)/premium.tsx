@@ -278,7 +278,7 @@ function PremiumScreenIos() {
     void loadProduct();
   }, [connected, loadProduct]);
 
-  const priceLabel = product?.displayPrice ?? PREMIUM_FALLBACK_PRICE;
+  const priceLabel = product?.displayPrice || PREMIUM_FALLBACK_PRICE;
 
   const handlePurchase = async () => {
     if (!user?.accessToken) {

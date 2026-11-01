@@ -209,7 +209,7 @@ function SubscribeIos() {
     if (connected) loadProduct();
   }, [connected, loadProduct]);
 
-  const priceLabel = product?.displayPrice ?? '39,99 €';
+  const priceLabel = product?.displayPrice || '39,99 €';
 
   const handleSubscribe = async () => {
     if (!user?.accessToken) return;

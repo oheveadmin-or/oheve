@@ -94,6 +94,17 @@ export async function loadIapProduct<T extends { id: string }>(
     try {
       const found = (await fetchProducts({ skus: [sku], type })) as T[] | null;
       const product = Array.isArray(found) ? found.find((p) => p?.id === sku) : null;
+      // Android : Google peut renvoyer l'abonnement SANS aucune offre achetable
+      // (forfait non proposé dans le pays du compte Google Play, ou forfait non
+      // activé). Le prix est alors vide et l'achat échoue avec « Failed to
+      // query product » : on le traite comme indisponible.
+      if (product && Platform.OS === 'android' && type === 'subs') {
+        const offers = (product as { subscriptionOfferDetailsAndroid?: unknown[] | null }).subscriptionOfferDetailsAndroid;
+        if (!Array.isArray(offers) || offers.length === 0) {
+          console.warn(`[IAP] ${sku} renvoyé sans offre (pays du compte Google Play ?)`);
+          return null;
+        }
+      }
       if (product) return product;
       console.warn(`[IAP] produit introuvable côté App Store (${sku}), tentative ${i + 1}/${attempts}`);
     } catch (err) {
@@ -113,6 +124,8 @@ export function describeIapError(error: { code?: string; message?: string } | nu
     case 'network-error':
     case 'service-error':
       return `${STORE_NAME_CAP} est momentanément injoignable. Vérifiez votre connexion et réessayez.`;
+    case 'query-product':
+      return IAP_UNAVAILABLE_MESSAGE;
     case 'item-unavailable':
       return "Cet achat n'est pas disponible dans votre pays.";
     case 'deferred-payment':
@@ -120,13 +133,15 @@ export function describeIapError(error: { code?: string; message?: string } | nu
     case 'already-owned':
       return 'Vous possédez déjà cet achat — utilisez « Restaurer mes achats ».';
     default:
+      if (/failed to query product/i.test(error?.message ?? '')) return IAP_UNAVAILABLE_MESSAGE;
       return error?.message || 'Réessayez dans un instant.';
   }
 }
 
 /** Message affiché quand Apple ne renvoie aucun produit après plusieurs essais. */
-export const IAP_UNAVAILABLE_MESSAGE =
-  `${STORE_NAME_CAP} n'a pas pu charger l'offre pour le moment. Vérifiez votre connexion, puis réessayez.`;
+export const IAP_UNAVAILABLE_MESSAGE = Platform.OS === 'android'
+  ? "Google Play n'a pas pu charger l'offre. Elle n'est peut-être pas proposée dans le pays de votre compte Google Play. Vérifiez votre connexion, puis réessayez."
+  : `${STORE_NAME_CAP} n'a pas pu charger l'offre pour le moment. Vérifiez votre connexion, puis réessayez.`;
 
 // ── Prix du Premium couple ───────────────────────────────────────────────────
 /**
