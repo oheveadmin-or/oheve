@@ -87,6 +87,27 @@ async function playApi<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise
   return { status: res.status, data: (text ? JSON.parse(text) : {}) as T };
 }
 
+/**
+ * Réponse non-200 de la Google Play Developer API : on journalise la vraie
+ * raison (visible dans les logs Railway) et on renvoie un message utile.
+ * 401/403 = le compte de service n'a pas (encore) les droits dans la Play
+ * Console — Google met jusqu'à 24-36 h à les activer après l'invitation.
+ */
+function playApiFailure(res: Response, kind: 'achat' | 'abonnement', status: number, data: unknown) {
+  const detail = (data as { error?: { message?: string } })?.error?.message ?? '';
+  console.error(`iap/verify-google ${kind} : Google Play API ${status} ${detail}`);
+  if (status === 401 || status === 403) {
+    return res.status(503).json({
+      success: false,
+      message: "Google Play n'autorise pas encore Oheve à vérifier les achats (droits en cours d'activation). Votre paiement est conservé : réessayez plus tard avec « Restaurer mes achats ».",
+    });
+  }
+  return res.status(400).json({
+    success: false,
+    message: kind === 'achat' ? 'Achat Google Play introuvable.' : 'Abonnement Google Play introuvable.',
+  });
+}
+
 type ProductPurchase = {
   purchaseState?: number;        // 0 acheté, 1 annulé, 2 en attente
   acknowledgementState?: number; // 0 non, 1 oui
@@ -131,9 +152,7 @@ googleIapRoutes.post('/verify-google', requireAuth, async (req: Request, res: Re
       const { status, data } = await playApi<ProductPurchase>(
         `/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}`,
       );
-      if (status !== 200) {
-        return res.status(400).json({ success: false, message: 'Achat Google Play introuvable.' });
-      }
+      if (status !== 200) return playApiFailure(res, 'achat', status, data);
       if (data.purchaseState === 2) {
         return res.status(402).json({ success: false, message: 'Paiement en attente : le Premium sera activé dès sa validation par Google Play.' });
       }
@@ -172,9 +191,7 @@ googleIapRoutes.post('/verify-google', requireAuth, async (req: Request, res: Re
       const { status, data } = await playApi<SubscriptionPurchaseV2>(
         `/purchases/subscriptionsv2/tokens/${encodeURIComponent(purchaseToken)}`,
       );
-      if (status !== 200) {
-        return res.status(400).json({ success: false, message: 'Abonnement Google Play introuvable.' });
-      }
+      if (status !== 200) return playApiFailure(res, 'abonnement', status, data);
       const item = data.lineItems?.find((l) => l.productId === productId) ?? data.lineItems?.[0];
       if (!item || item.productId !== productId) {
         return res.status(400).json({ success: false, message: 'Abonnement non lié à Oheve.' });
