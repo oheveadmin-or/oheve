@@ -239,6 +239,58 @@ function ThemeCard({
   );
 }
 
+/** Carte large de l'Invitation animée : modèle clé en main, peu personnalisable */
+function AnimatedInvitationCard({ preset, selected, onClick }: { preset: ThemePreset; selected: boolean; onClick: () => void }) {
+  const bg = preset.theme.backgroundColor ?? '#FFF9F2';
+  const primary = preset.theme.primaryColor ?? '#A88D70';
+  const secondary = preset.theme.secondaryColor ?? '#C9B79F';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      style={{
+        width: '100%',
+        display: 'flex',
+        alignItems: 'stretch',
+        textAlign: 'start',
+        padding: 0,
+        borderRadius: 14,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        background: '#fff',
+        border: `2px solid ${selected ? primary : 'transparent'}`,
+        boxShadow: selected ? `0 0 0 3px ${primary}33, 0 8px 22px -12px rgba(0,0,0,0.25)` : '0 2px 10px rgba(0,0,0,0.07)',
+        transition: 'box-shadow 0.18s, border-color 0.18s',
+        position: 'relative',
+        fontFamily: 'inherit',
+      }}
+    >
+      {selected && (
+        <span style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, width: 22, height: 22, borderRadius: '50%', background: primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
+            <path d="M1 3.5L4.2 7L10 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      )}
+      <div style={{ width: 'min(34%, 190px)', flexShrink: 0, display: 'flex', minHeight: 112, borderRadius: 0, overflow: 'hidden' }}>
+        <ThemeCardSwatch bg={bg} primary={primary} secondary={secondary} />
+      </div>
+      <div style={{ padding: '0.85rem 1rem', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
+        <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1rem', fontWeight: 700, color: '#1e1e1e' }}>
+          {preset.label.replace('✦ ', '')}
+        </span>
+        <span style={{ fontSize: '0.74rem', color: '#6f665c', lineHeight: 1.45 }}>
+          Carte au nom de l'invité qui s'ouvre en enveloppe, une page par événement et la réponse intégrée.
+        </span>
+        <span style={{ fontSize: '0.68rem', color: '#9a8f83', lineHeight: 1.4 }}>
+          Modèle clé en main : décor et couleurs fixes, moins personnalisable que les thèmes ci-dessus.
+        </span>
+      </div>
+    </button>
+  );
+}
+
 export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Props) {
   // Par défaut : vintage-blue si aucun style existant, sinon le style du site en cours d'édition
   // (« classic » est aussi le style par défaut d'un site neuf : on ne le garde
@@ -249,6 +301,10 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Pr
   );
 
   const chosen = STYLE_PRESETS.find((p) => p.id === selected) ?? STYLE_PRESETS[0];
+  // Les thèmes personnalisables d'abord ; l'Invitation animée (décor et couleurs
+  // fixes) est présentée à part, en dessous, comme un autre style.
+  const customizable = STYLE_PRESETS.filter((p) => p.id !== 'invitation-animee');
+  const animated = STYLE_PRESETS.find((p) => p.id === 'invitation-animee');
 
   return (
     <div
@@ -299,20 +355,39 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Pr
           width: '100%',
           margin: '0 auto',
           padding: '0 1rem 6rem',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))',
-          gap: '0.85rem',
-          alignContent: 'start',
         }}
       >
-        {STYLE_PRESETS.map((preset) => (
-          <ThemeCard
-            key={preset.id}
-            preset={preset}
-            selected={selected === preset.id}
-            onClick={() => setSelected(preset.id)}
-          />
-        ))}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '0.85rem',
+            maxWidth: 760,
+            margin: '0 auto',
+          }}
+        >
+          {customizable.map((preset) => (
+            <ThemeCard
+              key={preset.id}
+              preset={preset}
+              selected={selected === preset.id}
+              onClick={() => setSelected(preset.id)}
+            />
+          ))}
+        </div>
+
+        {animated ? (
+          <div style={{ maxWidth: 760, margin: '2.4rem auto 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '0.9rem' }}>
+              <span style={{ flex: 1, height: 1, background: '#e2dacd' }} />
+              <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.05rem', fontWeight: 600, color: '#2c2416', letterSpacing: '0.03em' }}>
+                Un autre style
+              </span>
+              <span style={{ flex: 1, height: 1, background: '#e2dacd' }} />
+            </div>
+            <AnimatedInvitationCard preset={animated} selected={selected === animated.id} onClick={() => setSelected(animated.id)} />
+          </div>
+        ) : null}
       </div>
 
       {/* Barre de sélection fixe en bas */}
@@ -359,7 +434,7 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Pr
             >
               {chosen.label.replace('✦ ', '')}
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#8a7d72' }}>{chosen.description}</div>
+            <div style={{ fontSize: '0.72rem', color: '#8a7d72', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{chosen.description}</div>
           </div>
         </div>
 

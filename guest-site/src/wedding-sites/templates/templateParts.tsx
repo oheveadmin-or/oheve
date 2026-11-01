@@ -1356,7 +1356,7 @@ function lightboxBtn(pos: CSSProperties): CSSProperties {
   };
 }
 
-type TimelineItem = { id: string; label: string; time?: string; place?: string; date?: string; description?: string };
+type TimelineItem = { id: string; label: string; time?: string; place?: string; date?: string; description?: string; googleMapsUrl?: string; wazeUrl?: string };
 
 function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVintage?: boolean }) {
   // Source du programme : jewishEvents en priorité (la date qu'on y saisit est
@@ -1366,7 +1366,7 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
   // Affiché dans l'ordre chronologique des dates/heures saisies (pas l'ordre d'activation).
   const events: TimelineItem[] = sortEventsChronologically(
     jewishEvts.length
-      ? jewishEvts.map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.date, description: e.description }))
+      ? jewishEvts.map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.date, description: e.description, googleMapsUrl: e.googleMapsUrl, wazeUrl: e.wazeUrl }))
       : (site.rsvpForm?.events ?? [])
           .filter((e) => e.enabled)
           .map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.dayLabel, description: e.shortDescription })),
@@ -1439,6 +1439,25 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
               <p style={{ margin: '0 0 0.2rem', fontWeight: 700, color: textColor }}>{ev.label}</p>
               <p style={{ margin: '0 0 0.2rem', fontSize: '0.9rem', color: mutedColor }}>{[ev.date, ev.time, ev.place].filter(Boolean).join(' · ') || 'Horaire à confirmer'}</p>
               {ev.description ? <p style={{ margin: 0, fontSize: '0.9rem', color: mutedColor }}>{ev.description}</p> : null}
+              {(() => {
+                // Itinéraire de chaque événement : liens saisis, sinon recherche du lieu
+                const links = directionsLinks(ev.place ?? '', ev.googleMapsUrl, ev.wazeUrl);
+                if (!links.waze && !links.google) return null;
+                const pill: CSSProperties = {
+                  ...linkBtn(site),
+                  color: textColor,
+                  borderColor: isVintage ? `${vt.lineOnPrimary}88` : `${rc.border}66`,
+                  borderRadius: 999,
+                  padding: '0.32rem 0.85rem',
+                  fontSize: '0.8rem',
+                };
+                return (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: '0.45rem' }}>
+                    {links.waze ? <a href={links.waze} target="_blank" rel="noreferrer" style={pill}>Waze</a> : null}
+                    {links.google ? <a href={links.google} target="_blank" rel="noreferrer" style={pill}>Google Maps</a> : null}
+                  </div>
+                );
+              })()}
             </div>
           </article>
         ))}

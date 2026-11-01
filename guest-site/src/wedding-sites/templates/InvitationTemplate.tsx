@@ -244,16 +244,13 @@ function buildPages(site: WeddingSite, S: Strings): Page[] {
   // La Houppa est le faire-part lui-même : pas de page en double
   const houppa = events.find((e) => e.type === 'houppa');
   const others = events.filter((e) => e !== houppa);
-  const main = { id: MAIN_ID, date: site.date?.slice(0, 10) || houppa?.date || '', time: site.time || houppa?.time || '' };
-  const ordered = sortEventsChronologically<{ id: string; date: string; time: string; ev?: JewishWeddingEvent }>(
-    [...others.map((ev) => ({ id: `ia-${ev.id}`, date: ev.date, time: ev.time, ev })), main],
-    (e) => e.date,
-    (e) => e.time,
-    weddingYear(site.date),
-  );
-  return ordered.map((p) =>
-    p.ev ? { id: p.id, tab: tabLabel(p.ev.label), icon: p.ev.type, ev: p.ev } : { id: MAIN_ID, tab: S.mainTab, icon: 'main' },
-  );
+  // La carte du mariage (Houppa + soirée) d'abord, puis les autres
+  // événements dans l'ordre chronologique.
+  const ordered = sortEventsChronologically<JewishWeddingEvent>(others, (e) => e.date, (e) => e.time, weddingYear(site.date));
+  return [
+    { id: MAIN_ID, tab: S.mainTab, icon: 'main' as const },
+    ...ordered.map((ev) => ({ id: `ia-${ev.id}`, tab: tabLabel(ev.label), icon: ev.type, ev })),
+  ];
 }
 
 function Bsd({ tk, S }: { tk: InvitationTokens; S: Strings }) {
