@@ -34,6 +34,7 @@ import type {
 } from '../types';
 import { defaultWeddingTheme } from '../types';
 import { autoSections } from '../utils/autoSections';
+import { withPrettyNames } from '../utils/names';
 import { EventIcon } from './EventIcon';
 import { getPatternStyle } from '../templates/PatternOverlay';
 import { getFamilyColumns } from '../templates/templateParts';
@@ -406,7 +407,7 @@ export function WeddingSiteBuilder() {
   );
 
   const draft = useMemo(
-    (): WeddingSite => ({
+    (): WeddingSite => withPrettyNames({
       id: 'preview-draft',
       slug: slugCustom.trim()
         ? slugify(slugCustom)

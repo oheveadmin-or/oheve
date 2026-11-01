@@ -8,6 +8,7 @@ import { getWeddingSiteBySlug, setSiteAccessKey } from '../services/weddingSiteS
 import type { WeddingSite } from '../types';
 import { defaultWeddingTheme } from '../types';
 import { autoSections } from '../utils/autoSections';
+import { withPrettyNames } from '../utils/names';
 import { getTemplateByTheme } from '../utils/template-selector';
 import { filterSiteForInvite, getActiveInviteToken, setActiveInviteToken } from '../utils/inviteFilter';
 import { resolveGuestName } from '../utils/guestName';
@@ -47,11 +48,11 @@ export function WeddingPublicPage() {
       try {
         const local = await getWeddingSiteBySlug(s);
         if (local) {
-          setSite({
+          setSite(withPrettyNames({
             ...local,
             theme: { ...defaultWeddingTheme(), ...(local.theme as object || {}) },
             sections: autoSections(local),
-          });
+          }));
           return;
         }
 
@@ -89,11 +90,11 @@ export function WeddingPublicPage() {
 
         if ('theme' in d && 'sections' in d && 'language' in d) {
           const site = d as WeddingSite;
-          setSite({
+          setSite(withPrettyNames({
             ...site,
             theme: { ...defaultWeddingTheme(), ...(site.theme as object || {}) },
             sections: autoSections(site),
-          });
+          }));
           return;
         }
 
