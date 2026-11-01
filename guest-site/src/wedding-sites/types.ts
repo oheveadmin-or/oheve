@@ -337,7 +337,11 @@ export type GuestContact = {
 };
 
 export type WeddingSiteContent = {
+  /** Lieu de la Houppa / cérémonie (et de la soirée, sauf `separateReception`) */
   venue?: VenueInfo;
+  /** La soirée a lieu ailleurs que la Houppa : son lieu est `receptionVenue` */
+  separateReception?: boolean;
+  receptionVenue?: VenueInfo;
   accommodationsIntro?: string;
   accommodations?: AccommodationItem[];
   faq?: FAQItem[];

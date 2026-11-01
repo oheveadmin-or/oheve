@@ -23,6 +23,7 @@ import type { GuestContact, JewishWeddingEvent, WeddingSite, WeddingTemplateProp
 import { hebrewDateFromIso } from '../utils/hebrewDate';
 import { parseEventDate, parseEventTime, sortEventsChronologically, weddingYear } from '../utils/eventOrder';
 import { directionsLinks } from '../utils/directions';
+import { frenchAt, placeQuery, weddingPlaces } from '../utils/places';
 import { invitationTokens, shade } from '../themes/InvitationTheme';
 import type { InvitationTokens } from '../themes/InvitationTheme';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
@@ -48,6 +49,8 @@ const STRINGS = {
     bsd: 'בס״ד',
     at: 'à',
     directions: 'Itinéraire',
+    ceremonyTag: 'Houppa',
+    receptionTag: 'Soirée',
     rsvpTitle: 'Merci de confirmer\nvotre présence',
     tabs: "Pages de l'invitation",
     mainTab: 'Mariage',
@@ -66,6 +69,8 @@ const STRINGS = {
     bsd: 'בס״ד',
     at: 'בשעה',
     directions: 'הוראות הגעה',
+    ceremonyTag: 'חופה',
+    receptionTag: 'סעודה',
     rsvpTitle: 'נשמח לאישור\nהגעתכם',
     tabs: 'עמודי ההזמנה',
     mainTab: 'חתונה',
@@ -78,6 +83,8 @@ const STRINGS = {
     bsd: 'בס״ד',
     at: 'at',
     directions: 'Directions',
+    ceremonyTag: 'Ceremony',
+    receptionTag: 'Reception',
     rsvpTitle: 'Kindly confirm\nyour attendance',
     tabs: 'Invitation pages',
     mainTab: 'Wedding',
@@ -367,7 +374,24 @@ function MainPage({ site, tk, S }: { site: WeddingSite; tk: InvitationTokens; S:
   const familyText = site.content?.texts?.familyText?.trim();
   const venue = site.content?.venue;
   const placeName = venue?.name?.trim() || site.venue?.trim() || '';
-  const place = [placeName, venue?.address?.trim() || site.city?.trim()].filter(Boolean).join(', ');
+  const { ceremony, reception } = weddingPlaces(site);
+  const fr = site.language === 'fr' || !site.language;
+  // « Itinéraire au Domaine des Calanques » ; avec une soirée ailleurs, chaque
+  // bandeau dit de quel moment il s'agit (« Itinéraire Houppa · … »).
+  const bandLabel = (name: string, tag: string) => {
+    const where = name ? (fr ? frenchAt(name) : name) : '';
+    return reception ? [tag, name].filter(Boolean).join(' · ') : where;
+  };
+  const bands = (
+    <>
+      {ceremony ? (
+        <DirectionsBand place={placeQuery(ceremony)} label={bandLabel(ceremony.name, S.ceremonyTag)} googleMapsUrl={ceremony.googleMapsUrl} wazeUrl={ceremony.wazeUrl} S={S} />
+      ) : null}
+      {reception ? (
+        <DirectionsBand place={placeQuery(reception)} label={bandLabel(reception.name, S.receptionTag)} googleMapsUrl={reception.googleMapsUrl} wazeUrl={reception.wazeUrl} S={S} />
+      ) : null}
+    </>
+  );
   const phraseStyle: InvitationStyle = {
     text: tk.colors.ink,
     muted: tk.colors.muted,
@@ -378,7 +402,7 @@ function MainPage({ site, tk, S }: { site: WeddingSite; tk: InvitationTokens; S:
     dateSize: '1.55rem',
   };
   return (
-    <PageShell id={MAIN_ID} label={S.mainTab} band={<DirectionsBand place={place} label={placeName} googleMapsUrl={venue?.googleMapsUrl} wazeUrl={venue?.wazeUrl} S={S} />}>
+    <PageShell id={MAIN_ID} label={S.mainTab} band={bands}>
       <Bsd tk={tk} S={S} />
       {site.content?.hebrewQuote?.trim() ? (
         <div style={{ width: '100%', marginBottom: '-0.4rem' }}>
@@ -650,6 +674,7 @@ const INVITATION_CSS = `
 .ia-address { margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--ia-muted); overflow-wrap: anywhere; }
 .ia-families { width: 100%; margin-top: 0.4rem; }
 
+.ia-band + .ia-band { border-top: 1px solid rgba(255,255,255,0.28); }
 .ia-band { background: var(--ia-band); text-shadow: none; padding: 0.95rem 16px 1.1rem; color: var(--ia-band-ink); }
 .ia-band-title {
   margin: 0 0 0.75rem; display: flex; align-items: center; justify-content: center; gap: 0.6rem;

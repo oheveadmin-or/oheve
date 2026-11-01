@@ -8,6 +8,8 @@ import type { WeddingSite } from '../types';
 import { formatWeddingDate } from '../utils/date';
 import { frenchLongDate, hebrewDateFromIso } from '../utils/hebrewDate';
 import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
+import { frenchAt, weddingPlaces } from '../utils/places';
+import type { WeddingPlace } from '../utils/places';
 import { sectionLabels } from '../i18n';
 import { deezerTrackId, defaultStartSeconds, fullTrackForDeezer, isYouTubeUrl, resolveDeezerPreview } from '../data/musicSuggestions';
 
@@ -382,12 +384,8 @@ export function InvitationDetails({ site, s, style }: { site: WeddingSite; s: In
   const longDate = dateIso ? frenchLongDate(dateIso) : '';
   const hebDate = dateIso ? hebrewDateFromIso(dateIso)?.fr : '';
   const time = /^\d{1,2}:\d{2}/.test(site.time ?? '') ? site.time.slice(0, 5).replace(':', 'h') : '';
-  // Ville et salle identiques : affichées une fois
-  const seen = new Set<string>();
-  const place = [site.venue || site.content?.venue?.name, site.city]
-    .map((x) => x?.trim())
-    .filter((x): x is string => !!x && !seen.has(x.toLowerCase()) && !!seen.add(x.toLowerCase()))
-    .join(' — ');
+  const { ceremony, reception } = weddingPlaces(site);
+  const fr = site.language !== 'he' && site.language !== 'en';
 
   const size = s.size ?? '1rem';
   const lineStyle: CSSProperties = {
@@ -412,10 +410,30 @@ export function InvitationDetails({ site, s, style }: { site: WeddingSite; s: In
           ) : null}
         </div>
       ) : null}
-      <InvitationPhrase text={texts.reception} s={s} />
-      {place ? <p style={{ ...lineStyle, fontSize: `calc(${size} * 1.08)` }}>{place}</p> : null}
+      {/* Lieu de la Houppa juste après la date : « au Domaine des Calanques » + adresse */}
+      {ceremony ? <PlaceLines place={ceremony} fr={fr} lineStyle={lineStyle} size={size} /> : null}
+      {/* La soirée : la phrase, puis son propre lieu si elle a lieu ailleurs */}
+      <InvitationPhrase
+        text={reception && texts.reception ? { ...texts.reception, fr: texts.reception.fr.trim().replace(/[.\s]+$/, '') } : texts.reception}
+        s={s}
+      />
+      {reception ? <PlaceLines place={reception} fr={fr} lineStyle={lineStyle} size={size} /> : null}
       <InvitationPhrase text={texts.memorial} s={s} soft />
       <InvitationPhrase text={texts.dressCode} s={s} soft />
+    </div>
+  );
+}
+
+/** « au Domaine des Calanques » puis l'adresse complète, en plus petit */
+function PlaceLines({ place, fr, lineStyle, size }: { place: WeddingPlace; fr: boolean; lineStyle: CSSProperties; size: string }) {
+  return (
+    <div>
+      {place.name ? <p style={{ ...lineStyle, fontSize: `calc(${size} * 1.08)` }}>{fr ? frenchAt(place.name) : place.name}</p> : null}
+      {place.address ? (
+        <p style={{ ...lineStyle, marginTop: place.name ? '0.2rem' : 0, fontSize: `calc(${size} * ${place.name ? 0.88 : 1.08})`, opacity: place.name ? 0.8 : 1 }}>
+          {place.address}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -1002,27 +1020,36 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     );
   }
   if (site.sections.location) {
-    const venue = site.content?.venue;
-    const hasVenue = !!(venue?.name || venue?.address || venue?.description || venue?.photoUrl || venue?.googleMapsUrl || venue?.wazeUrl);
+    const { ceremony, reception } = weddingPlaces(site);
+    const placeBlock = (p: WeddingPlace, heading?: string) => (
+      <div style={{ display: 'grid', gap: '0.85rem' }}>
+        {heading ? (
+          <p style={{ margin: 0, fontSize: '0.72rem', letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.65 }}>{heading}</p>
+        ) : null}
+        {p.photoUrl ? (
+          <img src={p.photoUrl} alt={p.name || 'Lieu du mariage'} loading="lazy" style={{ width: '100%', borderRadius: 12, maxHeight: 300, objectFit: 'cover' }} />
+        ) : null}
+        {p.name ? <p style={{ margin: 0, fontWeight: 700 }}>{p.name}</p> : null}
+        {p.address ? <p style={{ margin: 0, lineHeight: 1.7 }}>{p.address}</p> : null}
+        {p.description ? <p style={{ margin: 0, lineHeight: 1.65, opacity: 0.9 }}>{p.description}</p> : null}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {p.googleMapsUrl ? <a href={p.googleMapsUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>Ouvrir dans Google Maps</a> : null}
+          {p.wazeUrl ? <a href={p.wazeUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>Ouvrir dans Waze</a> : null}
+        </div>
+      </div>
+    );
+    const he = site.language === 'he';
     blocks.push(
       <section id="location" key="loc" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
         <SectionTitle label={L.location} theme={t} />
         <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
-          {hasVenue ? (
-            <div style={{ display: 'grid', gap: '0.85rem' }}>
-              {venue?.photoUrl ? (
-                <img src={venue.photoUrl} alt={venue.name || 'Lieu du mariage'} loading="lazy" style={{ width: '100%', borderRadius: 12, maxHeight: 300, objectFit: 'cover' }} />
-              ) : null}
-              <p style={{ margin: 0, fontWeight: 700 }}>{venue?.name || site.venue || 'Lieu principal'}</p>
-              <p style={{ margin: 0, lineHeight: 1.7 }}>{venue?.address || [site.venue, site.city].filter(Boolean).join(', ') || '—'}</p>
-              {venue?.description ? <p style={{ margin: 0, lineHeight: 1.65, opacity: 0.9 }}>{venue.description}</p> : null}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {venue?.googleMapsUrl ? <a href={venue.googleMapsUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>Ouvrir dans Google Maps</a> : null}
-                {venue?.wazeUrl ? <a href={venue.wazeUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>Ouvrir dans Waze</a> : null}
-              </div>
+          {ceremony || reception ? (
+            <div style={{ display: 'grid', gap: '1.6rem' }}>
+              {ceremony ? placeBlock(ceremony, reception ? (he ? 'חופה' : 'Houppa & cérémonie') : undefined) : null}
+              {reception ? placeBlock(reception, he ? 'סעודה' : 'Soirée') : null}
             </div>
           ) : (
-            <p style={{ margin: 0, lineHeight: 1.7 }}>{[site.venue, site.city].filter(Boolean).join(', ') || '—'}</p>
+            <p style={{ margin: 0, lineHeight: 1.7 }}>—</p>
           )}
         </div>
       </section>

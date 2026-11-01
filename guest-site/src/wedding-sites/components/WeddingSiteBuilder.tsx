@@ -767,6 +767,16 @@ export function WeddingSiteBuilder() {
     }));
   }
 
+  function updateReceptionField(key: keyof NonNullable<WeddingSiteContent['receptionVenue']>, value: string) {
+    setContent((prev) => ({
+      ...prev,
+      receptionVenue: {
+        ...(prev.receptionVenue ?? { name: '', address: '', googleMapsUrl: '', wazeUrl: '', photoUrl: '', description: '' }),
+        [key]: value,
+      },
+    }));
+  }
+
   function upsertAccommodation(idx: number, partial: Partial<AccommodationItem>) {
     setContent((prev) => {
       const list = [...(prev.accommodations ?? [])];
@@ -1787,17 +1797,21 @@ export function WeddingSiteBuilder() {
 
           {wiz === 'date' && (
           <section style={block}>
-            <h2 style={h2}>Le lieu</h2>
+            <h2 style={h2}>Les lieux</h2>
             <p style={{ fontSize: '0.78rem', color: '#7e8178', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
-              📍 Repris automatiquement en haut du site, avec les boutons Google Maps et Waze.
+              📍 Écrit sur le faire-part juste après la date (« au Domaine des Calanques » + l'adresse),
+              avec les boutons Waze et Google Maps.
+            </p>
+            <p style={{ margin: '0.4rem 0 0', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#747E68' }}>
+              {content.separateReception ? 'Houppa & cérémonie' : 'Houppa, cérémonie et soirée'}
             </p>
             <label style={lab}>
               Nom du lieu
-              <input style={inp} value={content.venue?.name ?? ''} onChange={(e) => updateVenueField('name', e.target.value)} />
+              <input style={inp} placeholder="ex. Domaine des Calanques" value={content.venue?.name ?? ''} onChange={(e) => updateVenueField('name', e.target.value)} />
             </label>
             <label style={lab}>
               Adresse complète
-              <input style={inp} value={content.venue?.address ?? ''} onChange={(e) => updateVenueField('address', e.target.value)} />
+              <input style={inp} placeholder="ex. 167 rue François Mauriac, Marseille" value={content.venue?.address ?? ''} onChange={(e) => updateVenueField('address', e.target.value)} />
             </label>
             <div style={grid2}>
               <label style={lab}>
@@ -1817,6 +1831,46 @@ export function WeddingSiteBuilder() {
               Description courte
               <textarea style={{ ...inp, minHeight: 72, resize: 'vertical' }} value={content.venue?.description ?? ''} onChange={(e) => updateVenueField('description', e.target.value)} />
             </label>
+
+            {/* Soirée dans un autre lieu */}
+            <div style={{ marginTop: '1.2rem', borderTop: '1px solid #F5F2ED', paddingTop: '1rem' }}>
+              <label style={chk}>
+                <input
+                  type="checkbox"
+                  checked={!!content.separateReception}
+                  onChange={(e) => setContent((c) => ({ ...c, separateReception: e.target.checked }))}
+                />
+                La soirée a lieu dans un autre endroit
+              </label>
+              {content.separateReception ? (
+                <div style={{ border: '1px solid #F5F2ED', borderRadius: 12, padding: '0.75rem', marginTop: 10, background: '#FBFBF9' }}>
+                  <p style={{ margin: '0 0 0.2rem', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#747E68' }}>
+                    Soirée
+                  </p>
+                  <label style={lab}>
+                    Nom du lieu
+                    <input style={inp} placeholder="ex. Villa Méditerranée" value={content.receptionVenue?.name ?? ''} onChange={(e) => updateReceptionField('name', e.target.value)} />
+                  </label>
+                  <label style={lab}>
+                    Adresse complète
+                    <input style={inp} value={content.receptionVenue?.address ?? ''} onChange={(e) => updateReceptionField('address', e.target.value)} />
+                  </label>
+                  <div style={grid2}>
+                    <label style={lab}>
+                      Lien Google Maps
+                      <input style={inp} value={content.receptionVenue?.googleMapsUrl ?? ''} onChange={(e) => updateReceptionField('googleMapsUrl', e.target.value)} />
+                    </label>
+                    <label style={lab}>
+                      Lien Waze
+                      <input style={inp} value={content.receptionVenue?.wazeUrl ?? ''} onChange={(e) => updateReceptionField('wazeUrl', e.target.value)} />
+                    </label>
+                  </div>
+                  <p style={{ fontSize: '0.74rem', color: '#7e8178', margin: '0.5rem 0 0', lineHeight: 1.5 }}>
+                    Sans lien, Waze et Google Maps cherchent directement l'adresse.
+                  </p>
+                </div>
+              ) : null}
+            </div>
           </section>
           )}
 
