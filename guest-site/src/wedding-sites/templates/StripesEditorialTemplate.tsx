@@ -13,6 +13,7 @@
  * dans le builder). Aucun texte fixe, aucune image de décoration.
  * Les rayures sont 100 % CSS (repeating-linear-gradient).
  */
+import { directionsLinks } from '../utils/directions';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { WeddingTemplateProps } from '../types';
@@ -153,8 +154,9 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
           day: e.date,
           place: e.place,
           description: e.description,
-          mapsUrl: e.googleMapsUrl,
-          wazeUrl: e.wazeUrl,
+          // Liens saisis, sinon recherche directe du lieu
+          mapsUrl: directionsLinks(e.place ?? '', e.googleMapsUrl, e.wazeUrl).google,
+          wazeUrl: directionsLinks(e.place ?? '', e.googleMapsUrl, e.wazeUrl).waze,
         }))
       : events.map((e) => ({
           id: e.id,

@@ -8,7 +8,8 @@ import type { WeddingSite } from '../types';
 import { formatWeddingDate } from '../utils/date';
 import { frenchLongDate, hebrewDateFromIso } from '../utils/hebrewDate';
 import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
-import { frenchAt, weddingPlaces } from '../utils/places';
+import { frenchAt, placeQuery, weddingPlaces } from '../utils/places';
+import { directionsLinks } from '../utils/directions';
 import type { WeddingPlace } from '../utils/places';
 import { sectionLabels } from '../i18n';
 import { deezerTrackId, defaultStartSeconds, fullTrackForDeezer, isYouTubeUrl, resolveDeezerPreview } from '../data/musicSuggestions';
@@ -383,6 +384,8 @@ export function InvitationDetails({ site, s, style }: { site: WeddingSite; s: In
   const dateIso = site.date?.slice(0, 10) ?? '';
   const longDate = dateIso ? frenchLongDate(dateIso) : '';
   const hebDate = dateIso ? hebrewDateFromIso(dateIso)?.fr : '';
+  // Date en lettres hébraïques (« י״ד באלול תשפ״ו »)
+  const hebLetters = dateIso ? hebrewDateFromIso(dateIso)?.he : '';
   const time = /^\d{1,2}:\d{2}/.test(site.time ?? '') ? site.time.slice(0, 5).replace(':', 'h') : '';
   const { ceremony, reception } = weddingPlaces(site);
   const fr = site.language !== 'he' && site.language !== 'en';
@@ -406,6 +409,11 @@ export function InvitationDetails({ site, s, style }: { site: WeddingSite; s: In
           {hebDate || time ? (
             <p style={{ ...lineStyle, marginTop: '0.25rem', fontSize: size, opacity: 0.85 }}>
               {[hebDate, time ? `à ${time}` : ''].filter(Boolean).join(' · ')}
+            </p>
+          ) : null}
+          {hebLetters ? (
+            <p dir="rtl" lang="he" style={{ margin: '0.25rem 0 0', fontFamily: HEBREW_FONT, fontSize: `calc(${size} * 1.05)`, color: s.accent, opacity: 0.85, lineHeight: 1.4, textTransform: 'none', letterSpacing: 0 }}>
+              {hebLetters}
             </p>
           ) : null}
         </div>
@@ -1021,7 +1029,10 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   }
   if (site.sections.location) {
     const { ceremony, reception } = weddingPlaces(site);
-    const placeBlock = (p: WeddingPlace, heading?: string) => (
+    const placeBlock = (p: WeddingPlace, heading?: string) => {
+      // Liens saisis par le couple, sinon recherche directe de l'adresse
+      const links = directionsLinks(placeQuery(p), p.googleMapsUrl, p.wazeUrl);
+      return (
       <div style={{ display: 'grid', gap: '0.85rem' }}>
         {heading ? (
           <p style={{ margin: 0, fontSize: '0.72rem', letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.65 }}>{heading}</p>
@@ -1033,11 +1044,12 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
         {p.address ? <p style={{ margin: 0, lineHeight: 1.7 }}>{p.address}</p> : null}
         {p.description ? <p style={{ margin: 0, lineHeight: 1.65, opacity: 0.9 }}>{p.description}</p> : null}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {p.googleMapsUrl ? <a href={p.googleMapsUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>Ouvrir dans Google Maps</a> : null}
-          {p.wazeUrl ? <a href={p.wazeUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>Ouvrir dans Waze</a> : null}
+          {links.waze ? <a href={links.waze} target="_blank" rel="noreferrer" style={linkBtn(site)}>Ouvrir dans Waze</a> : null}
+          {links.google ? <a href={links.google} target="_blank" rel="noreferrer" style={linkBtn(site)}>Ouvrir dans Google Maps</a> : null}
         </div>
       </div>
-    );
+      );
+    };
     const he = site.language === 'he';
     blocks.push(
       <section id="location" key="loc" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
@@ -1726,16 +1738,16 @@ function JewishEventsSection({
             ) : null}
             {ev.place ? <p style={{ margin: '0 0 0.2rem', fontSize: '0.88rem', opacity: 0.85 }}>{ev.place}</p> : null}
             {ev.description ? <p style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', lineHeight: 1.6, opacity: 0.88 }}>{ev.description}</p> : null}
-            {(ev.googleMapsUrl || ev.wazeUrl) ? (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                {ev.googleMapsUrl ? (
-                  <a href={ev.googleMapsUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>📍 Google Maps</a>
-                ) : null}
-                {ev.wazeUrl ? (
-                  <a href={ev.wazeUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>🚗 Waze</a>
-                ) : null}
-              </div>
-            ) : null}
+            {(() => {
+              // Liens saisis, sinon recherche directe du lieu de l'événement
+              const links = directionsLinks(ev.place ?? '', ev.googleMapsUrl, ev.wazeUrl);
+              return links.google || links.waze ? (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                  {links.waze ? <a href={links.waze} target="_blank" rel="noreferrer" style={linkBtn(site)}>🚗 Waze</a> : null}
+                  {links.google ? <a href={links.google} target="_blank" rel="noreferrer" style={linkBtn(site)}>📍 Google Maps</a> : null}
+                </div>
+              ) : null;
+            })()}
           </div>
         </article>
       ))}
@@ -1746,6 +1758,7 @@ function JewishEventsSection({
 function HotelCard({ hotel: h, site }: { hotel: import('../types').AccommodationItem; site: WeddingSite }) {
   const t = site.theme;
   const rc = resolveThemeColors(t);
+  const links = directionsLinks([h.name, h.address].filter((x) => x?.trim()).join(', '), h.googleMapsUrl, h.wazeUrl);
   return (
     <article style={{ border: `1px solid ${rc.border}25`, borderRadius: 12, padding: '0.85rem', display: 'grid', gap: '0.3rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1760,8 +1773,8 @@ function HotelCard({ hotel: h, site }: { hotel: import('../types').Accommodation
         <p style={{ margin: 0, fontSize: '0.82rem', color: rc.accent, fontWeight: 600 }}>{h.distanceOrDuration}</p>
       ) : null}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-        {h.googleMapsUrl ? <a href={h.googleMapsUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>📍 Maps</a> : null}
-        {h.wazeUrl ? <a href={h.wazeUrl} target="_blank" rel="noreferrer" style={linkBtn(site)}>🚗 Waze</a> : null}
+        {links.google ? <a href={links.google} target="_blank" rel="noreferrer" style={linkBtn(site)}>📍 Maps</a> : null}
+        {links.waze ? <a href={links.waze} target="_blank" rel="noreferrer" style={linkBtn(site)}>🚗 Waze</a> : null}
         {h.phone ? <a href={`tel:${h.phone}`} style={linkBtn(site)}>📞 Appeler</a> : null}
         {h.bookingUrl ? (
           <a href={h.bookingUrl} target="_blank" rel="noreferrer" style={{ ...linkBtn(site), background: rc.button, color: rc.buttonText, borderColor: rc.button }}>

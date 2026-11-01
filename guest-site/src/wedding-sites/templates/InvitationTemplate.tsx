@@ -120,11 +120,12 @@ function prettyDate(raw: string | undefined, lang: string, fallbackYear?: number
 }
 
 /** Date hébraïque (« 16 Kislev 5787 ») d'une date d'événement reconnue */
-function hebrewDateOf(raw: string | undefined, fallbackYear?: number): string {
+function hebrewDateOf(raw: string | undefined, fallbackYear?: number): { fr: string; he: string } {
   const key = parseEventDate(raw, fallbackYear);
-  if (!key || key < 10000000) return '';
+  if (!key || key < 10000000) return { fr: '', he: '' };
   const iso = `${Math.floor(key / 10000)}-${String(Math.floor((key % 10000) / 100)).padStart(2, '0')}-${String(key % 100).padStart(2, '0')}`;
-  return hebrewDateFromIso(iso)?.fr ?? '';
+  const d = hebrewDateFromIso(iso);
+  return { fr: d?.fr ?? '', he: d?.he ?? '' };
 }
 
 /** Numéro WhatsApp international (chiffres seuls) ; un 06… français devient 336… */
@@ -360,7 +361,12 @@ function EventPage({ page, site, tk, S }: { page: Page; site: WeddingSite; tk: I
       </h2>
       {phrase ? <p className="ia-phrase">{phrase}</p> : null}
       {date ? <p className="ia-date">{date}</p> : null}
-      {hebDate ? <p className="ia-hebdate">{hebDate}</p> : null}
+      {hebDate.fr ? <p className="ia-hebdate">{hebDate.fr}</p> : null}
+      {hebDate.he ? (
+        <p className="ia-hebdate-he" dir="rtl" lang="he">
+          {hebDate.he}
+        </p>
+      ) : null}
       {time ? <p className="ia-time">{/^\d/.test(time) ? `${S.at} ${time}` : time}</p> : null}
       {place.name ? <p className="ia-place">{place.name}</p> : null}
       {place.address ? <p className="ia-address">{place.address}</p> : null}
@@ -774,6 +780,7 @@ const INVITATION_CSS = `
 }
 .ia-band-btn:hover { background: rgba(255,255,255,0.12); }
 .ia-band-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ia-hebdate-he { margin: 0 0 0.2rem; font-family: 'Frank Ruhl Libre', 'Noto Serif Hebrew', serif; font-size: 1.05rem; color: var(--ia-muted); }
 .ia-hebdate { margin: 0.15rem 0 0.2rem; font-family: var(--ia-label); font-size: 0.74rem; letter-spacing: 0.3em; text-transform: uppercase; padding-inline-start: 0.3em; color: var(--ia-muted); }
 .ia-he-name { font-family: 'Frank Ruhl Libre', 'Noto Serif Hebrew', serif; font-size: 0.42em; line-height: 1.3; color: var(--ia-muted); margin: 0.05em 0 0.1em; }
 .ia-contacts { background: var(--ia-band); color: var(--ia-band-ink); text-align: center; padding: 1rem 16px 1.1rem; text-shadow: none; }
