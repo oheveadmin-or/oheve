@@ -15,7 +15,7 @@ import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import {
   describeIapError, getIapSdk, iapAvailable, IAP_UNAVAILABLE_MESSAGE,
-  loadIapProduct, STORE_NAME, STORE_NAME_CAP, storePurchaseRequest, type IapProductState,
+  loadIapProduct, PREMIUM_FALLBACK_PRICE, rememberPremiumPrice, STORE_NAME, STORE_NAME_CAP, storePurchaseRequest, type IapProductState,
 } from '@/lib/iap';
 import { iapApi, premiumApi } from '@/services/auth/api';
 
@@ -262,6 +262,7 @@ function PremiumScreenIos() {
       sdk.fetchProducts, IAP_SKUS.premium, 'in-app',
     );
     setProduct(found);
+    rememberPremiumPrice(found?.displayPrice);
     setStoreState(found ? 'ready' : 'unavailable');
     return found;
   }, [sdk]);
@@ -277,7 +278,7 @@ function PremiumScreenIos() {
     void loadProduct();
   }, [connected, loadProduct]);
 
-  const priceLabel = product?.displayPrice ?? '50 €';
+  const priceLabel = product?.displayPrice ?? PREMIUM_FALLBACK_PRICE;
 
   const handlePurchase = async () => {
     if (!user?.accessToken) {

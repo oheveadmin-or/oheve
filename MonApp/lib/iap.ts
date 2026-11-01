@@ -14,7 +14,10 @@
  * et les écrans affichent un message « mise à jour requise » au lieu de
  * planter au premier rendu.
  */
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+
+import { IAP_SKUS } from '@/constants/config';
 
 let iapSdk: typeof import('expo-iap') | null = null;
 if (Platform.OS === 'ios' || Platform.OS === 'android') {
@@ -124,3 +127,68 @@ export function describeIapError(error: { code?: string; message?: string } | nu
 /** Message affiché quand Apple ne renvoie aucun produit après plusieurs essais. */
 export const IAP_UNAVAILABLE_MESSAGE =
   `${STORE_NAME_CAP} n'a pas pu charger l'offre pour le moment. Vérifiez votre connexion, puis réessayez.`;
+
+// ── Prix du Premium couple ───────────────────────────────────────────────────
+/**
+ * Prix réglé dans chaque store, affiché tant que le store n'a pas répondu
+ * (ou sur le web / anciens builds sans expo-iap, qui paient via Stripe).
+ * ⚠️ À garder identique aux consoles :
+ *   - Google Play Console → produit ponctuel com.oheve.wedding.couple.premium : 49,99 €
+ *   - App Store Connect → achat intégré com.oheve.wedding.couple.premium : 50,00 €
+ */
+export const PREMIUM_FALLBACK_PRICE = Platform.OS === 'android' ? '49,99 €' : '50 €';
+
+let premiumPrice: string | null = null;
+let premiumPricePromise: Promise<void> | null = null;
+const premiumPriceListeners = new Set<(p: string) => void>();
+
+/** Mémorise le prix renvoyé par le store et prévient tous les écrans abonnés. */
+export function rememberPremiumPrice(price: string | null | undefined) {
+  if (!price || price === premiumPrice) return;
+  premiumPrice = price;
+  premiumPriceListeners.forEach((l) => l(price));
+}
+
+/** Charge le prix du Premium auprès du store, une seule fois pour toute l'app. */
+function loadPremiumPriceOnce() {
+  if (premiumPrice || premiumPricePromise || !iapSdk?.fetchProducts) return;
+  const sdk = iapSdk;
+  premiumPricePromise = (async () => {
+    const fetchOne = async () => {
+      const list = (await sdk.fetchProducts({ skus: [IAP_SKUS.premium], type: 'in-app' })) as
+        { id: string; displayPrice?: string }[] | null;
+      return Array.isArray(list) ? list.find((p) => p?.id === IAP_SKUS.premium) : undefined;
+    };
+    try {
+      let product: { displayPrice?: string } | undefined;
+      try {
+        product = await fetchOne();
+      } catch {
+        // Connexion au store pas encore ouverte : on l'ouvre puis on réessaie.
+        await sdk.initConnection?.();
+        product = await fetchOne();
+      }
+      rememberPremiumPrice(product?.displayPrice);
+    } catch (err) {
+      console.warn('[IAP] prix Premium indisponible, prix par défaut affiché', err);
+    } finally {
+      premiumPricePromise = null;
+    }
+  })();
+}
+
+/**
+ * Prix du Premium couple à afficher partout dans l'app (« 49,99 € » sur
+ * Android, « 50 € » sur iPhone…). Le prix exact vient du store ; en attendant,
+ * on affiche celui de la plateforme.
+ */
+export function usePremiumPrice(): string {
+  const [price, setPrice] = useState(premiumPrice ?? PREMIUM_FALLBACK_PRICE);
+  useEffect(() => {
+    premiumPriceListeners.add(setPrice);
+    if (premiumPrice) setPrice(premiumPrice);
+    else loadPremiumPriceOnce();
+    return () => { premiumPriceListeners.delete(setPrice); };
+  }, []);
+  return price;
+}

@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { C, RADIUS } from '@/constants/OheveTheme';
+import { usePremiumPrice } from '@/lib/iap';
 import { PurchaseLegal } from './purchase-legal';
 import { ThemedText } from './themed-text';
 
@@ -34,6 +35,7 @@ const VALUE_ITEMS = [
 ];
 
 export function PaywallModal({ visible, onClose }: Props) {
+  const price = usePremiumPrice();
   const handleBuy = () => {
     onClose();
     router.push('/(app)/premium');
@@ -80,14 +82,14 @@ export function PaywallModal({ visible, onClose }: Props) {
             </View>
             <View style={s.valueRow}>
               <ThemedText style={s.valueTodayLabel}>Aujourd'hui</ThemedText>
-              <ThemedText style={s.valueTodayPrice}>50 €</ThemedText>
+              <ThemedText style={s.valueTodayPrice}>{price}</ThemedText>
             </View>
           </View>
 
           {/* CTA */}
           <Pressable style={s.buyBtn} onPress={handleBuy}>
             <Ionicons name="heart" size={18} color="#fff" />
-            <ThemedText style={s.buyBtnTxt}>Créer mon mariage — 50 €</ThemedText>
+            <ThemedText style={s.buyBtnTxt}>Créer mon mariage — {price}</ThemedText>
           </Pressable>
 
           <Pressable style={s.cancelBtn} onPress={onClose}>
@@ -103,7 +105,7 @@ export function PaywallModal({ visible, onClose }: Props) {
           <PurchaseLegal
             productTitle="Oheve Premium"
             duration="Achat unique — accès illimité dans le temps"
-            price="50 € TTC, une seule fois"
+            price={`${price} TTC, une seule fois`}
             extra="Aucun abonnement, aucun renouvellement automatique."
             onNavigate={onClose}
           />

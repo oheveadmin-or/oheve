@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { C } from '@/constants/OheveTheme';
 import { usePremiumAccess } from '@/hooks/use-premium-access';
+import { usePremiumPrice } from '@/lib/iap';
 import { PurchaseLegal } from './purchase-legal';
 import { ThemedText } from './themed-text';
 
@@ -25,6 +26,7 @@ const VALUE_ITEMS = [
 export function PremiumGate({ feature, icon, children }: Props) {
   const { hasPremiumAccess } = usePremiumAccess();
   const insets = useSafeAreaInsets();
+  const price = usePremiumPrice();
 
   if (hasPremiumAccess) return <>{children}</>;
 
@@ -54,7 +56,7 @@ export function PremiumGate({ feature, icon, children }: Props) {
         <ThemedText style={s.title}>Fonctionnalité Premium</ThemedText>
         <ThemedText style={s.subtitle}>
           <ThemedText style={s.featureName}>{feature}</ThemedText>
-          {' '}est inclus dans Oheve Premium.{'\n'}Débloquez tout pour 50 € paiement unique.
+          {' '}est inclus dans Oheve Premium.{'\n'}Débloquez tout pour {price} paiement unique.
         </ThemedText>
 
         {/* Ce qui est inclus */}
@@ -91,14 +93,14 @@ export function PremiumGate({ feature, icon, children }: Props) {
           </View>
           <View style={s.valueRow}>
             <ThemedText style={s.todayLabel}>Oheve Premium</ThemedText>
-            <ThemedText style={s.todayPrice}>50 €</ThemedText>
+            <ThemedText style={s.todayPrice}>{price}</ThemedText>
           </View>
         </View>
 
         {/* CTA */}
         <Pressable style={s.cta} onPress={() => router.push('/(app)/premium' as never)}>
           <Ionicons name="heart" size={18} color="#fff" />
-          <ThemedText style={s.ctaTxt}>Créer mon mariage · 50 €</ThemedText>
+          <ThemedText style={s.ctaTxt}>Créer mon mariage · {price}</ThemedText>
         </Pressable>
 
         <View style={s.trustRow}>
@@ -110,7 +112,7 @@ export function PremiumGate({ feature, icon, children }: Props) {
         <PurchaseLegal
           productTitle="Oheve Premium"
           duration="Achat unique — accès illimité dans le temps"
-          price="50 € TTC, une seule fois"
+          price={`${price} TTC, une seule fois`}
           extra="Aucun abonnement, aucun renouvellement automatique."
         />
       </ScrollView>

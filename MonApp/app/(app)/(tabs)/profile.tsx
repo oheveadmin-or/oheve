@@ -30,6 +30,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { prestatairesApi, messagingApi, authApi, uploadFile } from '@/services/auth/api';
 import { API_ENDPOINTS } from '@/constants/config';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
+import { usePremiumPrice } from '@/lib/iap';
 
 const { width: W } = Dimensions.get('window');
 const PHOTO_SIZE = (W - 3) / 3;
@@ -604,6 +605,7 @@ function PrestataireInstaProfile() {
 // ── Generic client profile ───────────────────────────────────────────────────
 function ClientProfile() {
   const { user, signOut, updateUser, refreshAccessToken } = useAuth();
+  const premiumPrice = usePremiumPrice();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   // URL d'avatar morte (fichier disparu côté serveur) : on affiche l'initiale
   // plutôt qu'un rond vide.
@@ -718,7 +720,7 @@ function ClientProfile() {
         ) : (
           <Pressable style={[styles.itemCard, { backgroundColor: C.saugePale }]} onPress={() => router.push('/(app)/premium' as never)}>
             <Ionicons name="star-outline" size={18} color={C.saugeDark} />
-            <ThemedText style={[styles.itemText, { color: C.saugeDark, fontWeight: '700' }]}>Passer à Oheve Premium · 50 €</ThemedText>
+            <ThemedText style={[styles.itemText, { color: C.saugeDark, fontWeight: '700' }]}>Passer à Oheve Premium · {premiumPrice}</ThemedText>
             <Ionicons name="chevron-forward" size={16} color={C.saugeDark} />
           </Pressable>
         )}
