@@ -2322,7 +2322,7 @@ export function WeddingSiteBuilder() {
                         <span style={{ fontSize: '0.74rem', color: existing.place?.trim() || existing.googleMapsUrl?.trim() || existing.wazeUrl?.trim() ? '#7e8178' : '#9a6a1f', lineHeight: 1.45 }}>
                           {existing.place?.trim() || existing.googleMapsUrl?.trim() || existing.wazeUrl?.trim()
                             ? 'Boutons Waze et Google Maps ajoutés automatiquement sur le site (liens ci-dessous facultatifs).'
-                            : 'Ajoutez le lieu pour afficher les boutons Waze et Google Maps de cet événement.'}
+                            : 'Sans lieu saisi, les boutons Waze et Google Maps de cet événement mènent au lieu du mariage.'}
                         </span>
                         <textarea style={{ ...inp, minHeight: 56, resize: 'vertical' }} placeholder="Description (optionnel)" value={existing.description} onChange={(e) => upsertJewishEvent(def.type, { description: e.target.value })} />
                         <input style={inp} placeholder="Google Maps URL (optionnel)" value={existing.googleMapsUrl ?? ''} onChange={(e) => upsertJewishEvent(def.type, { googleMapsUrl: e.target.value })} />

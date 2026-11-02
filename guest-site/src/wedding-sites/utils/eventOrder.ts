@@ -129,3 +129,18 @@ export function orderRsvpEventsByProgram<T extends { id: string }>(
   let k = 0;
   return rsvpEvents.map((e) => (byId.has(e.id) ? sorted[k++] : e));
 }
+
+/**
+ * Ordre du programme : le mariage (Houppa) toujours en tête, quelle que soit
+ * sa date, puis tous les autres événements dans l'ordre chronologique.
+ */
+export function orderProgramEvents<T extends { type?: string }>(
+  events: T[],
+  getDate: (e: T) => string | undefined,
+  getTime: (e: T) => string | undefined,
+  fallbackYear?: number,
+): T[] {
+  const wedding = events.filter((e) => e.type === 'houppa');
+  const others = events.filter((e) => e.type !== 'houppa');
+  return [...wedding, ...sortEventsChronologically(others, getDate, getTime, fallbackYear)];
+}

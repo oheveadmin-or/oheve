@@ -50,6 +50,8 @@ const FEMININE = new Set([
   'salle', 'villa', 'bastide', 'maison', 'synagogue', 'mairie', 'ferme', 'demeure', 'propriété', 'propriete',
   'chapelle', 'abbaye', 'tour', 'résidence', 'residence', 'terrasse', 'plage', 'grange', 'bergerie', 'cour',
   'péniche', 'peniche', 'galerie', 'orangerie', 'chartreuse', 'commanderie', 'seigneurie', 'yeshiva', 'communauté',
+  // adjectifs placés avant le nom : « Grande Synagogue », « Petite Maison »
+  'grande', 'petite', 'belle', 'nouvelle', 'vieille', 'ancienne',
 ]);
 
 /**
@@ -73,4 +75,13 @@ export function frenchAt(name: string): string {
   const first = n.split(/\s+/)[0].toLowerCase();
   if (FEMININE.has(first)) return `à la ${n}`;
   return `au ${n}`;
+}
+
+/**
+ * Lieu du mariage pour l'itinéraire d'un événement dont le lieu n'est pas
+ * saisi : le Waze / Google Maps de chaque événement mène alors à la Houppa.
+ */
+export function weddingPlaceQuery(site: WeddingSite): string {
+  const { ceremony } = weddingPlaces(site);
+  return ceremony ? placeQuery(ceremony) : '';
 }

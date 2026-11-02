@@ -14,13 +14,14 @@
  * Les rayures sont 100 % CSS (repeating-linear-gradient).
  */
 import { directionsLinks } from '../utils/directions';
+import { weddingPlaceQuery } from '../utils/places';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { WeddingTemplateProps } from '../types';
 import { TITLE_SIZE_SCALE } from '../types';
 import { sectionLabels } from '../i18n';
 import { formatWeddingDate } from '../utils/date';
-import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
+import { orderProgramEvents, weddingYear } from '../utils/eventOrder';
 import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationDetails, InvitationThanks, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
 import type { InvitationStyle } from './templateParts';
 import { FloralLayer, PatternOverlay } from './PatternOverlay';
@@ -136,6 +137,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
   // On porte TOUS les champs disponibles dans le builder : aucun n'est ignoré au rendu.
   type ScheduleItem = {
     id: string;
+    type?: string;
     label: string;
     time?: string;
     day?: string;
@@ -145,18 +147,20 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
     wazeUrl?: string;
   };
   // Affiché dans l'ordre chronologique des dates/heures saisies (pas l'ordre d'activation).
-  const scheduleItems: ScheduleItem[] = sortEventsChronologically<ScheduleItem>(
+  // Le mariage (Houppa) en tête, puis les autres événements par date.
+  const scheduleItems: ScheduleItem[] = orderProgramEvents<ScheduleItem>(
     jewishEvts.length > 0
       ? jewishEvts.map((e) => ({
           id: e.id,
+          type: e.type,
           label: stripCeremonieCivile(e.label),
           time: e.time,
           day: e.date,
           place: e.place,
           description: e.description,
-          // Liens saisis, sinon recherche directe du lieu
-          mapsUrl: directionsLinks(e.place ?? '', e.googleMapsUrl, e.wazeUrl).google,
-          wazeUrl: directionsLinks(e.place ?? '', e.googleMapsUrl, e.wazeUrl).waze,
+          // Liens saisis, sinon le lieu de l'événement, sinon celui du mariage
+          mapsUrl: directionsLinks(e.place?.trim() || weddingPlaceQuery(site), e.googleMapsUrl, e.wazeUrl).google,
+          wazeUrl: directionsLinks(e.place?.trim() || weddingPlaceQuery(site), e.googleMapsUrl, e.wazeUrl).waze,
         }))
       : events.map((e) => ({
           id: e.id,

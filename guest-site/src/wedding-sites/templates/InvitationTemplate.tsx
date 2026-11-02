@@ -346,11 +346,15 @@ function EventPage({ page, site, tk, S }: { page: Page; site: WeddingSite; tk: I
   const hebDate = hebrewDateOf(ev.date, weddingYear(site.date));
   const time = prettyTime(ev.time);
   const place = splitPlace(ev.place ?? '');
+  // Chaque événement a son itinéraire : son lieu, sinon celui du mariage
+  const { ceremony } = weddingPlaces(site);
+  const target = ev.place?.trim() ? { query: ev.place.trim(), name: place.name } : { query: ceremony ? placeQuery(ceremony) : '', name: ceremony?.name ?? '' };
+  const fr = site.language === 'fr' || !site.language;
   return (
     <PageShell
       id={page.id}
       label={ev.label}
-      band={<DirectionsBand place={ev.place ?? ''} label={place.name} googleMapsUrl={ev.googleMapsUrl} wazeUrl={ev.wazeUrl} S={S} />}
+      band={<DirectionsBand place={target.query} label={fr ? frenchAt(target.name) : target.name} googleMapsUrl={ev.googleMapsUrl} wazeUrl={ev.wazeUrl} S={S} />}
     >
       <Bsd tk={tk} S={S} />
       <GoldMonogram site={site} tk={tk} size="min(16cqw, 84px)" />

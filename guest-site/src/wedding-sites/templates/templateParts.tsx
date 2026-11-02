@@ -7,8 +7,8 @@ import type { WeddingSite } from '../types';
 
 import { formatWeddingDate } from '../utils/date';
 import { frenchLongDate, hebrewDateFromIso } from '../utils/hebrewDate';
-import { sortEventsChronologically, weddingYear } from '../utils/eventOrder';
-import { frenchAt, placeQuery, weddingPlaces } from '../utils/places';
+import { orderProgramEvents, weddingYear } from '../utils/eventOrder';
+import { frenchAt, placeQuery, weddingPlaceQuery, weddingPlaces } from '../utils/places';
 import { directionsLinks } from '../utils/directions';
 import type { WeddingPlace } from '../utils/places';
 import { sectionLabels } from '../i18n';
@@ -1105,7 +1105,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   }
   // Le programme affiche déjà ces événements : pas de deuxième liste
   if (site.sections.jewishSection && !site.sections.program) {
-    const jevents = sortEventsChronologically(
+    const jevents = orderProgramEvents(
       (site.content?.jewishEvents ?? []).filter((e) => e.enabled),
       (e) => e.date,
       (e) => e.time,
@@ -1356,17 +1356,18 @@ function lightboxBtn(pos: CSSProperties): CSSProperties {
   };
 }
 
-type TimelineItem = { id: string; label: string; time?: string; place?: string; date?: string; description?: string; googleMapsUrl?: string; wazeUrl?: string };
+type TimelineItem = { id: string; type?: string; label: string; time?: string; place?: string; date?: string; description?: string; googleMapsUrl?: string; wazeUrl?: string };
 
 function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVintage?: boolean }) {
   // Source du programme : jewishEvents en priorité (la date qu'on y saisit est
   // affichée telle quelle, sans passer par le `dayLabel` dérivé des rsvpEvents
   // qui ne se mettait jamais à jour visuellement) — même logique que Stripes.
   const jewishEvts = (site.content?.jewishEvents ?? []).filter((e) => e.enabled);
-  // Affiché dans l'ordre chronologique des dates/heures saisies (pas l'ordre d'activation).
-  const events: TimelineItem[] = sortEventsChronologically(
+  // Le mariage (Houppa) en tête, puis les autres dans l'ordre chronologique
+  // des dates/heures saisies (pas l'ordre d'activation).
+  const events: TimelineItem[] = orderProgramEvents<TimelineItem>(
     jewishEvts.length
-      ? jewishEvts.map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.date, description: e.description, googleMapsUrl: e.googleMapsUrl, wazeUrl: e.wazeUrl }))
+      ? jewishEvts.map((e) => ({ id: e.id, type: e.type, label: e.label, time: e.time, place: e.place, date: e.date, description: e.description, googleMapsUrl: e.googleMapsUrl, wazeUrl: e.wazeUrl }))
       : (site.rsvpForm?.events ?? [])
           .filter((e) => e.enabled)
           .map((e) => ({ id: e.id, label: e.label, time: e.time, place: e.place, date: e.dayLabel, description: e.shortDescription })),
@@ -1440,8 +1441,9 @@ function ProgramTimeline({ site, isVintage = false }: { site: WeddingSite; isVin
               <p style={{ margin: '0 0 0.2rem', fontSize: '0.9rem', color: mutedColor }}>{[ev.date, ev.time, ev.place].filter(Boolean).join(' · ') || 'Horaire à confirmer'}</p>
               {ev.description ? <p style={{ margin: 0, fontSize: '0.9rem', color: mutedColor }}>{ev.description}</p> : null}
               {(() => {
-                // Itinéraire de chaque événement : liens saisis, sinon recherche du lieu
-                const links = directionsLinks(ev.place ?? '', ev.googleMapsUrl, ev.wazeUrl);
+                // Itinéraire de chaque événement : liens saisis, sinon son lieu,
+                // sinon le lieu du mariage (tout événement a ses boutons)
+                const links = directionsLinks(ev.place?.trim() || weddingPlaceQuery(site), ev.googleMapsUrl, ev.wazeUrl);
                 if (!links.waze && !links.google) return null;
                 const pill: CSSProperties = {
                   ...linkBtn(site),
@@ -1758,8 +1760,8 @@ function JewishEventsSection({
             {ev.place ? <p style={{ margin: '0 0 0.2rem', fontSize: '0.88rem', opacity: 0.85 }}>{ev.place}</p> : null}
             {ev.description ? <p style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', lineHeight: 1.6, opacity: 0.88 }}>{ev.description}</p> : null}
             {(() => {
-              // Liens saisis, sinon recherche directe du lieu de l'événement
-              const links = directionsLinks(ev.place ?? '', ev.googleMapsUrl, ev.wazeUrl);
+              // Liens saisis, sinon le lieu de l'événement, sinon celui du mariage
+              const links = directionsLinks(ev.place?.trim() || weddingPlaceQuery(site), ev.googleMapsUrl, ev.wazeUrl);
               return links.google || links.waze ? (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                   {links.waze ? <a href={links.waze} target="_blank" rel="noreferrer" style={linkBtn(site)}>🚗 Waze</a> : null}
