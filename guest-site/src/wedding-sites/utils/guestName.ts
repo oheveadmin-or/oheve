@@ -4,6 +4,7 @@
 // secret ni un contrôle d'accès : n'importe qui peut fabriquer un code, le nom
 // sert uniquement à personnaliser l'enveloppe. La clé du site (?k=) et les
 // liens de groupe (/invite/:token) restent des mécanismes séparés.
+import { eventBasePath } from './eventRoutes';
 
 const GUEST_PARAM = 'pour';
 const GUEST_STORAGE_PREFIX = 'oheve_guest_name:';
@@ -44,11 +45,13 @@ export function decodeGuestName(code: string | null | undefined): string | null 
 }
 
 /** Lien du site au nom d'un invité (garde la clé privée du site si besoin) */
-export function guestInviteUrl(origin: string, slug: string, name: string, accessKey?: string | null): string {
+export function guestInviteUrl(
+  origin: string, slug: string, name: string, accessKey?: string | null, eventType?: string | null,
+): string {
   const params = new URLSearchParams();
   if (accessKey) params.set('k', accessKey);
   params.set(GUEST_PARAM, encodeGuestName(name));
-  return `${origin}/wedding/${slug}?${params.toString()}`;
+  return `${origin}${eventBasePath(eventType)}/${slug}?${params.toString()}`;
 }
 
 /**

@@ -3,6 +3,7 @@
  * il ajuste ou vide une case pour retirer la phrase du site.
  */
 import type { InvitationTexts, WeddingSiteContent } from '../types';
+import { invitationTextDefaults, isWeddingEvent } from '../utils/eventType';
 
 export type InvitationTextKey = keyof InvitationTexts;
 
@@ -55,9 +56,25 @@ export const INVITATION_TEXT_FIELDS: InvitationTextField[] = [
   },
 ];
 
+/**
+ * Phrases du faire-part selon l'événement : remerciements, invitation et
+ * réception changent pour une Bar/Bat Mitsva ou une Brit Mila (pensée et
+ * tenue restent communes).
+ */
+export function invitationTextFields(eventType?: string | null): InvitationTextField[] {
+  if (isWeddingEvent(eventType)) return INVITATION_TEXT_FIELDS;
+  const d = invitationTextDefaults(eventType);
+  return INVITATION_TEXT_FIELDS.map((f) => {
+    if (f.key === 'thanks') return { ...f, fr: d.thanks.fr, he: d.thanks.he };
+    if (f.key === 'invitation') return { ...f, fr: d.invitation.fr, he: d.invitation.he };
+    if (f.key === 'reception') return { ...f, fr: d.reception.fr, he: d.reception.he };
+    return f;
+  });
+}
+
 /** Phrases préremplies d'un nouveau site (français seul ; l'hébreu reste facultatif). */
-export function defaultInvitationTexts(): InvitationTexts {
-  return Object.fromEntries(INVITATION_TEXT_FIELDS.map((f) => [f.key, { fr: f.fr, he: '' }])) as InvitationTexts;
+export function defaultInvitationTexts(eventType?: string | null): InvitationTexts {
+  return Object.fromEntries(invitationTextFields(eventType).map((f) => [f.key, { fr: f.fr, he: '' }])) as InvitationTexts;
 }
 
 /**
@@ -65,9 +82,9 @@ export function defaultInvitationTexts(): InvitationTexts {
  * les phrases et on reprend l'ancien « À la mémoire de… » comme « Une pensée ».
  * Les sites qui ont déjà leurs phrases sont laissés tels quels.
  */
-export function withInvitationTexts(content: WeddingSiteContent): WeddingSiteContent {
+export function withInvitationTexts(content: WeddingSiteContent, eventType?: string | null): WeddingSiteContent {
   if (content.invitationTexts) return content;
-  const texts = defaultInvitationTexts();
+  const texts = defaultInvitationTexts(eventType);
   const legacyMemorial = content.texts?.memorialText?.trim();
   if (legacyMemorial) texts.memorial = { fr: legacyMemorial, he: '' };
   return {

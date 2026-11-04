@@ -148,6 +148,25 @@ export async function getWeddingSiteBySlug(slug: string): Promise<WeddingSite | 
   return readAll().find((w) => w.slug.toLowerCase() === s) ?? null;
 }
 
+/** Compte connecté (builder ouvert depuis l'app) : type d'événement et noms
+ *  saisis à l'inscription. null sans jeton, sans backend ou en cas d'erreur. */
+export async function getMyAccount(): Promise<{ eventType: string | null; brideName: string; groomName: string } | null> {
+  const url = apiUrl('/api/wedding-sites/me');
+  if (url === null || !_authToken) return null;
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json', ...authHeaders() } });
+  if (!res.ok) return null;
+  const json = (await res.json()) as {
+    success?: boolean;
+    account?: { eventType?: string | null; brideName?: string | null; groomName?: string | null };
+  };
+  if (!json.success || !json.account) return null;
+  return {
+    eventType: json.account.eventType ?? null,
+    brideName: json.account.brideName ?? '',
+    groomName: json.account.groomName ?? '',
+  };
+}
+
 export async function checkSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
   const s = slug.trim().toLowerCase();
 

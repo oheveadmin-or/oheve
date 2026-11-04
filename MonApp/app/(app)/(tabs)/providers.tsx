@@ -19,6 +19,28 @@ import { useResponsive } from '@/hooks/use-responsive';
 import { type ProviderContact } from '@/lib/providers-store';
 import { prestatairesApi } from '@/services/auth/api';
 import { computeMatch, type WeddingProfile } from '@/services/matching';
+import { eventConfig, isWedding, selectedProviders } from '@/lib/event-type';
+
+/** Clé de prestataire (onboarding) → catégorie de l'annuaire. */
+const NEED_TO_SLUG: Record<string, string> = {
+  salle: 'salle', traiteur: 'traiteur', photo: 'photo', video: 'photo', dj: 'musique',
+  animation: 'animation', deco: 'fleuriste', beaute: 'beaute', tenues: 'tenues',
+  patisserie: 'patisserie', rabbin: 'juif',
+};
+
+/**
+ * Catégories de l'annuaire selon l'événement : celles dont le client a besoin
+ * d'abord ; les rubriques propres au mariage (Chabbat Hattan) masquées sinon.
+ */
+function categoriesFor(eventType?: string | null, needed?: string[] | null): CategoryItem[] {
+  if (isWedding(eventType)) return MAIN_CATEGORIES;
+  const wanted = new Set(selectedProviders(eventType, needed).map(p => NEED_TO_SLUG[p.key]).filter(Boolean));
+  const cats = MAIN_CATEGORIES
+    .filter(c => c.slug !== 'chabbat-hattan')
+    .map(c => c.slug === 'juif' ? { ...c, label: 'Services religieux' }
+      : c.slug === 'planner' ? { ...c, label: 'Event Planner' } : c);
+  return [...cats.filter(c => wanted.has(c.slug)), ...cats.filter(c => !wanted.has(c.slug))];
+}
 
 // ── Catégories principales ─────────────────────────────────────────────────
 
@@ -114,7 +136,7 @@ export default function ProvidersScreen() {
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <ThemedText style={styles.title}>Prestataires</ThemedText>
-            <ThemedText style={styles.subtitle}>Découvrez et gérez vos prestataires mariage</ThemedText>
+            <ThemedText style={styles.subtitle}>Découvrez et gérez vos prestataires {isWedding(user?.event_type) ? 'mariage' : eventConfig(user?.event_type).label}</ThemedText>
           </View>
           <Pressable style={styles.settingsBtn}>
             <Ionicons name="options-outline" size={20} color={C.textMid} />
@@ -138,7 +160,7 @@ export default function ProvidersScreen() {
         {/* Catégories principales */}
         <ThemedText style={styles.sectionTitle}>Catégories principales</ThemedText>
         <View style={styles.categoriesGrid}>
-          {MAIN_CATEGORIES.map((cat) => (
+          {categoriesFor(user?.event_type, user?.needed_providers).map((cat) => (
             <Pressable
               key={cat.slug}
               style={[styles.categoryCard, { backgroundColor: cat.bg }]}

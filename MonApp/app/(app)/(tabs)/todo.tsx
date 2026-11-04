@@ -15,36 +15,19 @@ import { C } from '@/constants/OheveTheme';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { getTodoTasks, loadTodoTasks, setTodoTasks, type TodoTask } from '@/lib/todo-store';
+import { useAuth } from '@/contexts/auth-context';
+import { eventConfig } from '@/lib/event-type';
 
 type TaskStatus = 'todo' | 'in_progress' | 'done';
 
-const BASE_CATEGORIES = [
-  'Mariage',
-  'Mairie',
-  'Mikvé',
-  'Kala',
-  'Henné',
-  'Houppa/Soirée',
-  'Sac de secours J-J',
-  'Après-mariage',
-  'Autre',
-] as const;
-
-const CAT_ICONS: Record<string, string> = {
-  'Mariage':            '💍',
-  'Mairie':             '🏛️',
-  'Mikvé':              '🕊️',
-  'Kala':               '👗',
-  'Henné':              '🌿',
-  'Houppa/Soirée':      '🎊',
-  'Sac de secours J-J': '🎒',
-  'Après-mariage':      '✈️',
-  'Planning Jour J':    '📋',
-  'Autre':              '📌',
-};
-
 export default function TodoScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  // Catégories et icônes propres à l'événement (mariage, Bar Mitsva, Brit Mila…).
+  const ev = eventConfig(user?.event_type);
+  const CAT_ICONS: Record<string, string> = { ...ev.todoCategories, 'Autre': '📌' };
+  const BASE_CATEGORIES = [...Object.keys(ev.todoCategories), 'Autre'];
+  const firstCategory = BASE_CATEGORIES[0];
   const [tasks, setTasks] = useState<TodoTask[]>(() => getTodoTasks());
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -53,7 +36,7 @@ export default function TodoScreen() {
     loadTodoTasks().then((loaded) => setTasks(loaded));
   }, []);
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Mariage');
+  const [selectedCategory, setSelectedCategory] = useState<string>(firstCategory);
   const [customCategory, setCustomCategory] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [selectedTab, setSelectedTab] = useState<TaskStatus>('todo');
@@ -130,7 +113,7 @@ export default function TodoScreen() {
     if (!title) { Alert.alert('Titre requis', 'Écris un titre avant d\'ajouter.'); return; }
     const nextTask: TodoTask = { id: String(Date.now()), title, category: selectedCategory || 'Autre', done: false, status: 'todo', dueDate };
     setTasks((prev) => { const next = [nextTask, ...prev]; setTodoTasks(next); return next; });
-    setNewTaskTitle(''); setSelectedCategory('Mariage'); setCustomCategory(''); setDueDate(undefined);
+    setNewTaskTitle(''); setSelectedCategory(firstCategory); setCustomCategory(''); setDueDate(undefined);
     setModalVisible(false); setSelectedTab('todo');
   };
 

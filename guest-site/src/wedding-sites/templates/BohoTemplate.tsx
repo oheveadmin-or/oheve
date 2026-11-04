@@ -5,7 +5,7 @@ import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, S
 
 export function BohoTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
   const accent = t.primaryColor;
   const secondary = t.secondaryColor;
@@ -72,7 +72,7 @@ export function BohoTemplate({ site }: WeddingTemplateProps) {
               lineHeight: 1.15,
             }}
           >
-            {site.brideName} & {site.groomName}
+            {site.groomName ? `${site.brideName} & ${site.groomName}` : site.brideName}
           </h1>
 
           <div style={{ color: accent, margin: '1rem 0', fontSize: '1.4rem' }}>— ✦ —</div>

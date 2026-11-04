@@ -22,6 +22,7 @@ export default function VerifyOtpScreen() {
     groom_name?: string;
     mot_de_passe: string;
     role: string;
+    event_type?: string;
   }>();
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -64,6 +65,7 @@ export default function VerifyOtpScreen() {
           groom_name: params.groom_name || undefined,
           mot_de_passe: params.mot_de_passe,
           role: params.role ?? 'client',
+          event_type: params.event_type || undefined,
           otp_code: otp,
         }),
       });

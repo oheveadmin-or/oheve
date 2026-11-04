@@ -217,7 +217,10 @@ export const authApi = {
   me: (accessToken: string) =>
     get(API_ENDPOINTS.me, accessToken),
 
-  updateProfile: (accessToken: string, data: { nom?: string; prenom?: string; phone?: string; avatar_url?: string }) =>
+  updateProfile: (accessToken: string, data: {
+    nom?: string; prenom?: string; phone?: string; avatar_url?: string;
+    bride_name?: string; groom_name?: string; event_type?: string; needed_providers?: string[];
+  }) =>
     patch(API_ENDPOINTS.profile, data, accessToken),
 
   uploadAvatar: (accessToken: string, formData: FormData) =>

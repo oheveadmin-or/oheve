@@ -17,9 +17,10 @@ import { useSocialAuth } from '@/hooks/use-social-auth';
 import { useAppleAuthAvailable } from '@/hooks/use-apple-auth-available';
 import { useLoginOptions } from '@/hooks/use-login-options';
 import { trialLabel, usePrestaOffer } from '@/lib/presta-offer';
+import { EVENT_TYPES, eventConfig, type EventType } from '@/lib/event-type';
 
 const ROLES: { key: UserRole; label: string; icon: string; desc: string; soon?: boolean }[] = [
-  { key: 'client', label: 'Futur(e) marié(e)', icon: '💍', desc: 'Organise ton mariage' },
+  { key: 'client', label: 'Particulier', icon: '🎉', desc: 'Mariage, Bar/Bat Mitsva, Brit Mila' },
   // desc de la carte Prestataire : rempli à l'affichage avec la durée d'essai
   // réellement en cours (offre de lancement ou offre standard).
   { key: 'prestataire', label: 'Prestataire', icon: '🏢', desc: '' },
@@ -34,6 +35,9 @@ const BOUTIQUE_SOON_TEXT =
 export default function RegisterScreen() {
   const offer = usePrestaOffer();
   const [role, setRole] = useState<UserRole>('client');
+  const [eventType, setEventType] = useState<EventType>('mariage');
+  const ev = eventConfig(eventType);
+  const isWeddingEv = eventType === 'mariage';
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
   const [brideName, setBrideName] = useState('');
@@ -57,8 +61,15 @@ export default function RegisterScreen() {
     }
     const isClient = role === 'client';
     if (isClient) {
-      if (!brideName.trim() || !groomName.trim() || !email.trim() || !password) {
+      if (isWeddingEv && (!brideName.trim() || !groomName.trim() || !email.trim() || !password)) {
         Alert.alert('Champs manquants', 'Les prénoms des deux mariés, l\'email et le mot de passe sont requis');
+        return;
+      }
+      if (!isWeddingEv && ((!ev.names.firstOptional && !brideName.trim()) || !groomName.trim() || !email.trim() || !password)) {
+        Alert.alert(
+          'Champs manquants',
+          `${ev.names.firstOptional ? '' : `${ev.names.first}, `}${ev.names.second.toLowerCase()}, email et mot de passe sont requis`,
+        );
         return;
       }
     } else if (!nom.trim() || !prenom.trim() || !email.trim() || !password) {
@@ -102,11 +113,12 @@ export default function RegisterScreen() {
         params: {
           email: email.trim().toLowerCase(),
           nom: isClient ? groomName.trim() : nom.trim(),
-          prenom: isClient ? brideName.trim() : prenom.trim(),
+          prenom: isClient ? (brideName.trim() || groomName.trim()) : prenom.trim(),
           bride_name: isClient ? brideName.trim() : '',
           groom_name: isClient ? groomName.trim() : '',
           mot_de_passe: password,
           role,
+          event_type: isClient ? eventType : '',
         },
       } as never);
     } catch {
@@ -200,29 +212,57 @@ export default function RegisterScreen() {
           {/* Fields */}
           {role === 'client' ? (
             <>
-              <ThemedText style={styles.sectionLabel}>Les futurs mariés</ThemedText>
+              <ThemedText style={styles.sectionLabel}>{'J’organise…'}</ThemedText>
+              <View style={styles.eventGrid}>
+                {EVENT_TYPES.map((key) => {
+                  const cfg = eventConfig(key);
+                  const on = eventType === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      testID={`event-${key}`}
+                      style={[styles.eventCard, on && styles.roleCardOn]}
+                      onPress={() => setEventType(key)}
+                    >
+                      <ThemedText style={styles.eventEmoji}>{cfg.emoji}</ThemedText>
+                      <ThemedText style={[styles.eventLabel, on && styles.roleLabelOn]} numberOfLines={1}>
+                        {cfg.label}
+                      </ThemedText>
+                      {on && (
+                        <View style={styles.roleCheck}>
+                          <Ionicons name="checkmark-circle" size={16} color={C.sauge} />
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <ThemedText style={styles.sectionLabel}>
+                {isWeddingEv ? 'Les futurs mariés' : ev.label}
+              </ThemedText>
               <View style={styles.fieldsRow}>
                 <View style={{ flex: 1 }}>
-                  <ThemedText style={styles.fieldLabel}>Prénom mariée</ThemedText>
+                  <ThemedText style={styles.fieldLabel} numberOfLines={1}>{ev.names.first}</ThemedText>
                   <TextInput
                     style={styles.input}
                     value={brideName} onChangeText={setBrideName}
-                    placeholder="Léa" placeholderTextColor={C.textLight}
+                    placeholder={ev.names.firstPlaceholder} placeholderTextColor={C.textLight}
                     autoCapitalize="words" returnKeyType="next"
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <ThemedText style={styles.fieldLabel}>Prénom marié</ThemedText>
+                  <ThemedText style={styles.fieldLabel} numberOfLines={1}>{ev.names.second}</ThemedText>
                   <TextInput
                     style={styles.input}
                     value={groomName} onChangeText={setGroomName}
-                    placeholder="Thomas" placeholderTextColor={C.textLight}
+                    placeholder={ev.names.secondPlaceholder} placeholderTextColor={C.textLight}
                     autoCapitalize="words" returnKeyType="next"
                   />
                 </View>
               </View>
               <ThemedText style={styles.coupleHint}>
-                Ces prénoms apparaîtront sur votre accueil et votre profil
+                {ev.names.hint}
               </ThemedText>
             </>
           ) : (
@@ -332,6 +372,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7, paddingVertical: 2,
   },
   soonBadgeTxt: { fontSize: 8.5, fontWeight: '800', color: C.textInvert, letterSpacing: 0.3 },
+
+  eventGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  eventCard: {
+    width: '48%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1.5, borderColor: C.border, borderRadius: RADIUS.md,
+    paddingVertical: 12, paddingHorizontal: 12, backgroundColor: C.card, position: 'relative',
+  },
+  eventEmoji: { fontSize: 20 },
+  eventLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: C.textMid },
 
   fieldsRow: { flexDirection: 'row', gap: 10, marginBottom: 0 },
 

@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
+import { sitePublicBase } from '@/lib/event-type';
 import { API_ENDPOINTS } from '@/constants/config';
 import { C } from '@/constants/OheveTheme';
 
@@ -270,7 +271,7 @@ function WeddingSiteBuilderContent() {
 
       setPublishedSlug(createdSlug);
       // Lien privé : la clé ?k= est indispensable pour que les invités accèdent au site
-      setPublishedUrl(`${API_ENDPOINTS.weddingSitePublicBase}/${createdSlug}${createdKey ? `?k=${createdKey}` : ''}`);
+      setPublishedUrl(`${sitePublicBase(user?.event_type)}/${createdSlug}${createdKey ? `?k=${createdKey}` : ''}`);
       setFinalLinks(generatedLinks);
     } catch (e) {
       Alert.alert('Erreur', (e as Error).message);

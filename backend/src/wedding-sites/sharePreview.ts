@@ -67,7 +67,45 @@ function langOf(row: SiteRow): Lang {
   return l === 'en' || l === 'he' ? l : 'fr';
 }
 
+/** Bar/Bat Mitsva, Brit Mila : libellés de l'aperçu (null = mariage). */
+const EVENT_TEXTS: Record<string, Record<Lang, { label: string; desc: (c: string) => string; kicker: string; family: (n: string) => string }>> = {
+  bar_mitsva: {
+    fr: { label: 'Bar Mitsva', desc: (c) => `Vous êtes invités à la Bar Mitsva de ${c}.`, kicker: 'BAR MITSVA', family: (n) => `Famille ${n}` },
+    en: { label: 'Bar Mitzvah', desc: (c) => `You are invited to the Bar Mitzvah of ${c}.`, kicker: 'BAR MITZVAH', family: (n) => `The ${n} family` },
+    he: { label: 'בר מצווה', desc: (c) => `הנכם מוזמנים לבר המצווה של ${c}.`, kicker: 'בר מצווה', family: (n) => `משפחת ${n}` },
+  },
+  bat_mitsva: {
+    fr: { label: 'Bat Mitsva', desc: (c) => `Vous êtes invités à la Bat Mitsva de ${c}.`, kicker: 'BAT MITSVA', family: (n) => `Famille ${n}` },
+    en: { label: 'Bat Mitzvah', desc: (c) => `You are invited to the Bat Mitzvah of ${c}.`, kicker: 'BAT MITZVAH', family: (n) => `The ${n} family` },
+    he: { label: 'בת מצווה', desc: (c) => `הנכם מוזמנים לבת המצווה של ${c}.`, kicker: 'בת מצווה', family: (n) => `משפחת ${n}` },
+  },
+  brit_mila: {
+    fr: { label: 'Brit Mila', desc: (c) => `Vous êtes invités à la Brit Mila — ${c}.`, kicker: 'BRIT MILA', family: (n) => `Famille ${n}` },
+    en: { label: 'Brit Milah', desc: (c) => `You are invited to the Brit Milah — ${c}.`, kicker: 'BRIT MILAH', family: (n) => `The ${n} family` },
+    he: { label: 'ברית מילה', desc: (c) => `הנכם מוזמנים לברית המילה — ${c}.`, kicker: 'ברית מילה', family: (n) => `משפחת ${n}` },
+  },
+};
+
+function eventTexts(row: SiteRow) {
+  const e = EVENT_TEXTS[String(row.owner_event_type ?? '')];
+  return e ? e[langOf(row)] : null;
+}
+
+/** Textes de l'aperçu : ceux du mariage, ou ceux de l'événement du compte. */
+function textsFor(row: SiteRow) {
+  const base = TEXTS[langOf(row)];
+  const ev = eventTexts(row);
+  return ev ? { ...base, desc: ev.desc, kicker: ev.kicker } : base;
+}
+
 export function coupleLabel(row: SiteRow): string {
+  // Bar/Bat Mitsva, Brit Mila : bride_name = prénom de l'enfant, groom_name = nom de famille
+  const ev = eventTexts(row);
+  if (ev) {
+    const child = String(row.bride_name ?? '').trim();
+    const family = String(row.groom_name ?? '').trim();
+    return child || (family ? ev.family(family) : '') || ev.label;
+  }
   const names = [row.bride_name, row.groom_name].map((n) => String(n ?? '').trim()).filter(Boolean);
   if (names.length === 2) return `${names[0]} & ${names[1]}`;
   return String(row.couple_name ?? '').trim() || names[0] || 'Mariage';
@@ -130,7 +168,7 @@ export async function getSharePreview(req: Request, res: Response): Promise<void
     const lang = langOf(row);
     const couple = coupleLabel(row);
     const details = [formatDate(row, lang), placeLabel(row)].filter(Boolean).join(' · ');
-    const t = TEXTS[lang];
+    const t = textsFor(row);
     // Prépare la capture du site tout de suite : le robot WhatsApp demande
     // l'image juste après avoir lu ces métadonnées.
     void snapshotOf(row, req);
@@ -217,7 +255,7 @@ export async function renderShareImage(row: SiteRow): Promise<Buffer> {
   const place = placeLabel(row);
 
   const kicker = await textLayer(
-    `<span foreground="${soft}" letter_spacing="${4 * 1024}">${esc(TEXTS[lang].kicker)}</span>`,
+    `<span foreground="${soft}" letter_spacing="${4 * 1024}">${esc(textsFor(row).kicker)}</span>`,
     SERIF_FONT, 'Cormorant Garamond SemiBold', 1000, 150,
   );
   // Prénoms les plus grands possible (l'aperçu WhatsApp est souvent réduit),

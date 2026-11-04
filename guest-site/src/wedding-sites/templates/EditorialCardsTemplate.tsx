@@ -444,7 +444,7 @@ function makeEditorialCardSurface(tk: EditorialTokens) {
 
 export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
   const tk = editorialTokens(site.theme);
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
   const icon = DEFAULT_ICON;
 

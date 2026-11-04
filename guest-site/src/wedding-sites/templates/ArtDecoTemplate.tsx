@@ -10,7 +10,7 @@ const GEO_BORDER = (color: string) => ({
 
 export function ArtDecoTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
   const accent = t.primaryColor;
 

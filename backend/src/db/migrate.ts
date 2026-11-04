@@ -57,6 +57,11 @@ const USERS_ADD_COLS = [
   // ── Noms du couple (futurs mariés) ─────────────────────────────────────────
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS bride_name VARCHAR(100)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS groom_name VARCHAR(100)`,
+  // ── Type d'événement (mariage, Bar/Bat Mitsva, Brit Mila) ──────────────────
+  // NULL = mariage (comptes créés avant l'option). needed_providers = clés des
+  // prestataires cochés à l'onboarding (cf. MonApp/lib/event-type.ts).
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS event_type VARCHAR(20)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS needed_providers JSONB`,
   // ── Oheve Premium (paiement unique 50€) ────────────────────────────────────
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_purchased_at TIMESTAMP WITH TIME ZONE`,

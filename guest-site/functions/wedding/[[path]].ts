@@ -9,7 +9,8 @@
  * de leur site.
  *
  * Routes couvertes : /wedding/:slug, /wedding/:slug/rsvp,
- * /wedding/:slug/invite/:token. En cas d'erreur ou de lien sans clé, la page
+ * /wedding/:slug/invite/:token — et pareil sous /bar-mitsva, /bat-mitsva et
+ * /brit-mila (fichiers voisins qui réutilisent ce gestionnaire). En cas d'erreur ou de lien sans clé, la page
  * est servie telle quelle (aperçu Oheve par défaut).
  */
 

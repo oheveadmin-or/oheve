@@ -36,6 +36,17 @@ const SALT_ROUNDS = 10;
 const MIN_PWD = 8;
 const repo = new ConnexionInscriptionRepository();
 
+const EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila'];
+/** Type d'événement accepté, sinon null (= mariage). */
+function sanitizeEventType(v: unknown): string | null {
+  return typeof v === 'string' && EVENT_TYPES.includes(v) ? v : null;
+}
+/** Liste de clés de prestataires : courtes chaînes alphanumériques, 30 max. */
+function sanitizeProviderKeys(v: unknown): string[] | null {
+  if (!Array.isArray(v)) return null;
+  return Array.from(new Set(v.filter((k): k is string => typeof k === 'string' && /^[a-z_]{1,30}$/.test(k)))).slice(0, 30);
+}
+
 function calcBudgetTotal(user: { budget_mode?: string; budget_global?: number; budget_categories?: unknown }): number | undefined {
   if (user.budget_mode === 'global' && user.budget_global != null) return Number(user.budget_global);
   if (user.budget_mode === 'categories' && user.budget_categories) {
@@ -95,6 +106,7 @@ export class ConnexionInscriptionController {
   // ── POST /inscription ──────────────────────────────────────────────────────
   async inscription(req: Request, res: Response) {
     const { email, nom, prenom, mot_de_passe, role, otp_code, bride_name, groom_name } = req.body;
+    const eventType = sanitizeEventType(req.body.event_type);
     const userRole: UserRole = (['client', 'prestataire', 'boutique'] as UserRole[]).includes(role) ? role : 'client';
     // Comptes Boutique en « coming soon » : inscription refusée tant que
     // BOUTIQUE_SIGNUP_ENABLED n'est pas activée.
@@ -102,10 +114,13 @@ export class ConnexionInscriptionController {
       return res.status(403).json({ success: false, message: BOUTIQUE_SOON_MESSAGE, boutique_soon: true });
     }
     const isClient = userRole === 'client';
+    // Mariage : bride/groom = prénoms des mariés. Bar/Bat Mitsva, Brit Mila :
+    // bride = prénom de l'enfant (facultatif pour une Brit Mila), groom = nom de famille.
+    const isWeddingEvent = !eventType || eventType === 'mariage';
     const effectiveBride = isClient ? String(bride_name ?? prenom ?? '').trim() : '';
     const effectiveGroom = isClient ? String(groom_name ?? nom ?? '').trim() : '';
     const effectiveNom = isClient ? effectiveGroom : String(nom ?? '').trim();
-    const effectivePrenom = isClient ? effectiveBride : String(prenom ?? '').trim();
+    const effectivePrenom = isClient ? (effectiveBride || (isWeddingEvent ? '' : effectiveGroom)) : String(prenom ?? '').trim();
 
     if (!email || !mot_de_passe) {
       return res.status(400).json({ success: false, message: 'Email et mot de passe requis' });
@@ -113,8 +128,11 @@ export class ConnexionInscriptionController {
     if (!effectiveNom || !effectivePrenom) {
       return res.status(400).json({ success: false, message: 'Tous les champs sont requis' });
     }
-    if (isClient && (!effectiveBride || !effectiveGroom)) {
+    if (isClient && isWeddingEvent && (!effectiveBride || !effectiveGroom)) {
       return res.status(400).json({ success: false, message: 'Les prénoms des deux mariés sont requis' });
+    }
+    if (isClient && !isWeddingEvent && !effectiveGroom) {
+      return res.status(400).json({ success: false, message: 'Le nom de famille est requis' });
     }
     if (String(mot_de_passe).length < MIN_PWD) {
       return res.status(400).json({ success: false, message: `Mot de passe min. ${MIN_PWD} caractères` });
@@ -139,7 +157,7 @@ export class ConnexionInscriptionController {
         effectivePrenom,
         hash,
         finalRole,
-        isClient ? { bride_name: effectiveBride, groom_name: effectiveGroom } : undefined,
+        isClient ? { bride_name: effectiveBride, groom_name: effectiveGroom, event_type: eventType } : undefined,
       );
       const effectiveRole = await ensureAndGetRole(user.id, user.email, user.role);
 
@@ -301,6 +319,10 @@ export class ConnexionInscriptionController {
   // ── PATCH /profile ─────────────────────────────────────────────────────────
   async updateProfile(req: Request, res: Response) {
     const { nom, prenom, phone, avatar_url, role, bride_name, groom_name, date_mariage } = req.body;
+    const event_type = req.body.event_type !== undefined ? sanitizeEventType(req.body.event_type) : undefined;
+    const needed_providers = req.body.needed_providers !== undefined
+      ? sanitizeProviderKeys(req.body.needed_providers)
+      : undefined;
     try {
       // Role update: update in DB then issue fresh tokens
       if (role) {
@@ -321,7 +343,7 @@ export class ConnexionInscriptionController {
         return res.status(200).json({ success: true, data: { ...updated, accessToken, refreshToken } });
       }
       const updated = await repo.updateProfile(req.auth!.sub, {
-        nom, prenom, phone, avatar_url, bride_name, groom_name,
+        nom, prenom, phone, avatar_url, bride_name, groom_name, event_type, needed_providers,
         date_mariage: date_mariage !== undefined ? (date_mariage || null) : undefined,
       });
       if (!updated) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' });

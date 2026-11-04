@@ -16,7 +16,13 @@ import { createContext, useContext, type Ref } from 'react';
 import * as RN from 'react-native';
 import type { StyleProp, TextProps, TextInputProps, TextStyle } from 'react-native';
 
-export * from 'react-native';
+// ⚠️ Pas de `export * from 'react-native'` ni d'`export` ES dans ce fichier.
+// En développement, React Refresh (Metro) lit TOUS les exports d'un module ES
+// (`__esModule`), getters compris : il déclenchait alors `PushNotificationIOS`,
+// dont l'import plante sur iOS (« new NativeEventEmitter() requires a non-null
+// argument ») → app inutilisable en dev. Exporté en CommonJS (fin du fichier),
+// chaque composant react-native reste un getter paresseux que Refresh ignore.
+// La prod n'était pas touchée (pas de React Refresh).
 
 type Parent = { size: number; weight: string } | null;
 const ParentText = createContext<Parent>(null);
@@ -46,7 +52,7 @@ function resolveFont(style: StyleProp<TextStyle>, parent: Parent) {
   return { size, weight, extra: { fontFamily, fontWeight: 'normal' as const } };
 }
 
-export function Text(props: TextProps & { ref?: Ref<RN.Text> }) {
+function Text(props: TextProps & { ref?: Ref<RN.Text> }) {
   const parent = useContext(ParentText);
   const { size, weight, extra } = resolveFont(props.style, parent);
   return (
@@ -66,4 +72,14 @@ for (const key of Object.getOwnPropertyNames(RN.TextInput)) {
     try { (OheveTextInput as any)[key] = (RN.TextInput as any)[key]; } catch {}
   }
 }
-export const TextInput = OheveTextInput as unknown as typeof RN.TextInput;
+const TextInput = OheveTextInput as unknown as typeof RN.TextInput;
+
+declare const module: { exports: Record<string, unknown> };
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ReactNative = require('react-native') as Record<string, unknown>;
+for (const key of Object.keys(ReactNative)) {
+  if (key === 'Text' || key === 'TextInput') continue;
+  Object.defineProperty(module.exports, key, { enumerable: true, get: () => ReactNative[key] });
+}
+module.exports.Text = Text;
+module.exports.TextInput = TextInput;

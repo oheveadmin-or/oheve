@@ -34,6 +34,10 @@ export interface AuthUser {
   subscription_expires_at?: string;
   bride_name?: string;
   groom_name?: string;
+  /** 'mariage' | 'bar_mitsva' | 'bat_mitsva' | 'brit_mila' (absent = mariage). */
+  event_type?: string | null;
+  /** Clés de prestataires cochées à l'onboarding (cf. lib/event-type). */
+  needed_providers?: string[] | null;
   premium?: boolean;
   premium_purchased_at?: string;
   // Abonnement prestataire (39,99€/mois, 6 mois offerts aux 200 premiers). Statut Stripe :

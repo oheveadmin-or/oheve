@@ -8,6 +8,8 @@ import { signBuilderToken } from '../auth/jwt';
 import { reconcilePremiumFromStripe } from '../premium';
 import { persistFile } from '../utils/persistent-uploads';
 
+const EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila'];
+
 function rowToSite(
   row: Awaited<ReturnType<typeof weddingSitesRepo.findBySlug>>,
   opts: { includeAccessKey?: boolean } = {},
@@ -34,6 +36,9 @@ function rowToSite(
     rsvpForm: row.rsvp_form,
     inviteLinks: row.invite_links ?? [],
     hideSignature: row.hide_signature ?? false,
+    // Type d'événement du compte propriétaire : décidé côté serveur, jamais
+    // accepté du client (le builder ne l'envoie pas).
+    eventType: EVENT_TYPES.includes(String(row.owner_event_type)) ? row.owner_event_type : 'mariage',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -43,8 +48,21 @@ export async function getMySites(req: Request, res: Response): Promise<void> {
   try {
     const userId = req.auth?.sub;
     if (!userId) { res.status(401).json({ success: false, message: 'Authentification requise' }); return; }
-    const rows = await weddingSitesRepo.findByUserId(userId);
-    res.json({ success: true, data: rows.map((r) => rowToSite(r, { includeAccessKey: true })) });
+    const [rows, owner] = await Promise.all([
+      weddingSitesRepo.findByUserId(userId),
+      weddingSitesRepo.ownerAccount(userId),
+    ]);
+    res.json({
+      success: true,
+      data: rows.map((r) => rowToSite(r, { includeAccessKey: true })),
+      // Compte connecté : type d'événement + noms de l'inscription, pour
+      // configurer et préremplir le builder d'un nouveau site.
+      account: {
+        eventType: EVENT_TYPES.includes(String(owner.eventType)) ? owner.eventType : 'mariage',
+        brideName: owner.brideName,
+        groomName: owner.groomName,
+      },
+    });
   } catch (err) {
     console.error('getMySites:', err);
     res.status(500).json({ success: false });

@@ -11,6 +11,7 @@ import { createDefaultRSVPForm } from './types';
 import type { WeddingSite } from '../wedding-sites/types';
 
 import { getWeddingSiteBySlug } from '../wedding-sites/services/weddingSiteService';
+import { isWeddingEvent, mainEventLabel } from '../wedding-sites/utils/eventType';
 
 export function useRSVPBundle(slug: string | undefined) {
   const [site, setSite] = useState<WeddingSite | null>(null);
@@ -36,7 +37,7 @@ export function useRSVPBundle(slug: string | undefined) {
         return;
       }
       setSite(ws);
-      setForm(ws.rsvpForm ?? createDefaultRSVPForm(ws.id));
+      setForm(ws.rsvpForm ?? createDefaultRSVPForm(ws.id, isWeddingEvent(ws.eventType) ? undefined : mainEventLabel(ws.eventType)));
     } catch (e) {
       // Sans catch, un site privé (403) remontait en rejet non géré et la page
       // affichait « Mini-site introuvable » au lieu du vrai motif du blocage.

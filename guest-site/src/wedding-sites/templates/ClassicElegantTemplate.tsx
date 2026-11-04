@@ -5,7 +5,7 @@ import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, S
 
 export function ClassicElegantTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
   const textAlign = site.language === 'he' ? ('right' as const) : ('center' as const);
 
@@ -48,10 +48,12 @@ export function ClassicElegantTemplate({ site }: WeddingTemplateProps) {
               }}
             >
               {site.brideName}{' '}
-              <span style={{ fontWeight: 400, color: t.secondaryColor, fontStyle: 'italic' }}>&</span>{' '}
+              {site.groomName ? <span style={{ fontWeight: 400, color: t.secondaryColor, fontStyle: 'italic' }}>&</span> : null}{' '}
               {site.groomName}
             </h1>
-            <p style={{ fontSize: '1.05rem', opacity: 0.9, margin: '0 0 0.25rem' }}>{site.coupleName}</p>
+            {site.coupleName && site.coupleName !== site.brideName ? (
+              <p style={{ fontSize: '1.05rem', opacity: 0.9, margin: '0 0 0.25rem' }}>{site.coupleName}</p>
+            ) : null}
             <HeroMeta site={site} />
           </header>
         ) : null}

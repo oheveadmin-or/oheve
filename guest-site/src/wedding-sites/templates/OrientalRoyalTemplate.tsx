@@ -5,7 +5,7 @@ import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, S
 
 export function OrientalRoyalTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
 
   return (
@@ -37,9 +37,9 @@ export function OrientalRoyalTemplate({ site }: WeddingTemplateProps) {
               <header style={{ marginBottom: '2.5rem', minHeight: '68vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <p style={{ fontSize: '0.8rem', letterSpacing: '0.4em', textTransform: 'uppercase', color: t.primaryColor }}>{L.heroKicker}</p>
                 <h1 style={{ fontSize: titleFontSize(t.titleSize), fontWeight: 700, margin: '0.75rem 0', lineHeight: 1.12 }}>
-                  {site.brideName} · {site.groomName}
+                  {site.groomName ? `${site.brideName} · ${site.groomName}` : site.brideName}
                 </h1>
-                <p style={{ margin: '0 0 0.5rem', opacity: 0.9 }}>{site.coupleName}</p>
+                {site.coupleName && site.coupleName !== site.brideName ? <p style={{ margin: '0 0 0.5rem', opacity: 0.9 }}>{site.coupleName}</p> : null}
                 <HeroMeta site={site} />
               </header>
             ) : null}

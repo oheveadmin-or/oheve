@@ -17,6 +17,7 @@ import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { WeddingSite } from '../types';
+import { eventLabel, inviteOneText, isWeddingEvent } from '../utils/eventType';
 import { invitationTokens, shade } from '../themes/InvitationTheme';
 import {
   coupleNames,
@@ -115,7 +116,11 @@ type Props = {
 
 export function InvitationOpening({ site, contained = false, guestName, onDone }: Props) {
   const tk = invitationTokens(site.theme);
-  const S = STRINGS[site.language] ?? STRINGS.fr;
+  const base = STRINGS[site.language] ?? STRINGS.fr;
+  // Bar/Bat Mitsva, Brit Mila : kicker et phrase d'accueil de l'événement
+  const S = isWeddingEvent(site.eventType)
+    ? base
+    : { ...base, wedding: eventLabel(site.eventType, site.language), inviteOne: inviteOneText(site.eventType, site.language) };
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
   const [stage, setStage] = useState<Stage>('cover');
   const timers = useRef<number[]>([]);

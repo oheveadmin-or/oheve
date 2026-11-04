@@ -29,6 +29,8 @@ export interface UserRow {
   subscription_expires_at?: string;
   bride_name?: string;
   groom_name?: string;
+  event_type?: string | null;
+  needed_providers?: string[] | null;
   created_at: string;
   username?: string | null;
   must_change_password?: boolean;
@@ -41,13 +43,13 @@ export class ConnexionInscriptionRepository {
     prenom: string,
     hash: string,
     role: UserRole,
-    couple?: { bride_name?: string; groom_name?: string },
+    couple?: { bride_name?: string; groom_name?: string; event_type?: string | null },
   ) {
     const r = await pool.query(
-      `INSERT INTO users (email, nom, prenom, mot_de_passe, role, bride_name, groom_name)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       RETURNING id,email,nom,prenom,role,is_active,bride_name,groom_name,created_at`,
-      [email, nom, prenom, hash, role, couple?.bride_name ?? null, couple?.groom_name ?? null]
+      `INSERT INTO users (email, nom, prenom, mot_de_passe, role, bride_name, groom_name, event_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING id,email,nom,prenom,role,is_active,bride_name,groom_name,event_type,created_at`,
+      [email, nom, prenom, hash, role, couple?.bride_name ?? null, couple?.groom_name ?? null, couple?.event_type ?? null]
     );
     return r.rows[0] as UserRow;
   }
@@ -60,7 +62,7 @@ export class ConnexionInscriptionRepository {
               wedding_lat,wedding_lng,wedding_address,
               subscription_plan,subscription_status,subscription_started_at,subscription_expires_at,
               presta_sub_status,presta_trial_end,presta_current_period_end,
-              bride_name,groom_name,premium,premium_purchased_at,created_at,
+              bride_name,groom_name,event_type,needed_providers,premium,premium_purchased_at,created_at,
               username,must_change_password
        FROM users WHERE LOWER(email)=LOWER($1)`,
       [email.trim()]
@@ -96,7 +98,7 @@ export class ConnexionInscriptionRepository {
               wedding_lat,wedding_lng,wedding_address,
               subscription_plan,subscription_status,subscription_started_at,subscription_expires_at,
               presta_sub_status,presta_trial_end,presta_current_period_end,
-              bride_name,groom_name,premium,premium_purchased_at,created_at,
+              bride_name,groom_name,event_type,needed_providers,premium,premium_purchased_at,created_at,
               username,must_change_password
        FROM users WHERE id=$1`,
       [id]
@@ -413,6 +415,8 @@ export class ConnexionInscriptionRepository {
     bride_name?: string;
     groom_name?: string;
     date_mariage?: string | null;
+    event_type?: string | null;
+    needed_providers?: string[] | null;
   }) {
     const sets: string[] = [];
     const vals: unknown[] = [];
@@ -424,11 +428,16 @@ export class ConnexionInscriptionRepository {
     if (data.bride_name !== undefined) { sets.push(`bride_name=$${i++}`); vals.push(data.bride_name); }
     if (data.groom_name !== undefined) { sets.push(`groom_name=$${i++}`); vals.push(data.groom_name); }
     if (data.date_mariage !== undefined) { sets.push(`date_mariage=$${i++}`); vals.push(data.date_mariage); }
+    if (data.event_type !== undefined) { sets.push(`event_type=$${i++}`); vals.push(data.event_type); }
+    if (data.needed_providers !== undefined) {
+      sets.push(`needed_providers=$${i++}::jsonb`);
+      vals.push(data.needed_providers === null ? null : JSON.stringify(data.needed_providers));
+    }
     if (sets.length === 0) return null;
     vals.push(userId);
     const r = await pool.query(
       `UPDATE users SET ${sets.join(',')} WHERE id=$${i}
-       RETURNING id,email,nom,prenom,role,is_active,avatar_url,phone,bride_name,groom_name,date_mariage,created_at`,
+       RETURNING id,email,nom,prenom,role,is_active,avatar_url,phone,bride_name,groom_name,date_mariage,event_type,needed_providers,created_at`,
       vals
     );
     return r.rows[0] ?? null;

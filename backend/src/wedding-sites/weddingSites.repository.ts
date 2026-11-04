@@ -23,14 +23,23 @@ export interface WeddingSiteRow {
   invite_links: unknown;
   access_key: string | null;
   hide_signature: boolean;
+  /** users.event_type du propriétaire (lu à chaque lecture, jamais stocké sur le site) */
+  owner_event_type?: string | null;
   created_at: string;
   updated_at: string;
 }
 
+/**
+ * Type d'événement du compte propriétaire (mariage, bar_mitsva, bat_mitsva,
+ * brit_mila). Lu via to_jsonb pour ne pas casser si la colonne n'existe pas
+ * encore (migration pas encore passée) : on obtient alors NULL = mariage.
+ */
+const OWNER_EVENT_TYPE = `(SELECT to_jsonb(u) ->> 'event_type' FROM users u WHERE u.id = wedding_sites.user_id) AS owner_event_type`;
+
 export const weddingSitesRepo = {
   async findBySlug(slug: string): Promise<WeddingSiteRow | null> {
     const { rows } = await pool.query(
-      `SELECT * FROM wedding_sites WHERE slug = $1 LIMIT 1`,
+      `SELECT wedding_sites.*, ${OWNER_EVENT_TYPE} FROM wedding_sites WHERE slug = $1 LIMIT 1`,
       [slug.toLowerCase()]
     );
     return rows[0] ?? null;
@@ -69,7 +78,7 @@ export const weddingSitesRepo = {
         (user_id, slug, couple_name, groom_name, bride_name, date, time, city, venue,
          welcome_text, main_text, language, theme, sections, content, rsvp_form, invite_links, access_key, hide_signature)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb,$18,$19)
-       RETURNING *`,
+       RETURNING *, ${OWNER_EVENT_TYPE}`,
       [
         data.userId ?? null,
         data.slug.toLowerCase(),
@@ -98,7 +107,7 @@ export const weddingSitesRepo = {
 
   async findByUserId(userId: number): Promise<WeddingSiteRow[]> {
     const { rows } = await pool.query(
-      `SELECT * FROM wedding_sites WHERE user_id = $1 ORDER BY updated_at DESC`,
+      `SELECT wedding_sites.*, ${OWNER_EVENT_TYPE} FROM wedding_sites WHERE user_id = $1 ORDER BY updated_at DESC`,
       [userId]
     );
     return rows;
@@ -173,10 +182,20 @@ export const weddingSitesRepo = {
     const params = [...vals, id, userId];
 
     const { rows } = await pool.query(
-      `UPDATE wedding_sites SET ${sets.join(', ')} ${whereClause} RETURNING *`,
+      `UPDATE wedding_sites SET ${sets.join(', ')} ${whereClause} RETURNING *, ${OWNER_EVENT_TYPE}`,
       params
     );
     return rows[0] ?? null;
+  },
+
+  /** Type d'événement et noms saisis à l'inscription, pour préremplir le builder. */
+  async ownerAccount(userId: number): Promise<{ eventType: string | null; brideName: string; groomName: string }> {
+    const { rows } = await pool.query(
+      `SELECT to_jsonb(u) ->> 'event_type' AS event_type, bride_name, groom_name FROM users u WHERE id = $1`,
+      [userId]
+    );
+    const r = rows[0] as { event_type?: string | null; bride_name?: string | null; groom_name?: string | null } | undefined;
+    return { eventType: r?.event_type ?? null, brideName: r?.bride_name ?? '', groomName: r?.groom_name ?? '' };
   },
 
   /** true si le propriétaire du site a payé Oheve Premium (ou site sans compte legacy). */

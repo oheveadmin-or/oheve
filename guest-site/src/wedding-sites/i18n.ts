@@ -1,6 +1,21 @@
 import type { SiteLanguage } from './types';
+import { eventLabel, isWeddingEvent } from './utils/eventType';
 
-export function sectionLabels(language: SiteLanguage) {
+/**
+ * Intitulés des sections. `eventType` (site.eventType) retire les mots propres
+ * au mariage pour une Bar/Bat Mitsva ou une Brit Mila.
+ */
+export function sectionLabels(language: SiteLanguage, eventType?: string | null) {
+  const wedding = weddingSectionLabels(language);
+  if (isWeddingEvent(eventType)) return wedding;
+  // « Avec joie » → « Bar Mitsva » au-dessus du prénom
+  const base = { ...wedding, heroKicker: eventLabel(eventType, language) };
+  if (language === 'he') return { ...base, jewishSection: 'האירועים', coupleStory: 'הסיפור', giftRegistry: 'מתנות' };
+  if (language === 'en') return { ...base, jewishSection: 'Events', coupleStory: 'The story', giftRegistry: 'Gifts' };
+  return { ...base, coupleStory: 'Son histoire', giftRegistry: 'Liste de cadeaux' };
+}
+
+function weddingSectionLabels(language: SiteLanguage) {
   if (language === 'he') {
     return {
       program: 'תוכנית',

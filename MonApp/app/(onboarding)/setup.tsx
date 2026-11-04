@@ -19,8 +19,10 @@ import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
 import { GeoResult, searchCity } from '@/services/geo';
 import { apiService } from '@/services/api';
-import { prestatairesApi } from '@/services/auth/api';
+import { authApi, prestatairesApi } from '@/services/auth/api';
 import { initBudget } from '@/lib/budget-store';
+import { budgetRatios, EVENT_TYPES, eventConfig, normalizeEventType, type EventType } from '@/lib/event-type';
+import { defaultTasksFor, loadTodoTasks, setTodoTasks } from '@/lib/todo-store';
 
 // ── Palette Oheve ─────────────────────────────────────────────────────────────
 const C = {
@@ -42,22 +44,8 @@ const MOIS_LONG = [
 const JOURS = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
 
 const TODAY = new Date();
-const MIN_BUDGET = 5000;
+const MIN_BUDGET = 1000; // une Brit Mila peut coûter bien moins qu'un mariage
 const MAX_BUDGET = 200000;
-
-// ── Budget par catégorie (mariage juif complet) ────────────────────────────────
-const BUDGET_CATEGORIES = [
-  { key: 'salle',      label: 'Salle de réception', icon: '🏛️', ratio: 0.32 },
-  { key: 'traiteur',   label: 'Traiteur / Buffet',   icon: '🍽️', ratio: 0.25 },
-  { key: 'rabbin',     label: 'Rabbin / Cérémonie',  icon: '✡️', ratio: 0.03 },
-  { key: 'dj',         label: 'DJ / Orchestre',       icon: '🎵', ratio: 0.08 },
-  { key: 'photo',      label: 'Photographe',          icon: '📸', ratio: 0.07 },
-  { key: 'video',      label: 'Vidéaste',             icon: '🎬', ratio: 0.05 },
-  { key: 'deco',       label: 'Décoration & Fleurs',  icon: '💐', ratio: 0.08 },
-  { key: 'tenues',     label: 'Tenues',               icon: '👗', ratio: 0.06 },
-  { key: 'beaute',     label: 'Coiffure & Maquillage',icon: '💄', ratio: 0.03 },
-  { key: 'patisserie', label: 'Pâtisserie / Gâteau',  icon: '🎂', ratio: 0.03 },
-];
 
 // ── Étapes du mariage (remplace "Type") ──────────────────────────────────────
 const WEDDING_STEPS = [
@@ -67,6 +55,11 @@ const WEDDING_STEPS = [
   { key: 'chabbat_hatan', label: 'Chabbat Hatan',   icon: '🕍' },
   { key: 'jour_j',        label: 'Jour J',           icon: '💍' },
 ];
+
+/** Budget global proposé par défaut selon l'événement. */
+function defaultBudgetFor(e: EventType): number {
+  return e === 'brit_mila' ? 5000 : e === 'mariage' ? 30000 : 20000;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatBudget(v: number): string {
@@ -220,6 +213,44 @@ export default function OnboardingSetupScreen() {
   const { user, updateUser } = useAuth();
   const insets = useSafeAreaInsets();
 
+  // ── Événement (mariage, Bar/Bat Mitsva, Brit Mila) ────────────────────────
+  // Prérempli depuis l'inscription par email ; choisi ici pour Apple/Google.
+  const [eventType, setEventTypeState] = useState<EventType>(() => normalizeEventType(user?.event_type));
+  const ev = eventConfig(eventType);
+  const isWeddingEv = eventType === 'mariage';
+  const [childName, setChildName] = useState(() => (isWeddingEv ? '' : user?.bride_name ?? ''));
+  const [familyName, setFamilyName] = useState(() => (isWeddingEv ? '' : user?.groom_name ?? ''));
+  const [neededProviders, setNeededProviders] = useState<string[]>(() => ev.defaultProviders);
+  const setEventType = (next: EventType) => {
+    if (next === eventType) return;
+    setEventTypeState(next);
+    // Nouvel événement → prestataires pré-cochés propres à cet événement.
+    setNeededProviders(eventConfig(next).defaultProviders);
+    setGuests(next === 'brit_mila' ? 50 : next === 'mariage' ? 150 : 120);
+    const b = defaultBudgetFor(next);
+    setBudget(b);
+    setBudgetInput(String(b));
+  };
+  // Le compte se charge parfois juste après l'ouverture de l'écran : on reprend
+  // alors une seule fois l'événement et les noms saisis à l'inscription.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current || !user) return;
+    hydratedRef.current = true;
+    const fromUser = normalizeEventType(user.event_type);
+    if (fromUser !== 'mariage') {
+      setEventType(fromUser);
+      setChildName(user.bride_name ?? '');
+      setFamilyName(user.groom_name ?? '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+  const toggleProvider = (key: string) => {
+    setNeededProviders(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  };
+  // Catégories de budget = prestataires cochés, dans l'ordre de l'événement.
+  const BUDGET_CATEGORIES = ev.providers.filter(p => neededProviders.includes(p.key));
+
   // ── Date ──────────────────────────────────────────────────────────────────
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -237,12 +268,10 @@ export default function OnboardingSetupScreen() {
   // ── Budget ────────────────────────────────────────────────────────────────
   type BudgetMode = 'global' | 'categories';
   const [budgetMode, setBudgetMode] = useState<BudgetMode>('global');
-  const [budget, setBudget] = useState(30000);
-  const [budgetInput, setBudgetInput] = useState('30000');
-  const [catBudgets, setCatBudgets] = useState<Record<string, string>>(() =>
-    Object.fromEntries(BUDGET_CATEGORIES.map(c => [c.key, '']))
-  );
-  const [guests, setGuests] = useState(150);
+  const [budget, setBudget] = useState(() => defaultBudgetFor(eventType));
+  const [budgetInput, setBudgetInput] = useState(() => String(defaultBudgetFor(eventType)));
+  const [catBudgets, setCatBudgets] = useState<Record<string, string>>({});
+  const [guests, setGuests] = useState(() => (eventType === 'brit_mila' ? 50 : eventType === 'mariage' ? 150 : 120));
 
   // ── Étapes ────────────────────────────────────────────────────────────────
   const [selectedSteps, setSelectedSteps] = useState<string[]>(['jour_j']);
@@ -297,13 +326,14 @@ export default function OnboardingSetupScreen() {
   // Budget global total
   const budgetTotal = budgetMode === 'global'
     ? budget
-    : BUDGET_CATEGORIES.reduce((sum, c) => sum + (parseBudgetInput(catBudgets[c.key]) || 0), 0);
+    : BUDGET_CATEGORIES.reduce((sum, c) => sum + (parseBudgetInput(catBudgets[c.key] ?? '') || 0), 0);
 
   const budgetPerGuest = guests > 0 && budgetTotal > 0
     ? Math.round(budgetTotal / guests)
     : 0;
 
-  const canSubmit = selectedDate !== null && selectedCity !== null;
+  const namesOk = isWeddingEv || familyName.trim().length > 0;
+  const canSubmit = selectedDate !== null && selectedCity !== null && namesOk && neededProviders.length > 0;
 
   const handleBudgetInputEnd = () => {
     const v = parseBudgetInput(budgetInput);
@@ -329,20 +359,31 @@ export default function OnboardingSetupScreen() {
 
       const token = user?.accessToken;
 
+      // Type d'événement + prestataires retenus (+ noms pour une Mitsva / Brit Mila).
+      const profileUpdate = {
+        event_type: eventType,
+        needed_providers: neededProviders,
+        ...(isWeddingEv ? {} : { bride_name: childName.trim(), groom_name: familyName.trim() }),
+      };
+      if (token) {
+        const res = await authApi.updateProfile(token, profileUpdate);
+        if (!res?.success) throw new Error(res?.message ?? "Impossible d'enregistrer le type d'événement");
+      }
+
       await apiService.mettreAJourDateMariage({ email, date_mariage: dateStr }, token);
 
       if (budgetMode === 'global') {
         await apiService.mettreAJourBudget({ email, budget_mode: 'global', budget_global: budget }, token);
-        initBudget({ total: budget, mode: 'global' });
+        initBudget({ total: budget, mode: 'global', categoryDefs: BUDGET_CATEGORIES, ratios: budgetRatios(BUDGET_CATEGORIES) });
       } else {
         const cats: Record<string, number> = {};
         BUDGET_CATEGORIES.forEach(c => {
-          const v = parseBudgetInput(catBudgets[c.key]);
+          const v = parseBudgetInput(catBudgets[c.key] ?? '');
           if (v > 0) cats[c.key] = v;
         });
         await apiService.mettreAJourBudget({ email, budget_mode: 'categories', budget_categories: cats }, token);
         const totalCat = Object.values(cats).reduce((s, v) => s + v, 0);
-        initBudget({ total: totalCat, mode: 'categories', categoryAmounts: cats });
+        initBudget({ total: totalCat, mode: 'categories', categoryAmounts: cats, categoryDefs: BUDGET_CATEGORIES });
       }
 
       const venueName = selectedVenue?.name || venueManual.trim() || undefined;
@@ -356,7 +397,16 @@ export default function OnboardingSetupScreen() {
         wedding_venue: venueName,
       }, token);
 
+      // To-do de départ propre à l'événement (la liste mariage est celle par
+      // défaut). On ne remplace que si rien n'a encore été commencé.
+      if (!isWeddingEv) {
+        const current = await loadTodoTasks();
+        const started = current.some(t => t.done || t.status === 'in_progress');
+        if (!started) setTodoTasks(defaultTasksFor(eventType));
+      }
+
       await updateUser({
+        ...profileUpdate,
         date_mariage: dateStr,
         budget_total: budgetTotal,
         wedding_location_type: 'city',
@@ -389,10 +439,93 @@ export default function OnboardingSetupScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <ThemedText style={s.title}>Parlons de votre mariage</ThemedText>
+          <ThemedText style={s.title}>Parlons de {ev.withArticle}</ThemedText>
           <ThemedText style={s.subtitle}>
             Quelques informations pour personnaliser votre expérience
           </ThemedText>
+        </View>
+
+        {/* ══════════════════════════════════════════════
+            🎉  ÉVÉNEMENT
+        ══════════════════════════════════════════════ */}
+        <View style={s.card}>
+          <View style={s.sectionRow}>
+            <ThemedText style={s.sectionIcon}>🎉</ThemedText>
+            <ThemedText style={s.sectionTitle}>Votre événement</ThemedText>
+          </View>
+          <View style={s.stepsGrid}>
+            {EVENT_TYPES.map(key => {
+              const cfg = eventConfig(key);
+              const active = eventType === key;
+              return (
+                <Pressable
+                  key={key}
+                  testID={`onb-event-${key}`}
+                  style={[s.stepPill, active && s.stepPillActive]}
+                  onPress={() => setEventType(key)}
+                >
+                  <ThemedText style={s.stepPillIcon}>{cfg.emoji}</ThemedText>
+                  <ThemedText style={[s.stepPillText, active && s.stepPillTextActive]}>{cfg.label}</ThemedText>
+                  {active && <Ionicons name="checkmark-circle" size={14} color={C.sauge} style={{ marginLeft: 4 }} />}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {!isWeddingEv && (
+            <View style={{ marginTop: 14, gap: 8 }}>
+              <ThemedText style={s.venueLabel}>
+                {ev.names.first}{ev.names.firstOptional ? <ThemedText style={s.optional}> (optionnel)</ThemedText> : null}
+              </ThemedText>
+              <TextInput
+                style={s.venueInput}
+                value={childName}
+                onChangeText={setChildName}
+                placeholder={ev.names.firstOptional ? '' : ev.names.firstPlaceholder}
+                placeholderTextColor={C.secondary}
+                autoCapitalize="words"
+              />
+              <ThemedText style={s.venueLabel}>{ev.names.second}</ThemedText>
+              <TextInput
+                style={s.venueInput}
+                value={familyName}
+                onChangeText={setFamilyName}
+                placeholder={ev.names.secondPlaceholder}
+                placeholderTextColor={C.secondary}
+                autoCapitalize="words"
+              />
+            </View>
+          )}
+        </View>
+
+        {/* ══════════════════════════════════════════════
+            🧑‍🍳  PRESTATAIRES NÉCESSAIRES
+        ══════════════════════════════════════════════ */}
+        <View style={s.card}>
+          <View style={s.sectionRow}>
+            <ThemedText style={s.sectionIcon}>🧑‍🍳</ThemedText>
+            <ThemedText style={s.sectionTitle}>Vos prestataires</ThemedText>
+          </View>
+          <ThemedText style={s.sectionHint}>
+            De quels prestataires avez-vous besoin ? Votre budget et vos recherches s’y adapteront.
+          </ThemedText>
+          <View style={s.stepsGrid}>
+            {ev.providers.map(p => {
+              const active = neededProviders.includes(p.key);
+              return (
+                <Pressable
+                  key={p.key}
+                  testID={`onb-provider-${p.key}`}
+                  style={[s.stepPill, active && s.stepPillActive]}
+                  onPress={() => toggleProvider(p.key)}
+                >
+                  <ThemedText style={s.stepPillIcon}>{p.icon}</ThemedText>
+                  <ThemedText style={[s.stepPillText, active && s.stepPillTextActive]}>{p.label}</ThemedText>
+                  {active && <Ionicons name="checkmark-circle" size={14} color={C.sauge} style={{ marginLeft: 4 }} />}
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         {/* ══════════════════════════════════════════════
@@ -401,7 +534,7 @@ export default function OnboardingSetupScreen() {
         <View style={s.card}>
           <View style={s.sectionRow}>
             <ThemedText style={s.sectionIcon}>📅</ThemedText>
-            <ThemedText style={s.sectionTitle}>Date du mariage</ThemedText>
+            <ThemedText style={s.sectionTitle}>Date {ev.ofThe}</ThemedText>
           </View>
 
           <Pressable
@@ -432,7 +565,7 @@ export default function OnboardingSetupScreen() {
         <View style={s.card}>
           <View style={s.sectionRow}>
             <ThemedText style={s.sectionIcon}>📍</ThemedText>
-            <ThemedText style={s.sectionTitle}>Lieu du mariage</ThemedText>
+            <ThemedText style={s.sectionTitle}>Lieu {ev.ofThe}</ThemedText>
           </View>
 
           {/* Ville */}
@@ -624,7 +757,7 @@ export default function OnboardingSetupScreen() {
                   <View style={s.catInputWrap}>
                     <TextInput
                       style={s.catInput}
-                      value={catBudgets[cat.key]}
+                      value={catBudgets[cat.key] ?? ''}
                       onChangeText={t => setCatBudgets(prev => ({ ...prev, [cat.key]: t.replace(/[^0-9]/g, '') }))}
                       keyboardType="number-pad"
                       placeholder="0"
@@ -665,6 +798,7 @@ export default function OnboardingSetupScreen() {
         {/* ══════════════════════════════════════════════
             ✨  PRESTATIONS / ÉTAPES
         ══════════════════════════════════════════════ */}
+        {isWeddingEv && (
         <View style={s.card}>
           <View style={s.sectionRow}>
             <ThemedText style={s.sectionIcon}>✨</ThemedText>
@@ -693,6 +827,7 @@ export default function OnboardingSetupScreen() {
             })}
           </View>
         </View>
+        )}
 
         {/* ══════════════════════════════════════════════
             CTA
@@ -704,13 +839,15 @@ export default function OnboardingSetupScreen() {
         >
           {saving
             ? <ActivityIndicator color="#fff" />
-            : <ThemedText style={s.ctaText}>Créer mon espace mariage</ThemedText>
+            : <ThemedText style={s.ctaText}>{isWeddingEv ? 'Créer mon espace mariage' : `Créer mon espace ${ev.label}`}</ThemedText>
           }
         </Pressable>
 
         {!canSubmit && (
           <ThemedText style={s.ctaHint}>
-            {!selectedDate && !selectedCity
+            {!namesOk ? `Indiquez le ${ev.names.second.toLowerCase()} pour continuer`
+              : neededProviders.length === 0 ? 'Choisissez au moins un prestataire'
+              : !selectedDate && !selectedCity
               ? 'Choisissez une date et une ville pour continuer'
               : !selectedDate ? 'Choisissez une date pour continuer'
               : 'Choisissez une ville pour continuer'}

@@ -4,6 +4,7 @@
  * Ce qui est déjà saisi en minuscules/mixte est laissé tel quel, l'hébreu aussi.
  */
 import type { WeddingSite } from '../types';
+import { withEventNames } from './eventType';
 
 const SMALL = new Set(['et', 'de', 'du', 'des', 'la', 'le', 'les', 'à', 'au', 'aux', 'en', 'and', 'of']);
 
@@ -35,10 +36,13 @@ export function prettyName(raw: string | undefined): string {
     .join('');
 }
 
-/** Site prêt à l'affichage : prénoms, nom du couple et lignes des familles */
+/**
+ * Site prêt à l'affichage : prénoms, nom du couple et lignes des familles.
+ * Bar/Bat Mitsva, Brit Mila : un seul nom affiché (cf. withEventNames).
+ */
 export function withPrettyNames<T extends WeddingSite>(site: T): T {
   const cols = site.content?.familyColumns;
-  return {
+  return withEventNames({
     ...site,
     brideName: prettyName(site.brideName),
     groomName: prettyName(site.groomName),
@@ -49,5 +53,5 @@ export function withPrettyNames<T extends WeddingSite>(site: T): T {
           familyColumns: cols?.map((c) => ({ ...c, lines: (c.lines ?? []).map((l) => prettyName(l)) })),
         }
       : site.content,
-  };
+  });
 }

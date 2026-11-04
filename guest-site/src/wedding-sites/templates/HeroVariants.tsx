@@ -167,7 +167,7 @@ export function HeroEditorial({ site }: HeroProps) {
           {/* Central separator */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 1, height: 40, background: t.primaryColor, opacity: 0.35 }} />
-            <span style={{ color: t.primaryColor, fontSize: '1rem', fontStyle: 'italic', opacity: 0.8 }}>&</span>
+            {site.groomName ? <span style={{ color: t.primaryColor, fontSize: '1rem', fontStyle: 'italic', opacity: 0.8 }}>&</span> : null}
             <div style={{ width: 1, height: 40, background: t.primaryColor, opacity: 0.35 }} />
           </div>
 
@@ -235,7 +235,7 @@ export function HeroSplit({ site }: HeroProps) {
         >
           {site.brideName}
           <br />
-          <span style={{ color: t.primaryColor, fontStyle: 'italic', fontWeight: 400, fontSize: '0.75em' }}>& {site.groomName}</span>
+          {site.groomName ? <span style={{ color: t.primaryColor, fontStyle: 'italic', fontWeight: 400, fontSize: '0.75em' }}>& {site.groomName}</span> : null}
         </h1>
         <HeroMeta site={site} hideMonogram />
       </div>
@@ -434,7 +434,7 @@ export function HeroMonogramStyle({ site }: HeroProps) {
             color: t.textColor,
           }}
         >
-          {site.brideName} & {site.groomName}
+          {site.groomName ? `${site.brideName} & ${site.groomName}` : site.brideName}
         </h1>
         <HeroMeta site={site} hideMonogram />
       </div>
@@ -668,7 +668,7 @@ export function HeroMagazine({ site }: HeroProps) {
         >
           {site.brideName}
           <br />
-          <span style={{ color: t.primaryColor, fontWeight: 400, fontStyle: 'italic', fontSize: '0.65em' }}>& {site.groomName}</span>
+          {site.groomName ? <span style={{ color: t.primaryColor, fontWeight: 400, fontStyle: 'italic', fontSize: '0.65em' }}>& {site.groomName}</span> : null}
         </h1>
         <HeroMeta site={site} hideMonogram />
       </div>
@@ -938,7 +938,7 @@ export function HeroGarden({ site }: HeroProps) {
             fontStyle: 'italic',
           }}
         >
-          {site.brideName} & {site.groomName}
+          {site.groomName ? `${site.brideName} & ${site.groomName}` : site.brideName}
         </h1>
 
         {/* Leaf divider */}

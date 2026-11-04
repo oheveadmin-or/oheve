@@ -297,7 +297,14 @@ export type CoupleStoryItem = {
 
 export type JewishWeddingEvent = {
   id: string;
-  type: 'chabbat-hatan' | 'henne' | 'mairie' | 'houppa' | 'brunch' | 'sheva-berakhot' | 'depart' | 'pool-party' | 'custom';
+  /**
+   * `houppa` = l'événement principal du site (la Houppa pour un mariage, la
+   * soirée pour une Bar/Bat Mitsva, la Brit Mila elle-même) : son libellé
+   * vient de utils/eventType. `montee-torah`, `chabbat`, `veille` servent aux
+   * Bar/Bat Mitsva et à la Brit Mila.
+   */
+  type: 'chabbat-hatan' | 'henne' | 'mairie' | 'houppa' | 'brunch' | 'sheva-berakhot' | 'depart' | 'pool-party'
+    | 'montee-torah' | 'chabbat' | 'veille' | 'custom';
   label: string;
   date: string;
   time: string;
@@ -414,6 +421,12 @@ export type WeddingSite = {
   accessKey?: string | null;
   /** Masque la signature « © Oheve Wedding » en bas du site public */
   hideSignature?: boolean;
+  /**
+   * Type d'événement du compte propriétaire (mariage, bar_mitsva, bat_mitsva,
+   * brit_mila), renvoyé par le serveur depuis users.event_type — jamais
+   * envoyé par le builder. Absent = mariage.
+   */
+  eventType?: string | null;
   createdAt: string;
   updatedAt: string;
 };

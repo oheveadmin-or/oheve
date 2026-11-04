@@ -1,6 +1,6 @@
 import type { CSSProperties, FormEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 import { MonogramGenerator } from './MonogramGenerator';
 import { RSVPBuilder } from '@guest/rsvp/RSVPBuilder';
@@ -8,7 +8,7 @@ import { RSVPPreview } from '@guest/rsvp/RSVPPreview';
 import { ErrorBoundary } from '@guest/components/ErrorBoundary';
 import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '@guest/rsvp/types';
 import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS, type ThemePreset } from '../data/weddingThemes';
-import { defaultInvitationTexts, INVITATION_TEXT_FIELDS, withInvitationTexts, type InvitationTextKey } from '../data/invitationTexts';
+import { defaultInvitationTexts, invitationTextFields, withInvitationTexts, type InvitationTextKey } from '../data/invitationTexts';
 import { applyColorCombination, COLOR_COMBINATIONS, type ColorCombination } from '../data/colorCombinations';
 import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId, isYouTubeUrl } from '../data/musicSuggestions';
 import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, uploadWeddingMusic, adaptPhotoToTheme } from '../services/weddingSiteService';
@@ -35,13 +35,18 @@ import type {
 import { defaultWeddingTheme } from '../types';
 import { autoSections } from '../utils/autoSections';
 import { withPrettyNames } from '../utils/names';
-import { EventIcon } from './EventIcon';
+import { eventDefaultPaletteName, eventHeroName, eventSiteConfig, isWeddingEvent, mainEventLabel, normalizeEventType, programDefaults, siteDisplayName } from '../utils/eventType';
+import type { SiteEventType } from '../utils/eventType';
+import { eventBasePath, eventTypeFromPath, useCanonicalEventPath } from '../utils/eventRoutes';
+import { EventIcon, mainIconKind } from './EventIcon';
 import { getPatternStyle } from '../templates/PatternOverlay';
 import { getFamilyColumns } from '../templates/templateParts';
 import { mergeDateAndTimeToIso } from '../utils/date';
 import { eventDateTextToIso, frenchLongDate, hebrewDateFromIso, isoToEventDateText } from '../utils/hebrewDate';
 import { jewishRsvpId } from '../utils/inviteFilter';
 import { generateSlugFromDisplayName, slugify } from '../utils/slug';
+import { getMyAccount } from '../services/weddingSiteService';
+import { defaultRSVPEvents } from '@guest/rsvp/types';
 import { applyThemePreset } from '../templates/themePresets';
 import { invitationEffects } from '../themes/InvitationTheme';
 
@@ -144,6 +149,9 @@ const JEWISH_META: Record<JewishWeddingEvent['type'], { emoji: string; label: st
   'sheva-berakhot': { emoji: '🥂', label: 'Sheva Berakhot' },
   'depart':         { emoji: '👋', label: 'Au revoir des invités' },
   'pool-party':     { emoji: '🏊', label: 'Pool Party' },
+  'montee-torah':   { emoji: '📜', label: 'Mise des Téfilines' },
+  'chabbat':        { emoji: '🕯️', label: 'Chabbat' },
+  'veille':         { emoji: '📖', label: 'Veille (Brit Itshak)' },
   'custom':         { emoji: '✨', label: 'Événement' },
 };
 
@@ -155,15 +163,18 @@ function rsvpEventKind(ev: { id: string; emojiIcon?: string }): JewishWeddingEve
   return byEmoji ?? 'custom';
 }
 
-const DEFAULT_JEWISH_EVENTS: { type: JewishWeddingEvent['type']; label: string; emoji: string; optional?: boolean }[] = [
-  { type: 'henne', label: 'Henné', emoji: '🌸' },
-  { type: 'mairie', label: 'Mairie', emoji: '🏛️' },
-  { type: 'chabbat-hatan', label: 'Chabbat Hatan', emoji: '🕌' },
-  { type: 'houppa', label: 'Houppa & Cérémonie', emoji: '💍' },
-  { type: 'brunch', label: 'Brunch', emoji: '☕', optional: true },
-  { type: 'sheva-berakhot', label: 'Sheva Berakhot', emoji: '🥂', optional: true },
-  { type: 'pool-party', label: 'Pool Party', emoji: '🏊', optional: true },
-  { type: 'depart', label: 'Au revoir des invités', emoji: '👋', optional: true },
+/** Programme proposé pour un mariage ; Bar/Bat Mitsva et Brit Mila : cf. utils/eventType */
+const DEFAULT_JEWISH_EVENTS = programDefaults('mariage');
+
+/** Ordre d'insertion des événements dans le formulaire RSVP */
+const PROGRAM_ORDER: JewishWeddingEvent['type'][] = ['veille', 'montee-torah', 'chabbat', 'henne', 'mairie', 'chabbat-hatan', 'houppa', 'brunch', 'sheva-berakhot', 'depart', 'custom'];
+
+/** Tous les types connus, pour retrouver le type d'un événement RSVP `jewish-<type>` */
+const ALL_PROGRAM_DEFAULTS = [
+  ...programDefaults('mariage'),
+  ...programDefaults('bar_mitsva'),
+  ...programDefaults('bat_mitsva'),
+  ...programDefaults('brit_mila'),
 ];
 
 const initialDate = (): { date: string; time: string } => ({ date: '', time: '' });
@@ -188,9 +199,38 @@ const WIZARD_STEPS = [
 
 type WizardStepId = (typeof WIZARD_STEPS)[number]['id'];
 
+/** Onglet / titre de la 1re étape selon l'événement (« Les mariés » → « Le Bar Mitsva ») */
+function wizardStep(idx: number, eventType: SiteEventType) {
+  const st = WIZARD_STEPS[idx];
+  if (st.id !== 'maries' || isWeddingEvent(eventType)) return st;
+  const n = eventSiteConfig(eventType).names;
+  return { ...st, tab: n.step, title: n.title, sub: n.sub };
+}
+
+/** Couleurs de l'événement (Bar Mitsva bleu nuit, Bat Mitsva pêche, Brit Mila bleu ciel) */
+function withEventPalette(theme: WeddingTheme, ev: SiteEventType): WeddingTheme {
+  const name = eventDefaultPaletteName(ev);
+  const combo = name ? COLOR_COMBINATIONS.find((c) => c.name === name) : undefined;
+  return combo ? applyColorCombination(theme, combo) : theme;
+}
+
 export function WeddingSiteBuilder() {
   const { slug: routeSlug } = useParams<{ slug?: string }>();
   const [namesLocked, setNamesLocked] = useState(false);
+  // Événement du compte (mariage, Bar/Bat Mitsva, Brit Mila) : donné par le
+  // serveur avec le site ou avec /api/wedding-sites/me, jamais choisi ici.
+  // Sans compte (lien /bar-mitsva/build ouvert directement), le préfixe de
+  // l'URL donne l'événement.
+  const location = useLocation();
+  const [pathEvent] = useState<SiteEventType | null>(() => eventTypeFromPath(location.pathname));
+  const [eventType, setEventType] = useState<SiteEventType>(() => pathEvent ?? 'mariage');
+  // L'URL suit l'événement : /wedding/build d'un compte Bar Mitsva → /bar-mitsva/build
+  useCanonicalEventPath(eventType, true);
+  const wedding = eventType === 'mariage';
+  const eventCfg = eventSiteConfig(eventType);
+  // Préfixe des liens partagés : /wedding, /bar-mitsva, /bat-mitsva, /brit-mila
+  const eventBase = eventBasePath(eventType);
+  const programDefs = wedding ? DEFAULT_JEWISH_EVENTS : programDefaults(eventType);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
@@ -395,9 +435,10 @@ export function WeddingSiteBuilder() {
 
   const isoDate = useMemo(() => mergeDateAndTimeToIso(date, time), [date, time]);
 
-  const displayCouple =
-    coupleName.trim() ||
-    (brideName && groomName ? `${brideName} & ${groomName}` : coupleName || 'Votre prénoms');
+  const displayCouple = wedding
+    ? coupleName.trim() ||
+      (brideName && groomName ? `${brideName} & ${groomName}` : coupleName || 'Votre prénoms')
+    : siteDisplayName(eventType, brideName, groomName) || eventCfg.label.fr;
 
   // Sections déduites du contenu (plus de cases à cocher) : une section
   // apparaît dès qu'elle a quelque chose à montrer.
@@ -413,8 +454,9 @@ export function WeddingSiteBuilder() {
         ? slugify(slugCustom)
         : generateSlugFromDisplayName(displayCouple) || 'apercu',
       coupleName: displayCouple,
-      groomName: groomName || '…',
-      brideName: brideName || '…',
+      groomName: groomName || (wedding ? '…' : ''),
+      brideName: brideName || (wedding ? '…' : ''),
+      eventType,
       date: isoDate,
       time,
       city,
@@ -437,6 +479,7 @@ export function WeddingSiteBuilder() {
       displayCouple,
       groomName,
       brideName,
+      eventType,
       city,
       welcomeText,
       mainText,
@@ -455,7 +498,34 @@ export function WeddingSiteBuilder() {
     const t = params.get('token');
     if (t) { setAuthToken(t); setHasToken(true); }
 
-    if (!routeSlug) return;
+    if (!routeSlug) {
+      // Nouveau site : l'événement et les noms viennent du compte (inscription
+      // dans l'app). Mariage = rien à changer, le builder est déjà prêt.
+      // Événement : celui du compte (app) en priorité, sinon le préfixe de l'URL.
+      const applyEvent = (ev: SiteEventType) => {
+        setEventType(ev);
+        if (ev === 'mariage') return;
+        setTheme((t) => withEventPalette(t, ev));
+        const defs = programDefaults(ev);
+        const main = defs.find((d) => d.type === 'houppa');
+        setContent((c) => ({
+          ...c,
+          invitationTexts: defaultInvitationTexts(ev),
+          // L'événement principal est coché d'office (c'est le faire-part)
+          jewishEvents: main
+            ? [{ id: crypto.randomUUID(), type: 'houppa', label: main.label, date: '', time: '', place: '', description: '', enabled: true }]
+            : c.jewishEvents,
+        }));
+        setRsvpForm((f) => ({ ...f, events: defaultRSVPEvents(mainEventLabel(ev)) }));
+      };
+      getMyAccount().then((acc) => {
+        if (!acc) { applyEvent(pathEvent ?? 'mariage'); return; }
+        setBrideName((v) => v || acc.brideName || '');
+        setGroomName((v) => v || acc.groomName || '');
+        applyEvent(normalizeEventType(acc.eventType));
+      }).catch(() => { applyEvent(pathEvent ?? 'mariage'); /* hors app / hors ligne */ });
+      return;
+    }
 
     // Jusqu'à 3 tentatives : un échec réseau ponctuel (WebView iPad, 4G…)
     // laissait le builder « vide » avec les prénoms déverrouillés.
@@ -466,6 +536,8 @@ export function WeddingSiteBuilder() {
         return;
       }
       setLoadError(null);
+      const siteEvent = normalizeEventType(site.eventType);
+      setEventType(siteEvent);
       setGroomName(site.groomName || '');
       setBrideName(site.brideName || '');
       setCoupleName(site.coupleName || '');
@@ -479,7 +551,7 @@ export function WeddingSiteBuilder() {
       if (site.content && typeof site.content === 'object') {
         const loaded = site.content as WeddingSiteContent;
         // Site d'avant les phrases du faire-part : préremplies (et « À la mémoire de… » repris)
-        setContent((prev) => withInvitationTexts({ ...prev, ...loaded, invitationTexts: loaded.invitationTexts }));
+        setContent((prev) => withInvitationTexts({ ...prev, ...loaded, invitationTexts: loaded.invitationTexts }, siteEvent));
       }
       // Source unique du lieu : récupère l'ancien champ « Lieu précis » des
       // sites publiés avant la fusion dans « Lieu principal ».
@@ -534,14 +606,14 @@ export function WeddingSiteBuilder() {
     setRsvpForm((prev) => {
       let events = [...prev.events];
       let changed = false;
-      const ORDER: JewishWeddingEvent['type'][] = ['henne', 'mairie', 'chabbat-hatan', 'houppa', 'brunch', 'sheva-berakhot', 'depart', 'custom'];
+      const ORDER = PROGRAM_ORDER;
       for (const jev of enabledJewish) {
         const stableId = jewishRsvpId(jev.type);
         const meta = JEWISH_META[jev.type];
         if (!events.find((e) => e.id === stableId)) {
           const rank = ORDER.indexOf(jev.type);
           const insertBefore = events.findIndex((e) => {
-            const eType = DEFAULT_JEWISH_EVENTS.find((d) => jewishRsvpId(d.type) === e.id)?.type;
+            const eType = ALL_PROGRAM_DEFAULTS.find((d) => jewishRsvpId(d.type) === e.id)?.type;
             return eType !== undefined && ORDER.indexOf(eType) > rank;
           });
           const ev: RSVPEvent = newEvent(stableId, jev.label || meta.label, {
@@ -594,9 +666,15 @@ export function WeddingSiteBuilder() {
     const errors: string[] = [];
 
     // Les champs des autres étapes ne sont plus à l'écran : `required` ne suffit plus
-    if (!groomName.trim() || !brideName.trim()) errors.push('Prénoms des mariés manquants (étape « Mariés »).');
-    if (!date) errors.push('Date du mariage manquante.');
-    else if (!isoDate) errors.push('Date ou heure du mariage invalide.');
+    if (wedding) {
+      if (!groomName.trim() || !brideName.trim()) errors.push('Prénoms des mariés manquants (étape « Mariés »).');
+    } else if (!groomName.trim()) {
+      errors.push(`Nom de famille manquant (étape « ${eventCfg.names.step} »).`);
+    } else if (!eventCfg.names.firstOptional && !brideName.trim()) {
+      errors.push(`${eventCfg.names.first} manquant (étape « ${eventCfg.names.step} »).`);
+    }
+    if (!date) errors.push(`Date ${eventCfg.ofThe} manquante.`);
+    else if (!isoDate) errors.push(`Date ou heure ${eventCfg.ofThe} invalide.`);
     if (time && !/^\d{2}:\d{2}$/.test(time)) errors.push('Heure invalide (format attendu : HH:MM).');
 
     if (slugCustom.trim() && !/^[a-z0-9à-ÿ\s-]+$/i.test(slugCustom.trim()))
@@ -889,10 +967,10 @@ export function WeddingSiteBuilder() {
           ...(partial.enabled !== undefined && { enabled: partial.enabled }),
         };
       } else if (partial.enabled) {
-        const ORDER: JewishWeddingEvent['type'][] = ['henne', 'mairie', 'chabbat-hatan', 'houppa', 'brunch', 'sheva-berakhot', 'depart', 'custom'];
+        const ORDER = PROGRAM_ORDER;
         const rank = ORDER.indexOf(type);
         const insertBefore = events.findIndex((e) => {
-          const eType = DEFAULT_JEWISH_EVENTS.find((d) => jewishRsvpId(d.type) === e.id)?.type;
+          const eType = ALL_PROGRAM_DEFAULTS.find((d) => jewishRsvpId(d.type) === e.id)?.type;
           return eType !== undefined && ORDER.indexOf(eType) > rank;
         });
         const newRsvpEvent: RSVPEvent = newEvent(rsvpId, partial.label ?? meta.label, {
@@ -946,7 +1024,9 @@ export function WeddingSiteBuilder() {
   /** Passe au modèle `preset` en gardant le contenu (textes, photos, réponses) */
   function chooseStylePreset(preset: ThemePreset) {
     const { heroStyle: _h, patternId: _p, separatorStyle: _s, cardStyle: _c, cornerDecor: _co, ...rest } = theme;
-    setTheme(applyThemePreset({ ...rest, ...preset.theme, style: preset.id } as WeddingTheme));
+    const next = applyThemePreset({ ...rest, ...preset.theme, style: preset.id } as WeddingTheme);
+    // Nouveau site de Bar/Bat Mitsva ou Brit Mila : le modèle prend les couleurs de l'événement
+    setTheme(loadedStyle == null ? withEventPalette(next, eventType) : next);
   }
 
   if (step === 'pick') {
@@ -1016,7 +1096,7 @@ export function WeddingSiteBuilder() {
                   onClick={() => goToStep(i)}
                   style={stepTab(active, done)}
                 >
-                  {done ? `✓ ${s.tab}` : `${i + 1}. ${s.tab}`}
+                  {done ? `✓ ${wizardStep(i, eventType).tab}` : `${i + 1}. ${wizardStep(i, eventType).tab}`}
                 </button>
               );
             })}
@@ -1031,14 +1111,70 @@ export function WeddingSiteBuilder() {
             Étape {wizIdx + 1} sur {WIZARD_STEPS.length}
           </p>
           <h2 style={{ margin: '0.2rem 0 0.2rem', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 500, fontSize: '1.9rem', color: '#343630' }}>
-            {WIZARD_STEPS[wizIdx].title}
+            {wizardStep(wizIdx, eventType).title}
           </h2>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: '#7e8178' }}>{WIZARD_STEPS[wizIdx].sub}</p>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: '#7e8178' }}>{wizardStep(wizIdx, eventType).sub}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
 
-          {wiz === 'maries' && (
+          {wiz === 'maries' && !wedding && (
+          <section style={block}>
+            <h2 style={h2}>{eventCfg.names.firstOptional ? 'Le nom de la famille' : 'Son prénom'}</h2>
+            <div style={grid2}>
+              <label style={lab}>
+                {eventCfg.names.first}
+                {namesLocked && brideName.trim() ? (
+                  <div style={lockedNameField}>
+                    <span style={{ fontSize: '0.9rem' }}>🔒</span>
+                    {brideName}
+                  </div>
+                ) : (
+                  <input
+                    style={inp}
+                    required={!eventCfg.names.firstOptional}
+                    placeholder={eventCfg.names.firstPlaceholder}
+                    value={brideName}
+                    onChange={(e) => setBrideName(e.target.value)}
+                  />
+                )}
+              </label>
+              <label style={lab}>
+                {eventCfg.names.second}
+                {namesLocked ? (
+                  <div style={lockedNameField}>
+                    <span style={{ fontSize: '0.9rem' }}>🔒</span>
+                    {groomName}
+                  </div>
+                ) : (
+                  <input style={inp} required placeholder={eventCfg.names.secondPlaceholder} value={groomName} onChange={(e) => setGroomName(e.target.value)} />
+                )}
+              </label>
+            </div>
+            <label style={lab}>
+              {eventCfg.names.firstHe}
+              <input
+                style={{ ...inp, direction: 'rtl' }}
+                dir="rtl"
+                lang="he"
+                placeholder="Ex. נתן"
+                value={content.brideNameHe ?? ''}
+                onChange={(e) => setContent((c) => ({ ...c, brideNameHe: e.target.value }))}
+              />
+            </label>
+            <p style={{ fontSize: '0.8rem', color: '#7e8178', margin: 0 }}>
+              Affiché en grand sur le site : <strong>{eventHeroName({ brideName, groomName, coupleName: '', language }) || '—'}</strong>
+              {eventCfg.names.firstOptional ? ' — ajoutez le prénom dès qu’il est annoncé, le site se met à jour.' : ''}
+            </p>
+            {namesLocked && (
+              <p style={{ fontSize: '0.78rem', color: '#92400e', background: '#fef3c7', borderRadius: 8, padding: '0.5rem 0.75rem', margin: 0 }}>
+                Le nom est verrouillé — il a été défini depuis l'application Oheve.
+              </p>
+            )}
+          </section>
+          )}
+
+          {wiz === 'maries' && wedding && (
           <section style={block}>
             <h2 style={h2}>Vos prénoms</h2>
             <div style={grid2}>
@@ -1111,7 +1247,7 @@ export function WeddingSiteBuilder() {
             <h2 style={h2}>La date</h2>
             <div style={grid2}>
               <label style={lab}>
-                Date du mariage
+                {wedding ? 'Date du mariage' : `Date ${eventCfg.ofThe}`}
                 <input
                   style={inp}
                   type="date"
@@ -1141,7 +1277,7 @@ export function WeddingSiteBuilder() {
                 {' · '}
                 <span dir="rtl" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: '1rem', unicodeBidi: 'isolate', whiteSpace: 'nowrap' }}>{hebrewDateFromIso(date)?.he}</span>
                 <span style={{ display: 'block', fontSize: '0.72rem', color: '#7e8178', marginTop: 4 }}>
-                  Calculée automatiquement. Si la Houppa a lieu après le coucher du soleil, le jour hébraïque est le lendemain.
+                  Calculée automatiquement. Si {wedding ? 'la Houppa a' : eventType === 'brit_mila' ? 'la Brit Mila a' : 'la cérémonie a'} lieu après le coucher du soleil, le jour hébraïque est le lendemain.
                 </span>
               </div>
             ) : null}
@@ -1274,7 +1410,10 @@ export function WeddingSiteBuilder() {
           )}
 
           {/* ── Logo monogramme ─────────────────────────────────────────────── */}
-          {wiz === 'maries' && (
+          {/* Les 50 modèles sont conçus pour deux initiales de couple : réservé au
+              mariage. Bar/Bat Mitsva, Brit Mila : monogramme doré automatique
+              (initiale du prénom, ou du nom de famille). */}
+          {wiz === 'maries' && wedding && (
           <section style={block}>
             <h2 style={h2}>💍 Logo monogramme (IA)</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
@@ -1794,7 +1933,9 @@ export function WeddingSiteBuilder() {
               avec les boutons Waze et Google Maps.
             </p>
             <p style={{ margin: '0.4rem 0 0', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#747E68' }}>
-              {content.separateReception ? 'Houppa & cérémonie' : 'Houppa, cérémonie et soirée'}
+              {wedding
+                ? (content.separateReception ? 'Houppa & cérémonie' : 'Houppa, cérémonie et soirée')
+                : mainEventLabel(eventType)}
             </p>
             <label style={lab}>
               Nom du lieu
@@ -1831,7 +1972,7 @@ export function WeddingSiteBuilder() {
                   checked={!!content.separateReception}
                   onChange={(e) => setContent((c) => ({ ...c, separateReception: e.target.checked }))}
                 />
-                La soirée a lieu dans un autre endroit
+                {wedding ? "La soirée a lieu dans un autre endroit" : "La réception a lieu dans un autre endroit"}
               </label>
               {content.separateReception ? (
                 <div style={{ border: '1px solid #F5F2ED', borderRadius: 12, padding: '0.75rem', marginTop: 10, background: '#FBFBF9' }}>
@@ -1942,7 +2083,7 @@ export function WeddingSiteBuilder() {
               Tout est déjà rédigé : modifiez une phrase si vous le souhaitez, ou videz sa case pour la retirer du site.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              {INVITATION_TEXT_FIELDS.map((f) => {
+              {invitationTextFields(eventType).map((f) => {
                 const value = content.invitationTexts?.[f.key] ?? { fr: '', he: '' };
                 const removed = !value.fr.trim();
                 return (
@@ -2005,15 +2146,17 @@ export function WeddingSiteBuilder() {
             const enabledEvents = (content.jewishEvents ?? []).filter((e) => e.enabled);
             const pageCount = enabledEvents.filter((e) => e.type !== 'houppa').length + 1;
             const checks: { ok: boolean; label: string; hint: string; step: WizardStepId; optional?: boolean }[] = [
-              { ok: !!(groomName.trim() && brideName.trim()), label: 'Vos prénoms', hint: 'Calligraphiés sur la carte, l’enveloppe et chaque page ; vos initiales forment le monogramme doré.', step: 'maries' },
-              { ok: !!date, label: 'La date', hint: "Pour le compte à rebours de l'écran d'accueil et la page du mariage.", step: 'date' },
-              { ok: !!(content.venue?.name?.trim() || content.venue?.address?.trim() || city.trim()), label: 'Le lieu', hint: 'Pour le bandeau « Itinéraire » sous la page du mariage.', step: 'date' },
+              wedding
+                ? { ok: !!(groomName.trim() && brideName.trim()), label: 'Vos prénoms', hint: 'Calligraphiés sur la carte, l’enveloppe et chaque page ; vos initiales forment le monogramme doré.', step: 'maries' }
+                : { ok: !!(groomName.trim() && (brideName.trim() || eventCfg.names.firstOptional)), label: eventCfg.names.firstOptional ? 'Le nom de famille' : 'Le prénom', hint: 'Calligraphié sur la carte, l’enveloppe et chaque page ; son initiale forme le monogramme doré.', step: 'maries' },
+              { ok: !!date, label: 'La date', hint: `Pour le compte à rebours de l'écran d'accueil et la page ${eventCfg.ofThe}.`, step: 'date' },
+              { ok: !!(content.venue?.name?.trim() || content.venue?.address?.trim() || city.trim()), label: 'Le lieu', hint: `Pour le bandeau « Itinéraire » sous la page ${eventCfg.ofThe}.`, step: 'date' },
               {
                 ok: enabledEvents.length > 0,
                 label: 'Le programme',
                 hint: enabledEvents.length
-                  ? `${pageCount} page${pageCount > 1 ? 's' : ''} (mairie, henné… et le mariage), chacune avec son onglet en bas.`
-                  : 'Sans programme, une seule page : le faire-part du mariage.',
+                  ? `${pageCount} page${pageCount > 1 ? 's' : ''} (${wedding ? 'mairie, henné… et le mariage' : `une par événement, dont celle ${eventCfg.ofThe}`}), chacune avec son onglet en bas.`
+                  : `Sans programme, une seule page : le faire-part ${eventCfg.ofThe}.`,
                 step: 'date',
               },
               { ok: sections.rsvp, label: 'Le formulaire de réponse', hint: "Intégré en bas de l'invitation, avec un onglet « Réponses ».", step: 'invites' },
@@ -2217,7 +2360,7 @@ export function WeddingSiteBuilder() {
           <section style={block}>
             <h2 style={h2}>🎵 Votre chanson</h2>
             <label style={lab}>
-              Musique de fond — playlist mariage
+              Musique de fond — {wedding ? 'playlist mariage' : 'playlist'}
               <select
                 style={inp}
                 value={deezerTrackId(content.musicUrl) != null ? content.musicUrl : ''}
@@ -2279,10 +2422,10 @@ export function WeddingSiteBuilder() {
           <section style={block}>
             <h2 style={h2}>✡️ Le programme : vos événements</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Cochez les événements de votre mariage et choisissez leur date dans le calendrier.
+              Cochez les événements {wedding ? 'de votre mariage' : eventCfg.ofThe} et choisissez leur date dans le calendrier.
             </p>
             <div style={{ display: 'grid', gap: 10 }}>
-              {DEFAULT_JEWISH_EVENTS.map((def) => {
+              {programDefs.map((def) => {
                 const existing = (content.jewishEvents ?? []).find((e) => e.type === def.type);
                 const enabled = existing?.enabled ?? false;
                 return (
@@ -2293,7 +2436,7 @@ export function WeddingSiteBuilder() {
                         checked={enabled}
                         onChange={(e) => toggleJewishEvent(def, e.target.checked)}
                       />
-                      <EventIcon kind={def.type} size={22} color="#747E68" />
+                      <EventIcon kind={def.type === 'houppa' ? mainIconKind(eventType) : def.type} size={22} color="#747E68" />
                       {def.label}
                     </label>
                     {enabled && existing ? (
@@ -2322,7 +2465,7 @@ export function WeddingSiteBuilder() {
                         <span style={{ fontSize: '0.74rem', color: existing.place?.trim() || existing.googleMapsUrl?.trim() || existing.wazeUrl?.trim() ? '#7e8178' : '#9a6a1f', lineHeight: 1.45 }}>
                           {existing.place?.trim() || existing.googleMapsUrl?.trim() || existing.wazeUrl?.trim()
                             ? 'Boutons Waze et Google Maps ajoutés automatiquement sur le site (liens ci-dessous facultatifs).'
-                            : 'Sans lieu saisi, les boutons Waze et Google Maps de cet événement mènent au lieu du mariage.'}
+                            : `Sans lieu saisi, les boutons Waze et Google Maps de cet événement mènent au lieu ${eventCfg.ofThe}.`}
                         </span>
                         <textarea style={{ ...inp, minHeight: 56, resize: 'vertical' }} placeholder="Description (optionnel)" value={existing.description} onChange={(e) => upsertJewishEvent(def.type, { description: e.target.value })} />
                         <input style={inp} placeholder="Google Maps URL (optionnel)" value={existing.googleMapsUrl ?? ''} onChange={(e) => upsertJewishEvent(def.type, { googleMapsUrl: e.target.value })} />
@@ -2457,19 +2600,23 @@ export function WeddingSiteBuilder() {
           <section style={block}>
             <h2 style={h2}>🔗 Liens d'invitation par groupe d'invités</h2>
             <p style={{ fontSize: '0.83rem', color: '#64748b', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-              Créez un lien différent par groupe. Chaque lien affiche uniquement les événements sélectionnés dans le formulaire RSVP — les invités "Mariage seul" ne voient pas le Chabbat Hatan ni le Henné.
+              Créez un lien différent par groupe. Chaque lien affiche uniquement les événements sélectionnés dans le formulaire RSVP
+              {wedding ? ' — les invités "Mariage seul" ne voient pas le Chabbat Hatan ni le Henné.' : ' — par exemple, la soirée seule pour certains invités.'}
             </p>
 
             {/* Modèles rapides */}
             {inviteLinks.length === 0 && rsvpForm.events.filter((e) => e.enabled).length > 0 ? (
               <div style={{ display: 'grid', gap: 8, marginBottom: '1rem' }}>
                 <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#929B83', margin: 0 }}>⚡ Modèles rapides</p>
-                {[
+                {(wedding ? [
                   { label: '💍 Mariage uniquement', filter: (ev: RSVPEvent) => ['jewish-mairie', 'jewish-houppa'].includes(ev.id) },
                   { label: '💍 + 🕌 Mariage & Chabbat Hatan', filter: (ev: RSVPEvent) => ['jewish-mairie', 'jewish-houppa', 'jewish-chabbat-hatan'].includes(ev.id) },
                   { label: '🌸 + 💍 Henné & Mariage', filter: (ev: RSVPEvent) => ['jewish-henne', 'jewish-mairie', 'jewish-houppa'].includes(ev.id) },
                   { label: '🌟 Tous les événements', filter: () => true },
-                ].map((tpl) => {
+                ] : [
+                  { label: `✨ ${mainEventLabel(eventType)} uniquement`, filter: (ev: RSVPEvent) => ev.id === 'jewish-houppa' },
+                  { label: '🌟 Tous les événements', filter: () => true },
+                ]).map((tpl) => {
                   const enabled = rsvpForm.events.filter((e) => e.enabled);
                   const ids = enabled.filter(tpl.filter).map((e) => e.id);
                   if (!ids.length) return null;
@@ -2498,7 +2645,7 @@ export function WeddingSiteBuilder() {
               // brouillon (déduit des prénoms) peut différer (« odaya-et-tehila »
               // au lieu de « odaya-tehila ») et donnait un lien mort.
               const linkSlug = publishedSlug || draft.slug || 'votre-site';
-              const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/wedding/${linkSlug}/invite/${link.token}`;
+              const url = `${typeof window !== 'undefined' ? window.location.origin : ''}${eventBase}/${linkSlug}/invite/${link.token}`;
               const linkSaved = !!publishedSlug && savedInviteTokens.includes(link.token);
               return (
                 <div key={link.id} style={{ border: `1px solid ${link.token ? '#a3e635' : '#F5F2ED'}`, borderRadius: 12, padding: '0.85rem', marginBottom: 10 }}>
@@ -2534,7 +2681,7 @@ export function WeddingSiteBuilder() {
                               setInviteLinks(next);
                             }}
                           />
-                          <EventIcon kind={rsvpEventKind(ev)} size={18} color="#747E68" />
+                          <EventIcon kind={rsvpEventKind(ev) === 'houppa' ? mainIconKind(eventType) : rsvpEventKind(ev)} size={18} color="#747E68" />
                           {ev.label}
                           {ev.time ? ` · ${ev.time}` : ''}
                         </label>
@@ -2710,24 +2857,24 @@ export function WeddingSiteBuilder() {
             <div style={{ marginBottom: '1rem' }}>
               <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534', marginBottom: 6 }}>Site principal</p>
               <a
-                href={`/wedding/${publishedSlug}${publishedKey ? `?k=${publishedKey}` : ''}`}
+                href={`${eventBase}/${publishedSlug}${publishedKey ? `?k=${publishedKey}` : ''}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{ fontSize: '0.9rem', color: '#15803d', wordBreak: 'break-all' }}
               >
-                {window.location.origin}/wedding/{publishedSlug}{publishedKey ? `?k=${publishedKey}` : ''}
+                {window.location.origin}{eventBase}/{publishedSlug}{publishedKey ? `?k=${publishedKey}` : ''}
               </a>
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
               <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534', marginBottom: 6 }}>RSVP général</p>
               <a
-                href={`/wedding/${publishedSlug}/rsvp${publishedKey ? `?k=${publishedKey}` : ''}`}
+                href={`${eventBase}/${publishedSlug}/rsvp${publishedKey ? `?k=${publishedKey}` : ''}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{ fontSize: '0.9rem', color: '#15803d', wordBreak: 'break-all' }}
               >
-                {window.location.origin}/wedding/{publishedSlug}/rsvp{publishedKey ? `?k=${publishedKey}` : ''}
+                {window.location.origin}{eventBase}/{publishedSlug}/rsvp{publishedKey ? `?k=${publishedKey}` : ''}
               </a>
             </div>
 
@@ -2737,19 +2884,19 @@ export function WeddingSiteBuilder() {
                   🔗 {link.label || 'Lien sans titre'}
                 </p>
                 <a
-                  href={`/wedding/${publishedSlug}/invite/${link.token}`}
+                  href={`${eventBase}/${publishedSlug}/invite/${link.token}`}
                   target="_blank"
                   rel="noreferrer"
                   style={{ fontSize: '0.85rem', color: '#15803d', wordBreak: 'break-all' }}
                 >
-                  {window.location.origin}/wedding/{publishedSlug}/invite/{link.token}
+                  {window.location.origin}{eventBase}/{publishedSlug}/invite/{link.token}
                 </a>
                 <button
                   type="button"
                   style={{ ...ghostInlineBtn, marginTop: 8, display: 'block' }}
                   onClick={() =>
                     navigator.clipboard.writeText(
-                      `${window.location.origin}/wedding/${publishedSlug}/invite/${link.token}`
+                      `${window.location.origin}${eventBase}/${publishedSlug}/invite/${link.token}`
                     )
                   }
                 >
@@ -2760,8 +2907,12 @@ export function WeddingSiteBuilder() {
 
             <GuestEnvelopeLinks
               slug={publishedSlug}
+              eventType={eventType}
               accessKey={publishedKey}
-              coupleLabel={[brideName, groomName].map((n) => n.trim()).filter(Boolean).join(' & ') || 'nos mariés'}
+              coupleLabel={wedding
+                ? [brideName, groomName].map((n) => n.trim()).filter(Boolean).join(' & ') || 'nos mariés'
+                : eventHeroName({ brideName, groomName, coupleName: '', language })}
+              invitedTo={eventCfg.invitedTo}
               onPreview={(name) => {
                 setOpeningGuest(name);
                 setOpeningReplay((n) => n + 1);

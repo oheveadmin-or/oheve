@@ -427,7 +427,7 @@ function makeVoileCardSurface(tk: VoileTokens) {
 
 export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
   const tk = voileTokens(site.theme);
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
 
   const hasTwoNames = !!(site.brideName?.trim() && site.groomName?.trim());

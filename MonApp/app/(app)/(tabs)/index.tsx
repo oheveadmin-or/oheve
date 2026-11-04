@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { calendarApi, prestatairesApi, type CalendarEvent } from '@/services/auth/api';
 import { useAuth } from '@/contexts/auth-context';
+import { eventConfig, isWedding } from '@/lib/event-type';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
 import { placeWithPreposition, weddingPlace } from '@/lib/place-utils';
 import { getGuests, loadGuests, subscribeGuests } from '@/lib/guests-store';
@@ -112,6 +113,9 @@ function weatherCodeToDesc(code: number): string {
 
 export default function DashboardScreen() {
   const { user } = useAuth();
+  // Mariage, Bar/Bat Mitsva ou Brit Mila : adapte les textes de l'accueil.
+  const ev = eventConfig(user?.event_type);
+  const weddingEv = isWedding(user?.event_type);
 
   const coupleName = getCoupleDisplayName(user);
   const coupleInitials = getCoupleInitials(user);
@@ -397,7 +401,7 @@ export default function DashboardScreen() {
               )}
               <View style={styles.venueOverlay} />
               <View style={styles.venueContent}>
-                <ThemedText style={styles.venueOverline}>Mon mariage sera</ThemedText>
+                <ThemedText style={styles.venueOverline}>{weddingEv ? 'Mon mariage sera' : `La ${ev.label} aura lieu`}</ThemedText>
                 {venueProvider ? (
                   // Salle retenue : son nom, avec la ville du mariage si connue.
                   <ThemedText style={styles.venueTitle} numberOfLines={2}>
@@ -435,7 +439,7 @@ export default function DashboardScreen() {
               <View style={styles.heroTop}>
                 <View style={{ flex: 1 }}>
                   <ThemedText style={styles.heroCaption}>Progression globale</ThemedText>
-                  <ThemedText style={styles.heroValue}>{todoPct}% du mariage est prêt</ThemedText>
+                  <ThemedText style={styles.heroValue}>{todoPct}% {ev.ofThe} est {weddingEv ? 'prêt' : 'prête'}</ThemedText>
                   <ThemedText style={styles.heroHint}>{heroMotivation}</ThemedText>
                 </View>
                 <DonutProgress progress={todoPct} label={`${todoPct}%`} />
@@ -714,13 +718,14 @@ export default function DashboardScreen() {
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
             <PremiumCard>
               <SectionHeader
-                title="Mariage juif ✡️"
-                subtitle="Officiants & services religieux"
+                title={weddingEv ? 'Mariage juif ✡️' : `${ev.label} ✡️`}
+                subtitle={weddingEv ? 'Officiants & services religieux' : 'Traiteurs casher & prestataires'}
                 actionLabel="Explorer"
                 onActionPress={() => router.push('/(app)/providers/categories/juif' as never)}
               />
               <View style={{ gap: 8 }}>
-                {JEWISH_LINKS.map((lien) => (
+                {/* Madrichot Kala, Hatan, mikvé : propres au mariage. */}
+                {weddingEv && JEWISH_LINKS.map((lien) => (
                   <Pressable
                     key={lien.tab}
                     style={styles.jewishRow}
@@ -838,7 +843,7 @@ export default function DashboardScreen() {
         return (
           <AnimatedView entering={FadeInDown.delay(index * 60).springify()} style={styles.sectionWrap}>
             <PremiumCard style={styles.weatherCard}>
-              <SectionHeader title="Météo du mariage" subtitle={weddingCity || 'Prévision J-7'} />
+              <SectionHeader title={`Météo ${ev.ofThe}`} subtitle={weddingCity || 'Prévision J-7'} />
               {weatherData ? (
                 <>
                   <ThemedText style={styles.weatherTemp}>{weatherData.temp}°C — {weatherData.desc}</ThemedText>
@@ -847,7 +852,7 @@ export default function DashboardScreen() {
               ) : (
                 <>
                   <ThemedText style={styles.weatherTemp}>Prévision en cours…</ThemedText>
-                  <ThemedText style={styles.weatherInfo}>Les prévisions météo se précisent à l'approche du mariage.</ThemedText>
+                  <ThemedText style={styles.weatherInfo}>{`Les prévisions météo se précisent à l’approche ${ev.ofThe}.`}</ThemedText>
                 </>
               )}
             </PremiumCard>
@@ -862,14 +867,14 @@ export default function DashboardScreen() {
             {countdownDays != null ? (
               <>
                 <ThemedText style={styles.countdownValue}>J-{countdownDays}</ThemedText>
-                <ThemedText style={styles.countdownHint}>avant le grand jour 💍</ThemedText>
+                <ThemedText style={styles.countdownHint}>avant le grand jour {ev.emoji}</ThemedText>
               </>
             ) : (
               <>
                 <ThemedText style={styles.countdownValue}>—</ThemedText>
                 <Pressable onPress={() => router.push('/(app)/personal-info?scrollToDate=1' as never)}>
                   <ThemedText style={[styles.countdownHint, { color: C.sauge, fontWeight: '600' }]}>
-                    Ajouter ma date de mariage →
+                    Ajouter la date {ev.ofThe} →
                   </ThemedText>
                 </Pressable>
               </>
@@ -897,11 +902,11 @@ export default function DashboardScreen() {
               <ThemedText style={styles.hello}>
                 {coupleName ?? 'Oheve'}
               </ThemedText>
-              <ThemedText style={styles.coupleSub}>Votre couple 💍</ThemedText>
+              <ThemedText style={styles.coupleSub}>{weddingEv ? 'Votre couple 💍' : user?.groom_name?.trim() ? `Famille ${user.groom_name.trim()} ${ev.emoji}` : `${ev.label} ${ev.emoji}`}</ThemedText>
               <ThemedText style={styles.subHello}>
                 {countdownDays != null
                   ? `J-${countdownDays} · ${todoCompletion.done}/${todoCompletion.total} tâches`
-                  : 'Renseignez votre date de mariage'}
+                  : `Renseignez la date ${ev.ofThe}`}
               </ThemedText>
             </View>
             <View style={styles.headerActions}>

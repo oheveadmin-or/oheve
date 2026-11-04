@@ -27,7 +27,9 @@ import { frenchAt, placeQuery, weddingPlaces } from '../utils/places';
 import { invitationTokens, shade } from '../themes/InvitationTheme';
 import type { InvitationTokens } from '../themes/InvitationTheme';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
-import { EVENT_ICON_PATHS } from '../components/EventIcon';
+import { EVENT_ICON_PATHS, mainIconKind } from '../components/EventIcon';
+import type { EventIconKind } from '../components/EventIcon';
+import { eventLabel, isWeddingEvent, mainEventLabel } from '../utils/eventType';
 import { WeddingRSVPForm } from '@guest/rsvp/WeddingRSVPForm';
 import { createDefaultRSVPForm } from '@guest/rsvp/types';
 import {
@@ -225,7 +227,7 @@ function useActivePage(ids: string[]) {
 /*  Pages                                                                      */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-type IconKind = JewishWeddingEvent['type'] | 'main' | 'answers';
+type IconKind = EventIconKind;
 
 type Page = {
   id: string;
@@ -248,7 +250,7 @@ function buildPages(site: WeddingSite, S: Strings): Page[] {
   // événements dans l'ordre chronologique.
   const ordered = sortEventsChronologically<JewishWeddingEvent>(others, (e) => e.date, (e) => e.time, weddingYear(site.date));
   return [
-    { id: MAIN_ID, tab: S.mainTab, icon: 'main' as const },
+    { id: MAIN_ID, tab: S.mainTab, icon: isWeddingEvent(site.eventType) ? ('main' as const) : mainIconKind(site.eventType) },
     ...ordered.map((ev) => ({ id: `ia-${ev.id}`, tab: tabLabel(ev.label), icon: ev.type, ev })),
   ];
 }
@@ -480,7 +482,7 @@ function Contacts({ contacts, S }: { contacts: GuestContact[]; S: Strings }) {
 }
 
 function RsvpPage({ site, S }: { site: WeddingSite; S: Strings }) {
-  const form = site.rsvpForm ?? createDefaultRSVPForm(site.id);
+  const form = site.rsvpForm ?? createDefaultRSVPForm(site.id, isWeddingEvent(site.eventType) ? undefined : mainEventLabel(site.eventType));
   return (
     <section id="ia-reponses" aria-label={S.answersTab} className="ia-page">
       <Contacts contacts={usableContacts(site)} S={S} />
@@ -589,7 +591,11 @@ function TabBar({ tabs, S }: { tabs: { id: string; label: string; icon: IconKind
 
 export function InvitationTemplate({ site }: WeddingTemplateProps) {
   const tk = invitationTokens(site.theme);
-  const S = STRINGS[site.language] ?? STRINGS.fr;
+  const base = STRINGS[site.language] ?? STRINGS.fr;
+  // Bar/Bat Mitsva, Brit Mila : onglet « Bar Mitsva », bandeau « Brit Mila & séouda »…
+  const S: Strings = isWeddingEvent(site.eventType)
+    ? base
+    : { ...base, mainTab: eventLabel(site.eventType, site.language), ceremonyTag: mainEventLabel(site.eventType, site.language) };
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
   const rootRef = useReveal(tk.effects.reveal);
 

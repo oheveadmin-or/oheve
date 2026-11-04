@@ -9,6 +9,8 @@ import type { WeddingSite } from '../types';
 import { defaultWeddingTheme } from '../types';
 import { autoSections } from '../utils/autoSections';
 import { withPrettyNames } from '../utils/names';
+import { eventLabel, eventSiteConfig, isWeddingEvent } from '../utils/eventType';
+import { useCanonicalEventPath } from '../utils/eventRoutes';
 import { getTemplateByTheme } from '../utils/template-selector';
 import { filterSiteForInvite, getActiveInviteToken, setActiveInviteToken } from '../utils/inviteFilter';
 import { resolveGuestName } from '../utils/guestName';
@@ -118,15 +120,20 @@ export function WeddingPublicPage() {
     return () => ac.abort();
   }, [slug]);
 
+  const wedding = isWeddingEvent(site?.eventType);
+  // Lien arrivé avec le mauvais préfixe (/wedding/… d'une Brit Mila…) → bon préfixe
+  useCanonicalEventPath(site?.eventType, !!site);
   const coupleLabel = site
-    ? site.coupleName || [site.brideName, site.groomName].filter(Boolean).join(' & ') || 'Mariage'
+    ? site.coupleName || [site.brideName, site.groomName].filter(Boolean).join(' & ') || eventLabel(site.eventType)
     : 'Mariage';
   const weddingDate = site?.date
     ? new Date(site.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     : '';
   const locationLabel = site?.city || site?.venue || '';
   const description = [coupleLabel, weddingDate, locationLabel].filter(Boolean).join(' · ');
-  const pageTitle = `${coupleLabel} — Site de mariage`;
+  const pageTitle = wedding
+    ? `${coupleLabel} — Site de mariage`
+    : `${eventLabel(site?.eventType)} de ${coupleLabel}`;
   const heroImage = (site?.content as Record<string, unknown> | undefined)?.heroImageUrl as string | undefined;
 
   // Invitation animée : son ouverture (carte → enveloppe → accueil) fait partie du modèle
@@ -171,11 +178,11 @@ export function WeddingPublicPage() {
       el.setAttribute('content', content);
     };
     setMeta('og:title', pageTitle);
-    setMeta('og:description', description || 'Retrouvez toutes les informations sur notre mariage.');
+    setMeta('og:description', description || (wedding ? 'Retrouvez toutes les informations sur notre mariage.' : `Retrouvez toutes les informations ${eventSiteConfig(site?.eventType).ofThe}.`));
     setMeta('og:type', 'website');
     if (heroImage) setMeta('og:image', heroImage);
     setMeta('description', description, 'name');
-  }, [site, pageTitle, description, heroImage]);
+  }, [site, pageTitle, description, heroImage, wedding]);
 
   if (loading) {
     return (

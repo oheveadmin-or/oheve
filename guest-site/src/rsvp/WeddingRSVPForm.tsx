@@ -16,6 +16,8 @@ import { useWeddingTheme } from './useWeddingTheme';
 
 import type { WeddingSite } from '../wedding-sites/types';
 import { orderRsvpEventsByProgram, weddingYear } from '../wedding-sites/utils/eventOrder';
+import { eventHeroName, eventLabel, eventSiteConfig, isWeddingEvent, rsvpMessageLabel } from '../wedding-sites/utils/eventType';
+import { sitePath } from '../wedding-sites/utils/eventRoutes';
 
 export function WeddingRSVPForm({
   site,
@@ -33,7 +35,11 @@ export function WeddingRSVPForm({
 }) {
   const ui = useWeddingTheme(site, form);
   const lang = site.language;
-  const S = useMemo(() => rsvpStrings(lang), [lang]);
+  const S = useMemo(() => {
+    const base = rsvpStrings(lang);
+    // Bar/Bat Mitsva, Brit Mila : « Un petit mot pour le Bar Mitsva »…
+    return isWeddingEvent(site.eventType) ? base : { ...base, fieldMessage: rsvpMessageLabel(site.eventType, lang) };
+  }, [lang, site.eventType]);
   const settings = normalizeSettings(form);
   const orderedEvents = useMemo(
     () => orderRsvpEventsByProgram(form.events, site.content?.jewishEvents, weddingYear(site.date)),
@@ -138,7 +144,7 @@ export function WeddingRSVPForm({
           </p>
           {embedded ? null : (
             <Link
-              to={`/wedding/${site.slug}`}
+              to={sitePath(site.eventType, site.slug)}
               style={{
                 ...ui.submitBtn,
                 display: 'block',
@@ -160,8 +166,8 @@ export function WeddingRSVPForm({
     <Shell dir={dir} style={shellStyle}>
       {embedded ? null : (
         <div style={{ maxWidth: 560, margin: '0 auto 1rem', textAlign: rtl ? 'right' : 'left' }}>
-          <Link style={{ fontSize: '0.92rem', color: ui.secondaryColor }} to={`/wedding/${site.slug}`}>
-            ← Site du mariage
+          <Link style={{ fontSize: '0.92rem', color: ui.secondaryColor }} to={sitePath(site.eventType, site.slug)}>
+            ← {isWeddingEvent(site.eventType) ? 'Site du mariage' : `Site ${eventSiteConfig(site.eventType).ofThe}`}
           </Link>
         </div>
       )}
@@ -396,6 +402,12 @@ export function WeddingRSVPForm({
 }
 
 function coupleEyebrow(site: WeddingSite) {
+  if (!isWeddingEvent(site.eventType)) {
+    const label = eventLabel(site.eventType, site.language);
+    const hero = eventHeroName(site);
+    // Prénom pas encore saisi : le nom « héros » retombe sur le libellé, on ne le répète pas.
+    return hero && hero !== label ? `${label} · ${hero}` : label;
+  }
   return `${site.brideName} · ${site.groomName}`;
 }
 

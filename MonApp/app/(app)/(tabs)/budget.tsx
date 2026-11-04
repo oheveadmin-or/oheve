@@ -21,6 +21,8 @@ import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { C, RADIUS } from '@/constants/OheveTheme';
+import { useAuth } from '@/contexts/auth-context';
+import { eventConfig, isWedding } from '@/lib/event-type';
 import {
   addExpense,
   removeExpense,
@@ -53,6 +55,8 @@ const TYPE_COLORS = { acompte: '#D4A853', solde: C.sauge, depense: C.textMid };
 
 export default function BudgetScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const overline = isWedding(user?.event_type) ? 'Mon mariage' : `Ma ${eventConfig(user?.event_type).label}`;
 
   const {
     categories,
@@ -116,7 +120,7 @@ export default function BudgetScreen() {
           <Ionicons name="arrow-back" size={22} color={C.textDark} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <ThemedText style={styles.overline}>Mon mariage</ThemedText>
+          <ThemedText style={styles.overline}>{overline}</ThemedText>
           <ThemedText style={styles.title}>Budget</ThemedText>
         </View>
       </View>

@@ -27,6 +27,7 @@ import type { InvitationStyle } from './templateParts';
 import { FloralLayer, PatternOverlay } from './PatternOverlay';
 import { SectionSeparator } from './SectionSeparator';
 import { cardStyleSurface } from './templateCardStyles';
+import { sitePath } from '../utils/eventRoutes';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Countdown                                                                  */
@@ -70,7 +71,7 @@ const stripCeremonieCivile = (label: string) =>
 
 export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
 
   /* ── Couleurs du thème (100 % pilotées par le builder) ── */
@@ -742,7 +743,7 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
             </p>
           )}
           <Link
-            to={`/wedding/${site.slug}/rsvp`}
+            to={sitePath(site.eventType, site.slug, 'rsvp')}
             style={{
               display: 'inline-block',
               padding: '14px 36px',

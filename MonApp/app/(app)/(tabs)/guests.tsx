@@ -14,6 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { API_ENDPOINTS as ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
+import { eventConfig, isWedding, sitePublicBase } from '@/lib/event-type';
 import {
   addGuest as storeAddGuest,
   addGuests as storeAddGuests,
@@ -268,7 +269,8 @@ export default function GuestsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.accessToken]);
 
-  const siteBaseUrl = ENDPOINTS.weddingSitePublicBase;
+  // /wedding, /bar-mitsva, /bat-mitsva ou /brit-mila selon l'événement du compte
+  const siteBaseUrl = sitePublicBase(user?.event_type);
   // ── Message d'invitation (nom de l'invité + texte + lien) ───────────────────
   const [inviteTemplate, setInviteTemplate] = useState(DEFAULT_INVITATION_TEMPLATE);
   const [templateDraft, setTemplateDraft] = useState('');
@@ -648,7 +650,7 @@ export default function GuestsScreen() {
           <View style={styles.inviteLinksCard}>
             <View style={styles.inviteLinksHead}>
               <Ionicons name="link-outline" size={15} color="#747E68" />
-              <ThemedText style={styles.inviteLinksTitle}>Lien carte de mariage</ThemedText>
+              <ThemedText style={styles.inviteLinksTitle}>Lien carte {isWedding(user?.event_type) ? 'de mariage' : `de la ${eventConfig(user?.event_type).label}`}</ThemedText>
             </View>
             <ThemedText style={styles.inviteLinksHint}>
               Partagez ces liens officiels à vos invités — les réponses arrivent directement dans cette liste.

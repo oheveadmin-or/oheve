@@ -120,10 +120,18 @@ export function newEvent(id: string, label: string, partial?: Partial<Omit<RSVPE
   };
 }
 
-/** Événements d'un mariage juif typique — IDs stables pour cohérence avec l'éditeur */
-export function defaultRSVPEvents(): RSVPEvent[] {
+/**
+ * Événements d'un mariage juif typique — IDs stables pour cohérence avec l'éditeur.
+ * Bar/Bat Mitsva, Brit Mila (`mainLabel` fourni) : un seul événement, le
+ * principal (`jewish-houppa`, libellé de l'événement) ; le reste s'ajoute
+ * depuis le programme du builder.
+ */
+export function defaultRSVPEvents(mainLabel?: string): RSVPEvent[] {
   const mk = (id: string, label: string, partial?: Partial<Omit<RSVPEvent, 'id' | 'label'>>) =>
     newEvent(id, label, partial);
+  if (mainLabel) {
+    return [mk('jewish-houppa', mainLabel, { dayLabel: '', time: '', place: '', shortDescription: '', emojiIcon: '✨', enabled: true })];
+  }
   return [
     mk('jewish-henne',         'Henné',              { dayLabel: '', time: '', place: '', shortDescription: '', emojiIcon: '🌸', enabled: false }),
     mk('jewish-mairie',        'Mairie',              { dayLabel: '', time: '', place: '', shortDescription: '', emojiIcon: '🏛️', enabled: true }),
@@ -132,7 +140,8 @@ export function defaultRSVPEvents(): RSVPEvent[] {
   ];
 }
 
-export function createDefaultRSVPForm(weddingId: string): RSVPForm {
+/** `mainLabel` : libellé de l'événement principal hors mariage (cf. defaultRSVPEvents). */
+export function createDefaultRSVPForm(weddingId: string, mainLabel?: string): RSVPForm {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID(),
@@ -140,7 +149,7 @@ export function createDefaultRSVPForm(weddingId: string): RSVPForm {
     title: '',
     introText: '',
     thankYouText: '',
-    events: defaultRSVPEvents(),
+    events: defaultRSVPEvents(mainLabel),
     activeFields: ['firstname', 'lastname', 'email'],
     settings: {
       showDrinkPreference: false,

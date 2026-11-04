@@ -13,6 +13,8 @@ import {
   inviteEventIds,
   setActiveInviteToken,
 } from '../wedding-sites/utils/inviteFilter';
+import { isWeddingEvent, mainEventLabel } from '../wedding-sites/utils/eventType';
+import { useCanonicalEventPath } from '../wedding-sites/utils/eventRoutes';
 
 export function WeddingRSVPPage() {
   const { slug, token } = useParams<{ slug: string; token?: string }>();
@@ -27,6 +29,8 @@ export function WeddingRSVPPage() {
   else if (slug && keyParam) setActiveInviteToken(slug, null);
 
   const { site, form, loading, err } = useRSVPBundle(slug);
+  // /wedding/… d'une Bar Mitsva → /bar-mitsva/… (même suite, même ?k=)
+  useCanonicalEventPath(site?.eventType, !!site);
 
   if (loading) {
     return (
@@ -44,7 +48,7 @@ export function WeddingRSVPPage() {
     );
   }
 
-  const baseForm = form ?? createDefaultRSVPForm(site.id);
+  const baseForm = form ?? createDefaultRSVPForm(site.id, isWeddingEvent(site.eventType) ? undefined : mainEventLabel(site.eventType));
 
   // Événements visibles : lien d'invitation (dans l'URL ou mémorisé depuis le site), sinon ?events=
   const eventsParam = searchParams.get('events');

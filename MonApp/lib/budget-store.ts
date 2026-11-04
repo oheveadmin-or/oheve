@@ -61,6 +61,11 @@ export const PROVIDER_CATEGORY_MAP: Record<string, string> = {
   coiffure:      'beaute',
   maquillage:    'beaute',
   'coiffure & maquillage': 'beaute',
+  mohel:         'rabbin',
+  animation:     'animation',
+  animateur:     'animation',
+  'faire-part':  'fairepart',
+  papeterie:     'fairepart',
   pâtisserie:    'patisserie',
   gâteau:        'patisserie',
 };
@@ -78,6 +83,12 @@ const DEFAULT_CATEGORIES: Omit<BudgetCategory, 'entries'>[] = [
   { key: 'patisserie', label: 'Pâtisserie / Gâteau',      icon: '🎂', planned: 0 },
 ];
 
+/** Catégories propres aux Bar/Bat Mitsva et Brit Mila (cf. lib/event-type). */
+const EXTRA_CATEGORIES: Omit<BudgetCategory, 'entries'>[] = [
+  { key: 'animation', label: 'Animation / Danseurs',   icon: '🎉', planned: 0 },
+  { key: 'fairepart', label: 'Faire-part / Papeterie', icon: '💌', planned: 0 },
+];
+
 const GLOBAL_RATIOS: Record<string, number> = {
   salle:      0.32,
   traiteur:   0.25,
@@ -89,6 +100,8 @@ const GLOBAL_RATIOS: Record<string, number> = {
   tenues:     0.06,
   beaute:     0.03,
   patisserie: 0.03,
+  animation:  0.05,
+  fairepart:  0.02,
 };
 
 // ── État interne ──────────────────────────────────────────────────────────────
@@ -280,15 +293,25 @@ export function initBudget(params: {
   total: number;
   mode: 'global' | 'categories';
   categoryAmounts?: Record<string, number>;
+  /**
+   * Catégories propres à l'événement (Bar Mitsva, Brit Mila…) avec leur part
+   * du budget global. Absent = les 10 catégories historiques du mariage.
+   */
+  categoryDefs?: { key: string; label: string; icon: string }[];
+  ratios?: Record<string, number>;
 }) {
   totalBudget = params.total;
-  categories = DEFAULT_CATEGORIES.map(c => {
+  const defs = params.categoryDefs?.length
+    ? params.categoryDefs.map(d => ({ key: d.key, label: d.label, icon: d.icon, planned: 0 }))
+    : DEFAULT_CATEGORIES;
+  const ratios = params.ratios ?? GLOBAL_RATIOS;
+  categories = defs.map(c => {
     const existing = categories.find(e => e.key === c.key);
     let planned = 0;
     if (params.mode === 'categories' && params.categoryAmounts) {
       planned = params.categoryAmounts[c.key] ?? 0;
     } else if (params.mode === 'global' && params.total > 0) {
-      planned = Math.round(params.total * (GLOBAL_RATIOS[c.key] ?? 0));
+      planned = Math.round(params.total * (ratios[c.key] ?? 0));
     }
     return {
       ...c,
@@ -339,8 +362,21 @@ export function addExpense(params: {
   providerName?: string;
   providerCategory?: string;
 }) {
-  const idx = categories.findIndex(c => c.key === params.categoryKey);
-  if (idx === -1) return;
+  let idx = categories.findIndex(c => c.key === params.categoryKey);
+  if (idx === -1) {
+    // Catégorie décochée à l'onboarding (ex. DJ pour une Brit Mila) : on la
+    // recrée plutôt que de perdre silencieusement la dépense.
+    const known = DEFAULT_CATEGORIES.find(c => c.key === params.categoryKey)
+      ?? EXTRA_CATEGORIES.find(c => c.key === params.categoryKey);
+    categories = [...categories, {
+      key: params.categoryKey,
+      label: known?.label ?? params.providerCategory ?? params.categoryKey,
+      icon: known?.icon ?? '📌',
+      planned: 0,
+      entries: [],
+    }];
+    idx = categories.length - 1;
+  }
   const entry: BudgetEntry = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     amount: params.amount,

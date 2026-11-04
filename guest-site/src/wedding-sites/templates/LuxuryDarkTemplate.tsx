@@ -5,7 +5,7 @@ import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, S
 
 export function LuxuryDarkTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
 
   return (
@@ -51,9 +51,9 @@ export function LuxuryDarkTemplate({ site }: WeddingTemplateProps) {
                 color: t.textColor,
               }}
             >
-              {site.brideName} & {site.groomName}
+              {site.groomName ? `${site.brideName} & ${site.groomName}` : site.brideName}
             </h1>
-            <p style={{ fontSize: '0.95rem', letterSpacing: '0.08em', opacity: 0.85 }}>{site.coupleName}</p>
+            {site.coupleName && site.coupleName !== site.brideName ? <p style={{ fontSize: '0.95rem', letterSpacing: '0.08em', opacity: 0.85 }}>{site.coupleName}</p> : null}
             <HeroMeta site={site} />
           </header>
         ) : null}

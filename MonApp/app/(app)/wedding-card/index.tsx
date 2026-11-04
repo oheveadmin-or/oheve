@@ -20,6 +20,7 @@ import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
+import { sitePublicBase } from '@/lib/event-type';
 
 type MySite = {
   id: string;
@@ -89,12 +90,12 @@ export default function SiteMariageScreen() {
   }, [user?.id, reloadKey]);
 
   const builderUrl = mySite
-    ? `${API_ENDPOINTS.weddingSitePublicBase}/${mySite.slug}/build?token=${builderToken ?? user?.accessToken ?? ''}`
+    ? `${sitePublicBase(user?.event_type)}/${mySite.slug}/build?token=${builderToken ?? user?.accessToken ?? ''}`
     : null;
 
   // Le site est privé : sans ?k=<clé>, la page publique est bloquée serveur.
   const publicUrl = mySite
-    ? `${API_ENDPOINTS.weddingSitePublicBase}/${mySite.slug}${mySite.accessKey ? `?k=${mySite.accessKey}` : ''}`
+    ? `${sitePublicBase(user?.event_type)}/${mySite.slug}${mySite.accessKey ? `?k=${mySite.accessKey}` : ''}`
     : null;
 
   async function handleCreate() {
@@ -296,7 +297,7 @@ export default function SiteMariageScreen() {
                   <View style={styles.slugPreview}>
                     <Ionicons name="link-outline" size={13} color={C.sauge} />
                     <ThemedText style={styles.slugPreviewTxt} numberOfLines={1}>
-                      oheve.pages.dev/wedding/{makeSlug(brideName.trim(), groomName.trim())}/build
+                      {sitePublicBase(user?.event_type).replace(/^https:\/\//, '')}/{makeSlug(brideName.trim(), groomName.trim())}/build
                     </ThemedText>
                   </View>
                 )}

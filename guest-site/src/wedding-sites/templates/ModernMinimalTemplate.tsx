@@ -40,7 +40,7 @@ export function ModernMinimalTemplate({ site }: WeddingTemplateProps) {
               <br />
               {site.groomName}
             </h1>
-            <p style={{ margin: '0 0 1.5rem', fontSize: '0.95rem', opacity: 0.7 }}>{site.coupleName}</p>
+            {site.coupleName && site.coupleName !== site.brideName ? <p style={{ margin: '0 0 1.5rem', fontSize: '0.95rem', opacity: 0.7 }}>{site.coupleName}</p> : null}
             <HeroMeta site={site} />
           </header>
         ) : null}

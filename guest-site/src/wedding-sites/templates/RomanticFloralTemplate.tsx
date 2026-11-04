@@ -5,7 +5,7 @@ import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, S
 
 export function RomanticFloralTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const dir = site.language === 'he' ? 'rtl' : 'ltr';
 
   return (
@@ -51,7 +51,7 @@ export function RomanticFloralTemplate({ site }: WeddingTemplateProps) {
             >
               {site.brideName} <span style={{ color: t.secondaryColor }}>♥</span> {site.groomName}
             </h1>
-            <p style={{ margin: '0 0 0.5rem', opacity: 0.9 }}>{site.coupleName}</p>
+            {site.coupleName && site.coupleName !== site.brideName ? <p style={{ margin: '0 0 0.5rem', opacity: 0.9 }}>{site.coupleName}</p> : null}
             <HeroMeta site={site} />
           </header>
         ) : null}

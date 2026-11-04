@@ -20,6 +20,7 @@ import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
+import { sitePublicBase } from '@/lib/event-type';
 import {
   configureGuestsSync,
   getGuests,
@@ -54,7 +55,7 @@ type Props = {
 export function InvitationSender({ slug, accessKey, coupleName }: Props) {
   const { user } = useAuth();
 
-  const siteUrl = `${API_ENDPOINTS.weddingSitePublicBase}/${slug}${accessKey ? `?k=${accessKey}` : ''}`;
+  const siteUrl = `${sitePublicBase(user?.event_type)}/${slug}${accessKey ? `?k=${accessKey}` : ''}`;
   const previewImage = accessKey
     ? `${API_ENDPOINTS.weddingSites}/${encodeURIComponent(slug)}/og-image.jpg?k=${encodeURIComponent(accessKey)}`
     : null;

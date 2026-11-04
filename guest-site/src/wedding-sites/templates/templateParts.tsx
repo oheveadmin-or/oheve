@@ -17,6 +17,8 @@ import { deezerTrackId, defaultStartSeconds, fullTrackForDeezer, isYouTubeUrl, r
 import { cardStyleSurface } from './templateCardStyles';
 import { resolveThemeColors } from '../utils/themeColors';
 import { vintageTokens } from '../themes/VintageTheme';
+import { isWeddingEvent, mainEventLabel } from '../utils/eventType';
+import { sitePath } from '../utils/eventRoutes';
 
 type GrandparentsData = {
   grandfather?: string;
@@ -585,7 +587,7 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [visible, setVisible] = useState(true);
   const lastY = useRef(0);
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const navStyle = site.theme.navStyle ?? 'horizontal';
   const t = site.theme;
 
@@ -991,7 +993,7 @@ export function PublicAudioToggle(_props: { site: WeddingSite }) {
 }
 
 function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeof cardStyleSurface }) {
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   const t = site.theme;
   const rc = resolveThemeColors(t);
   const blocks: ReactNode[] = [];
@@ -1057,7 +1059,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
         <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
           {ceremony || reception ? (
             <div style={{ display: 'grid', gap: '1.6rem' }}>
-              {ceremony ? placeBlock(ceremony, reception ? (he ? 'חופה' : 'Houppa & cérémonie') : undefined) : null}
+              {ceremony ? placeBlock(ceremony, reception ? (isWeddingEvent(site.eventType) ? (he ? 'חופה' : 'Houppa & cérémonie') : mainEventLabel(site.eventType, site.language)) : undefined) : null}
               {reception ? placeBlock(reception, he ? 'סעודה' : 'Soirée') : null}
             </div>
           ) : (
@@ -1128,7 +1130,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
         <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem', textAlign: 'center' }}>
           {site.rsvpForm?.introText ? <p style={{ marginTop: 0, lineHeight: 1.65 }}>{site.rsvpForm.introText}</p> : null}
           <Link
-            to={`/wedding/${site.slug}/rsvp`}
+            to={sitePath(site.eventType, site.slug, 'rsvp')}
             style={{
               display: 'inline-block',
               marginTop: '0.5rem',
@@ -1911,7 +1913,7 @@ function QRCodeSection({ site }: { site: WeddingSite }) {
           ? 'Scannez ce QR code pour accéder au site depuis votre téléphone'
           : site.language === 'he'
           ? 'סרקו את הקוד לכניסה לאתר'
-          : 'Scan to open this wedding site on your phone'}
+          : isWeddingEvent(site.eventType) ? 'Scan to open this wedding site on your phone' : 'Scan to open this site on your phone'}
       </p>
       <a
         href={dataUrl}

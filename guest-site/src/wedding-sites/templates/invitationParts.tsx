@@ -4,6 +4,7 @@
  *
  * Tout est dessiné ici (SVG / CSS) : aucune image externe.
  */
+import { initialOfName } from '../utils/eventType';
 import type { CSSProperties } from 'react';
 import { useEffect, useState } from 'react';
 
@@ -37,7 +38,7 @@ export function coupleNames(site: WeddingSite): string[] {
 
 /** Initiales du monogramme : 2 lettres, 1 lettre, ou aucune */
 export function initialsOf(site: WeddingSite): string[] {
-  return coupleNames(site).map((n) => n.charAt(0).toUpperCase());
+  return coupleNames(site).map((n) => initialOfName(n));
 }
 
 /* ── Compte à rebours ────────────────────────────────────────────────────── */

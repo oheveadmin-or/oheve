@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { eventConfig, isWedding } from './event-type';
 import { bootstrapScope, pushScope, readCache } from './planning-sync';
 
 export type TodoTask = {
@@ -124,6 +125,12 @@ const DEFAULT_TASKS: TodoTask[] = [
   { id: 'apres-9', title: 'House pour ranger la robe de mariage', category: 'Après-mariage', done: false },
   { id: 'apres-10', title: 'Trousse pour les pince et chouchou', category: 'Après-mariage', done: false },
 ];
+
+/** To-do de départ selon l'événement (mariage = liste historique ci-dessus). */
+export function defaultTasksFor(eventType?: string | null): TodoTask[] {
+  const list = isWedding(eventType) ? DEFAULT_TASKS : eventConfig(eventType).tasks;
+  return list.map((t) => ({ ...t }));
+}
 
 const todoStore: { tasks: TodoTask[] } = {
   tasks: [...DEFAULT_TASKS],

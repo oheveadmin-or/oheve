@@ -5,7 +5,7 @@ import { HeroMeta, PublicAudioToggle, PublicStickyNav, renderOptionalSections, S
 
 export function HebrewElegantTemplate({ site }: WeddingTemplateProps) {
   const t = site.theme;
-  const L = sectionLabels(site.language);
+  const L = sectionLabels(site.language, site.eventType);
   /** Toujours RTL pour ce gabarit, même si la langue n’est pas hébreu (invité forcé mise en page) */
   const dir = 'rtl';
 
@@ -30,9 +30,9 @@ export function HebrewElegantTemplate({ site }: WeddingTemplateProps) {
           <header style={{ marginBottom: '2.75rem', minHeight: '68vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <p style={{ fontSize: '0.72rem', letterSpacing: '0.2em', color: t.primaryColor }}>{L.heroKicker}</p>
             <h1 style={{ fontSize: titleFontSize(t.titleSize), fontWeight: 600, margin: '0.6rem 0', lineHeight: 1.2 }}>
-              {site.brideName} <span style={{ color: t.secondaryColor }}>&</span> {site.groomName}
+              {site.brideName} {site.groomName ? <span style={{ color: t.secondaryColor }}>&</span> : null} {site.groomName}
             </h1>
-            <p style={{ fontSize: '1rem', opacity: 0.9, margin: '0 0 0.5rem' }}>{site.coupleName}</p>
+            {site.coupleName && site.coupleName !== site.brideName ? <p style={{ fontSize: '1rem', opacity: 0.9, margin: '0 0 0.5rem' }}>{site.coupleName}</p> : null}
             <div style={{ textAlign: 'right' }}>
               <HeroMeta site={site} />
             </div>

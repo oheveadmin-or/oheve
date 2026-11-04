@@ -14,6 +14,7 @@
 import type { CSSProperties } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { initialOfName } from '../utils/eventType';
 import type { WeddingSite } from '../types';
 import { frenchLongDate } from '../utils/hebrewDate';
 
@@ -62,7 +63,7 @@ function realName(s?: string): string {
 }
 
 function initialsOf(site: WeddingSite): [string, string | null] {
-  const first = (s?: string) => realName(s).charAt(0).toUpperCase();
+  const first = (s?: string) => initialOfName(realName(s));
   const a = first(site.brideName);
   const b = first(site.groomName);
   if (a && b) return [a, b];

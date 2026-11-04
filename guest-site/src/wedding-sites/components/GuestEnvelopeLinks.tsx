@@ -14,15 +14,19 @@ import { cleanGuestName, guestInviteUrl } from '../utils/guestName';
 
 type Props = {
   slug: string;
+  /** Type d'événement : choisit le préfixe du lien (/wedding, /bar-mitsva…) */
+  eventType?: string | null;
   accessKey?: string | null;
   coupleLabel: string;
+  /** « au mariage de » (défaut), « à la Bar Mitsva de »… */
+  invitedTo?: string;
   /** Rejoue l'enveloppe dans l'aperçu avec ce nom */
   onPreview: (name: string) => void;
 };
 
 type Row = { id: string; name: string; group: string };
 
-export function GuestEnvelopeLinks({ slug, accessKey, coupleLabel, onPreview }: Props) {
+export function GuestEnvelopeLinks({ slug, eventType, accessKey, coupleLabel, invitedTo = 'au mariage de', onPreview }: Props) {
   const [guests, setGuests] = useState<Row[]>([]);
   const [extra, setExtra] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,9 +53,9 @@ export function GuestEnvelopeLinks({ slug, accessKey, coupleLabel, onPreview }: 
   }, [extra, guests, query]);
 
   const origin = window.location.origin;
-  const linkFor = (name: string) => guestInviteUrl(origin, slug, name, accessKey);
+  const linkFor = (name: string) => guestInviteUrl(origin, slug, name, accessKey, eventType);
   const messageFor = (name: string) =>
-    `${name}, vous êtes invité(e) au mariage de ${coupleLabel} 💌\nOuvrez votre invitation : ${linkFor(name)}`;
+    `${name}, vous êtes invité(e) ${invitedTo} ${coupleLabel} 💌\nOuvrez votre invitation : ${linkFor(name)}`;
 
   function addName() {
     const name = cleanGuestName(draftName);
