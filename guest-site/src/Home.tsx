@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -14,6 +14,73 @@ const SAND = '#f5f2ed';
 
 const APP_STORE_URL = 'https://apps.apple.com/fr/app/oheve/id6785535857';
 const INSTAGRAM_URL = 'https://www.instagram.com/ohevewedding';
+
+/* ─── ÉVÉNEMENTS ───────────────────────────────────────────────── */
+// Libellés alignés sur MonApp/lib/event-type.ts et wedding-sites/utils/eventType.ts.
+
+type EventKey = 'mariage' | 'bar_mitsva' | 'bat_mitsva' | 'brit_mila';
+
+type EventDemo = {
+  key: EventKey;
+  tab: string;
+  emoji: string;
+  /** « votre mariage » / « la Bar Mitsva » */
+  your: string;
+  /** Nom affiché sur les maquettes et l'aperçu du site */
+  name: string;
+  kicker: string;
+  date: string;
+  countdown: [string, string, string];
+  progress: number;
+  budget: string;
+  chips: [string, string, string];
+  confirmed: string;
+  /** Mention en tête du plan de table */
+  honorTable: string;
+  tables: string;
+  places: string;
+  builder: string;
+  pitch: string;
+};
+
+const EVENTS: EventDemo[] = [
+  {
+    key: 'mariage', tab: 'Mariage', emoji: '💍', your: 'votre mariage',
+    name: 'Sarah & Léa', kicker: '', date: '17 JUIN 2027 · PARIS',
+    countdown: ['264', '11', '42'], progress: 68, budget: '14 200 €',
+    chips: ['Houppa', 'Henné', 'Chabbat Hatan'], confirmed: '184 confirmés',
+    honorTable: 'MARIÉS', tables: '12 tables', places: '184 places',
+    builder: '/wedding/build',
+    pitch: 'Houppa, henné, chabbat hatan, sheva berakhot : chaque événement a ses invités et ses réponses.',
+  },
+  {
+    key: 'bar_mitsva', tab: 'Bar Mitsva', emoji: '📜', your: 'la Bar Mitsva',
+    name: 'Nathan', kicker: 'BAR MITSVA', date: '12 MARS 2027 · PARIS',
+    countdown: ['127', '06', '18'], progress: 54, budget: '9 800 €',
+    chips: ['Téfilines', 'Chabbat', 'Soirée'], confirmed: '126 confirmés',
+    honorTable: 'NATHAN & FAMILLE', tables: '9 tables', places: '126 places',
+    builder: '/bar-mitsva/build',
+    pitch: 'Mise des téfilines, paracha, Chabbat et soirée : une to-do déjà prête, de la drasha aux bonbons.',
+  },
+  {
+    key: 'bat_mitsva', tab: 'Bat Mitsva', emoji: '🕯️', your: 'la Bat Mitsva',
+    name: 'Rachel', kicker: 'BAT MITSVA', date: '4 MAI 2027 · NICE',
+    countdown: ['180', '09', '05'], progress: 61, budget: '8 500 €',
+    chips: ['Cérémonie', 'Chabbat', 'Soirée'], confirmed: '110 confirmés',
+    honorTable: 'RACHEL & FAMILLE', tables: '8 tables', places: '110 places',
+    builder: '/bat-mitsva/build',
+    pitch: 'Projet de Bat Mitsva, cérémonie, robes et soirée : tout se prépare au même endroit.',
+  },
+  {
+    key: 'brit_mila', tab: 'Brit Mila', emoji: '✡️', your: 'la Brit Mila',
+    name: 'Famille Attias', kicker: 'BRIT MILA', date: '8 JANV. 2027 · LYON',
+    countdown: ['6', '14', '30'], progress: 80, budget: '2 400 €',
+    chips: ['Veille', 'Brit Mila', 'Séouda'], confirmed: '72 confirmés',
+    honorTable: 'FAMILLE ATTIAS', tables: '6 tables', places: '72 places',
+    builder: '/brit-mila/build',
+    pitch: 'Huit jours pour tout organiser : mohel, séouda et invitations partent en quelques minutes.',
+  },
+];
 
 /* ─── ICONES ────────────────────────────────────────────────────── */
 
@@ -82,15 +149,16 @@ function Phone({ children, label, lifted = false }: { children: React.ReactNode;
   );
 }
 
-function ScreenHome() {
+function ScreenHome({ ev }: { ev: EventDemo }) {
   return (
     <div style={{ padding: '1.8rem 0.9rem 1rem', height: '100%', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Fraunces', serif", fontSize: '1.05rem', color: MOKA }}>Sarah & Léa</div>
-        <div style={{ fontSize: '0.5rem', letterSpacing: '0.12em', color: MOKA_MID, opacity: 0.6 }}>17 JUIN 2027 · PARIS</div>
+        {ev.kicker && <div style={{ fontSize: '0.42rem', letterSpacing: '0.18em', color: SAGE_DEEP, fontWeight: 700, marginBottom: '0.15rem' }}>{ev.kicker}</div>}
+        <div style={{ fontFamily: "'Fraunces', serif", fontSize: '1.05rem', color: MOKA }}>{ev.name}</div>
+        <div style={{ fontSize: '0.5rem', letterSpacing: '0.12em', color: MOKA_MID, opacity: 0.6 }}>{ev.date}</div>
       </div>
       <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center' }}>
-        {[['264', 'JOURS'], ['11', 'H'], ['42', 'MIN']].map(([v, u]) => (
+        {[[ev.countdown[0], 'JOURS'], [ev.countdown[1], 'H'], [ev.countdown[2], 'MIN']].map(([v, u]) => (
           <div key={u} style={{ flex: 1, background: SAGE_LIGHT, borderRadius: 8, padding: '0.35rem 0', textAlign: 'center' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: MOKA }}>{v}</div>
             <div style={{ fontSize: '0.38rem', letterSpacing: '0.1em', color: SAGE_DEEP }}>{u}</div>
@@ -99,13 +167,13 @@ function ScreenHome() {
       </div>
       <div style={{ background: '#fff', borderRadius: 10, padding: '0.55rem 0.6rem', boxShadow: '0 1px 6px rgba(61,46,31,0.06)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.5rem', color: MOKA_MID, marginBottom: '0.3rem' }}>
-          <span>Organisation</span><span style={{ fontWeight: 700, color: SAGE_DEEP }}>68 %</span>
+          <span>Organisation</span><span style={{ fontWeight: 700, color: SAGE_DEEP }}>{ev.progress} %</span>
         </div>
         <div style={{ height: 4, borderRadius: 4, background: SAND }}>
-          <div style={{ width: '68%', height: '100%', borderRadius: 4, background: SAGE }} />
+          <div style={{ width: `${ev.progress}%`, height: '100%', borderRadius: 4, background: SAGE }} />
         </div>
       </div>
-      {[['✓', 'To-do list', '12 / 18'], ['€', 'Budget', '14 200 €'], ['☂', 'Météo du jour J', '24° soleil']].map(([ic, t, v]) => (
+      {[['✓', 'To-do list', '12 / 18'], ['€', 'Budget', ev.budget], ['☂', 'Météo du jour J', '24° soleil']].map(([ic, t, v]) => (
         <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', background: '#fff', borderRadius: 10, padding: '0.45rem 0.55rem', boxShadow: '0 1px 6px rgba(61,46,31,0.05)' }}>
           <div style={{ width: 16, height: 16, borderRadius: 5, background: SAGE_LIGHT, color: SAGE_DEEP, fontSize: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{ic}</div>
           <span style={{ flex: 1, fontSize: '0.52rem', color: MOKA }}>{t}</span>
@@ -116,7 +184,7 @@ function ScreenHome() {
   );
 }
 
-function ScreenGuests() {
+function ScreenGuests({ ev }: { ev: EventDemo }) {
   const guests: [string, string, string][] = [
     ['R', 'Rachel Cohen', 'oui'],
     ['D', 'David Lévy', 'oui'],
@@ -128,10 +196,10 @@ function ScreenGuests() {
     <div style={{ padding: '1.8rem 0.9rem 1rem', height: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <span style={{ fontFamily: "'Fraunces', serif", fontSize: '0.95rem', color: MOKA }}>Invités</span>
-        <span style={{ fontSize: '0.48rem', color: SAGE_DEEP, fontWeight: 700 }}>184 confirmés</span>
+        <span style={{ fontSize: '0.48rem', color: SAGE_DEEP, fontWeight: 700 }}>{ev.confirmed}</span>
       </div>
       <div style={{ display: 'flex', gap: '0.25rem' }}>
-        {['Houppa', 'Henné', 'Chabbat'].map((c, i) => (
+        {ev.chips.map((c, i) => (
           <span key={c} style={{ fontSize: '0.44rem', padding: '0.2rem 0.4rem', borderRadius: 20, background: i === 0 ? SAGE : '#fff', color: i === 0 ? '#fff' : MOKA_MID, border: `1px solid ${i === 0 ? SAGE : 'rgba(91,70,54,0.14)'}` }}>{c}</span>
         ))}
       </div>
@@ -149,7 +217,7 @@ function ScreenGuests() {
   );
 }
 
-function ScreenSeating() {
+function ScreenSeating({ ev }: { ev: EventDemo }) {
   return (
     <div style={{ padding: '1.8rem 0.9rem 1rem', height: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
@@ -158,7 +226,7 @@ function ScreenSeating() {
       </div>
       <div style={{ background: '#fff', borderRadius: 10, padding: '0.5rem', boxShadow: '0 1px 6px rgba(61,46,31,0.05)' }}>
         <div style={{ height: 14, borderRadius: 4, background: SAGE_LIGHT, marginBottom: '0.45rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.4rem', letterSpacing: '0.1em', color: SAGE_DEEP }}>
-          MARIÉS
+          {ev.honorTable}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -169,7 +237,7 @@ function ScreenSeating() {
         </div>
       </div>
       <div style={{ display: 'flex', gap: '0.3rem' }}>
-        {['12 tables', '184 places', '6 modèles'].map((t) => (
+        {[ev.tables, ev.places, '6 modèles'].map((t) => (
           <span key={t} style={{ flex: 1, textAlign: 'center', fontSize: '0.44rem', padding: '0.28rem 0', borderRadius: 7, background: '#fff', color: MOKA_MID, boxShadow: '0 1px 5px rgba(61,46,31,0.05)' }}>{t}</span>
         ))}
       </div>

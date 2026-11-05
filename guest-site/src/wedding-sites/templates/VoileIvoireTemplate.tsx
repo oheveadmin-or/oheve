@@ -24,6 +24,7 @@ import { HebrewVerseArc } from '../components/HebrewVerseArc';
 import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationDetails, InvitationThanks, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
 import type { InvitationStyle } from './templateParts';
 import type { ResolvedFamilyColumn } from './templateParts';
+import { eventKicker } from '../utils/eventType';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Coque de carte encadrée commune                                            */
@@ -133,8 +134,11 @@ function HeroCard({
   city,
   lead,
   details,
+  kicker,
 }: {
   tk: VoileTokens;
+  /** « Bar Mitsva » au-dessus du prénom (vide pour un mariage) */
+  kicker?: string;
   lead?: React.ReactNode;
   details?: React.ReactNode;
   monogramSvg?: string;
@@ -193,6 +197,21 @@ function HeroCard({
 
         {/* Garde faire-part : familles puis « Remercient Hachem… » */}
         {lead ? <div style={{ alignSelf: 'stretch', margin: '0.4rem 0 1.1rem' }}>{lead}</div> : null}
+
+        {kicker ? (
+          <p
+            style={{
+              fontFamily: tk.fonts.label,
+              fontSize: '0.66rem',
+              letterSpacing: '0.28em',
+              textTransform: 'uppercase',
+              color: tk.colors.accent,
+              margin: '0 0 0.5rem',
+            }}
+          >
+            {kicker}
+          </p>
+        ) : null}
 
         {/* Prénoms calligraphiés */}
         <div
@@ -495,6 +514,7 @@ export function VoileIvoireTemplate({ site }: WeddingTemplateProps) {
           hebrewQuote={site.content?.hebrewQuote}
           name1={hasTwoNames ? site.brideName : site.coupleName || site.brideName || site.groomName || ''}
           name2={hasTwoNames ? site.groomName : undefined}
+          kicker={eventKicker(site.eventType, site.language)}
           welcomeText={site.welcomeText || undefined}
           dateLabel={formatWeddingDate(site.date, site.language)}
           venue={site.venue || site.content?.venue?.name || undefined}

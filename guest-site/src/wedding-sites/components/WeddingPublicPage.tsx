@@ -9,7 +9,7 @@ import type { WeddingSite } from '../types';
 import { defaultWeddingTheme } from '../types';
 import { autoSections } from '../utils/autoSections';
 import { withPrettyNames } from '../utils/names';
-import { eventLabel, eventSiteConfig, isWeddingEvent } from '../utils/eventType';
+import { eventLabel, eventPageTitle, eventSiteConfig, isWeddingEvent } from '../utils/eventType';
 import { useCanonicalEventPath } from '../utils/eventRoutes';
 import { getTemplateByTheme } from '../utils/template-selector';
 import { filterSiteForInvite, getActiveInviteToken, setActiveInviteToken } from '../utils/inviteFilter';
@@ -133,7 +133,7 @@ export function WeddingPublicPage() {
   const description = [coupleLabel, weddingDate, locationLabel].filter(Boolean).join(' · ');
   const pageTitle = wedding
     ? `${coupleLabel} — Site de mariage`
-    : `${eventLabel(site?.eventType)} de ${coupleLabel}`;
+    : eventPageTitle(site?.eventType, coupleLabel, site?.language);
   const heroImage = (site?.content as Record<string, unknown> | undefined)?.heroImageUrl as string | undefined;
 
   // Invitation animée : son ouverture (carte → enveloppe → accueil) fait partie du modèle

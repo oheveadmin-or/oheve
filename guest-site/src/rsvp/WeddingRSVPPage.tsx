@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 import { WeddingRSVPForm } from './WeddingRSVPForm';
@@ -13,7 +14,7 @@ import {
   inviteEventIds,
   setActiveInviteToken,
 } from '../wedding-sites/utils/inviteFilter';
-import { isWeddingEvent, mainEventLabel } from '../wedding-sites/utils/eventType';
+import { eventHeroName, eventPageTitle, isWeddingEvent, mainEventLabel } from '../wedding-sites/utils/eventType';
 import { useCanonicalEventPath } from '../wedding-sites/utils/eventRoutes';
 
 export function WeddingRSVPPage() {
@@ -31,6 +32,18 @@ export function WeddingRSVPPage() {
   const { site, form, loading, err } = useRSVPBundle(slug);
   // /wedding/… d'une Bar Mitsva → /bar-mitsva/… (même suite, même ?k=)
   useCanonicalEventPath(site?.eventType, !!site);
+
+  // Titre de l'onglet : « RSVP · Bar Mitsva de Nathan » (sinon le titre générique de l'app)
+  useEffect(() => {
+    if (!site) return;
+    const name = isWeddingEvent(site.eventType)
+      ? site.coupleName || [site.brideName, site.groomName].filter(Boolean).join(' & ')
+      : eventHeroName(site);
+    const what = isWeddingEvent(site.eventType)
+      ? `${site.language === 'he' ? 'החתונה של' : site.language === 'en' ? 'Wedding of' : 'Mariage de'} ${name}`.trim()
+      : eventPageTitle(site.eventType, name, site.language);
+    document.title = `RSVP · ${what}`;
+  }, [site]);
 
   if (loading) {
     return (

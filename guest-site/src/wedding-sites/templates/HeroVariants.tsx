@@ -8,6 +8,7 @@ import { HeroLead, HeroMeta, HeroMonogram, tintMonogram } from './templateParts'
 import { titleFontSize } from './templateCardStyles';
 import { HeroPattern } from './PatternOverlay';
 import { HebrewVerseArc } from '../components/HebrewVerseArc';
+import { initialOfName } from '../utils/eventType';
 
 interface HeroProps {
   site: WeddingSite;
@@ -157,7 +158,7 @@ export function HeroEditorial({ site }: HeroProps) {
           {/* Bride */}
           <div style={{ textAlign: 'right' }}>
             <p style={{ margin: 0, fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: t.primaryColor, opacity: 0.65, marginBottom: '0.4rem' }}>
-              {site.language === 'he' ? 'כלה' : 'Mariée'}
+              {site.groomName ? (site.language === 'he' ? 'כלה' : 'Mariée') : '\u00a0'}
             </p>
             <h1 style={{ fontSize: fitNames('clamp(2.2rem, 7cqw, 4.5rem)', [site.brideName, site.groomName], 32, 0.6), fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
               {site.brideName}
@@ -174,7 +175,7 @@ export function HeroEditorial({ site }: HeroProps) {
           {/* Groom */}
           <div style={{ textAlign: 'left' }}>
             <p style={{ margin: 0, fontSize: '0.58rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: t.primaryColor, opacity: 0.65, marginBottom: '0.4rem' }}>
-              {site.language === 'he' ? 'חתן' : 'Marié'}
+              {site.groomName ? (site.language === 'he' ? 'חתן' : 'Marié') : '\u00a0'}
             </p>
             <h1 style={{ fontSize: fitNames('clamp(2.2rem, 7cqw, 4.5rem)', [site.brideName, site.groomName], 32, 0.6), fontWeight: 700, lineHeight: 1.05, margin: 0, color: t.textColor }}>
               {site.groomName}
@@ -269,7 +270,7 @@ export function HeroSplit({ site }: HeroProps) {
           }}
         >
           <span style={{ fontSize: '2.5rem', color: t.primaryColor, fontFamily: t.fontFamily, fontWeight: 700, lineHeight: 1 }}>
-            {site.brideName[0]}{site.groomName[0]}
+            {initialOfName(site.brideName)}{site.groomName ? initialOfName(site.groomName) : ''}
           </span>
           <div style={{ width: 40, height: 1, background: t.primaryColor, opacity: 0.5, margin: '0.5rem 0' }} />
           <span style={{ fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: t.primaryColor, opacity: 0.8 }}>
@@ -347,6 +348,8 @@ export function HeroFairepart({ site }: HeroProps) {
         >
           {site.brideName}
         </h1>
+{site.groomName ? (
+          <>
         <p style={{ fontSize: '1.2rem', color: t.primaryColor, margin: '0.25rem 0', fontWeight: 400 }}>& </p>
         <h1
           style={{
@@ -360,6 +363,8 @@ export function HeroFairepart({ site }: HeroProps) {
         >
           {site.groomName}
         </h1>
+          </>
+        ) : null}
 
         <div style={{ width: 60, height: 1, background: t.primaryColor, margin: '1.5rem auto', opacity: 0.5 }} />
         <HeroMeta site={site} hideMonogram />
@@ -417,7 +422,7 @@ export function HeroMonogramStyle({ site }: HeroProps) {
                 fontStyle: 'italic',
               }}
             >
-              {site.brideName[0]}{site.groomName[0]}
+              {initialOfName(site.brideName)}{site.groomName ? initialOfName(site.groomName) : ''}
             </span>
           </div>
         )}
@@ -504,6 +509,8 @@ export function HeroLuxe({ site }: HeroProps) {
         >
           {site.brideName}
         </h1>
+{site.groomName ? (
+          <>
         <p style={{ color: t.primaryColor, fontSize: '1.5rem', fontStyle: 'italic', margin: '0.25rem 0' }}>&</p>
         <h1
           style={{
@@ -519,6 +526,8 @@ export function HeroLuxe({ site }: HeroProps) {
         >
           {site.groomName}
         </h1>
+          </>
+        ) : null}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center', marginBottom: '1.5rem' }}>
           <div style={{ flex: 1, height: 1, background: t.primaryColor, maxWidth: 80, opacity: 0.5 }} />
@@ -919,7 +928,7 @@ export function HeroGarden({ site }: HeroProps) {
               zIndex: 1,
             }}
           >
-            {site.brideName[0]}{site.groomName[0]}
+            {initialOfName(site.brideName)}{site.groomName ? initialOfName(site.groomName) : ''}
           </span>
           )}
         </div>
@@ -1127,7 +1136,7 @@ export function HeroLetterpress({ site }: HeroProps) {
           }}
         >
           <span style={{ fontSize: '1.75rem', fontFamily: t.fontFamily, color: t.primaryColor, fontStyle: 'italic' }}>
-            {site.brideName[0]}{site.groomName[0]}
+            {initialOfName(site.brideName)}{site.groomName ? initialOfName(site.groomName) : ''}
           </span>
         </div>
         )}
@@ -1137,10 +1146,14 @@ export function HeroLetterpress({ site }: HeroProps) {
         <h1 style={{ fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 55, 0.6), fontWeight: 600, color: t.textColor, margin: '0 0 0.2rem', lineHeight: 1.15, letterSpacing: '0.03em', fontStyle: 'italic' }}>
           {site.brideName}
         </h1>
+{site.groomName ? (
+          <>
         <p style={{ color: t.primaryColor, fontSize: '1.15rem', margin: '0.2rem 0', fontStyle: 'italic', opacity: 0.8 }}>&</p>
         <h1 style={{ fontSize: fitNames(titleFontSize(t.titleSize), [site.brideName, site.groomName], 55, 0.6), fontWeight: 600, color: t.textColor, margin: '0 0 2rem', lineHeight: 1.15, letterSpacing: '0.03em', fontStyle: 'italic' }}>
           {site.groomName}
         </h1>
+          </>
+        ) : null}
 
         <HeroMeta site={site} hideMonogram={!!site.content?.monogramSvg} />
 

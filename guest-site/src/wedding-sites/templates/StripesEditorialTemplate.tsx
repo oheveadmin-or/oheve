@@ -28,6 +28,7 @@ import { FloralLayer, PatternOverlay } from './PatternOverlay';
 import { SectionSeparator } from './SectionSeparator';
 import { cardStyleSurface } from './templateCardStyles';
 import { sitePath } from '../utils/eventRoutes';
+import { eventKicker } from '../utils/eventType';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Countdown                                                                  */
@@ -389,6 +390,11 @@ export function StripesEditorialTemplate({ site }: WeddingTemplateProps) {
               {site.date && !garde && (
                 <p style={{ fontFamily: fontBody, fontSize: 'clamp(0.6rem,1.6cqw,0.74rem)', letterSpacing: '0.26em', textTransform: 'uppercase', color: mutedProg, margin: '0 0 clamp(0.8rem,2cqw,1.4rem)' }}>
                   {formatWeddingDate(site.date, site.language)}
+                </p>
+              )}
+              {eventKicker(site.eventType, site.language) && (
+                <p style={{ fontFamily: fontBody, fontSize: 'clamp(0.6rem,1.6cqw,0.74rem)', letterSpacing: '0.3em', textTransform: 'uppercase', color: inkProg, margin: '0 0 clamp(0.5rem,1.4cqw,0.9rem)' }}>
+                  {eventKicker(site.eventType, site.language)}
                 </p>
               )}
               <h1

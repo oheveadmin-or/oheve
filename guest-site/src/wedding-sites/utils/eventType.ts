@@ -256,6 +256,27 @@ export function mainEventLabel(v: string | null | undefined, lang?: SiteLanguage
   return pick(eventSiteConfig(v).mainEvent, lang);
 }
 
+/**
+ * Petite mention au-dessus du prénom sur la carte d'accueil (« BAR MITSVA »),
+ * pour que l'invité sache tout de suite de quel événement il s'agit.
+ * Mariage : '' (les deux prénoms suffisent, rien ne change).
+ */
+export function eventKicker(v: string | null | undefined, lang?: SiteLanguage | string): string {
+  return isWeddingEvent(v) ? '' : eventLabel(v, lang);
+}
+
+/**
+ * Titre de l'onglet d'un site Bar/Bat Mitsva ou Brit Mila :
+ * « Bar Mitsva de Nathan », « Brit Mila · Famille Attias », « בר מצווה · נתן ».
+ */
+export function eventPageTitle(v: string | null | undefined, name: string, lang?: SiteLanguage | string): string {
+  const label = eventLabel(v, lang);
+  const n = name.trim();
+  if (!n) return label;
+  if (lang === 'fr' || !lang) return /^famille\s/i.test(n) ? `${label} · ${n}` : `${label} de ${n}`;
+  return `${label} · ${n}`;
+}
+
 export function inviteOneText(v: string | null | undefined, lang?: SiteLanguage | string): string {
   return pick(eventSiteConfig(v).inviteOne, lang);
 }
@@ -285,7 +306,11 @@ export function eventHeroName(
   const child = (site.brideName ?? '').trim();
   if (child && child !== '…') return child;
   const family = (site.groomName ?? '').trim();
-  if (family && family !== '…') return site.language === 'he' ? `משפחת ${family}` : `Famille ${family}`;
+  if (family && family !== '…') {
+    if (site.language === 'he') return `משפחת ${family}`;
+    if (site.language === 'en') return `The ${family} Family`;
+    return `Famille ${family}`;
+  }
   return (site.coupleName ?? '').trim();
 }
 
@@ -329,7 +354,7 @@ export function withEventNames<T extends WeddingSite>(site: T): T {
 
 /** Initiale d'un nom pour le monogramme : « Famille Cohen » → « C » (pas « F »). */
 export function initialOfName(name: string): string {
-  return name.trim().replace(/^(famille|משפחת)\s+/iu, '').charAt(0).toUpperCase();
+  return name.trim().replace(/^(famille|משפחת|the)\s+/iu, '').charAt(0).toUpperCase();
 }
 
 /**

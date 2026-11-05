@@ -33,6 +33,7 @@ import { VintageCountdown } from '../components/VintageCountdown';
 import { formatWeddingDate } from '../utils/date';
 import { vintageTokens } from '../themes/VintageTheme';
 import { VintageRibbon, VintageDivider } from '../components/ornaments/VintageOrnaments';
+import { eventKicker } from '../utils/eventType';
 
 function ArchedHebrewQuote({ text, color, font }: { text: string; color: string; font: string }) {
   return (
@@ -115,6 +116,7 @@ export function UniversalTemplate({ site }: WeddingTemplateProps) {
         hebrewQuote={site.content?.hebrewQuote}
         theme={t}
         lead={vintageLead}
+        kicker={eventKicker(site.eventType, site.language)}
         details={garde ? <InvitationDetails site={site} s={vintageInv} /> : undefined}
       />
       <VintageCountdown targetDate={site.date} language={site.language} theme={t} />

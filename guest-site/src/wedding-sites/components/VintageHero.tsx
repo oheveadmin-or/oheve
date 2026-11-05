@@ -93,6 +93,8 @@ export type VintageHeroProps = {
   lead?: ReactNode;
   /** Garde faire-part : invitation, date, réception, lieu… — remplace la date et le lieu */
   details?: ReactNode;
+  /** « Bar Mitsva » au-dessus du prénom (vide pour un mariage) */
+  kicker?: string;
 };
 
 export type VintageFamiliesProps = {
@@ -118,6 +120,7 @@ export function VintageHero({
   theme,
   lead,
   details,
+  kicker,
 }: VintageHeroProps) {
   // Plafond relevé à 140 : L (250 px) et XL (320 px) restent distincts
   const logoSize = monogramSizePx ? Math.round(Math.min(monogramSizePx * 0.44, 140)) : 52;
@@ -301,6 +304,21 @@ export function VintageHero({
         <VintageRibbon width={104} color={V.colors.primary} style={{ marginTop: '0.2rem', marginBottom: '0.6rem' }} />
 
         {lead ? <div style={{ alignSelf: 'stretch', margin: '0.2rem 0 0.9rem' }}>{lead}</div> : null}
+
+        {kicker ? (
+          <div
+            style={{
+              fontFamily: F.body,
+              fontSize: '0.66rem',
+              letterSpacing: '0.28em',
+              textTransform: 'uppercase',
+              color: V.colors.primary,
+              marginBottom: '0.4rem',
+            }}
+          >
+            {kicker}
+          </div>
+        ) : null}
 
         {/* ── Titre 1 — même police script que le titre 2 ── */}
         <div

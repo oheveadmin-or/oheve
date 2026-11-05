@@ -26,6 +26,7 @@ import type { EditorialIconKey } from './EditorialCardIcons';
 import { FamilyColumnsRow, getFamilyColumns, HiddenAutoMusic, InvitationTextsBlock, hasInvitationTexts, PublicStickyNav, renderOptionalSections } from './templateParts';
 import { PatternOverlay } from './PatternOverlay';
 import type { ResolvedFamilyColumn } from './templateParts';
+import { eventKicker } from '../utils/eventType';
 
 /** Icône décorative par défaut du modèle (le client pourra la changer). */
 const DEFAULT_ICON: EditorialIconKey = 'rings';
@@ -110,8 +111,11 @@ function HeroCard({
   venue,
   city,
   icon,
+  kicker,
 }: {
   tk: EditorialTokens;
+  /** « Bar Mitsva » au-dessus du prénom (vide pour un mariage) */
+  kicker?: string;
   bgImage?: string;
   monogramSvg?: string;
   monogramSizePx?: number;
@@ -189,6 +193,21 @@ function HeroCard({
           ) : (
             <EditorialIcon name={icon} size={40} color={tk.colors.accent} style={{ marginBottom: '0.6rem' }} />
           )}
+
+          {kicker ? (
+            <p
+              style={{
+                fontFamily: tk.fonts.label,
+                fontSize: '0.66rem',
+                letterSpacing: '0.28em',
+                textTransform: 'uppercase',
+                color: tk.colors.accent,
+                margin: '0 0 0.5rem',
+              }}
+            >
+              {kicker}
+            </p>
+          ) : null}
 
           {/* Prénoms */}
           <div
@@ -489,6 +508,7 @@ export function EditorialCardsTemplate({ site }: WeddingTemplateProps) {
           venue={site.venue || site.content?.venue?.name || undefined}
           city={site.city || undefined}
           icon={icon}
+          kicker={eventKicker(site.eventType, site.language)}
         />
       ) : null}
 
