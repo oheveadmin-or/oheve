@@ -155,6 +155,24 @@ export default function MessagesScreen() {
         </View>
       </View>
 
+      {/* Communauté Oheve : salon commun des mariés, épinglé en tête */}
+      {canStartConversation && (
+        <Pressable
+          style={({ pressed }) => [styles.communityRow, pressed && { opacity: 0.85 }]}
+          onPress={() => router.push('/(app)/community' as never)}
+          accessibilityLabel="Ouvrir la Communauté Oheve"
+        >
+          <View style={styles.communityIcon}>
+            <Ionicons name="people" size={20} color="#fff" />
+          </View>
+          <View style={styles.convInfo}>
+            <ThemedText style={styles.convName} numberOfLines={1}>Communauté Oheve</ThemedText>
+            <ThemedText style={styles.communitySub} numberOfLines={1}>Discutez avec tous les mariés Oheve</ThemedText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#9a9c93" />
+        </Pressable>
+      )}
+
       {loadError ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
           <ErrorBanner message={loadError} onRetry={() => { setLoading(true); load(); }} />
@@ -282,6 +300,9 @@ export default function MessagesScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fff' },
+  communityRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 16, backgroundColor: '#F5F2ED' },
+  communityIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#929B83', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  communitySub: { fontSize: 13, color: '#5c5f57' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f5f2ed' },
   title: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: '#343630', flex: 1 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },

@@ -725,6 +725,12 @@ function ClientProfile() {
           </Pressable>
         )}
 
+        <Pressable style={styles.itemCard} onPress={() => router.push('/(app)/community' as never)}>
+          <Ionicons name="people-outline" size={18} color={C.moka} />
+          <ThemedText style={styles.itemText}>Communauté Oheve</ThemedText>
+          <Ionicons name="chevron-forward" size={16} color={C.textLight} />
+        </Pressable>
+
         <ThemedText style={styles.sectionLabel}>Mon compte</ThemedText>
         <Pressable style={styles.itemCard} onPress={() => router.push('/(app)/personal-info' as never)}>
           <Ionicons name="person-outline" size={18} color={C.moka} />

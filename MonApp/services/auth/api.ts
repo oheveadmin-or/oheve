@@ -370,6 +370,36 @@ function adminFetch(accessToken: string, url: string, method: string, body?: obj
   });
 }
 
+// ── Communauté Oheve (salon commun des mariés) ────────────────────────────────
+export const communityApi = {
+  getMessages: (accessToken: string, before?: number) =>
+    get(`${API_ENDPOINTS.community}/messages${before ? `?before=${before}` : ''}`, accessToken),
+  sendMessage: (accessToken: string, content: string, replyToId?: number | null) =>
+    post(`${API_ENDPOINTS.community}/messages`, { content, reply_to_id: replyToId ?? null }, accessToken),
+  deleteMessage: (accessToken: string, id: number) =>
+    del(`${API_ENDPOINTS.community}/messages/${id}`, accessToken),
+  report: (accessToken: string, data: { message_id?: number; user_id?: number; reason?: string }) =>
+    post(`${API_ENDPOINTS.community}/reports`, data, accessToken),
+  listBlocks: (accessToken: string) =>
+    get(`${API_ENDPOINTS.community}/blocks`, accessToken),
+  block: (accessToken: string, userId: number) =>
+    post(`${API_ENDPOINTS.community}/blocks`, { user_id: userId }, accessToken),
+  unblock: (accessToken: string, userId: number) =>
+    del(`${API_ENDPOINTS.community}/blocks/${userId}`, accessToken),
+
+  // Administration
+  adminReports: (accessToken: string, status: 'open' | 'resolved' | 'dismissed' | 'all' = 'open') =>
+    get(`${API_ENDPOINTS.community}/admin/reports?status=${status}`, accessToken),
+  adminSetReportStatus: (accessToken: string, id: number, status: 'resolved' | 'dismissed' | 'open') =>
+    patch(`${API_ENDPOINTS.community}/admin/reports/${id}`, { status }, accessToken),
+  adminMembers: (accessToken: string) =>
+    get(`${API_ENDPOINTS.community}/admin/members`, accessToken),
+  adminBan: (accessToken: string, userId: number, reason: string, deleteMessages = false) =>
+    post(`${API_ENDPOINTS.community}/admin/bans`, { user_id: userId, reason, delete_messages: deleteMessages }, accessToken),
+  adminUnban: (accessToken: string, userId: number) =>
+    del(`${API_ENDPOINTS.community}/admin/bans/${userId}`, accessToken),
+};
+
 export const adminApi = {
   /** Lignes des exports Excel (tous les onglets si `sheets` est vide). */
   getExport: (accessToken: string, sheets?: string[]) =>

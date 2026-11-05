@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator, Alert, FlatList, Pressable,
@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EXPORT_CHOICES, exportAdminExcel } from '@/components/admin/admin-export';
+import { CommunityModeration } from '@/components/admin/community-moderation';
 import {
   CreatePrestataireModal, GRANT_DURATIONS, generatePassword, grantUntil,
 } from '@/components/admin/create-prestataire-modal';
@@ -17,7 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useAuth, UserRole } from '@/contexts/auth-context';
 import { adminApi } from '@/services/auth/api';
 
-type Tab = 'dashboard' | 'users' | 'prestataires' | 'boutiques' | 'contenus' | 'reservations' | 'payments';
+type Tab = 'dashboard' | 'users' | 'prestataires' | 'boutiques' | 'contenus' | 'reservations' | 'payments' | 'communaute';
 
 type Stats = {
   total_users: number;
@@ -52,6 +53,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'contenus', label: 'Contenus', icon: 'document-text-outline' },
   { key: 'reservations', label: 'Réservations', icon: 'calendar-outline' },
   { key: 'payments', label: 'Paiements', icon: 'card-outline' },
+  { key: 'communaute', label: 'Communauté', icon: 'chatbubbles-outline' },
 ];
 
 /** Onglet de la liste → export Excel correspondant. */
@@ -69,7 +71,8 @@ function formatEuros(cents: number) {
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const { user: me } = useAuth();
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === params.tab) ? (params.tab as Tab) : 'dashboard');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -563,7 +566,7 @@ export default function AdminDashboard() {
           </View>
         )}
 
-        {tab !== 'dashboard' && tab !== 'payments' && (
+        {tab !== 'dashboard' && tab !== 'payments' && tab !== 'communaute' && (
           <TextInput
             style={styles.search}
             value={search}
@@ -629,6 +632,7 @@ export default function AdminDashboard() {
                 renderItem={renderReservation} ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
                 ListEmptyComponent={<ThemedText style={styles.empty}>Aucune réservation</ThemedText>} />
             )}
+            {tab === 'communaute' && token && <CommunityModeration token={token} />}
             {tab === 'payments' && (
               <FlatList data={payments} keyExtractor={(p) => String(p.id)} scrollEnabled={false}
                 renderItem={renderPayment} ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -655,7 +659,7 @@ const styles = StyleSheet.create({
   heroLabel: { fontSize: 11, color: '#c5cbb8', fontWeight: '600', letterSpacing: 1 },
   heroTitle: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: '#fff' },
   adminBadge: { marginLeft: 'auto', width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  tabScroll: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#ece8e0' },
+  tabScroll: { flexGrow: 0, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#ece8e0' },
   tabRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   tabChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: '#f5f2ed' },
   tabChipOn: { backgroundColor: '#929B83' },

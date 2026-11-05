@@ -13,6 +13,7 @@ initSentry();
 
 import { adminRoutes } from './admin';
 import { calendarRoutes } from './calendar';
+import { communityRoutes } from './community';
 import { startReminderScheduler } from './calendar/reminder';
 import { connexionInscriptionRoutes } from './connexion-inscription';
 import { guestsRoutes } from './guests';
@@ -141,6 +142,7 @@ app.use('/api/iap', googleIapRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/guests', guestsRoutes);
 app.use('/api/planning', planningRoutes);
+app.use('/api/community', communityRoutes);
 
 // Sentry error handler doit être après les routes (cast pour compatibilité types)
 if (typeof Sentry.expressErrorHandler === 'function') {

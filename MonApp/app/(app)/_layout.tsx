@@ -102,6 +102,7 @@ export default function AppLayout() {
     responseListenerRef.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const convId = response.notification.request.content.data?.conversationId;
       if (convId) router.push(`/(app)/messages/${convId}` as never);
+      else if (response.notification.request.content.data?.type === 'community') router.push('/(app)/community' as never);
     });
 
     return () => {
@@ -123,6 +124,7 @@ export default function AppLayout() {
       <Stack.Screen name="profile" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="messages/[id]" />
+      <Stack.Screen name="community" />
       <Stack.Screen name="admin" />
       <Stack.Screen name="prestataire/setup" />
       <Stack.Screen name="prestataire/subscribe" />

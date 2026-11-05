@@ -1,5 +1,6 @@
 import { CREATE_USER_AVATARS, migrateDiskAvatarsToDb } from '../avatars/avatarStore';
 import { CREATE_STORED_FILES } from '../utils/persistent-uploads';
+import { ensureCommunitySchema } from '../community/repository';
 import { pool } from '../config/database';
 
 // ── users ────────────────────────────────────────────────────────────────────
@@ -595,6 +596,9 @@ export async function runMigrations(): Promise<void> {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+
+    // ── Communauté Oheve (salon commun des mariés) ─────────────────────────────
+    await ensureCommunitySchema().catch((err) => console.error('❌ Communauté:', (err as Error).message));
 
     console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp, payments, stripe_connect, devis, reservations, calendar, admin, photo_likes, photo_comments)');
   } catch (err) {

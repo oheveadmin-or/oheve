@@ -226,6 +226,8 @@ export const API_ENDPOINTS = {
   // données sur tous les appareils d'un compte, comme les invités.
   planning: `${API_BASE_URL}/api/planning`,
   planningScope: (scope: string) => `${API_BASE_URL}/api/planning/${scope}`,
+  // Communauté Oheve (salon commun des mariés)
+  community: `${API_BASE_URL}/api/community`,
   // Invités (synchro serveur entre appareils d'un même compte)
   guests: `${API_BASE_URL}/api/guests`,
   guestsBulk: `${API_BASE_URL}/api/guests/bulk`,
