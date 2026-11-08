@@ -20,7 +20,7 @@ import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
-import { sitePublicBase } from '@/lib/event-type';
+import { sitePublicBase, siteTexts } from '@/lib/event-type';
 import {
   configureGuestsSync,
   getGuests,
@@ -30,7 +30,7 @@ import {
 } from '@/lib/guests-store';
 import {
   buildInvitationMessage,
-  DEFAULT_INVITATION_TEMPLATE,
+  defaultInvitationTemplate,
   loadInvitationTemplate,
   loadSentInvitations,
   markInvitationSent,
@@ -43,7 +43,10 @@ const WHATSAPP_GREEN = '#25D366';
 type Props = {
   slug: string;
   accessKey?: string | null;
+  /** Titre de l'aperçu : « Léa & Thomas » / « Nathan » (Bar Mitsva) */
   coupleName: string;
+  /** Signature du message : « Léa & Thomas » / « Famille Cohen ». Par défaut = coupleName. */
+  signature?: string;
 };
 
 /**
@@ -52,15 +55,17 @@ type Props = {
  * Aperçu tel que l'invité le verra dans WhatsApp, envoi direct par invité
  * depuis la liste, suivi des invitations déjà envoyées.
  */
-export function InvitationSender({ slug, accessKey, coupleName }: Props) {
+export function InvitationSender({ slug, accessKey, coupleName, signature }: Props) {
   const { user } = useAuth();
+  const texts = siteTexts(user?.event_type);
+  const defaultTemplate = defaultInvitationTemplate(user?.event_type);
 
   const siteUrl = `${sitePublicBase(user?.event_type)}/${slug}${accessKey ? `?k=${accessKey}` : ''}`;
   const previewImage = accessKey
     ? `${API_ENDPOINTS.weddingSites}/${encodeURIComponent(slug)}/og-image.jpg?k=${encodeURIComponent(accessKey)}`
     : null;
 
-  const [template, setTemplate] = useState(DEFAULT_INVITATION_TEMPLATE);
+  const [template, setTemplate] = useState(defaultTemplate);
   const [draft, setDraft] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [guestName, setGuestName] = useState('');
@@ -73,9 +78,9 @@ export function InvitationSender({ slug, accessKey, coupleName }: Props) {
   const [showAllGuests, setShowAllGuests] = useState(false);
 
   useEffect(() => {
-    loadInvitationTemplate().then(setTemplate);
+    loadInvitationTemplate(user?.event_type).then(setTemplate);
     loadSentInvitations().then(setSent);
-  }, []);
+  }, [user?.event_type]);
 
   useEffect(() => {
     let alive = true;
@@ -85,7 +90,7 @@ export function InvitationSender({ slug, accessKey, coupleName }: Props) {
     return () => { alive = false; unsub(); };
   }, [user?.accessToken, user?.id]);
 
-  const message = (name?: string) => buildInvitationMessage(template, { guestName: name, link: siteUrl, coupleName });
+  const message = (name?: string) => buildInvitationMessage(template, { guestName: name, link: siteUrl, coupleName: signature || coupleName });
   const previewMessage = message(guestName.trim() || 'Madame Rachelle Layani');
 
   const flash = (what: 'link' | 'message') => {
@@ -132,10 +137,10 @@ export function InvitationSender({ slug, accessKey, coupleName }: Props) {
   };
 
   const saveTemplate = async () => {
-    const next = draft.trim() ? draft : DEFAULT_INVITATION_TEMPLATE;
+    const next = draft.trim() ? draft : defaultTemplate;
     setTemplate(next);
     setEditorOpen(false);
-    await saveInvitationTemplate(next);
+    await saveInvitationTemplate(next, user?.event_type);
   };
 
   const filteredGuests = useMemo(() => {
@@ -181,7 +186,7 @@ export function InvitationSender({ slug, accessKey, coupleName }: Props) {
           <View style={styles.preview}>
             {/* Carte de secours toujours dessous : visible tant que l'image n'est pas chargée */}
             <View style={[styles.previewImage, styles.previewFallback]}>
-              <ThemedText style={styles.previewKicker}>NOUS NOUS MARIONS</ThemedText>
+              <ThemedText style={styles.previewKicker}>{texts.kicker}</ThemedText>
               <ThemedText style={styles.previewNames}>{coupleName}</ThemedText>
               {previewImage && !imageFailed && (
                 <Image
@@ -194,7 +199,7 @@ export function InvitationSender({ slug, accessKey, coupleName }: Props) {
             </View>
             <View style={styles.previewMeta}>
               <ThemedText style={styles.previewTitle} numberOfLines={1}>{coupleName} — Invitation</ThemedText>
-              <ThemedText style={styles.previewDesc} numberOfLines={1}>Vous êtes invités au mariage de {coupleName}.</ThemedText>
+              <ThemedText style={styles.previewDesc} numberOfLines={1}>Vous êtes invités {texts.invitedTo} {coupleName}.</ThemedText>
               <ThemedText style={styles.previewDomain}>oheve.pages.dev</ThemedText>
             </View>
           </View>
@@ -290,7 +295,7 @@ export function InvitationSender({ slug, accessKey, coupleName }: Props) {
             <View style={styles.modalCard}>
               <ThemedText style={styles.sectionTitle}>Message d’invitation</ThemedText>
               <ThemedText style={styles.hint}>
-                {'{invité}'} = nom de l’invité · {'{lien}'} = lien de votre carte · {'{mariés}'} = vos prénoms
+                {'{invité}'} = nom de l’invité · {'{lien}'} = lien de votre carte · {'{mariés}'} = votre signature
               </ThemedText>
               <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
                 <TextInput
@@ -301,7 +306,7 @@ export function InvitationSender({ slug, accessKey, coupleName }: Props) {
                   textAlignVertical="top"
                 />
               </ScrollView>
-              <Pressable onPress={() => setDraft(DEFAULT_INVITATION_TEMPLATE)} hitSlop={6}>
+              <Pressable onPress={() => setDraft(defaultTemplate)} hitSlop={6}>
                 <ThemedText style={styles.editTxt}>Revenir au message par défaut</ThemedText>
               </Pressable>
               <View style={styles.row}>

@@ -14,7 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { API_ENDPOINTS as ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
-import { eventConfig, isWedding, sitePublicBase } from '@/lib/event-type';
+import { eventConfig, isWedding, siteNames, sitePublicBase } from '@/lib/event-type';
 import {
   addGuest as storeAddGuest,
   addGuests as storeAddGuests,
@@ -28,7 +28,7 @@ import {
 } from '@/lib/guests-store';
 import {
   buildInvitationMessage,
-  DEFAULT_INVITATION_TEMPLATE,
+  defaultInvitationTemplate,
   loadInvitationTemplate,
   saveInvitationTemplate,
   toWhatsAppNumber,
@@ -260,7 +260,10 @@ export default function GuestsScreen() {
             slug: site.slug,
             accessKey: site.accessKey,
             inviteLinks: (site.inviteLinks ?? []).filter((l) => l.token),
-            coupleName: names.length === 2 ? `${names[0]} & ${names[1]}` : (site.coupleName ?? '').trim() || names[0] || '',
+            // Signature du message : « Léa & Thomas » (mariage) / « Famille Cohen » (Bar Mitsva…)
+            coupleName: isWedding(user?.event_type)
+              ? (names.length === 2 ? `${names[0]} & ${names[1]}` : (site.coupleName ?? '').trim() || names[0] || '')
+              : siteNames(user?.event_type, site.brideName, site.groomName).signature,
           });
           if (!weddingSlug) setWeddingSlug(site.slug);
         }
@@ -272,10 +275,11 @@ export default function GuestsScreen() {
   // /wedding, /bar-mitsva, /bat-mitsva ou /brit-mila selon l'événement du compte
   const siteBaseUrl = sitePublicBase(user?.event_type);
   // ── Message d'invitation (nom de l'invité + texte + lien) ───────────────────
-  const [inviteTemplate, setInviteTemplate] = useState(DEFAULT_INVITATION_TEMPLATE);
+  const defaultTemplate = defaultInvitationTemplate(user?.event_type);
+  const [inviteTemplate, setInviteTemplate] = useState(defaultTemplate);
   const [templateDraft, setTemplateDraft] = useState('');
   const [templateModalVisible, setTemplateModalVisible] = useState(false);
-  useEffect(() => { loadInvitationTemplate().then(setInviteTemplate); }, []);
+  useEffect(() => { loadInvitationTemplate(user?.event_type).then(setInviteTemplate); }, [user?.event_type]);
 
   const mainSiteUrl = mySiteLinks
     ? `${siteBaseUrl}/${mySiteLinks.slug}${mySiteLinks.accessKey ? `?k=${mySiteLinks.accessKey}` : ''}`
@@ -315,10 +319,10 @@ export default function GuestsScreen() {
     setTemplateModalVisible(true);
   };
   const saveTemplate = async () => {
-    const next = templateDraft.trim() ? templateDraft : DEFAULT_INVITATION_TEMPLATE;
+    const next = templateDraft.trim() ? templateDraft : defaultTemplate;
     setInviteTemplate(next);
     setTemplateModalVisible(false);
-    await saveInvitationTemplate(next);
+    await saveInvitationTemplate(next, user?.event_type);
   };
   const copyInviteLink = async (url: string) => {
     await Clipboard.setStringAsync(url);
@@ -791,7 +795,7 @@ export default function GuestsScreen() {
               <View style={styles.modalCard}>
                 <ThemedText style={styles.modalTitle}>Message d’invitation</ThemedText>
                 <ThemedText style={styles.inviteLinksHint}>
-                  {'{invité}'} = nom de l’invité · {'{lien}'} = lien de votre site · {'{mariés}'} = vos prénoms
+                  {'{invité}'} = nom de l’invité · {'{lien}'} = lien de votre site · {'{mariés}'} = votre signature
                 </ThemedText>
                 <TextInput
                   style={[styles.modalInput, styles.templateInput]}
@@ -800,7 +804,7 @@ export default function GuestsScreen() {
                   multiline
                   textAlignVertical="top"
                 />
-                <Pressable onPress={() => setTemplateDraft(DEFAULT_INVITATION_TEMPLATE)} hitSlop={6}>
+                <Pressable onPress={() => setTemplateDraft(defaultTemplate)} hitSlop={6}>
                   <ThemedText style={styles.inviteMessageEdit}>Revenir au message par défaut</ThemedText>
                 </Pressable>
                 <View style={[styles.modalActions, { marginTop: 10 }]}>

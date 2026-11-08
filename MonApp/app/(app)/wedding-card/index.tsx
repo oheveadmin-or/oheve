@@ -20,7 +20,7 @@ import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
-import { sitePublicBase } from '@/lib/event-type';
+import { eventConfig, isWedding, siteNames, sitePublicBase, siteTexts } from '@/lib/event-type';
 
 type MySite = {
   id: string;
@@ -41,13 +41,24 @@ function makeSlug(bride: string, groom: string): string {
       .replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
-  const slug = `${clean(bride)}-${clean(groom)}`;
+  const slug = [clean(bride), clean(groom)].filter(Boolean).join('-');
   return slug || 'mariage';
 }
 
 export default function SiteMariageScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  // Mariage / Bar Mitsva / Bat Mitsva / Brit Mila : tous les libellés de l'écran en dépendent.
+  const wedding = isWedding(user?.event_type);
+  const cfg = eventConfig(user?.event_type);
+  const texts = siteTexts(user?.event_type);
+  // Mariage : prénoms mariée + marié. Autres : prénom de l'enfant + nom de famille
+  // (prénom facultatif pour une Brit Mila, souvent révélé le jour J).
+  const firstLabel = wedding ? 'Prénom de la mariée' : cfg.names.first;
+  const secondLabel = wedding ? 'Prénom du marié' : cfg.names.second;
+  const firstPlaceholder = wedding ? 'Ex. Sarah' : `Ex. ${cfg.names.firstPlaceholder === 'Facultatif' ? 'Nathan' : cfg.names.firstPlaceholder}`;
+  const secondPlaceholder = wedding ? 'Ex. David' : `Ex. ${cfg.names.secondPlaceholder}`;
+  const firstOptional = !!cfg.names.firstOptional && !wedding;
 
   const [mySite, setMySite] = useState<MySite | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,9 +109,11 @@ export default function SiteMariageScreen() {
     ? `${sitePublicBase(user?.event_type)}/${mySite.slug}${mySite.accessKey ? `?k=${mySite.accessKey}` : ''}`
     : null;
 
+  const canCreate = (firstOptional || !!brideName.trim()) && !!groomName.trim();
+
   async function handleCreate() {
-    if (!brideName.trim() || !groomName.trim()) {
-      Alert.alert('Champs manquants', 'Merci de saisir les deux prénoms.');
+    if (!canCreate) {
+      Alert.alert('Champs manquants', wedding ? 'Merci de saisir les deux prénoms.' : 'Merci de remplir les champs demandés.');
       return;
     }
     if (!user?.accessToken) {
@@ -109,7 +122,9 @@ export default function SiteMariageScreen() {
     }
     setCreating(true);
     const baseSlug = makeSlug(brideName.trim(), groomName.trim());
-    const coupleName = `${brideName.trim()} & ${groomName.trim()}`;
+    const coupleName = wedding
+      ? `${brideName.trim()} & ${groomName.trim()}`
+      : siteNames(user?.event_type, brideName, groomName).title;
 
     for (let attempt = 0; attempt < 5; attempt++) {
       const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt}`;
@@ -180,7 +195,7 @@ export default function SiteMariageScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Ionicons name="arrow-back" size={22} color={C.saugeDark} />
           </Pressable>
-          <ThemedText style={styles.headerTitle}>Site Mariage</ThemedText>
+          <ThemedText style={styles.headerTitle}>{texts.screenTitle}</ThemedText>
           <View style={{ width: 22 }} />
         </View>
 
@@ -222,8 +237,11 @@ export default function SiteMariageScreen() {
                 <ThemedText style={styles.badgeTxt}>Site créé</ThemedText>
               </View>
 
+              {!wedding && <ThemedText style={styles.eventKicker}>{cfg.label}</ThemedText>}
               <ThemedText style={styles.coupleTitle}>
-                {mySite.coupleName || `${mySite.brideName} & ${mySite.groomName}`}
+                {wedding
+                  ? (mySite.coupleName || `${mySite.brideName} & ${mySite.groomName}`)
+                  : siteNames(user?.event_type, mySite.brideName, mySite.groomName).title}
               </ThemedText>
 
               {/* Le lien /build contient un jeton de connexion : on ne l'affiche
@@ -261,16 +279,16 @@ export default function SiteMariageScreen() {
                 </View>
                 <ThemedText style={styles.createTitle}>Créez votre lien unique</ThemedText>
                 <ThemedText style={styles.createSub}>
-                  Entrez les prénoms des mariés pour générer votre lien personnalisé.
+                  {texts.createSub}
                 </ThemedText>
               </View>
 
               <View style={styles.form}>
                 <View style={styles.fieldGroup}>
-                  <ThemedText style={styles.fieldLabel}>Prénom de la mariée</ThemedText>
+                  <ThemedText style={styles.fieldLabel}>{firstLabel}{firstOptional ? ' (facultatif)' : ''}</ThemedText>
                   <TextInput
                     style={styles.input}
-                    placeholder="Ex. Sarah"
+                    placeholder={firstPlaceholder}
                     placeholderTextColor={C.textLight}
                     value={brideName}
                     onChangeText={setBrideName}
@@ -280,10 +298,10 @@ export default function SiteMariageScreen() {
                 </View>
 
                 <View style={styles.fieldGroup}>
-                  <ThemedText style={styles.fieldLabel}>Prénom du marié</ThemedText>
+                  <ThemedText style={styles.fieldLabel}>{secondLabel}</ThemedText>
                   <TextInput
                     style={styles.input}
-                    placeholder="Ex. David"
+                    placeholder={secondPlaceholder}
                     placeholderTextColor={C.textLight}
                     value={groomName}
                     onChangeText={setGroomName}
@@ -293,7 +311,7 @@ export default function SiteMariageScreen() {
                   />
                 </View>
 
-                {brideName.trim() && groomName.trim() && (
+                {canCreate && (
                   <View style={styles.slugPreview}>
                     <Ionicons name="link-outline" size={13} color={C.sauge} />
                     <ThemedText style={styles.slugPreviewTxt} numberOfLines={1}>
@@ -303,9 +321,9 @@ export default function SiteMariageScreen() {
                 )}
 
                 <Pressable
-                  style={[styles.createBtn, (!brideName.trim() || !groomName.trim() || creating) && styles.createBtnDisabled]}
+                  style={[styles.createBtn, (!canCreate || creating) && styles.createBtnDisabled]}
                   onPress={handleCreate}
-                  disabled={!brideName.trim() || !groomName.trim() || creating}
+                  disabled={!canCreate || creating}
                 >
                   {creating ? (
                     <ActivityIndicator size="small" color="#fff" />
@@ -324,7 +342,10 @@ export default function SiteMariageScreen() {
             <InvitationSender
               slug={mySite.slug}
               accessKey={mySite.accessKey}
-              coupleName={mySite.coupleName || [mySite.brideName, mySite.groomName].filter(Boolean).join(' & ')}
+              coupleName={wedding
+                ? (mySite.coupleName || [mySite.brideName, mySite.groomName].filter(Boolean).join(' & '))
+                : siteNames(user?.event_type, mySite.brideName, mySite.groomName).title}
+              signature={wedding ? undefined : siteNames(user?.event_type, mySite.brideName, mySite.groomName).signature}
             />
           )}
         </ScrollView>
@@ -361,6 +382,7 @@ const styles = StyleSheet.create({
   },
   badgeTxt: { fontSize: 12, fontWeight: '700', color: '#16a34a' },
   coupleTitle: { fontSize: 24, fontWeight: '800', color: C.textDark },
+  eventKicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1.6, textTransform: 'uppercase', color: C.sauge, marginBottom: -4 },
   actions: { flexDirection: 'row', gap: 10 },
   btnOutline: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,

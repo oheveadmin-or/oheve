@@ -1,3 +1,4 @@
+import { sqlCoversEvent, viewerEventType } from './repository';
 import { pool } from '../config/database';
 
 export interface PhotoRow {
@@ -109,10 +110,12 @@ export class PhotosRepository {
        LEFT JOIN photo_comments pc ON pc.photo_id = pp.id
        LEFT JOIN photo_likes pl2 ON pl2.photo_id = pp.id AND pl2.user_id = $3
        WHERE COALESCE(p.is_hidden, false) = false AND COALESCE(p.is_suspended, false) = false
+         -- Reels : un compte Bar Mitsva ne voit que les prestataires qui en font
+         AND ($4::text IS NULL OR ${sqlCoversEvent('p', '$4')})
        GROUP BY pp.id, pp.caption, pp.media_type, p.business_name, p.category, p.location_city, p.rating, p.reviews_count, u.id, u.prenom, u.nom
        ORDER BY pp.created_at DESC
        LIMIT $1 OFFSET $2`,
-      [limit, offset, viewerUserId ?? 0]
+      [limit, offset, viewerUserId ?? 0, await viewerEventType(viewerUserId)]
     );
     return r.rows;
   }

@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { useAuth } from '@/contexts/auth-context';
+import { isWedding } from '@/lib/event-type';
 import { messagingApi, prestatairesApi } from '@/services/auth/api';
 
 type Conversation = {
@@ -133,6 +134,8 @@ export default function MessagesScreen() {
   };
 
   const canStartConversation = user?.role === 'client' || user?.role === 'admin';
+  // Communauté = salon des MARIÉS : pas pour les comptes Bar/Bat Mitsva, Brit Mila.
+  const canSeeCommunity = user?.role === 'admin' || (user?.role === 'client' && isWedding(user?.event_type));
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -156,7 +159,7 @@ export default function MessagesScreen() {
       </View>
 
       {/* Communauté Oheve : salon commun des mariés, épinglé en tête */}
-      {canStartConversation && (
+      {canSeeCommunity && (
         <Pressable
           style={({ pressed }) => [styles.communityRow, pressed && { opacity: 0.85 }]}
           onPress={() => router.push('/(app)/community' as never)}

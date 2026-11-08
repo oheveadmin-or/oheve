@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 
-import { PrestatairesRepository, PrestaProfileRow } from './repository';
+import { EVENT_TYPES, PrestatairesRepository, PrestaProfileRow, sanitizeEventTypes, viewerEventType } from './repository';
 
 const repo = new PrestatairesRepository();
 
@@ -31,10 +31,15 @@ export class PrestatairesController {
     if (!business_name || !category) {
       return res.status(400).json({ success: false, message: 'Nom et catégorie requis' });
     }
+    const event_types = sanitizeEventTypes(req.body.event_types);
+    if (event_types && event_types.length === 0) {
+      return res.status(400).json({ success: false, message: 'Choisissez au moins un type d\'événement' });
+    }
     try {
       const profile = await repo.upsert(userId, {
         business_name, category, description, location_city,
         location_country, price_min, price_max, price_range, phone, website_url, instagram_url,
+        event_types,
       });
       return res.status(200).json({ success: true, data: profile });
     } catch (err) {
@@ -88,11 +93,16 @@ export class PrestatairesController {
   async list(req: Request, res: Response) {
     const { category, city, limit, offset } = req.query;
     try {
+      // ?event_type=… explicite, sinon l'événement du compte client connecté.
+      const explicit = String(req.query.event_type ?? '');
+      const eventType = EVENT_TYPES.includes(explicit) ? explicit : await viewerEventType(req.auth?.sub);
       const items = await repo.list(
         category as string | undefined,
         city as string | undefined,
         parseInt(limit as string) || 50,
-        parseInt(offset as string) || 0
+        parseInt(offset as string) || 0,
+        false,
+        eventType,
       );
       return res.status(200).json({ success: true, data: items.map((it) => withCoverUrl(req, it)) });
     } catch (err) {

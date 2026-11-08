@@ -37,6 +37,11 @@ async function requireMember(req: Request, res: Response, next: NextFunction) {
     return;
   }
   try {
+    // Salon des MARIÉS : les comptes Bar/Bat Mitsva et Brit Mila n'y ont pas accès.
+    if (role !== 'admin' && !(await repo.isWeddingAccount(req.auth!.sub))) {
+      res.status(403).json({ success: false, message: 'La Communauté Oheve est réservée aux mariés.' });
+      return;
+    }
     if (role !== 'admin' && await repo.isBanned(req.auth!.sub)) {
       res.status(403).json({
         success: false,

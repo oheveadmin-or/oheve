@@ -199,24 +199,12 @@ const CATEGORIES: {
 
 const catDef = (key: MainCategory) => CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1];
 
-const CAT_COLORS: Record<Exclude<MainCategory, 'tout'>, string> = {
-  décoration: '#929B83',
-  fleurs: '#ec4899',
-  photos: '#f59e0b',
-  tenues: '#747e68',
-  traiteur: '#10b981',
-  musique: '#3b82f6',
-  souvenirs: '#f43f5e',
-  salle: '#0891b2',
-  beaute: '#d946ef',
-  transport: '#747e68',
-  juif: '#a855f7',
-  'chabbat-hattan': '#7c3aed',
-  patisserie: '#fb7185',
-  planner: '#14b8a6',
-  animation: '#eab308',
-  autres: '#5c5f57',
-};
+// Plus de couleurs vives par catégorie (fuchsia, magenta, bleu…) : badges et
+// avatars des reels/publications restent dans la charte, en beige.
+const CAT_BEIGE = '#EFE7DA';
+const CAT_BEIGE_BORDER = '#E2D8C6';
+const CAT_BEIGE_TEXT = '#5c5f57';
+
 
 const FEED_CACHE_KEY = '@oheve:explore_feed_cache';
 const AFFINITY_KEY = '@oheve:cat_affinity';
@@ -274,7 +262,7 @@ function ProviderModal({
   if (!provider) return null;
 
   const providerPosts = posts.filter((p) => p.providerId === provider.id);
-  const catColor = CAT_COLORS[provider.category as Exclude<MainCategory, 'tout'>] ?? '#929B83';
+  const catColor = CAT_BEIGE;
 
   const handleInstagram = () => {
     if (provider.instagram) {
@@ -301,8 +289,8 @@ function ProviderModal({
               <ThemedText style={provStyles.avatarTxt}>{provider.name[0]}</ThemedText>
             </View>
             <ThemedText style={provStyles.name}>{provider.name}</ThemedText>
-            <View style={[provStyles.catBadge, { backgroundColor: catColor + '22', borderColor: catColor + '44' }]}>
-              <ThemedText style={[provStyles.catBadgeTxt, { color: catColor }]}>{provider.category}</ThemedText>
+            <View style={[provStyles.catBadge, { backgroundColor: catColor, borderColor: CAT_BEIGE_BORDER }]}>
+              <ThemedText style={[provStyles.catBadgeTxt, { color: CAT_BEIGE_TEXT }]}>{provider.category}</ThemedText>
             </View>
             {provider.location && (
               <View style={provStyles.locationRow}>
@@ -330,7 +318,7 @@ function ProviderModal({
             {/* Action buttons */}
             <View style={provStyles.actions}>
               {provider.instagram && (
-                <Pressable style={[provStyles.actionBtn, { backgroundColor: catColor }]} onPress={handleInstagram}>
+                <Pressable style={[provStyles.actionBtn, { backgroundColor: '#929B83' }]} onPress={handleInstagram}>
                   <Ionicons name="logo-instagram" size={16} color="#fff" />
                   <ThemedText style={provStyles.actionBtnTxt}>Instagram</ThemedText>
                 </Pressable>
@@ -339,8 +327,8 @@ function ProviderModal({
                 style={provStyles.actionBtnOutline}
                 onPress={() => { onClose(); onMessage?.(provider.id); }}
               >
-                <Ionicons name="chatbubble-outline" size={16} color={catColor} />
-                <ThemedText style={[provStyles.actionBtnOutlineTxt, { color: catColor }]}>Message</ThemedText>
+                <Ionicons name="chatbubble-outline" size={16} color="#747E68" />
+                <ThemedText style={[provStyles.actionBtnOutlineTxt, { color: '#747E68' }]}>Message</ThemedText>
               </Pressable>
             </View>
           </View>
@@ -383,7 +371,7 @@ const provStyles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#343630' },
   profileBlock: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 28, paddingBottom: 20, gap: 10 },
   avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  avatarTxt: { color: '#fff', fontSize: 32, fontFamily: 'OheveSerif-Medium' },
+  avatarTxt: { color: CAT_BEIGE_TEXT, fontSize: 32, fontFamily: 'OheveSerif-Medium' },
   name: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: '#343630' },
   catBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 99, borderWidth: 1 },
   catBadgeTxt: { fontSize: 12, fontWeight: '700' },
@@ -551,7 +539,7 @@ function ReelCardBase({
   onOpenProvider: (providerId: string) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const catColor = CAT_COLORS[post.category] ?? '#929B83';
+  const catColor = CAT_BEIGE;
 
   return (
     <View style={[reelStyles.card, { width: W, height: reelH }]}>
@@ -646,7 +634,7 @@ const reelStyles = StyleSheet.create({
     position: 'absolute', left: 16,
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99,
   },
-  catBadgeTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  catBadgeTxt: { color: CAT_BEIGE_TEXT, fontSize: 12, fontWeight: '700' },
   videoBg: { backgroundColor: '#1f2937', alignItems: 'center', justifyContent: 'center' },
   rightCol: { position: 'absolute', right: 16, alignItems: 'center', gap: 20 },
   actionBtn: { alignItems: 'center', gap: 4 },
@@ -654,7 +642,7 @@ const reelStyles = StyleSheet.create({
   bottomInfo: { position: 'absolute', left: 16, right: 80, gap: 8 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
-  avatarTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  avatarTxt: { color: CAT_BEIGE_TEXT, fontWeight: '700', fontSize: 14 },
   author: { color: '#fff', fontWeight: '700', fontSize: 14 },
   verifiedBadge: { backgroundColor: '#fff', borderRadius: 10, padding: 1 },
   caption: { color: '#fff', fontSize: 14, lineHeight: 20, fontWeight: '500' },
@@ -783,7 +771,7 @@ function PostDetailModal({
   onOpenProvider: (providerId: string) => void;
 }) {
   if (!post) return null;
-  const catColor = CAT_COLORS[post.category] ?? '#929B83';
+  const catColor = CAT_BEIGE;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -873,11 +861,11 @@ const detailStyles = StyleSheet.create({
   videoTxt: { color: '#fff', fontWeight: '700' },
   emoji: { fontSize: 88 },
   catChip: { position: 'absolute', top: 10, left: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 },
-  catChipTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  catChipTxt: { color: CAT_BEIGE_TEXT, fontSize: 11, fontWeight: '700' },
   body: { padding: 14, gap: 10 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  avatarTxt: { color: CAT_BEIGE_TEXT, fontWeight: '700', fontSize: 15 },
   authorName: { fontSize: 14, fontWeight: '700', color: '#343630' },
   providerHint: { fontSize: 11, color: '#929B83', marginTop: 1 },
   caption: { fontSize: 15, fontWeight: '500', color: '#1f2937', lineHeight: 22 },
@@ -985,7 +973,7 @@ function CreatePostModal({
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={createStyles.chipRow}>
               {CATEGORIES.filter((c) => c.key !== 'tout').map((c) => {
                 const active = newCategory === c.key;
-                const color = CAT_COLORS[c.key as Exclude<MainCategory, 'tout'>];
+                const color = '#929B83';
                 return (
                   <Pressable
                     key={c.key}
@@ -1006,7 +994,7 @@ function CreatePostModal({
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={createStyles.chipRow}>
                   {selectedCatDef.subcategories.map((sc) => {
                     const active = newSubCategory === sc.key;
-                    const color = CAT_COLORS[newCategory];
+                    const color = '#929B83';
                     return (
                       <Pressable
                         key={sc.key}

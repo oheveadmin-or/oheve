@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
 import { C } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
+import { siteTexts } from '@/lib/event-type';
 
 const WEB_BUILDER_BASE = 'https://oheve.pages.dev/wedding';
 
@@ -78,7 +79,7 @@ export default function SiteWebViewScreen() {
         >
           <Ionicons name="arrow-back" size={22} color={C.saugeDark} />
         </Pressable>
-        <ThemedText style={styles.headerTitle}>Site Mariage</ThemedText>
+        <ThemedText style={styles.headerTitle}>{siteTexts(user?.event_type).screenTitle}</ThemedText>
         <Pressable hitSlop={12} onPress={() => webViewRef.current?.reload()}>
           <Ionicons name="refresh-outline" size={20} color={C.textLight} />
         </Pressable>

@@ -361,6 +361,9 @@ export async function runMigrations(): Promise<void> {
     // ── Profil prestataire : téléphone + fourchette de prix (texte libre) ─────
     await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS phone VARCHAR(50)`);
     await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS price_range TEXT`);
+    // Événements couverts par le prestataire (mariage, bar_mitsva, bat_mitsva,
+    // brit_mila). NULL / vide = fiche d'avant l'option → visible pour tous.
+    await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS event_types TEXT[]`);
 
     // ── Admin : suspension prestataires, masquage annonces ───────────────────
     await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN NOT NULL DEFAULT false`);

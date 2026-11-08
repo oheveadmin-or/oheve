@@ -17,7 +17,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { EventTypesPicker, eventTypesFromServer } from '@/components/prestataire/event-types-picker';
 import { useAuth } from '@/contexts/auth-context';
+import type { EventType } from '@/lib/event-type';
 import { prestatairesApi, uploadFile } from '@/services/auth/api';
 import { API_ENDPOINTS } from '@/constants/config';
 
@@ -69,6 +71,8 @@ export default function PrestataireProfileEdit() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  // null tant que la fiche n'est pas chargée : on n'écrase alors pas le choix serveur.
+  const [eventTypes, setEventTypes] = useState<EventType[] | null>(null);
 
   // Charger le profil existant
   useEffect(() => {
@@ -89,6 +93,7 @@ export default function PrestataireProfileEdit() {
             price_range: d.price_range ?? '',
             cover_url: d.cover_url,
           });
+          setEventTypes(eventTypesFromServer(d.event_types));
         }
       })
       .catch(() => {})
@@ -157,6 +162,7 @@ export default function PrestataireProfileEdit() {
         website_url: form.website.trim() || undefined,
         price_range: form.price_range.trim() || undefined,
         phone: form.phone.trim() || undefined,
+        ...(eventTypes ? { event_types: eventTypes } : {}),
       });
       if (res.success) {
         Alert.alert('Profil mis à jour', 'Vos informations ont été sauvegardées.', [
@@ -267,6 +273,10 @@ export default function PrestataireProfileEdit() {
               </Pressable>
             ))}
           </View>
+
+          <ThemedText style={styles.fieldLabel}>Événements que vous faites *</ThemedText>
+          <ThemedText style={styles.eventsHint}>Vous n&apos;apparaîtrez qu&apos;auprès des familles qui organisent ces événements.</ThemedText>
+          <EventTypesPicker value={eventTypes ?? ['mariage']} onChange={setEventTypes} />
 
           <ThemedText style={styles.fieldLabel}>Ville principale *</ThemedText>
           <TextInput
@@ -466,6 +476,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
   },
+  eventsHint: { fontSize: 12, color: '#9a9c93', marginTop: -2, marginBottom: 8 },
   input: {
     borderWidth: 1.5,
     borderColor: '#ece8e0',

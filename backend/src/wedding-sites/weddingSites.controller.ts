@@ -44,6 +44,18 @@ function rowToSite(
   };
 }
 
+
+/** Message « site bloqué (premium) » adapté à l'événement du compte. */
+const PREMIUM_BLOCKED: Record<string, string> = {
+  bar_mitsva: 'Ce site de Bar Mitsva est momentanément indisponible. La famille doit activer Oheve Premium pour le publier.',
+  bat_mitsva: 'Ce site de Bat Mitsva est momentanément indisponible. La famille doit activer Oheve Premium pour le publier.',
+  brit_mila: 'Ce site de Brit Mila est momentanément indisponible. La famille doit activer Oheve Premium pour le publier.',
+};
+export function premiumRequiredMessage(eventType?: string | null): string {
+  return PREMIUM_BLOCKED[String(eventType ?? '')]
+    ?? 'Ce site de mariage est momentanément indisponible. Les mariés doivent activer Oheve Premium pour le publier.';
+}
+
 export async function getMySites(req: Request, res: Response): Promise<void> {
   try {
     const userId = req.auth?.sub;
@@ -110,7 +122,7 @@ export async function getWeddingSiteBySlug(req: Request, res: Response): Promise
       res.status(403).json({
         success: false,
         code: 'PREMIUM_REQUIRED',
-        message: 'Ce site de mariage est momentanément indisponible. Les mariés doivent activer Oheve Premium pour le publier.',
+        message: premiumRequiredMessage(row.owner_event_type),
       });
       return;
     }

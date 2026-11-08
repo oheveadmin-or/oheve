@@ -313,3 +313,69 @@ export function eventDisplayName(user?: { event_type?: string | null; bride_name
   if (family) return `${cfg.label} · famille ${family}`;
   return cfg.label;
 }
+
+// ── Site invités (écran « Site », aperçu WhatsApp, message d'invitation) ────
+type SiteTexts = {
+  /** Titre de l'écran : « Site Mariage » / « Site Bar Mitsva » */
+  screenTitle: string;
+  /** Surtitre de l'aperçu WhatsApp : « NOUS NOUS MARIONS » / « BAR MITSVA » */
+  kicker: string;
+  /** « au mariage de » / « à la Bar Mitsva de » */
+  invitedTo: string;
+  /** Formulaire de création du lien */
+  createSub: string;
+  /** Phrase du message d'invitation : « célébrer notre mariage » */
+  celebrate: string;
+  /** « concernant le mariage » */
+  about: string;
+};
+
+const SITE_TEXTS: Record<EventType, SiteTexts> = {
+  mariage: {
+    screenTitle: 'Site Mariage', kicker: 'NOUS NOUS MARIONS', invitedTo: 'au mariage de',
+    createSub: 'Entrez les prénoms des mariés pour générer votre lien personnalisé.',
+    celebrate: 'célébrer notre mariage', about: 'le mariage',
+  },
+  bar_mitsva: {
+    screenTitle: 'Site Bar Mitsva', kicker: 'BAR MITSVA', invitedTo: 'à la Bar Mitsva de',
+    createSub: 'Entrez le prénom du garçon et le nom de famille pour générer votre lien personnalisé.',
+    celebrate: 'célébrer la Bar Mitsva de notre fils', about: 'la Bar Mitsva',
+  },
+  bat_mitsva: {
+    screenTitle: 'Site Bat Mitsva', kicker: 'BAT MITSVA', invitedTo: 'à la Bat Mitsva de',
+    createSub: 'Entrez le prénom de la fille et le nom de famille pour générer votre lien personnalisé.',
+    celebrate: 'célébrer la Bat Mitsva de notre fille', about: 'la Bat Mitsva',
+  },
+  brit_mila: {
+    screenTitle: 'Site Brit Mila', kicker: 'BRIT MILA', invitedTo: 'à la Brit Mila de',
+    createSub: 'Entrez le nom de famille (et le prénom du bébé si vous le souhaitez) pour générer votre lien personnalisé.',
+    celebrate: 'célébrer la Brit Mila de notre fils', about: 'la Brit Mila',
+  },
+};
+
+export function siteTexts(v?: string | null): SiteTexts {
+  return SITE_TEXTS[normalizeEventType(v)];
+}
+
+/**
+ * Noms affichés pour un site.
+ *  - mariage : « Léa & Thomas » (titre ET signature)
+ *  - autres  : titre = prénom de l'enfant (sinon « Famille Cohen »),
+ *              signature du message = « Famille Cohen » (sinon le prénom).
+ */
+export function siteNames(
+  eventType: string | null | undefined,
+  first?: string | null,
+  second?: string | null,
+  coupleName?: string | null,
+): { title: string; signature: string } {
+  const a = (first ?? '').trim();
+  const b = (second ?? '').trim();
+  if (isWedding(eventType)) {
+    const couple = (coupleName ?? '').trim() || [a, b].filter(Boolean).join(' & ');
+    return { title: couple, signature: couple };
+  }
+  const family = b ? `Famille ${b}` : '';
+  const label = eventConfig(eventType).label;
+  return { title: a || family || label, signature: family || a || label };
+}

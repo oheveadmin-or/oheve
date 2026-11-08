@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EventTypesPicker } from '@/components/prestataire/event-types-picker';
 import { ThemedText } from '@/components/themed-text';
+import type { EventType } from '@/lib/event-type';
 import { API_ENDPOINTS } from '@/constants/config';
 import { useAuth } from '@/contexts/auth-context';
 import { trialLabel, usePrestaOffer } from '@/lib/presta-offer';
@@ -64,6 +66,8 @@ export default function PrestataireSetup() {
     cover_local_uri: undefined,
   });
   const [loading, setLoading] = useState(false);
+  // Événements couverts : mariage pré-coché, le prestataire ajoute les autres.
+  const [eventTypes, setEventTypes] = useState<EventType[]>(['mariage']);
 
   const set = useCallback(
     (key: keyof SetupForm) => (value: string) =>
@@ -108,6 +112,7 @@ export default function PrestataireSetup() {
         price_range: form.price_range.trim() || undefined,
         instagram_url: form.instagram.trim() || undefined,
         website_url: form.website.trim() || undefined,
+        event_types: eventTypes,
       });
       if (!res.success) {
         Alert.alert('Erreur', res.message ?? 'Impossible de sauvegarder le profil');
@@ -139,7 +144,7 @@ export default function PrestataireSetup() {
       <View style={styles.header}>
         <ThemedText style={styles.stepBadge}>Étape 1 sur 2</ThemedText>
         <ThemedText style={styles.title}>Votre profil prestataire</ThemedText>
-        <ThemedText style={styles.sub}>Ces informations seront visibles par les futurs mariés</ThemedText>
+        <ThemedText style={styles.sub}>Ces informations seront visibles par vos futurs clients</ThemedText>
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]} showsVerticalScrollIndicator={false}>
@@ -186,6 +191,11 @@ export default function PrestataireSetup() {
             </Pressable>
           ))}
         </View>
+
+        {/* Événements couverts */}
+        <ThemedText style={styles.label}>Événements que vous faites *</ThemedText>
+        <ThemedText style={styles.hint}>Vous n&apos;apparaîtrez qu&apos;auprès des familles qui organisent ces événements.</ThemedText>
+        <EventTypesPicker value={eventTypes} onChange={setEventTypes} />
 
         {/* City */}
         <ThemedText style={styles.label}>Ville principale *</ThemedText>
@@ -297,6 +307,7 @@ const styles = StyleSheet.create({
   sub: { fontSize: 14, color: '#5c5f57', lineHeight: 20 },
   content: { padding: 24, gap: 8 },
   label: { fontSize: 13, fontWeight: '700', color: '#5c5f57', marginBottom: 6, marginTop: 10 },
+  hint: { fontSize: 12, color: '#9a9c93', marginTop: -2, marginBottom: 8 },
   input: {
     borderWidth: 1.5, borderColor: '#ece8e0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 15,

@@ -61,7 +61,7 @@ export async function getPublicSiteBySlug(req: Request, res: Response): Promise<
       res.status(403).json({
         success: false,
         code: 'PREMIUM_REQUIRED',
-        message: 'Ce site de mariage est momentanément indisponible. Les mariés doivent activer Oheve Premium pour le publier.',
+        message: 'Ce site est momentanément indisponible. Ses organisateurs doivent activer Oheve Premium pour le publier.',
       });
       return;
     }

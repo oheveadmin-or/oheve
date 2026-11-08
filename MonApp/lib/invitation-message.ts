@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { isWedding, siteTexts } from './event-type';
+
 /**
  * Message d'invitation envoyé aux invités avec le lien du site de mariage.
  *
@@ -10,13 +12,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * Variables : {invité} (nom de l'invité), {lien} (lien du site), {mariés}.
  */
 
-export const DEFAULT_INVITATION_TEMPLATE = `{invité},
+function makeTemplate(celebrate: string, about: string): string {
+  return `{invité},
 
-C'est avec beaucoup de joie que nous avons le plaisir de vous inviter à célébrer notre mariage.
+C'est avec beaucoup de joie que nous avons le plaisir de vous inviter à ${celebrate}.
 
 Nous serions honorés de vous compter parmi nous pour partager cette journée si importante à nos yeux et espérons avoir le bonheur de la vivre à vos côtés.
 
-Vous trouverez toutes les informations concernant le mariage en cliquant sur le lien ci-dessous.
+Vous trouverez toutes les informations concernant ${about} en cliquant sur le lien ci-dessous.
 
 {lien}
 
@@ -24,21 +27,32 @@ Nous vous remercions de bien vouloir nous confirmer votre présence.
 Nous avons hâte de partager ce moment de bonheur avec vous.
 
 {mariés} 🤍`;
+}
+
+export const DEFAULT_INVITATION_TEMPLATE = makeTemplate('célébrer notre mariage', 'le mariage');
+
+/** Message par défaut adapté à l'événement du compte (mariage, Bar/Bat Mitsva, Brit Mila). */
+export function defaultInvitationTemplate(eventType?: string | null): string {
+  if (isWedding(eventType)) return DEFAULT_INVITATION_TEMPLATE;
+  const t = siteTexts(eventType);
+  return makeTemplate(t.celebrate, t.about);
+}
 
 const TEMPLATE_KEY = '@oheve:invitation_message_v1';
 
-export async function loadInvitationTemplate(): Promise<string> {
+export async function loadInvitationTemplate(eventType?: string | null): Promise<string> {
+  const fallback = defaultInvitationTemplate(eventType);
   try {
     const saved = await AsyncStorage.getItem(TEMPLATE_KEY);
-    return saved?.trim() ? saved : DEFAULT_INVITATION_TEMPLATE;
+    return saved?.trim() ? saved : fallback;
   } catch {
-    return DEFAULT_INVITATION_TEMPLATE;
+    return fallback;
   }
 }
 
-export async function saveInvitationTemplate(template: string): Promise<void> {
+export async function saveInvitationTemplate(template: string, eventType?: string | null): Promise<void> {
   try {
-    if (!template.trim() || template === DEFAULT_INVITATION_TEMPLATE) await AsyncStorage.removeItem(TEMPLATE_KEY);
+    if (!template.trim() || template === defaultInvitationTemplate(eventType)) await AsyncStorage.removeItem(TEMPLATE_KEY);
     else await AsyncStorage.setItem(TEMPLATE_KEY, template);
   } catch { /* stockage indisponible : le message par défaut reste utilisé */ }
 }

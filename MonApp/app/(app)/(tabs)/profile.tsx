@@ -30,6 +30,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { prestatairesApi, messagingApi, authApi, uploadFile } from '@/services/auth/api';
 import { API_ENDPOINTS } from '@/constants/config';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
+import { isWedding } from '@/lib/event-type';
 import { usePremiumPrice } from '@/lib/iap';
 
 const { width: W } = Dimensions.get('window');
@@ -725,11 +726,13 @@ function ClientProfile() {
           </Pressable>
         )}
 
-        <Pressable style={styles.itemCard} onPress={() => router.push('/(app)/community' as never)}>
-          <Ionicons name="people-outline" size={18} color={C.moka} />
-          <ThemedText style={styles.itemText}>Communauté Oheve</ThemedText>
-          <Ionicons name="chevron-forward" size={16} color={C.textLight} />
-        </Pressable>
+        {(role === 'admin' || isWedding(user?.event_type)) && (
+          <Pressable style={styles.itemCard} onPress={() => router.push('/(app)/community' as never)}>
+            <Ionicons name="people-outline" size={18} color={C.moka} />
+            <ThemedText style={styles.itemText}>Communauté Oheve</ThemedText>
+            <Ionicons name="chevron-forward" size={16} color={C.textLight} />
+          </Pressable>
+        )}
 
         <ThemedText style={styles.sectionLabel}>Mon compte</ThemedText>
         <Pressable style={styles.itemCard} onPress={() => router.push('/(app)/personal-info' as never)}>

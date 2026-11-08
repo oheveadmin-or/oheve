@@ -5,6 +5,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
+import { siteTexts } from '@/lib/event-type';
 
 type QuickActionsSheetProps = {
   visible: boolean;
@@ -22,9 +23,11 @@ const ACTIONS = [
 
 export function QuickActionsSheet({ visible, onClose }: QuickActionsSheetProps) {
   const { user } = useAuth();
+  // « Site Mariage » → « Site Bar Mitsva » etc. selon l'événement du compte
+  const base = ACTIONS.map((a) => (a.route === '/(app)/wedding-card' ? { ...a, label: siteTexts(user?.event_type).screenTitle } : a));
   const actions = user?.role === 'admin'
-    ? [{ label: 'Panneau Admin', icon: 'shield-checkmark-outline' as const, route: '/(app)/admin' }, ...ACTIONS]
-    : ACTIONS;
+    ? [{ label: 'Panneau Admin', icon: 'shield-checkmark-outline' as const, route: '/(app)/admin' }, ...base]
+    : base;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

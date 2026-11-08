@@ -186,6 +186,13 @@ export class CommunityRepository {
     return r.rows;
   }
 
+  /** Comptes client : seuls les mariages ont accès au salon (null = mariage, comptes historiques). */
+  async isWeddingAccount(id: number): Promise<boolean> {
+    const r = await pool.query(`SELECT to_jsonb(u) ->> 'event_type' AS event_type FROM users u WHERE id=$1`, [id]);
+    const t = r.rows[0]?.event_type as string | null | undefined;
+    return !t || t === 'mariage';
+  }
+
   async userBasic(id: number): Promise<{ id: number; role: string; prenom: string; nom: string } | null> {
     const r = await pool.query(`SELECT id, role, prenom, nom FROM users WHERE id=$1`, [id]);
     return r.rows[0] ?? null;
@@ -246,7 +253,7 @@ export class CommunityRepository {
          FROM users u
          LEFT JOIN community_messages m ON m.user_id=u.id
          LEFT JOIN community_bans b ON b.user_id=u.id
-        WHERE u.role='client'
+        WHERE u.role='client' AND COALESCE(to_jsonb(u) ->> 'event_type', 'mariage') = 'mariage'
         GROUP BY u.id, b.user_id, b.reason
         ORDER BY (b.user_id IS NOT NULL) DESC, MAX(m.created_at) DESC NULLS LAST, u.id DESC
         LIMIT 500`,
