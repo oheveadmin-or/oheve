@@ -75,10 +75,10 @@ Contact : ${CONTACT_EMAIL}`}
         {`Nous collectons les données suivantes :
 
 • Identité : prénom, nom, adresse email
-• Données de mariage : date, lieu, noms des mariés, budget
+• Données de votre événement (mariage, Bar Mitsva, Bat Mitsva ou Brit Mila) : date, lieu, noms des mariés ou de l'enfant et de sa famille, budget
 • Invités : liste nominative, réponses RSVP
 • Prestataires : contacts et échanges de messages
-• Photos : celles que vous choisissez d'ajouter à votre profil, votre portfolio ou votre site mariage
+• Photos : celles que vous choisissez d'ajouter à votre profil, votre portfolio ou votre site d'invitation
 • Données techniques : tokens d'authentification, logs de connexion
 • Achats : état de votre accès Premium ou de votre abonnement (statut, échéance) — aucune donnée bancaire
 • Connexion Apple ou Google : identifiant de compte et adresse email transmis par le fournisseur, si vous choisissez ce mode de connexion
@@ -89,8 +89,8 @@ Contact : ${CONTACT_EMAIL}`}
         {`Vos données sont traitées pour :
 
 • Créer et gérer votre compte
-• Fournir les fonctionnalités de planification de mariage
-• Publier le site mariage que vous créez et collecter les réponses RSVP de vos invités
+• Fournir les fonctionnalités d'organisation de votre événement
+• Publier le site d'invitation que vous créez et collecter les réponses RSVP de vos invités
 • Envoyer des notifications et rappels
 • Améliorer nos services
 • Respecter nos obligations légales`}
@@ -116,7 +116,7 @@ La suppression de votre compte (Paramètres > Supprimer mon compte) entraîne l'
 • Apple (achats intégrés et abonnements réalisés via l'App Store)
 • Stripe (paiements sur Android et web) — politique disponible sur stripe.com
 • Railway (hébergement) — politique disponible sur railway.app
-• Cloudflare (hébergement du site mariage) — politique disponible sur cloudflare.com
+• Cloudflare (hébergement des sites d'invitation) — politique disponible sur cloudflare.com
 • Resend (envoi d'emails transactionnels) — politique disponible sur resend.com
 • Les prestataires que vous contactez via l'application`}
       </Section>
@@ -150,7 +150,7 @@ Vous pouvez également déposer une réclamation auprès de la CNIL (cnil.fr).`}
       </Section>
 
       <Section title="11. Cookies">
-        {`L'application mobile n'utilise pas de cookies. Le site invités (mini-site mariage) charge des polices Google Fonts — en cliquant sur « Accepter » sur la bannière cookies, vous consentez à ce transfert vers les serveurs de Google.`}
+        {`L'application mobile n'utilise pas de cookies. Le site invités (mini-site d'invitation) charge des polices Google Fonts — en cliquant sur « Accepter » sur la bannière cookies, vous consentez à ce transfert vers les serveurs de Google.`}
       </Section>
     </LegalLayout>
   );
@@ -168,12 +168,12 @@ Elles constituent le contrat de licence utilisateur final (EULA) de l'applicatio
       </Section>
 
       <Section title="2. Description du service">
-        {`Oheve est une application de planification de mariage permettant de :
+        {`Oheve est une application d'organisation de mariages, Bar Mitsva, Bat Mitsva et Brit Mila permettant de :
 
 • Organiser invités, RSVP et plans de table
-• Gérer le budget du mariage
+• Gérer le budget de l'événement
 • Contacter des prestataires
-• Créer un mini-site mariage personnalisé
+• Créer un mini-site d'invitation personnalisé
 • Générer des faire-part et documents`}
       </Section>
 
@@ -208,7 +208,7 @@ Les demandes de remboursement des achats effectués via l'App Store relèvent d'
       <Section title="6. Propriété intellectuelle">
         {`L'ensemble des contenus de l'application (design, code, templates, textes) est la propriété exclusive d'Oheve et est protégé par le droit français de la propriété intellectuelle.
 
-Les données que vous créez (invités, budget, site mariage) vous appartiennent. Vous nous accordez une licence limitée pour les afficher et les traiter dans le cadre du service.`}
+Les données que vous créez (invités, budget, site d'invitation) vous appartiennent. Vous nous accordez une licence limitée pour les afficher et les traiter dans le cadre du service.`}
       </Section>
 
       <Section title="7. Responsabilité">
@@ -236,7 +236,7 @@ export function SupportPage() {
   return (
     <LegalLayout title="Support & Assistance" updated="juillet 2026">
       <Section title="Nous contacter">
-        {`Une question, un problème avec l'application Oheve Wedding Planner ou votre site mariage ? Écrivez-nous, nous répondons généralement sous 24 à 48 heures :`}
+        {`Une question, un problème avec l'application Oheve Wedding Planner ou votre site d'invitation ? Écrivez-nous, nous répondons généralement sous 24 à 48 heures :`}
       </Section>
 
       <div style={{ textAlign: 'center', margin: '0 0 1.8rem' }}>
@@ -258,9 +258,9 @@ export function SupportPage() {
 
 • Comment gérer ou résilier mon abonnement ? — Dans l'application : Paramètres > Abonnement. La résiliation prend effet à la fin de la période en cours.
 
-• Mes invités ne reçoivent pas le lien RSVP ? — Vérifiez que le lien partagé correspond bien à votre site publié, et que le site est en ligne depuis l'écran « Mon site mariage ».
+• Mes invités ne reçoivent pas le lien RSVP ? — Vérifiez que le lien partagé correspond bien à votre site publié, et que le site est en ligne depuis l'écran du site dans l'application.
 
-• Comment modifier mon site mariage ? — Depuis l'application, ouvrez « Mon site mariage » puis « Modifier » : vos changements sont publiés instantanément.
+• Comment modifier mon site d'invitation ? — Depuis l'application, ouvrez l'écran du site puis « Modifier » : vos changements sont publiés instantanément.
 
 • Un paiement a échoué ou a été débité deux fois ? — Contactez-nous par email avec la date et le montant : les paiements sont traités par Stripe et nous pouvons vérifier immédiatement.`}
       </Section>
