@@ -1,7 +1,13 @@
+import fs from 'fs';
+import path from 'path';
 import { NextFunction, Request, Response, Router } from 'express';
+import multer from 'multer';
 
 import { requireAdmin } from '../middleware/requireAdmin';
 import { requireAuth } from '../middleware/requireAuth';
+import { optimizeUploadedImage } from '../utils/image-optim';
+import { persistUploadedFile } from '../utils/persistent-uploads';
+import { isVideoFile, optimizeUploadedVideo } from '../utils/video-optim';
 import { CommunityRepository } from './repository';
 
 export { ensureCommunitySchema } from './repository';
@@ -24,6 +30,39 @@ const PAGE_SIZE = 50;
 // Anti-spam : au plus 8 messages par minute et par marié.
 const RATE_WINDOW_S = 60;
 const RATE_MAX = 8;
+
+// ── Photos / vidéos du salon ──────────────────────────────────────────────────
+const mediaDir = path.join(process.cwd(), 'uploads', 'community');
+if (!fs.existsSync(mediaDir)) fs.mkdirSync(mediaDir, { recursive: true });
+const MEDIA_EXT = ['.mp4', '.mov', '.m4v', '.webm', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
+const mediaUpload = multer({
+  storage: multer.diskStorage({
+    destination: mediaDir,
+    filename: (_req, file, cb) => {
+      const fallback = file.mimetype.startsWith('video/') ? '.mp4' : '.jpg';
+      const ext = path.extname(file.originalname || '').toLowerCase() || fallback;
+      cb(null, `com_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/') || MEDIA_EXT.includes(ext)) cb(null, true);
+    else cb(new Error('Seules les photos et les vidéos sont acceptées'));
+  },
+});
+
+/** Multer renvoie ses erreurs (fichier trop lourd, mauvais type) en JSON lisible. */
+function handleMediaUpload(req: Request, res: Response, next: NextFunction) {
+  mediaUpload.single('file')(req, res, (err: unknown) => {
+    if (!err) return next();
+    const tooBig = (err as { code?: string }).code === 'LIMIT_FILE_SIZE';
+    res.status(400).json({
+      success: false,
+      message: tooBig ? 'Fichier trop lourd (100 Mo maximum)' : (err as Error).message || 'Fichier refusé',
+    });
+  });
+}
 
 function parseId(v: unknown): number | null {
   const n = typeof v === 'number' ? v : parseInt(String(v ?? ''), 10);
@@ -196,6 +235,52 @@ communityRoutes.post('/messages', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });
+
+communityRoutes.post(
+  '/messages/media',
+  handleMediaUpload,
+  optimizeUploadedImage(),
+  optimizeUploadedVideo(),
+  persistUploadedFile(),
+  async (req, res) => {
+    const file = req.file;
+    if (!file) return res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
+    const caption = typeof req.body?.content === 'string' ? req.body.content.trim() : '';
+    const replyToId = req.body?.reply_to_id ? parseId(req.body.reply_to_id) : null;
+    const cleanup = () => { try { fs.unlinkSync(file.path); } catch { /* déjà absent */ } };
+    if (caption.length > MAX_LENGTH) {
+      cleanup();
+      return res.status(400).json({ success: false, message: `Légende trop longue (${MAX_LENGTH} caractères maximum)` });
+    }
+    try {
+      const me = req.auth!.sub;
+      if (req.auth!.role !== 'admin' && await repo.countRecentByUser(me, RATE_WINDOW_S) >= RATE_MAX) {
+        cleanup();
+        return res.status(429).json({ success: false, message: 'Vous envoyez beaucoup de messages : patientez une minute.' });
+      }
+      const roomId = await repo.generalRoomId();
+      let replyTarget: Awaited<ReturnType<typeof repo.rawMessage>> = null;
+      if (replyToId) {
+        replyTarget = await repo.rawMessage(replyToId);
+        if (!replyTarget || replyTarget.room_id !== roomId) replyTarget = null;
+      }
+      const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
+      const host = req.headers['x-forwarded-host'] ?? req.get('host');
+      const url = `${protocol}://${host}/uploads/community/${file.filename}`;
+      const type = isVideoFile(file.path, file.mimetype) ? 'video' : 'image';
+      const id = await repo.insertMessage(roomId, me, caption, replyTarget ? replyTarget.id : null, { url, type });
+      const msg = await repo.getMessage(id);
+      if (replyTarget && replyTarget.user_id !== me && !replyTarget.deleted_at && msg) {
+        notifyReply(replyTarget.user_id, { prenom: msg.prenom, nom: msg.nom }, caption || (type === 'video' ? '🎬 Vidéo' : '📷 Photo')).catch(() => {});
+      }
+      return res.status(201).json({ success: true, data: msg });
+    } catch (err) {
+      console.error(err);
+      cleanup();
+      return res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+  },
+);
 
 communityRoutes.delete('/messages/:id', async (req, res) => {
   const id = parseId(req.params.id);

@@ -120,6 +120,21 @@ export async function uploadFile(
   fieldName = 'photo',
   extraFields?: Record<string, string>,
 ): Promise<{ success: boolean; data?: Record<string, unknown>; message?: string }> {
+  // Navigateur : FileSystem.uploadAsync n'existe pas, on envoie le blob via fetch.
+  if (Platform.OS === 'web') {
+    try {
+      const blob = await (await fetch(fileUri)).blob();
+      const ext = (blob.type.split('/')[1] || 'bin').replace('quicktime', 'mov').replace('jpeg', 'jpg');
+      const fd = new FormData();
+      fd.append(fieldName, blob, `upload.${ext}`);
+      for (const [k, v] of Object.entries(extraFields ?? {})) fd.append(k, v);
+      const r = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: fd });
+      const json = await r.json().catch(() => ({}));
+      return { ...json, success: json.success ?? r.ok, message: json.message ?? (r.ok ? undefined : httpMessage(r.status)) };
+    } catch {
+      return { success: false, message: 'Envoi impossible : vérifiez votre connexion internet, puis réessayez.' };
+    }
+  }
   let result: FileSystem.FileSystemUploadResult;
   try {
     result = await FileSystem.uploadAsync(url, fileUri, {
@@ -376,6 +391,13 @@ export const communityApi = {
     get(`${API_ENDPOINTS.community}/messages${before ? `?before=${before}` : ''}`, accessToken),
   sendMessage: (accessToken: string, content: string, replyToId?: number | null) =>
     post(`${API_ENDPOINTS.community}/messages`, { content, reply_to_id: replyToId ?? null }, accessToken),
+  /** Photo ou vidéo (légende facultative). */
+  sendMedia: (accessToken: string, fileUri: string, caption?: string, replyToId?: number | null) => {
+    const fields: Record<string, string> = {};
+    if (caption) fields.content = caption;
+    if (replyToId) fields.reply_to_id = String(replyToId);
+    return uploadFile(`${API_ENDPOINTS.community}/messages/media`, accessToken, fileUri, 'file', fields);
+  },
   deleteMessage: (accessToken: string, id: number) =>
     del(`${API_ENDPOINTS.community}/messages/${id}`, accessToken),
   report: (accessToken: string, data: { message_id?: number; user_id?: number; reason?: string }) =>

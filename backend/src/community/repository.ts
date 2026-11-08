@@ -57,6 +57,9 @@ export const COMMUNITY_SCHEMA = [
      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
      PRIMARY KEY (blocker_id, blocked_id)
    )`,
+  // Photos / vidéos dans le salon (le texte devient alors une légende facultative).
+  `ALTER TABLE community_messages ADD COLUMN IF NOT EXISTS media_url TEXT`,
+  `ALTER TABLE community_messages ADD COLUMN IF NOT EXISTS media_type VARCHAR(10)`,
 ];
 
 export async function ensureCommunitySchema(): Promise<void> {
@@ -73,19 +76,24 @@ export interface CommunityMessage {
   nom: string;
   avatar_url: string | null;
   is_admin: boolean;
-  reply_to: null | { id: number; prenom: string; content: string | null; deleted: boolean };
+  media_url: string | null;
+  media_type: 'image' | 'video' | null;
+  reply_to: null | { id: number; prenom: string; content: string | null; deleted: boolean; media_type: string | null };
 }
 
 const MESSAGE_SELECT = `
   SELECT m.id, m.user_id, m.created_at,
          (m.deleted_at IS NOT NULL) AS deleted,
          CASE WHEN m.deleted_at IS NULL THEN m.content ELSE NULL END AS content,
+         CASE WHEN m.deleted_at IS NULL THEN m.media_url ELSE NULL END AS media_url,
+         CASE WHEN m.deleted_at IS NULL THEN m.media_type ELSE NULL END AS media_type,
          u.prenom, u.nom, u.avatar_url, (u.role = 'admin') AS is_admin,
          CASE WHEN r.id IS NULL THEN NULL ELSE json_build_object(
            'id', r.id,
            'prenom', ru.prenom,
            'content', CASE WHEN r.deleted_at IS NULL THEN LEFT(r.content, 140) ELSE NULL END,
-           'deleted', r.deleted_at IS NOT NULL
+           'deleted', r.deleted_at IS NOT NULL,
+           'media_type', CASE WHEN r.deleted_at IS NULL THEN r.media_type ELSE NULL END
          ) END AS reply_to
     FROM community_messages m
     JOIN users u ON u.id = m.user_id
@@ -140,10 +148,14 @@ export class CommunityRepository {
     return r.rows[0].n;
   }
 
-  async insertMessage(roomId: number, userId: number, content: string, replyToId: number | null): Promise<number> {
+  async insertMessage(
+    roomId: number, userId: number, content: string, replyToId: number | null,
+    media: { url: string; type: 'image' | 'video' } | null = null,
+  ): Promise<number> {
     const r = await pool.query<{ id: number }>(
-      `INSERT INTO community_messages (room_id, user_id, content, reply_to_id) VALUES ($1,$2,$3,$4) RETURNING id`,
-      [roomId, userId, content, replyToId],
+      `INSERT INTO community_messages (room_id, user_id, content, reply_to_id, media_url, media_type)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [roomId, userId, content, replyToId, media?.url ?? null, media?.type ?? null],
     );
     return r.rows[0].id;
   }

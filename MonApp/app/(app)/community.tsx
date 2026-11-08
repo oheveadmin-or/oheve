@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -10,8 +11,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FeedVideo } from '@/components/feed-video';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorBanner } from '@/components/ui/error-banner';
+import { VideoThumbnail } from '@/components/video-thumbnail';
 import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { communityApi } from '@/services/auth/api';
@@ -35,8 +38,20 @@ export type CommunityMessage = {
   nom: string;
   avatar_url: string | null;
   is_admin: boolean;
-  reply_to: null | { id: number; prenom: string; content: string | null; deleted: boolean };
+  media_url?: string | null;
+  media_type?: 'image' | 'video' | null;
+  reply_to: null | { id: number; prenom: string; content: string | null; deleted: boolean; media_type?: string | null };
 };
+
+/** Texte court d'un message (aperçu de réponse) : légende ou « Photo » / « Vidéo ». */
+function previewText(m: { content: string | null; media_type?: string | null }): string {
+  if (m.content) return m.content;
+  if (m.media_type === 'video') return '🎬 Vidéo';
+  if (m.media_type === 'image') return '📷 Photo';
+  return '';
+}
+
+const MEDIA_W = 220;
 
 type BlockedUser = { id: number; prenom: string; nom: string; avatar_url: string | null };
 
@@ -115,6 +130,10 @@ export default function CommunityScreen() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<CommunityMessage | null>(null);
+  // Photo/vidéo choisie, en attente d'envoi (aperçu au-dessus du champ).
+  const [pendingMedia, setPendingMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
+  // Média ouvert en plein écran.
+  const [viewer, setViewer] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
 
   const [rulesVisible, setRulesVisible] = useState(false);
   const [blockedVisible, setBlockedVisible] = useState(false);
@@ -237,20 +256,46 @@ export default function CommunityScreen() {
   }, [byId]);
 
   // ── Actions ─────────────────────────────────────────────────────────────────
+  const pickMedia = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        notify('Accès aux photos refusé', 'Autorisez Oheve à accéder à vos photos dans les réglages du téléphone.');
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      quality: 0.85,
+      videoMaxDuration: 120,
+      // Sans ceci iOS envoie l'original 4K (très lent à envoyer et à lire).
+      videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const a = result.assets[0];
+    setPendingMedia({ uri: a.uri, type: a.type === 'video' ? 'video' : 'image' });
+  };
+
   const send = async () => {
     const content = text.trim();
-    if (!content || !token || sending) return;
+    const media = pendingMedia;
+    if ((!content && !media) || !token || sending) return;
     setSending(true);
     setText('');
+    setPendingMedia(null);
     const reply = replyTo;
     setReplyTo(null);
-    const res = await communityApi.sendMessage(token, content, reply?.id);
-    if (res?.success && res.data) {
-      setById((prev) => ({ ...prev, [res.data.id]: res.data }));
+    const res = media
+      ? await communityApi.sendMedia(token, media.uri, content, reply?.id)
+      : await communityApi.sendMessage(token, content, reply?.id);
+    const sent = res?.data as CommunityMessage | undefined;
+    if (res?.success && sent) {
+      setById((prev) => ({ ...prev, [sent.id]: sent }));
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
     } else {
-      // Ne jamais perdre le message tapé.
+      // Ne jamais perdre le message tapé ni le média choisi.
       setText(content);
+      setPendingMedia(media);
       setReplyTo(reply);
       if (res?.banned) setBanned(res.message);
       else notify('Message non envoyé', res?.message ?? 'Vérifiez votre connexion et réessayez.');
@@ -268,7 +313,7 @@ export default function CommunityScreen() {
       if (!token) return;
       const res = await communityApi.deleteMessage(token, m.id);
       if (res?.success) {
-        setById((prev) => ({ ...prev, [m.id]: { ...m, deleted: true, content: null } }));
+        setById((prev) => ({ ...prev, [m.id]: { ...m, deleted: true, content: null, media_url: null, media_type: null } }));
       } else {
         notify('Suppression impossible', res?.message ?? 'Réessayez dans un instant.');
       }
@@ -313,9 +358,9 @@ export default function CommunityScreen() {
     const name = fullName(m);
     const actions: SheetAction[] = [
       { label: 'Répondre', onPress: () => startReply(m) },
-      { label: 'Copier le texte', onPress: () => { Clipboard.setStringAsync(m.content ?? '').catch(() => {}); } },
     ];
-    if (mine || isAdmin) actions.push({ label: 'Supprimer', destructive: true, onPress: () => deleteMessage(m) });
+    if (m.content) actions.push({ label: 'Copier le texte', onPress: () => { Clipboard.setStringAsync(m.content ?? '').catch(() => {}); } });
+    if (mine || isAdmin) actions.push({ label: 'Supprimer le message', destructive: true, onPress: () => deleteMessage(m) });
     if (!mine) {
       actions.push({ label: 'Signaler ce message', destructive: true, onPress: () => report({ message: m, userId: m.user_id, name }) });
       if (!m.is_admin) actions.push({ label: `Bloquer ${m.prenom}`, destructive: true, onPress: () => block(m.user_id, name) });
@@ -409,14 +454,33 @@ export default function CommunityScreen() {
                 {m.reply_to.prenom}
               </ThemedText>
               <ThemedText style={[styles.quoteTxt, me && styles.quoteTxtMe, m.reply_to.deleted && styles.italic]} numberOfLines={2}>
-                {m.reply_to.deleted ? 'Message supprimé' : m.reply_to.content}
+                {m.reply_to.deleted ? 'Message supprimé' : previewText(m.reply_to)}
               </ThemedText>
             </View>
           )}
           {m.deleted ? (
             <ThemedText style={[styles.bubbleText, styles.italic, styles.deletedTxt]}>Message supprimé</ThemedText>
           ) : (
-            <ThemedText style={[styles.bubbleText, me && styles.bubbleTextMe]}>{m.content}</ThemedText>
+            <>
+              {m.media_url && (
+                <Pressable
+                  onPress={() => setViewer({ uri: m.media_url!, type: m.media_type === 'video' ? 'video' : 'image' })}
+                  onLongPress={() => openMessageActions(m)}
+                  delayLongPress={300}
+                  style={styles.media}
+                  accessibilityLabel={m.media_type === 'video' ? 'Ouvrir la vidéo' : 'Ouvrir la photo'}
+                >
+                  {m.media_type === 'video' ? (
+                    <VideoThumbnail uri={m.media_url} iconSize={44} style={StyleSheet.absoluteFill} />
+                  ) : (
+                    <Image source={{ uri: m.media_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+                  )}
+                </Pressable>
+              )}
+              {!!m.content && (
+                <ThemedText style={[styles.bubbleText, me && styles.bubbleTextMe]}>{m.content}</ThemedText>
+              )}
+            </>
           )}
           <ThemedText style={[styles.time, me && styles.timeMe]}>{formatTime(m.created_at)}</ThemedText>
         </Pressable>
@@ -517,7 +581,7 @@ export default function CommunityScreen() {
             <View style={styles.replyAccent} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <ThemedText style={styles.replyName} numberOfLines={1}>Réponse à {fullName(replyTo)}</ThemedText>
-              <ThemedText style={styles.replyPreview} numberOfLines={1}>{replyTo.content}</ThemedText>
+              <ThemedText style={styles.replyPreview} numberOfLines={1}>{previewText(replyTo)}</ThemedText>
             </View>
             <Pressable onPress={() => setReplyTo(null)} hitSlop={10} accessibilityLabel="Annuler la réponse">
               <Ionicons name="close" size={20} color={C.textLight} />
@@ -525,27 +589,75 @@ export default function CommunityScreen() {
           </View>
         )}
 
+        {pendingMedia && (
+          <View style={styles.pendingBar}>
+            <View style={styles.pendingThumb}>
+              {pendingMedia.type === 'video' ? (
+                <VideoThumbnail uri={pendingMedia.uri} iconSize={22} style={StyleSheet.absoluteFill} />
+              ) : (
+                <Image source={{ uri: pendingMedia.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              )}
+            </View>
+            <ThemedText style={styles.pendingTxt} numberOfLines={2}>
+              {pendingMedia.type === 'video' ? 'Vidéo prête à envoyer' : 'Photo prête à envoyer'}
+              {'\n'}
+              <ThemedText style={styles.pendingHint}>Ajoutez une légende si vous voulez</ThemedText>
+            </ThemedText>
+            <Pressable onPress={() => setPendingMedia(null)} hitSlop={10} accessibilityLabel="Retirer le média">
+              <Ionicons name="close-circle" size={22} color={C.textLight} />
+            </Pressable>
+          </View>
+        )}
+
         <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
+          <Pressable
+            style={styles.attachBtn}
+            onPress={() => { pickMedia().catch(() => notify('Impossible d\'ouvrir vos photos')); }}
+            disabled={sending}
+            hitSlop={6}
+            accessibilityLabel="Ajouter une photo ou une vidéo"
+          >
+            <Ionicons name="image-outline" size={22} color={C.saugeDark} />
+          </Pressable>
           <TextInput
             ref={inputRef}
             style={styles.input}
             value={text}
             onChangeText={setText}
-            placeholder="Écrire à la communauté…"
+            placeholder={pendingMedia ? 'Ajouter une légende…' : 'Écrire à la communauté…'}
             placeholderTextColor={C.textLight}
             multiline
             maxLength={MAX_LENGTH}
           />
           <Pressable
-            style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnOff]}
+            style={[styles.sendBtn, ((!text.trim() && !pendingMedia) || sending) && styles.sendBtnOff]}
             onPress={send}
-            disabled={!text.trim() || sending}
+            disabled={(!text.trim() && !pendingMedia) || sending}
             accessibilityLabel="Envoyer"
           >
             {sending ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={18} color="#fff" />}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Photo / vidéo en plein écran */}
+      <Modal visible={!!viewer} transparent animationType="fade" onRequestClose={() => setViewer(null)}>
+        <View style={styles.viewerBg}>
+          {viewer?.type === 'video' ? (
+            <FeedVideo uri={viewer.uri} nativeControls startMuted={false} contentFit="contain" style={styles.viewerMedia} />
+          ) : viewer ? (
+            <Image source={{ uri: viewer.uri }} style={styles.viewerMedia} contentFit="contain" />
+          ) : null}
+          <Pressable
+            style={[styles.viewerClose, { top: insets.top + 10 }]}
+            onPress={() => setViewer(null)}
+            hitSlop={12}
+            accessibilityLabel="Fermer"
+          >
+            <Ionicons name="close" size={26} color="#fff" />
+          </Pressable>
+        </View>
+      </Modal>
 
       {/* Charte de la communauté */}
       <Modal visible={rulesVisible} transparent animationType="fade" onRequestClose={() => setRulesVisible(false)}>
@@ -683,6 +795,15 @@ const styles = StyleSheet.create({
   inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingTop: 8, gap: 8, borderTopWidth: 1, borderTopColor: C.saugePale, backgroundColor: '#fff' },
   input: { flex: 1, borderWidth: 1.5, borderColor: C.beige, borderRadius: 20, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10, fontSize: 15, color: C.textDark, maxHeight: 120, backgroundColor: C.ivoire },
   sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.sauge, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  attachBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  media: { width: MEDIA_W, maxWidth: '100%', aspectRatio: 4 / 5, borderRadius: 12, overflow: 'hidden', backgroundColor: C.beige, marginVertical: 2 },
+  pendingBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: C.ivoire, borderTopWidth: 1, borderTopColor: C.saugePale },
+  pendingThumb: { width: 48, height: 48, borderRadius: 8, overflow: 'hidden', backgroundColor: C.beige },
+  pendingTxt: { flex: 1, minWidth: 0, fontSize: 13, fontWeight: '600', color: C.textDark },
+  pendingHint: { fontSize: 12, fontWeight: '400', color: C.textLight },
+  viewerBg: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
+  viewerMedia: { width: '100%', height: '100%' },
+  viewerClose: { position: 'absolute', right: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   sendBtnOff: { opacity: 0.4 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(52,54,48,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },

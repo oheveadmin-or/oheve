@@ -649,83 +649,62 @@ const reelStyles = StyleSheet.create({
 });
 
 // ── Grid Card ────────────────────────────────────────────────────────────────
-// Carte « vitrine » : photo plein cadre, dégradé sombre en bas, nom de
-// l'établissement en serif, ville, note et étiquette de catégorie.
-const GRID_GAP = 10;
-const GRID_PAD = 14;
-const CARD_W = (W - GRID_PAD * 2 - GRID_GAP) / 2;
-const CARD_H = Math.round(CARD_W * 1.08);
+// Grille façon Instagram : 2 tuiles par ligne collées (fin liseré), format
+// portrait, l'image prend toute la place. Seuls le nom du prestataire et la
+// ville apparaissent en petit ; les likes se voient en ouvrant la publication.
+// Une vidéo est signalée par une petite icône en haut à droite.
+const GRID_GAP = 2;
+const CARD_W = (W - GRID_GAP) / 2;
+const CARD_H = Math.round(CARD_W * 1.4);
 
 function GridCard({
   post,
-  onLike,
   onOpen,
 }: {
   post: Post;
-  onLike: (id: string) => void;
+  onLike?: (id: string) => void;
   onOpen: (id: string) => void;
 }) {
   const title = post.businessName || post.author;
-  const hasRating = !!post.rating && post.rating > 0;
+  const isVideo = post.mediaType === 'video';
   return (
-    <Pressable style={gridStyles.card} onPress={() => onOpen(post.id)}>
-      {post.mediaUri && post.mediaType === 'video' ? (
-        <VideoThumbnail uri={post.mediaUri} iconSize={34} style={StyleSheet.absoluteFill} />
+    <Pressable style={gridStyles.card} onPress={() => onOpen(post.id)} accessibilityLabel={title}>
+      {post.mediaUri && isVideo ? (
+        <VideoThumbnail uri={post.mediaUri} iconSize={0} style={StyleSheet.absoluteFill} />
       ) : post.mediaUri ? (
         <Image source={{ uri: post.mediaUri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
       ) : (
         <View style={[StyleSheet.absoluteFill, gridStyles.placeholder]}>
-          <Ionicons name={catDef(post.category).icon} size={44} color="#929B83" />
+          <Ionicons name={catDef(post.category).icon} size={40} color="#929B83" />
         </View>
       )}
 
-      {/* Dégradé bas : lisibilité du texte blanc sur n'importe quelle photo */}
+      {/* Léger dégradé bas, juste assez pour lire le petit texte */}
       <Svg style={gridStyles.shade} width="100%" height="100%" preserveAspectRatio="none">
         <Defs>
           <SvgLinearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor="#1f1d18" stopOpacity="0" />
-            <Stop offset="0.45" stopColor="#1f1d18" stopOpacity="0.35" />
-            <Stop offset="1" stopColor="#1f1d18" stopOpacity="0.85" />
+            <Stop offset="0.75" stopColor="#1f1d18" stopOpacity="0" />
+            <Stop offset="1" stopColor="#1f1d18" stopOpacity="0.55" />
           </SvgLinearGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#shade)" />
       </Svg>
 
-      <Pressable
-        style={gridStyles.heart}
-        onPress={(e) => { e.stopPropagation(); onLike(post.id); }}
-        hitSlop={10}
-        accessibilityLabel={post.isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-      >
-        <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={24} color="#fff" />
-      </Pressable>
+      {isVideo && (
+        <View style={gridStyles.videoBadge} accessibilityLabel="Vidéo">
+          <Ionicons name="play" size={18} color="#fff" style={gridStyles.videoIcon} />
+        </View>
+      )}
 
       <View style={gridStyles.bottom}>
         <ThemedText style={gridStyles.title} numberOfLines={1}>{title}</ThemedText>
-        <ThemedText style={gridStyles.sub} numberOfLines={1}>
-          {post.city || (post.caption && post.caption !== title ? post.caption : post.author)}
-        </ThemedText>
-        <View style={gridStyles.footerRow}>
-          <View style={gridStyles.ratingRow}>
-            {hasRating ? (
-              <>
-                <Ionicons name="star" size={12} color="#E9C46A" />
-                <ThemedText style={gridStyles.ratingTxt} numberOfLines={1}>
-                  {post.rating!.toFixed(1)}
-                  {post.reviewsCount ? `  (${post.reviewsCount} avis)` : ''}
-                </ThemedText>
-              </>
-            ) : (
-              <>
-                <Ionicons name="heart" size={11} color="rgba(255,255,255,0.85)" />
-                <ThemedText style={gridStyles.ratingTxt} numberOfLines={1}>{post.likes}</ThemedText>
-              </>
-            )}
+        {!!post.city && (
+          <View style={gridStyles.cityRow}>
+            <Ionicons name="location-sharp" size={9} color="rgba(255,255,255,0.85)" />
+            <ThemedText style={gridStyles.sub} numberOfLines={1}>{post.city}</ThemedText>
           </View>
-          <View style={gridStyles.tag}>
-            <ThemedText style={gridStyles.tagTxt} numberOfLines={1}>{catDef(post.category).label}</ThemedText>
-          </View>
-        </View>
+        )}
       </View>
     </Pressable>
   );
@@ -733,23 +712,23 @@ function GridCard({
 
 const gridStyles = StyleSheet.create({
   card: {
-    width: CARD_W, height: CARD_H, borderRadius: 16, overflow: 'hidden',
+    width: CARD_W, height: CARD_H, overflow: 'hidden',
     marginBottom: GRID_GAP, backgroundColor: '#EFEBE3',
   },
   placeholder: { backgroundColor: '#F3EFE7', alignItems: 'center', justifyContent: 'center' },
   shade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  heart: { position: 'absolute', top: 10, right: 10 },
-  bottom: { position: 'absolute', left: 12, right: 10, bottom: 10, gap: 2 },
-  title: { color: '#fff', fontSize: 18, fontFamily: 'OheveSerif-Medium', letterSpacing: -0.2 },
-  sub: { color: 'rgba(255,255,255,0.88)', fontSize: 12 },
-  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 3 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 },
-  ratingTxt: { color: '#fff', fontSize: 11, fontWeight: '500', flexShrink: 1 },
-  tag: {
-    backgroundColor: 'rgba(240,234,222,0.92)', borderRadius: 8,
-    paddingHorizontal: 7, paddingVertical: 3, maxWidth: CARD_W * 0.5, flexShrink: 0,
+  videoBadge: { position: 'absolute', top: 8, right: 8 },
+  videoIcon: { textShadowColor: 'rgba(0,0,0,0.55)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 } },
+  bottom: { position: 'absolute', left: 8, right: 8, bottom: 6 },
+  title: {
+    color: '#fff', fontSize: 11, fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 3, textShadowOffset: { width: 0, height: 1 },
   },
-  tagTxt: { color: '#343630', fontSize: 10, fontWeight: '600' },
+  cityRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  sub: {
+    color: 'rgba(255,255,255,0.88)', fontSize: 10, flexShrink: 1,
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 3, textShadowOffset: { width: 0, height: 1 },
+  },
 });
 
 // ── Post Detail Modal ────────────────────────────────────────────────────────
@@ -1845,7 +1824,7 @@ const styles = StyleSheet.create({
   subChipLbl: { fontSize: 11, fontWeight: '600', color: '#5c5f57' },
   subChipLblOn: { color: '#929B83' },
 
-  gridContent: { paddingHorizontal: GRID_PAD, paddingTop: 4 },
+  gridContent: { paddingTop: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
 
   emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 },
