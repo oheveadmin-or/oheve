@@ -16,6 +16,7 @@ import { C, RADIUS } from '@/constants/OheveTheme';
 import { calendarApi, prestatairesApi, type CalendarEvent } from '@/services/auth/api';
 import { useAuth } from '@/contexts/auth-context';
 import { eventConfig, isWedding } from '@/lib/event-type';
+import { categoryLabel, normalizeCategory, prestaPhoto } from '@/lib/presta-categories';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
 import { placeWithPreposition, weddingPlace } from '@/lib/place-utils';
 import { getGuests, loadGuests, subscribeGuests } from '@/lib/guests-store';
@@ -203,13 +204,22 @@ export default function DashboardScreen() {
   useFocusEffect(useCallback(() => {
     loadAppointments();
     loadHomeProviders().then(async () => {
+      // Photos à jour depuis le serveur : la photo de COUVERTURE choisie par
+      // chaque prestataire (le cache local peut dater d'avant un changement,
+      // ou d'un ajout fait quand il n'avait pas encore de photo).
+      try {
+        const res = await prestatairesApi.list(accessToken);
+        if (res?.success && Array.isArray(res.data)) {
+          for (const p of res.data as { user_id: number; cover_url?: string | null; avatar_url?: string | null }[]) {
+            const photo = prestaPhoto(p);
+            if (photo) updateHomeProvider(String(p.user_id), { coverUrl: photo });
+          }
+        }
+      } catch { /* hors ligne : on garde le cache */ }
       const providers = getHomeProviders();
       setHomeProviders(providers);
       // La carte « Mon mariage sera » montre la salle QUE LE COUPLE A CHOISIE.
-      // (Avant, faute de salle enregistrée, on affichait une salle quelconque
-      // de l'annuaire : la photo ne correspondait pas au lieu du mariage.)
-      const salleKeywords = ['salle', 'lieu', 'reception', 'venue'];
-      const isVenue = (cat?: string | null) => salleKeywords.some((kw) => cat?.toLowerCase().includes(kw));
+      const isVenue = (cat?: string | null) => normalizeCategory(cat) === 'salle';
       let venueFromHome = providers.find((p) => isVenue(p.categorie));
       if (!venueFromHome && accessToken && userId) {
         // Salle déjà PAYÉE dans l'app (avant que le paiement l'ajoute
@@ -238,36 +248,23 @@ export default function DashboardScreen() {
         return;
       }
       const venueId = venueFromHome.id ? parseInt(venueFromHome.id, 10) : undefined;
+      // Fond de la carte = photo de couverture de la salle.
       setVenueProvider({
         name: venueFromHome.nom,
         photoUrl: venueFromHome.coverUrl ?? venueFromHome.avatarUrl,
         id: venueId,
       });
-      // Photo de couverture à jour du compte prestataire (le cache local peut
-      // dater d'avant un changement de photo, ou d'un ajout sans photo).
-      if (!accessToken || !venueId || Number.isNaN(venueId)) return;
-      let photoUrl: string | undefined;
+      if (venueFromHome.coverUrl || !venueId || Number.isNaN(venueId)) return;
+      // Salle absente de l'annuaire (masquée…) : on lit sa fiche directement.
       try {
-        const photosRes = await prestatairesApi.getPhotos(accessToken, venueId);
-        if (photosRes?.success && Array.isArray(photosRes.data)) {
-          // Une vidéo ne s'affiche pas en fond : couverture si c'est une image,
-          // sinon la première image de la galerie.
-          const images = (photosRes.data as ProviderPhoto[]).filter((ph) => ph.media_type !== 'video' && ph.url);
-          photoUrl = (images.find((ph) => ph.is_cover) ?? images[0])?.url;
+        const profileRes = await prestatairesApi.getById(accessToken, venueId);
+        const photoUrl = profileRes?.data ? prestaPhoto(profileRes.data) : null;
+        if (photoUrl) {
+          setVenueProvider({ name: venueFromHome.nom, photoUrl, id: venueId });
+          updateHomeProvider(venueFromHome.id, { coverUrl: photoUrl });
+          setHomeProviders(getHomeProviders());
         }
-      } catch { /* on tente le profil */ }
-      if (!photoUrl) {
-        // Sans photo en galerie : la photo de profil du prestataire.
-        try {
-          const profileRes = await prestatairesApi.getById(accessToken, venueId);
-          photoUrl = profileRes?.data?.avatar_url ?? undefined;
-        } catch { /* on garde le cache */ }
-      }
-      if (photoUrl) {
-        setVenueProvider({ name: venueFromHome.nom, photoUrl, id: venueId });
-        updateHomeProvider(venueFromHome.id, { coverUrl: photoUrl });
-        setHomeProviders(getHomeProviders());
-      }
+      } catch { /* on garde le cache */ }
     });
   }, [loadAppointments, accessToken, userId]));
 
@@ -679,7 +676,7 @@ export default function DashboardScreen() {
                         <View style={styles.vendorInfo}>
                           <ThemedText style={styles.vendorName} numberOfLines={1}>{p.nom}</ThemedText>
                           <ThemedText style={styles.vendorMeta} numberOfLines={1}>
-                            {p.categorie}{p.ville ? ` · ${p.ville}` : ''}
+                            {categoryLabel(p.categorie)}{p.ville ? ` · ${p.ville}` : ''}
                           </ThemedText>
                         </View>
                         {p.note > 0 && (

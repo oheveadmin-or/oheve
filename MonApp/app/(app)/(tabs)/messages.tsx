@@ -12,6 +12,7 @@ import { ErrorBanner } from '@/components/ui/error-banner';
 import { useAuth } from '@/contexts/auth-context';
 import { isWedding } from '@/lib/event-type';
 import { messagingApi, prestatairesApi } from '@/services/auth/api';
+import { categoryLabel } from '@/lib/presta-categories';
 
 type Conversation = {
   id: number;
@@ -280,7 +281,7 @@ export default function MessagesScreen() {
                   <View style={{ flex: 1 }}>
                     <ThemedText style={styles.prestName} numberOfLines={1}>{p.business_name}</ThemedText>
                     <ThemedText style={styles.prestSub} numberOfLines={1}>
-                      {p.category}{p.location_city ? ` · ${p.location_city}` : ''}
+                      {categoryLabel(p.category)}{p.location_city ? ` · ${p.location_city}` : ''}
                     </ThemedText>
                   </View>
                   {starting === p.user_id

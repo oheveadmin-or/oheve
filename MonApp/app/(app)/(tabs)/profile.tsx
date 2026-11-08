@@ -32,6 +32,7 @@ import { API_ENDPOINTS } from '@/constants/config';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
 import { isWedding } from '@/lib/event-type';
 import { usePremiumPrice } from '@/lib/iap';
+import { categoryLabel } from '@/lib/presta-categories';
 
 const { width: W } = Dimensions.get('window');
 const PHOTO_SIZE = (W - 3) / 3;
@@ -357,7 +358,7 @@ function PrestataireInstaProfile() {
           <ThemedText style={instaStyles.bioName}>{businessName}</ThemedText>
           {profile?.category && (
             <View style={[instaStyles.catBadge]}>
-              <ThemedText style={instaStyles.catBadgeTxt}>{profile.category.charAt(0).toUpperCase() + profile.category.slice(1)}</ThemedText>
+              <ThemedText style={instaStyles.catBadgeTxt}>{categoryLabel(profile.category)}</ThemedText>
             </View>
           )}
           {profile?.description ? (

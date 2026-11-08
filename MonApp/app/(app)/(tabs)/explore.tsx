@@ -34,7 +34,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useBoutique } from '@/contexts/boutique-context';
 import { API_ENDPOINTS, SHARE_BASE_URL } from '@/constants/config';
 import { uploadFile } from '@/services/auth/api';
-import { categoryDef, normalizeCategory, PRESTA_CATEGORIES, prestaPhoto, type PrestaCategory } from '@/lib/presta-categories';
+import { categoryDef, categoryLabel, normalizeCategory, PRESTA_CATEGORIES, prestaPhoto, type PrestaCategory } from '@/lib/presta-categories';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -257,7 +257,7 @@ function ProviderModal({
             </View>
             <ThemedText style={provStyles.name}>{provider.name}</ThemedText>
             <View style={[provStyles.catBadge, { backgroundColor: catColor, borderColor: CAT_BEIGE_BORDER }]}>
-              <ThemedText style={[provStyles.catBadgeTxt, { color: CAT_BEIGE_TEXT }]}>{provider.category}</ThemedText>
+              <ThemedText style={[provStyles.catBadgeTxt, { color: CAT_BEIGE_TEXT }]}>{categoryLabel(provider.category)}</ThemedText>
             </View>
             {provider.location && (
               <View style={provStyles.locationRow}>
@@ -530,7 +530,7 @@ function ReelCardBase({
 
       {/* Category badge */}
       <View style={[reelStyles.catBadge, { top: insets.top + 16, backgroundColor: catColor }]}>
-        <ThemedText style={reelStyles.catBadgeTxt}>{post.category}</ThemedText>
+        <ThemedText style={reelStyles.catBadgeTxt}>{categoryLabel(post.category)}</ThemedText>
       </View>
 
       {/* Right actions */}
@@ -744,7 +744,7 @@ function PostDetailModal({
               <Ionicons name={catDef(post.category).icon} size={72} color="#929B83" />
             )}
             <View style={[detailStyles.catChip, { backgroundColor: catColor }]}>
-              <ThemedText style={detailStyles.catChipTxt}>{post.category}</ThemedText>
+              <ThemedText style={detailStyles.catChipTxt}>{categoryLabel(post.category)}</ThemedText>
             </View>
           </View>
 
@@ -1719,13 +1719,13 @@ const styles = StyleSheet.create({
   // la police du téléphone.
   filtersScroll: { flexGrow: 0, flexShrink: 0 },
   filtersRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingBottom: 10 },
-  filterItem: { alignItems: 'center', minWidth: 64, paddingHorizontal: 2 },
+  filterItem: { alignItems: 'center', minWidth: 64, paddingHorizontal: 4 },
   filterCircle: {
     width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#F1EDE5',
   },
   filterCircleOn: { backgroundColor: '#747E68' },
-  filterLabel: { marginTop: 6, fontSize: 11, color: '#5c5f57' },
+  filterLabel: { marginTop: 6, fontSize: 11, color: '#5c5f57', paddingHorizontal: 3 },
   filterLabelOn: { color: '#25261F', fontWeight: '600' },
   filterUnderline: { marginTop: 5, width: 22, height: 2, borderRadius: 1, backgroundColor: 'transparent' },
   filterUnderlineOn: { backgroundColor: '#747E68' },

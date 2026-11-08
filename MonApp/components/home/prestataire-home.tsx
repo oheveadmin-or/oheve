@@ -26,6 +26,7 @@ import { ErrorBanner } from '@/components/ui/error-banner';
 import { isPrestaSubActive, useAuth } from '@/contexts/auth-context';
 import { trialLabel, usePrestaOffer } from '@/lib/presta-offer';
 import { messagingApi, prestatairesApi } from '@/services/auth/api';
+import { categoryLabel } from '@/lib/presta-categories';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
@@ -235,7 +236,7 @@ export function PrestataireHome() {
               {profile?.category && (
                 <View style={styles.categoryPill}>
                   <ThemedText style={styles.categoryPillText}>
-                    {profile.category.charAt(0).toUpperCase() + profile.category.slice(1)}
+                    {categoryLabel(profile.category)}
                   </ThemedText>
                 </View>
               )}

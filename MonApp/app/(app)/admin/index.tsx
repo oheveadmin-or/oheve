@@ -17,6 +17,7 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { useAuth, UserRole } from '@/contexts/auth-context';
 import { adminApi } from '@/services/auth/api';
+import { categoryLabel } from '@/lib/presta-categories';
 
 type Tab = 'dashboard' | 'users' | 'prestataires' | 'boutiques' | 'contenus' | 'reservations' | 'payments' | 'communaute';
 
@@ -293,7 +294,7 @@ export default function AdminDashboard() {
         <View style={styles.cardBody}>
           <ThemedText style={styles.cardTitle}>{p.business_name as string}</ThemedText>
           <ThemedText style={styles.cardSub}>
-            {[p.username ? `@${p.username as string}` : null, (p.email as string) || null, p.category as string, `ID ${userId}`].filter(Boolean).join(' · ')}
+            {[p.username ? `@${p.username as string}` : null, (p.email as string) || null, categoryLabel(p.category as string), `ID ${userId}`].filter(Boolean).join(' · ')}
           </ThemedText>
           {p.admin_password ? (
             <Pressable onPress={() => {

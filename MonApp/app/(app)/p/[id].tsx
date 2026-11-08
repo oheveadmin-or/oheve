@@ -9,6 +9,7 @@ import { FeedVideo } from '@/components/feed-video';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
+import { categoryLabel } from '@/lib/presta-categories';
 
 type PublicPost = {
   id: number;
@@ -94,7 +95,7 @@ export default function SharedPostScreen() {
           <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
             <ThemedText style={styles.author}>
               {post.business_name || `${post.prenom} ${post.nom}`.trim()}
-              {post.category ? `  ·  ${post.category}` : ''}
+              {post.category ? `  ·  ${categoryLabel(post.category)}` : ''}
             </ThemedText>
             {post.caption ? <ThemedText style={styles.caption}>{post.caption}</ThemedText> : null}
             <ThemedText style={styles.likes}>♥ {post.like_count} j'aime</ThemedText>

@@ -34,6 +34,7 @@ import {
   removeProviderFromHome,
   type ProviderContact,
 } from '@/lib/providers-store';
+import { categoryLabel } from '@/lib/presta-categories';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 // Portfolio en grille 3 colonnes dans le contenu (padding 20 de chaque côté)
@@ -155,7 +156,7 @@ export default function ProviderDetailScreen() {
         instagram: saved.instagram,
         website: apiRow?.website ?? '-',
         prix: apiRow?.prix ?? '—',
-        desc: `Catégorie : ${CATEGORIES_LABEL(saved.categorie)} • Note : ${saved.note}/5`,
+        desc: `Catégorie : ${categoryLabel(saved.categorie)} • Note : ${saved.note}/5`,
       };
     }
     if (apiRow) {
@@ -576,13 +577,6 @@ const pmStyles = StyleSheet.create({
   secureTxt: { fontSize: 11, color: '#9A9C93' },
 });
 
-function CATEGORIES_LABEL(slug: string): string {
-  const map: Record<string, string> = {
-    photographe: 'Photographe', traiteur: 'Traiteur', salle: 'Salle',
-    fleuriste: 'Fleuriste', musicien: 'Musicien / DJ', organisateur: 'Organisateur',
-  };
-  return map[slug] ?? slug;
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.ivoire },
