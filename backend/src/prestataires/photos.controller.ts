@@ -29,6 +29,7 @@ export class PhotosController {
       const withUrl = rows.map((p) => ({
         ...p,
         url: `${protocol}://${host}/uploads/photos/${p.filename}`,
+        cover_url: p.cover_filename ? `${protocol}://${host}/uploads/photos/${p.cover_filename}` : null,
       }));
       return res.status(200).json({ success: true, data: withUrl });
     } catch (err) {

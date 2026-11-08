@@ -17,38 +17,8 @@ import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { MADRICHIM_HATAN, MADRICHOT_KALA, MIKVES } from '@/data/officiants';
+import { categoryDef, categoryLabel, normalizeCategory, prestaPhoto } from '@/lib/presta-categories';
 import { prestatairesApi } from '@/services/auth/api';
-
-// Mapping : slug de l'écran → catégories backend (un slug peut matcher plusieurs valeurs)
-const SLUG_TO_CATEGORIES: Record<string, string[]> = {
-  photo:        ['photographe', 'photo', 'vidéaste', 'videaste'],
-  traiteur:     ['traiteur'],
-  salle:        ['salle', 'lieu', 'reception'],
-  fleuriste:    ['fleuriste', 'décoration', 'decoration', 'fleurs'],
-  musique:      ['musique', 'musicien', 'dj', 'animation'],
-  beaute:       ['beaute', 'beauté', 'coiffure', 'maquillage'],
-  tenues:       ['tenues', 'robe', 'costume'],
-  transport:    ['transport'],
-  juif:         ['juif', 'casher', 'rabbin'],
-  patisserie:   ['patisserie', 'pâtisserie', 'gateau', 'gâteau'],
-  planner:      ['planner', 'organisateur', 'wedding planner'],
-  animation:    ['animation', 'photobooth', 'magicien'],
-};
-
-const LABELS: Record<string, string> = {
-  photo:       'Photo & Vidéo',
-  traiteur:    'Traiteurs',
-  salle:       'Lieux de réception',
-  fleuriste:   'Décoration & Fleurs',
-  musique:     'Musique & Animation',
-  beaute:      'Beauté',
-  tenues:      'Tenues',
-  transport:   'Transport',
-  juif:        'Mariage Juif',
-  patisserie:  'Pâtisserie',
-  planner:     'Wedding Planner',
-  animation:   'Animation',
-};
 
 // Mariage juif : l'essentiel de la catégorie, ce sont les guides et services
 // religieux référencés dans l'app. Ils passent avant les prestataires inscrits,
@@ -119,9 +89,11 @@ export default function CategoryProvidersScreen() {
       .list(user?.accessToken)
       .then((res) => {
         if (!res?.success || !Array.isArray(res.data)) return;
-        const cats = SLUG_TO_CATEGORIES[slug] ?? [slug];
+        // Chaque prestataire est rangé dans UNE catégorie officielle
+        // (lib/presta-categories) : plus de correspondance approximative.
+        const target = normalizeCategory(slug);
         const filtered = (res.data as Provider[]).filter((p) => {
-          if (cats.some((c) => p.category?.toLowerCase().includes(c))) return true;
+          if (normalizeCategory(p.category) === target) return true;
           if (slug !== 'juif') return false;
           const text = `${p.business_name ?? ''} ${p.description ?? ''}`.toLowerCase();
           return KOSHER_WORDS.some((w) => text.includes(w));
@@ -159,7 +131,7 @@ export default function CategoryProvidersScreen() {
     return list;
   }, [allProviders, search, sortKey, cityFilter]);
 
-  const label = LABELS[slug] ?? slug;
+  const label = categoryDef(slug).title;
   const isJuif = slug === 'juif';
 
   const goBack = () => {
@@ -250,6 +222,21 @@ export default function CategoryProvidersScreen() {
 
         {/* Liste */}
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
+          {slug === 'chabbat-hattan' && (
+            <Pressable
+              style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
+              onPress={() => router.push('/(app)/chabbat-hattan' as never)}
+            >
+              <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
+                <ThemedText style={{ fontSize: 24, lineHeight: 30 }}>🕯️</ThemedText>
+              </View>
+              <View style={styles.cardBody}>
+                <ThemedText style={styles.cardTitle}>Organiser le Chabbat Hattan</ThemedText>
+                <ThemedText style={styles.cardCateg}>Guide, déroulé et liste des choses à prévoir</ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={C.textLight} />
+            </Pressable>
+          )}
           {isJuif && (
             <>
               <ThemedText style={styles.sectionTitle}>Guides & services religieux</ThemedText>
@@ -307,8 +294,8 @@ export default function CategoryProvidersScreen() {
                 style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
                 onPress={() => router.push(`/(app)/providers/${p.user_id}` as never)}
               >
-                {(p.avatar_url ?? p.cover_url) ? (
-                  <Image source={{ uri: p.avatar_url ?? p.cover_url }} style={styles.cardThumb} contentFit="cover" />
+                {prestaPhoto(p) ? (
+                  <Image source={{ uri: prestaPhoto(p)! }} style={styles.cardThumb} contentFit="cover" />
                 ) : (
                   <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
                     <Ionicons name="business-outline" size={22} color={C.sauge} />
@@ -317,7 +304,7 @@ export default function CategoryProvidersScreen() {
                 <View style={styles.cardBody}>
                   <ThemedText style={styles.cardTitle}>{p.business_name}</ThemedText>
                   <ThemedText style={styles.cardCateg}>
-                    {p.category ? p.category.charAt(0).toUpperCase() + p.category.slice(1) : '—'} · {p.location_city ?? '—'}
+                    {categoryLabel(p.category)}{p.location_city ? ` · ${p.location_city}` : ''}
                   </ThemedText>
                   <View style={styles.ratingRow}>
                     <Ionicons name="star" size={11} color="#F5A623" />
@@ -399,7 +386,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.card,
   },
   cardThumb: {
-    width: 52, height: 52, borderRadius: RADIUS.md, overflow: 'hidden',
+    width: 52, height: 52, borderRadius: 26, overflow: 'hidden',
   },
   cardThumbPlaceholder: {
     backgroundColor: C.saugePale, alignItems: 'center', justifyContent: 'center',

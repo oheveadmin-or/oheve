@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Dimensions,
-  FlatList,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -37,6 +36,9 @@ import {
 } from '@/lib/providers-store';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+// Portfolio en grille 3 colonnes dans le contenu (padding 20 de chaque côté)
+const GALLERY_GAP = 6;
+const GALLERY_TILE = Math.floor((Math.min(SCREEN_WIDTH, 700) - 40 - GALLERY_GAP * 2) / 3);
 const AnimatedView = Animated.createAnimatedComponent(View);
 
 type Photo = { id: number; url: string; is_cover: boolean; caption?: string | null; media_type?: 'image' | 'video' };
@@ -64,6 +66,8 @@ export default function ProviderDetailScreen() {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [apiRow, setApiRow] = useState<ApiRow | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // Couverture renvoyée par la fiche (secours si la liste des photos échoue)
+  const [apiCoverUrl, setApiCoverUrl] = useState<string | null>(null);
   const [paymentModal, setPaymentModal] = useState(false);
   const [bookingModal, setBookingModal] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -71,15 +75,17 @@ export default function ProviderDetailScreen() {
   const [paymentsEnabled, setPaymentsEnabled] = useState(false);
 
   useEffect(() => {
-    if (!user?.accessToken || !id) { setLoadingProfile(false); return; }
+    if (!id) { setLoadingProfile(false); return; }
     const numId = parseInt(id, 10);
     if (isNaN(numId)) { setLoadingProfile(false); return; }
+    const token = user?.accessToken;
 
     // Enregistre une vue du profil (non comptée si le prestataire consulte le sien)
-    prestatairesApi.recordView(numId, user.accessToken);
+    if (token) prestatairesApi.recordView(numId, token);
 
+    // Portfolio public : chargé même sans session valide.
     prestatairesApi
-      .getPhotos(user.accessToken, numId)
+      .getPhotos(token, numId)
       .then((res) => { if (res?.success && Array.isArray(res.data)) setPhotos(res.data); })
       .catch(() => {});
 
@@ -89,19 +95,20 @@ export default function ProviderDetailScreen() {
     if (hasLocalContact) setLoadingProfile(false);
     {
       prestatairesApi
-        .getById(user.accessToken, numId)
+        .getById(token, numId)
         .then((res: { success?: boolean; data?: {
           business_name?: string; category?: string; description?: string;
           location_city?: string; price_min?: number; price_max?: number;
           price_range?: string; phone?: string; website_url?: string;
           email?: string; instagram_url?: string; avatar_url?: string;
-          payments_enabled?: boolean;
+          cover_url?: string | null; payments_enabled?: boolean;
         } }) => {
           if (res?.success && res.data) {
             const p = res.data;
             setPaymentsEnabled(!!p.payments_enabled);
-            if (hasLocalContact) return;
+            if (p.cover_url) setApiCoverUrl(p.cover_url);
             if (p.avatar_url) setAvatarUrl(p.avatar_url);
+            if (hasLocalContact) return;
             const prix = p.price_range?.trim()
               ? p.price_range.trim()
               : p.price_min && p.price_max
@@ -130,10 +137,10 @@ export default function ProviderDetailScreen() {
   const coverImage = coverPhoto?.media_type === 'video'
     ? photos.find((p) => p.media_type !== 'video')
     : coverPhoto;
-  // Photo de profil ronde : avatar réel du prestataire sinon la photo de
-  // couverture / 1re photo — même logique que le profil vu côté prestataire,
-  // pour que la photo de profil s'affiche toujours côté client.
-  const profilePhoto = avatarUrl ?? coverPhoto?.url ?? null;
+  // Photo de profil ronde = la photo de COUVERTURE choisie par le prestataire
+  // (demande 2026-11-08), sinon son avatar de compte.
+  const heroUrl = coverImage?.url ?? apiCoverUrl ?? avatarUrl ?? null;
+  const profilePhoto = coverImage?.url ?? apiCoverUrl ?? avatarUrl ?? null;
 
   const display = useMemo(() => {
     if (!id) return null;
@@ -273,9 +280,9 @@ export default function ProviderDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* ── Photo de couverture hero ─────────────────────────────── */}
-        {(coverPhoto || avatarUrl) ? (
-          <Pressable style={styles.heroWrap} onPress={() => coverPhoto && setSelectedPhoto(coverPhoto)}>
-            <Image source={{ uri: coverPhoto?.url ?? avatarUrl! }} style={styles.heroImage} contentFit="cover" />
+        {heroUrl ? (
+          <Pressable style={styles.heroWrap} onPress={() => coverImage && setSelectedPhoto(coverImage)}>
+            <Image source={{ uri: heroUrl }} style={styles.heroImage} contentFit="cover" />
             <View style={styles.heroOverlay} />
             <View style={styles.heroTextWrap}>
               {/* Photo de profil du prestataire */}
@@ -308,24 +315,19 @@ export default function ProviderDetailScreen() {
           {/* ── Galerie photos ─────────────────────────────────────── */}
           {photos.length > 0 && (
             <AnimatedView entering={FadeInDown.delay(60).springify()}>
-              <ThemedText style={styles.sectionTitle}>Portfolio ({photos.length} photos)</ThemedText>
-              <FlatList
-                data={photos}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => String(item.id)}
-                contentContainerStyle={styles.galleryList}
-                renderItem={({ item, index }) => (
+              <ThemedText style={styles.sectionTitle}>
+                Portfolio ({photos.length} {photos.length > 1 ? 'publications' : 'publication'})
+              </ThemedText>
+              {/* Grille façon Instagram : tout le portfolio visible d'un coup */}
+              <View style={styles.galleryGrid}>
+                {photos.map((item) => (
                   <Pressable
-                    style={[
-                      styles.galleryThumb,
-                      item.is_cover && styles.galleryThumbCover,
-                      index === 0 && styles.galleryThumbFirst,
-                    ]}
+                    key={item.id}
+                    style={[styles.galleryThumb, item.is_cover && styles.galleryThumbCover]}
                     onPress={() => setSelectedPhoto(item)}
                   >
                     {item.media_type === 'video' ? (
-                      <VideoThumbnail uri={item.url} iconSize={30} style={styles.galleryImage} />
+                      <VideoThumbnail uri={item.url} iconSize={26} style={styles.galleryImage} />
                     ) : (
                       <Image source={{ uri: item.url }} style={styles.galleryImage} contentFit="cover" />
                     )}
@@ -335,14 +337,9 @@ export default function ProviderDetailScreen() {
                         <ThemedText style={styles.galleryBadgeText}>Couverture</ThemedText>
                       </View>
                     )}
-                    {!item.is_cover && item.caption ? (
-                      <View style={styles.galleryCaption}>
-                        <ThemedText style={styles.galleryBadgeText} numberOfLines={1}>{item.caption}</ThemedText>
-                      </View>
-                    ) : null}
                   </Pressable>
-                )}
-              />
+                ))}
+              </View>
             </AnimatedView>
           )}
 
@@ -662,16 +659,14 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 20 },
 
   // Gallery
-  galleryList: { paddingRight: 20 },
+  galleryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: GALLERY_GAP, marginTop: 10 },
   galleryThumb: {
-    width: 120,
-    height: 90,
-    borderRadius: RADIUS.md,
+    width: GALLERY_TILE,
+    height: GALLERY_TILE * 1.25,
+    borderRadius: 10,
     overflow: 'hidden',
-    marginRight: 10,
     backgroundColor: C.beige,
   },
-  galleryThumbFirst: { marginLeft: 0 },
   galleryThumbCover: { borderWidth: 2.5, borderColor: C.sauge },
   galleryImage: { width: '100%', height: '100%' },
   galleryVideoTile: { backgroundColor: '#5c5f57', alignItems: 'center', justifyContent: 'center' },

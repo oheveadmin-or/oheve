@@ -110,8 +110,9 @@ export class PrestatairesRepository {
        LEFT JOIN stripe_connect_accounts sca ON sca.user_id=p.user_id
        LEFT JOIN LATERAL (
          SELECT url, filename FROM prestataire_photos
-         WHERE prestataire_id=p.id
-         ORDER BY is_cover DESC, created_at DESC
+         -- Couverture = une IMAGE (une vidéo ne s'affiche pas en vignette)
+         WHERE prestataire_id=p.id AND COALESCE(media_type,'image')='image'
+         ORDER BY is_cover DESC, created_at ASC
          LIMIT 1
        ) ph ON true
        WHERE p.user_id=$1`,
@@ -128,11 +129,10 @@ export class PrestatairesRepository {
       conditions.push(`COALESCE(p.is_hidden, false)=false`);
       conditions.push(`COALESCE(p.is_suspended, false)=false`);
       conditions.push(`u.is_active=true`);
-      // Visible dans le répertoire uniquement si l'abonnement est actif/en essai
-      // (les admins restent visibles quoi qu'il arrive).
-      conditions.push(`(u.role='admin' OR u.presta_sub_status IN ('trialing','active'))`);
-      // Gratuité offerte par l'admin : invisible dès la date de fin dépassée.
-      conditions.push(`(u.presta_sub_id IS DISTINCT FROM 'admin:grant' OR u.presta_current_period_end IS NULL OR u.presta_current_period_end > NOW())`);
+      // TOUS les prestataires inscrits sont visibles dans l'annuaire, avec ou
+      // sans abonnement actif (2026-11-08) : avant, un prestataire qui
+      // publiait des reels pouvait être absent de sa catégorie côté client.
+      // Seuls les comptes masqués / suspendus / désactivés par l'admin sortent.
     }
     if (category) { conditions.push(`p.category=$${i++}`); vals.push(category); }
     if (city) { conditions.push(`p.location_city ILIKE $${i++}`); vals.push(`%${city}%`); }
@@ -149,8 +149,9 @@ export class PrestatairesRepository {
        JOIN users u ON u.id=p.user_id
        LEFT JOIN LATERAL (
          SELECT url, filename FROM prestataire_photos
-         WHERE prestataire_id=p.id
-         ORDER BY is_cover DESC, created_at DESC
+         -- Couverture = une IMAGE (une vidéo ne s'affiche pas en vignette)
+         WHERE prestataire_id=p.id AND COALESCE(media_type,'image')='image'
+         ORDER BY is_cover DESC, created_at ASC
          LIMIT 1
        ) ph ON true
        ${where}

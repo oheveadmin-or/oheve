@@ -22,24 +22,10 @@ import { useAuth } from '@/contexts/auth-context';
 import type { EventType } from '@/lib/event-type';
 import { prestatairesApi, uploadFile } from '@/services/auth/api';
 import { API_ENDPOINTS } from '@/constants/config';
+import { normalizeCategory, PRESTA_CATEGORIES } from '@/lib/presta-categories';
 
 // Taxonomie unifiée avec les catégories côté client (providers.tsx) + reels.
-const CATEGORIES = [
-  { key: 'salle', label: 'Salle / Lieu', icon: '🏛️' },
-  { key: 'traiteur', label: 'Traiteur', icon: '🍽️' },
-  { key: 'photo', label: 'Photo & Vidéo', icon: '📸' },
-  { key: 'musique', label: 'Musique / DJ', icon: '🎵' },
-  { key: 'fleuriste', label: 'Déco & Fleurs', icon: '💐' },
-  { key: 'beaute', label: 'Beauté', icon: '💄' },
-  { key: 'tenues', label: 'Tenues', icon: '👗' },
-  { key: 'transport', label: 'Transport', icon: '🚗' },
-  { key: 'juif', label: 'Mariage Juif', icon: '✡️' },
-  { key: 'chabbat-hattan', label: 'Chabbat Hattan', icon: '🕍' },
-  { key: 'patisserie', label: 'Pâtisserie', icon: '🧁' },
-  { key: 'planner', label: 'Wedding Planner', icon: '📋' },
-  { key: 'animation', label: 'Animation', icon: '🎉' },
-  { key: 'autre', label: 'Autre', icon: '🎊' },
-];
+const CATEGORIES = PRESTA_CATEGORIES.map((c) => ({ key: c.key, label: c.label, icon: c.emoji }));
 
 type ProfileData = {
   business_name: string;
@@ -84,7 +70,7 @@ export default function PrestataireProfileEdit() {
           const d = res.data;
           setForm({
             business_name: d.business_name ?? '',
-            category: d.category ?? '',
+            category: d.category ? normalizeCategory(d.category) : '',
             city: d.location_city ?? d.city ?? '',
             phone: d.phone ?? '',
             description: d.description ?? '',

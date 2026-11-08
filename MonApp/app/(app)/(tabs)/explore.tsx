@@ -34,29 +34,16 @@ import { useAuth } from '@/contexts/auth-context';
 import { useBoutique } from '@/contexts/boutique-context';
 import { API_ENDPOINTS, SHARE_BASE_URL } from '@/constants/config';
 import { uploadFile } from '@/services/auth/api';
+import { categoryDef, normalizeCategory, PRESTA_CATEGORIES, prestaPhoto, type PrestaCategory } from '@/lib/presta-categories';
 
 const { width: W, height: H } = Dimensions.get('window');
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type MainCategory =
-  | 'tout'
-  | 'décoration'
-  | 'photos'
-  | 'tenues'
-  | 'fleurs'
-  | 'traiteur'
-  | 'musique'
-  | 'souvenirs'
-  | 'salle'
-  | 'beaute'
-  | 'transport'
-  | 'juif'
-  | 'chabbat-hattan'
-  | 'patisserie'
-  | 'planner'
-  | 'animation'
-  | 'autres';
+// Mêmes catégories que l'inscription prestataire et l'annuaire client
+// (lib/presta-categories) : un reel tombe toujours dans la catégorie du
+// prestataire qui l'a publié.
+type MainCategory = 'tout' | PrestaCategory;
 
 type SubCategory = 'robes' | 'accessoires' | 'tenue-soiree' | 'salle-mariage' | 'chabat' | 'henne';
 
@@ -84,6 +71,8 @@ type Post = {
   category: Exclude<MainCategory, 'tout'>;
   subCategory?: SubCategory;
   author: string;
+  /** Photo ronde du prestataire = sa photo de couverture (sinon avatar). */
+  authorPhoto?: string;
   /** Nom de l'établissement, ville et note du prestataire (cartes Explore). */
   businessName?: string;
   city?: string;
@@ -119,17 +108,17 @@ function formatCommentTime(iso: string): string {
 // ── Demo providers ───────────────────────────────────────────────────────────
 const DEMO_PROVIDERS: Record<string, ProviderProfile> = {
   p1: {
-    id: 'p1', name: 'Sophie R.', category: 'fleurs', instagram: 'sophie.fleurs',
+    id: 'p1', name: 'Sophie R.', category: 'fleuriste', instagram: 'sophie.fleurs',
     description: 'Fleuriste spécialisée en mariage depuis 10 ans. Créations sur mesure pour votre jour J.',
     location: 'Paris, 75', postsCount: 24,
   },
   p2: {
-    id: 'p2', name: 'Léa M.', category: 'décoration', instagram: 'lea.deco.events',
+    id: 'p2', name: 'Léa M.', category: 'fleuriste', instagram: 'lea.deco.events',
     description: "Décoratrice d'intérieur & événements. Chaque mariage mérite d'être unique.",
     location: 'Lyon, 69', postsCount: 18,
   },
   p3: {
-    id: 'p3', name: 'Tom V.', category: 'photos', instagram: 'tomv.photo',
+    id: 'p3', name: 'Tom V.', category: 'photo', instagram: 'tomv.photo',
     description: 'Photographe professionnel spécialisé en golden hour et instants de vie.',
     location: 'Nice, 06', postsCount: 47,
   },
@@ -149,12 +138,12 @@ const DEMO_PROVIDERS: Record<string, ProviderProfile> = {
     location: 'Paris, 75', postsCount: 15,
   },
   p7: {
-    id: 'p7', name: 'Clara N.', category: 'décoration', instagram: 'clara.events',
+    id: 'p7', name: 'Clara N.', category: 'fleuriste', instagram: 'clara.events',
     description: 'Décoration florale et lumineuse. Spécialiste tables d\'honneur.',
     location: 'Bordeaux, 33', postsCount: 29,
   },
   p8: {
-    id: 'p8', name: 'Alex P.', category: 'photos', instagram: 'alexp.mariage',
+    id: 'p8', name: 'Alex P.', category: 'photo', instagram: 'alexp.mariage',
     description: 'Photographie de mariage — naturaliste et poétique.',
     location: 'Toulouse, 31', postsCount: 55,
   },
@@ -172,29 +161,7 @@ const CATEGORIES: {
   subcategories?: { key: SubCategory; label: string; icon: IconName }[];
 }[] = [
   { key: 'tout', label: 'Tout', icon: 'sparkles-outline' },
-  { key: 'salle', label: 'Salles / Lieux', icon: 'home-outline' },
-  { key: 'traiteur', label: 'Traiteur', icon: 'restaurant-outline' },
-  { key: 'photos', label: 'Photo & Vidéo', icon: 'camera-outline' },
-  { key: 'décoration', label: 'Décoration', icon: 'flame-outline' },
-  { key: 'musique', label: 'DJ / Musique', icon: 'musical-notes-outline' },
-  { key: 'beaute', label: 'Beauté', icon: 'brush-outline' },
-  { key: 'fleurs', label: 'Fleurs', icon: 'flower-outline' },
-  {
-    key: 'tenues', label: 'Tenues', icon: 'shirt-outline',
-    subcategories: [
-      { key: 'robes', label: 'Robes de mariée', icon: 'woman-outline' },
-      { key: 'accessoires', label: 'Accessoires', icon: 'diamond-outline' },
-      { key: 'tenue-soiree', label: 'Tenues de soirée', icon: 'moon-outline' },
-    ],
-  },
-  { key: 'transport', label: 'Transport', icon: 'car-outline' },
-  { key: 'juif', label: 'Mariage Juif', icon: 'star-outline' },
-  { key: 'chabbat-hattan', label: 'Chabbat Hattan', icon: 'book-outline' },
-  { key: 'patisserie', label: 'Pâtisserie', icon: 'ice-cream-outline' },
-  { key: 'planner', label: 'Wedding Planner', icon: 'clipboard-outline' },
-  { key: 'animation', label: 'Animation', icon: 'balloon-outline' },
-  { key: 'souvenirs', label: 'Souvenirs', icon: 'gift-outline' },
-  { key: 'autres', label: 'Autre', icon: 'ellipsis-horizontal' },
+  ...PRESTA_CATEGORIES.map((c) => ({ key: c.key as MainCategory, label: c.label, icon: c.icon })),
 ];
 
 const catDef = (key: MainCategory) => CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1];
@@ -595,7 +562,11 @@ function ReelCardBase({
       >
         <View style={reelStyles.authorRow}>
           <View style={[reelStyles.avatar, { backgroundColor: catColor }]}>
-            <ThemedText style={reelStyles.avatarTxt}>{post.author[0]}</ThemedText>
+            {post.authorPhoto ? (
+              <Image source={{ uri: post.authorPhoto }} style={reelStyles.avatarImg} contentFit="cover" />
+            ) : (
+              <ThemedText style={reelStyles.avatarTxt}>{post.author[0]}</ThemedText>
+            )}
           </View>
           <ThemedText style={reelStyles.author}>{post.author}</ThemedText>
           {post.providerId && (
@@ -641,7 +612,8 @@ const reelStyles = StyleSheet.create({
   actionCount: { color: '#fff', fontSize: 11, fontWeight: '600' },
   bottomInfo: { position: 'absolute', left: 16, right: 80, gap: 8 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff', overflow: 'hidden' },
+  avatarImg: { width: '100%', height: '100%' },
   avatarTxt: { color: CAT_BEIGE_TEXT, fontWeight: '700', fontSize: 14 },
   author: { color: '#fff', fontWeight: '700', fontSize: 14 },
   verifiedBadge: { backgroundColor: '#fff', borderRadius: 10, padding: 1 },
@@ -793,7 +765,11 @@ function PostDetailModal({
               disabled={!post.userId && !post.providerId}
             >
               <View style={[detailStyles.avatar, { backgroundColor: catColor }]}>
-                <ThemedText style={detailStyles.avatarTxt}>{post.author[0]}</ThemedText>
+                {post.authorPhoto ? (
+                  <Image source={{ uri: post.authorPhoto }} style={detailStyles.avatarImg} contentFit="cover" />
+                ) : (
+                  <ThemedText style={detailStyles.avatarTxt}>{post.author[0]}</ThemedText>
+                )}
               </View>
               <View style={{ flex: 1 }}>
                 <ThemedText style={detailStyles.authorName}>{post.author}</ThemedText>
@@ -843,7 +819,8 @@ const detailStyles = StyleSheet.create({
   catChipTxt: { color: CAT_BEIGE_TEXT, fontSize: 11, fontWeight: '700' },
   body: { padding: 14, gap: 10 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImg: { width: '100%', height: '100%' },
   avatarTxt: { color: CAT_BEIGE_TEXT, fontWeight: '700', fontSize: 15 },
   authorName: { fontSize: 14, fontWeight: '700', color: '#343630' },
   providerHint: { fontSize: 11, color: '#929B83', marginTop: 1 },
@@ -866,7 +843,7 @@ function CreatePostModal({
   onPublish: (caption: string, category: Exclude<MainCategory, 'tout'>, subCategory?: SubCategory, mediaUri?: string, mediaType?: 'image' | 'video') => void;
 }) {
   const [newCaption, setNewCaption] = useState('');
-  const [newCategory, setNewCategory] = useState<Exclude<MainCategory, 'tout'>>('décoration');
+  const [newCategory, setNewCategory] = useState<Exclude<MainCategory, 'tout'>>('autre');
   const [newSubCategory, setNewSubCategory] = useState<SubCategory | undefined>();
   const [newMediaUri, setNewMediaUri] = useState<string | undefined>();
   const [newMediaType, setNewMediaType] = useState<'image' | 'video' | undefined>();
@@ -876,14 +853,13 @@ function CreatePostModal({
   useEffect(() => {
     if (visible) {
       setNewCaption('');
-      setNewCategory('décoration');
+      setNewCategory('autre');
       setNewSubCategory(undefined);
       setNewMediaUri(undefined);
       setNewMediaType(undefined);
     }
   }, [visible]);
 
-  const selectedCatDef = CATEGORIES.find((c) => c.key === newCategory);
 
   const handlePickMedia = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -947,47 +923,11 @@ function CreatePostModal({
               numberOfLines={3}
             />
 
-            {/* Category */}
-            <ThemedText style={createStyles.fieldLabel}>Catégorie</ThemedText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={createStyles.chipRow}>
-              {CATEGORIES.filter((c) => c.key !== 'tout').map((c) => {
-                const active = newCategory === c.key;
-                const color = '#929B83';
-                return (
-                  <Pressable
-                    key={c.key}
-                    style={[createStyles.chip, active && { backgroundColor: color, borderColor: color }]}
-                    onPress={() => { setNewCategory(c.key as Exclude<MainCategory, 'tout'>); setNewSubCategory(undefined); }}
-                  >
-                    <Ionicons name={c.icon} size={14} color={active ? '#fff' : '#747E68'} />
-                    <ThemedText style={[createStyles.chipLbl, active && { color: '#fff' }]}>{c.label}</ThemedText>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {/* Subcategory */}
-            {selectedCatDef?.subcategories && (
-              <>
-                <ThemedText style={createStyles.fieldLabel}>Sous-catégorie</ThemedText>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={createStyles.chipRow}>
-                  {selectedCatDef.subcategories.map((sc) => {
-                    const active = newSubCategory === sc.key;
-                    const color = '#929B83';
-                    return (
-                      <Pressable
-                        key={sc.key}
-                        style={[createStyles.chip, active && { backgroundColor: color, borderColor: color }]}
-                        onPress={() => setNewSubCategory(sc.key as SubCategory)}
-                      >
-                        <Ionicons name={sc.icon} size={14} color={active ? '#fff' : '#747E68'} />
-                        <ThemedText style={[createStyles.chipLbl, active && { color: '#fff' }]}>{sc.label}</ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </>
-            )}
+            {/* Pas de choix de catégorie ici : la publication est rangée
+                automatiquement dans la catégorie du profil prestataire. */}
+            <ThemedText style={createStyles.fieldLabel}>
+              Ta publication apparaîtra dans ta catégorie de prestataire.
+            </ThemedText>
 
             <View style={createStyles.actions}>
               <Pressable style={createStyles.btnCancel} onPress={onClose}>
@@ -1109,31 +1049,6 @@ export default function ExploreScreen() {
     });
   });
 
-  // ── Catégorie backend → MainCategory ─────────────────────────────────────
-  const CAT_MAP: Record<string, Exclude<MainCategory, 'tout'>> = {
-    photographe: 'photos', photo: 'photos', 'photo & vidéo': 'photos', traiteur: 'traiteur', traiteurs: 'traiteur',
-    fleuriste: 'fleurs', fleurs: 'fleurs',
-    musique: 'musique', 'musique / dj': 'musique', 'musique & animation': 'musique', musicien: 'musique',
-    décoration: 'décoration', decoration: 'décoration', deco: 'décoration',
-    'salle / lieu': 'salle', 'lieux de réception': 'salle', salle: 'salle', lieu: 'salle',
-    tenues: 'tenues',
-    beaute: 'beaute', 'beauté': 'beaute',
-    transport: 'transport',
-    juif: 'juif', 'mariage juif': 'juif',
-    'chabbat-hattan': 'chabbat-hattan', 'chabbat hattan': 'chabbat-hattan',
-    patisserie: 'patisserie', 'pâtisserie': 'patisserie',
-    planner: 'planner', 'wedding planner': 'planner', organisateur: 'planner',
-    animation: 'animation',
-    autre: 'autres', autres: 'autres',
-  };
-
-  // Emoji de repli quand une photo n'a pas d'image (par catégorie)
-  const CAT_EMOJI: Record<Exclude<MainCategory, 'tout'>, string> = {
-    décoration: '🕯️', fleurs: '🌸', photos: '📸', tenues: '👗',
-    traiteur: '🍽️', musique: '🎵', souvenirs: '💝', salle: '💒',
-    beaute: '💄', transport: '🚗', juif: '✡️', 'chabbat-hattan': '🕍',
-    patisserie: '🧁', planner: '📋', animation: '🎉', autres: '🎊',
-  };
 
   // ── Applique les feedPosts en fusionnant avec l'état existant et met en cache ─
   const applyFeedPosts = useCallback((feedPosts: Post[]) => {
@@ -1189,6 +1104,7 @@ export default function ExploreScreen() {
           user_id: number; business_name: string; category: string; prenom: string; nom: string;
           like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null;
           media_type?: string; location_city?: string | null; rating?: number | null; reviews_count?: number | null;
+          cover_url?: string | null; avatar_url?: string | null;
         }) => ({
           id: `feed-${p.id}`,
           photoId: p.id,
@@ -1198,8 +1114,9 @@ export default function ExploreScreen() {
           // Priorité à la description saisie par le prestataire lors de l'ajout ;
           // à défaut, on affiche le nom de l'établissement.
           caption: (p.caption && p.caption.trim()) || p.business_name || `${p.prenom} ${p.nom}`.trim(),
-          category: CAT_MAP[p.category?.toLowerCase()?.trim()] ?? 'autres',
+          category: normalizeCategory(p.category),
           author: `${p.prenom} ${p.nom ? p.nom[0] + '.' : ''}`.trim(),
+          authorPhoto: prestaPhoto(p) ?? undefined,
           businessName: p.business_name || undefined,
           city: p.location_city || undefined,
           rating: p.rating != null ? Number(p.rating) : undefined,
@@ -1211,7 +1128,7 @@ export default function ExploreScreen() {
           commentCount: p.comment_count ?? 0,
           createdAt: p.created_at,
           bgColor: '#F5EFE8',
-          bgEmoji: CAT_EMOJI[CAT_MAP[p.category?.toLowerCase()?.trim()] ?? 'autres'],
+          bgEmoji: categoryDef(p.category).emoji,
         }));
         applyFeedPosts(rankFeed(feedPosts, affinityRef.current));
       })

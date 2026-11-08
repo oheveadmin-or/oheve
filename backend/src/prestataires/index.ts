@@ -43,8 +43,8 @@ const upload = multer({
 prestatairesRoutes.get('/', optionalAuth, ctrl.list.bind(ctrl));
 prestatairesRoutes.get('/me', requireAuth, ctrl.getMyProfile.bind(ctrl));
 // NB : pas de barrière d'abonnement ici — la fiche est remplie PENDANT
-// l'inscription (avant l'abonnement). La visibilité côté clients reste
-// réservée aux abonnés via le filtre du répertoire (repository.list).
+// l'inscription (avant l'abonnement). Tous les prestataires inscrits sont
+// visibles dans l'annuaire client (repository.list).
 prestatairesRoutes.put('/me', requireAuth, ctrl.upsertProfile.bind(ctrl));
 
 // ── Feed photos (toutes les photos publiques) ─────────────────────────────────
@@ -68,6 +68,8 @@ prestatairesRoutes.get('/photos/:photoId/comments', requireAuth, photos.getComme
 prestatairesRoutes.post('/photos/:photoId/comments', requireAuth, photos.addComment.bind(photos));
 
 // ── Profil & photos par userId ────────────────────────────────────────────────
-prestatairesRoutes.get('/:userId/photos', requireAuth, photos.getPhotos.bind(photos));
+// Portfolio public (comme le feed) : visible par tout client, même si son jeton
+// a expiré — sinon la fiche s'affiche sans aucune photo.
+prestatairesRoutes.get('/:userId/photos', optionalAuth, photos.getPhotos.bind(photos));
 prestatairesRoutes.post('/:userId/view', optionalAuth, ctrl.recordView.bind(ctrl));
 prestatairesRoutes.get('/:userId', optionalAuth, ctrl.getById.bind(ctrl));

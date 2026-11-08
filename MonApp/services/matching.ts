@@ -35,6 +35,7 @@ export type MatchResult = {
 const BUDGET_SPLIT: Record<string, number> = {
   salle: 0.40,
   traiteur: 0.25,
+  photo: 0.10,
   photos: 0.10,
   photographe: 0.10,
   video: 0.05,
@@ -42,6 +43,7 @@ const BUDGET_SPLIT: Record<string, number> = {
   musique: 0.08,
   décoration: 0.07,
   fleurs: 0.05,
+  fleuriste: 0.07,
   default: 0.05,
 };
 

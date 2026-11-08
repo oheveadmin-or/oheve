@@ -20,6 +20,7 @@ import { type ProviderContact } from '@/lib/providers-store';
 import { prestatairesApi } from '@/services/auth/api';
 import { computeMatch, type WeddingProfile } from '@/services/matching';
 import { eventConfig, isWedding, selectedProviders } from '@/lib/event-type';
+import { categoryLabel, normalizeCategory, PRESTA_CATEGORIES } from '@/lib/presta-categories';
 
 /** Clé de prestataire (onboarding) → catégorie de l'annuaire. */
 const NEED_TO_SLUG: Record<string, string> = {
@@ -47,26 +48,19 @@ function categoriesFor(eventType?: string | null, needed?: string[] | null): Cat
 type CategoryItem = {
   slug: string;
   label: string;
-  count: number;
   icon: keyof typeof Ionicons.glyphMap;
   bg: string;
 };
 
-const MAIN_CATEGORIES: CategoryItem[] = [
-  { slug: 'salle', label: 'Lieux de réception', count: 48, icon: 'business-outline', bg: '#E8E4DC' },
-  { slug: 'traiteur', label: 'Traiteurs', count: 73, icon: 'restaurant-outline', bg: '#ECE8E0' },
-  { slug: 'photo', label: 'Photo & Vidéo', count: 92, icon: 'camera-outline', bg: '#E4E8E4' },
-  { slug: 'musique', label: 'Musique & Animation', count: 64, icon: 'musical-notes-outline', bg: '#EBE6DE' },
-  { slug: 'fleuriste', label: 'Décoration & Fleurs', count: 51, icon: 'flower-outline', bg: '#F5F2ED' },
-  { slug: 'beaute', label: 'Beauté', count: 38, icon: 'sparkles-outline', bg: '#EDE4E8' },
-  { slug: 'tenues', label: 'Tenues', count: 49, icon: 'shirt-outline', bg: '#E4E8ED' },
-  { slug: 'transport', label: 'Transport', count: 27, icon: 'car-outline', bg: '#EDE8E4' },
-  { slug: 'juif', label: 'Mariage Juif', count: 91, icon: 'star-outline', bg: '#E8E4EE' },
-  { slug: 'chabbat-hattan', label: 'Chabbat Hattan', count: 0, icon: 'moon-outline', bg: '#EAE4F0' },
-  { slug: 'patisserie', label: 'Pâtisserie', count: 19, icon: 'cafe-outline', bg: '#EEE8E4' },
-  { slug: 'planner', label: 'Wedding Planner', count: 22, icon: 'clipboard-outline', bg: '#E4EDE8' },
-  { slug: 'animation', label: 'Animation', count: 23, icon: 'happy-outline', bg: '#EDE4E4' },
-];
+// Construit depuis la taxonomie unique (lib/presta-categories) : chaque
+// catégorie qu'un prestataire peut choisir à l'inscription a sa page ici.
+const CATEGORY_BG = ['#E8E4DC', '#ECE8E0', '#E4E8E4', '#EBE6DE', '#F5F2ED', '#EDE4E8', '#E4E8ED', '#EDE8E4', '#E8E4EE', '#EAE4F0', '#EEE8E4', '#E4EDE8', '#EDE4E4', '#EAE7E1'];
+const MAIN_CATEGORIES: CategoryItem[] = PRESTA_CATEGORIES.map((c, i) => ({
+  slug: c.key,
+  label: c.title,
+  icon: c.icon,
+  bg: CATEGORY_BG[i % CATEGORY_BG.length],
+}));
 
 
 export default function ProvidersScreen() {
@@ -165,9 +159,7 @@ export default function ProvidersScreen() {
               key={cat.slug}
               style={[styles.categoryCard, { backgroundColor: cat.bg }]}
               onPress={() =>
-                cat.slug === 'chabbat-hattan'
-                  ? router.push('/(app)/chabbat-hattan' as never)
-                  : router.push(`/(app)/providers/categories/${cat.slug}` as never)
+                router.push(`/(app)/providers/categories/${cat.slug}` as never)
               }
             >
               <Ionicons name={cat.icon} size={32} color={C.saugeDark} style={styles.categoryIcon} />
@@ -185,7 +177,7 @@ export default function ProvidersScreen() {
             guestsCount: 150,
           };
           const ranked = apiProviders
-            .map(p => ({ ...p, match: computeMatch({ id: p.id, category: p.categorie, rating: p.note || undefined, reviewsCount: p.note > 0 ? 10 : 0 }, weddingProfile) }))
+            .map(p => ({ ...p, match: computeMatch({ id: p.id, category: normalizeCategory(p.categorie), rating: p.note || undefined, reviewsCount: p.note > 0 ? 10 : 0 }, weddingProfile) }))
             .sort((a, b) => b.match.score - a.match.score);
           const top = ranked.slice(0, 6);
           return (
@@ -200,8 +192,8 @@ export default function ProvidersScreen() {
                     style={styles.providerCard}
                     onPress={() => router.push(`/(app)/providers/${p.id}` as never)}
                   >
-                    {(p.coverUrl ?? p.avatarUrl) ? (
-                      <Image source={{ uri: p.coverUrl ?? p.avatarUrl }} style={styles.providerCardImg} contentFit="cover" />
+                    {(p.coverUrl || p.avatarUrl) ? (
+                      <Image source={{ uri: (p.coverUrl || p.avatarUrl)! }} style={styles.providerCardImg} contentFit="cover" />
                     ) : (
                       <View style={[styles.providerCardImg, { backgroundColor: C.beige, alignItems: 'center', justifyContent: 'center' }]}>
                         <Ionicons name="business-outline" size={36} color={C.saugeDark} />
@@ -216,7 +208,7 @@ export default function ProvidersScreen() {
                     </Pressable>
                     <View style={styles.providerCardBody}>
                       <ThemedText style={styles.providerCardName} numberOfLines={1}>{p.nom}</ThemedText>
-                      <ThemedText style={styles.providerCardMeta} numberOfLines={1}>{p.categorie} · {p.ville}</ThemedText>
+                      <ThemedText style={styles.providerCardMeta} numberOfLines={1}>{categoryLabel(p.categorie)}{p.ville ? ` · ${p.ville}` : ''}</ThemedText>
                       {p.note > 0 && (
                         <View style={styles.ratingRow}>
                           <Ionicons name="star" size={11} color="#F5A623" />
@@ -246,8 +238,8 @@ export default function ProvidersScreen() {
                 style={styles.recentCard}
                 onPress={() => router.push(`/(app)/providers/${p.id}` as never)}
               >
-                {(p.coverUrl ?? p.avatarUrl) ? (
-                  <Image source={{ uri: p.coverUrl ?? p.avatarUrl }} style={styles.recentIcon} contentFit="cover" />
+                {(p.coverUrl || p.avatarUrl) ? (
+                  <Image source={{ uri: (p.coverUrl || p.avatarUrl)! }} style={styles.recentIcon} contentFit="cover" />
                 ) : (
                   <View style={[styles.recentIcon, { alignItems: 'center', justifyContent: 'center' }]}>
                     <Ionicons name="business-outline" size={22} color={C.saugeDark} />
@@ -255,7 +247,7 @@ export default function ProvidersScreen() {
                 )}
                 <View style={{ flex: 1 }}>
                   <ThemedText style={styles.recentName}>{p.nom}</ThemedText>
-                  <ThemedText style={styles.recentMeta}>{p.categorie} · {p.ville}</ThemedText>
+                  <ThemedText style={styles.recentMeta}>{categoryLabel(p.categorie)}{p.ville ? ` · ${p.ville}` : ''}</ThemedText>
                   {p.note > 0 && (
                     <View style={styles.ratingRow}>
                       <Ionicons name="star" size={10} color="#F5A623" />

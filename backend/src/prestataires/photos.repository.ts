@@ -95,11 +95,15 @@ export class PhotosRepository {
     return deleted;
   }
 
-  async findFeedPhotos(limit: number, offset: number, viewerUserId?: number): Promise<(PhotoRow & { business_name: string; category: string; prenom: string; nom: string; like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null; location_city: string | null; rating: number | null; reviews_count: number | null })[]> {
+  async findFeedPhotos(limit: number, offset: number, viewerUserId?: number): Promise<(PhotoRow & { business_name: string; category: string; prenom: string; nom: string; like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null; location_city: string | null; rating: number | null; reviews_count: number | null; avatar_url: string | null; cover_filename: string | null })[]> {
     const r = await pool.query(
       `SELECT pp.id, pp.filename, pp.is_cover, pp.caption, pp.media_type, pp.created_at,
               p.business_name, p.category, p.location_city, p.rating::float AS rating, p.reviews_count,
-              u.id AS user_id, u.prenom, u.nom,
+              u.id AS user_id, u.prenom, u.nom, u.avatar_url,
+              -- Photo de couverture du prestataire = sa photo ronde sur les reels
+              (SELECT c.filename FROM prestataire_photos c
+                WHERE c.prestataire_id = p.id AND COALESCE(c.media_type,'image')='image'
+                ORDER BY c.is_cover DESC, c.created_at ASC LIMIT 1) AS cover_filename,
               COUNT(DISTINCT pl.id)::int AS like_count,
               COUNT(DISTINCT pc.id)::int AS comment_count,
               bool_or(pl2.user_id IS NOT NULL) AS liked_by_me
@@ -112,7 +116,7 @@ export class PhotosRepository {
        WHERE COALESCE(p.is_hidden, false) = false AND COALESCE(p.is_suspended, false) = false
          -- Reels : un compte Bar Mitsva ne voit que les prestataires qui en font
          AND ($4::text IS NULL OR ${sqlCoversEvent('p', '$4')})
-       GROUP BY pp.id, pp.caption, pp.media_type, p.business_name, p.category, p.location_city, p.rating, p.reviews_count, u.id, u.prenom, u.nom
+       GROUP BY pp.id, pp.caption, pp.media_type, p.id, p.business_name, p.category, p.location_city, p.rating, p.reviews_count, u.id, u.prenom, u.nom, u.avatar_url
        ORDER BY pp.created_at DESC
        LIMIT $1 OFFSET $2`,
       [limit, offset, viewerUserId ?? 0, await viewerEventType(viewerUserId)]
@@ -129,7 +133,11 @@ export class PhotosRepository {
     const r = await pool.query(
       `SELECT pp.id, pp.filename, pp.caption, pp.media_type, pp.created_at,
               p.business_name, p.category,
-              u.id AS user_id, u.prenom, u.nom,
+              u.id AS user_id, u.prenom, u.nom, u.avatar_url,
+              -- Photo de couverture du prestataire = sa photo ronde sur les reels
+              (SELECT c.filename FROM prestataire_photos c
+                WHERE c.prestataire_id = p.id AND COALESCE(c.media_type,'image')='image'
+                ORDER BY c.is_cover DESC, c.created_at ASC LIMIT 1) AS cover_filename,
               (SELECT COUNT(*)::int FROM photo_likes pl WHERE pl.photo_id = pp.id) AS like_count
        FROM prestataire_photos pp
        JOIN prestataire_profiles p ON pp.prestataire_id = p.id

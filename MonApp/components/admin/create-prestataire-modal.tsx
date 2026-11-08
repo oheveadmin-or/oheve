@@ -11,24 +11,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { adminApi } from '@/services/auth/api';
+import { PRESTA_CATEGORIES } from '@/lib/presta-categories';
 
 // Même taxonomie que prestataire/setup.tsx et profile-edit.tsx.
-const CATEGORIES = [
-  { key: 'salle', label: 'Salle / Lieu' },
-  { key: 'traiteur', label: 'Traiteur' },
-  { key: 'photo', label: 'Photo & Vidéo' },
-  { key: 'musique', label: 'Musique / DJ' },
-  { key: 'fleuriste', label: 'Déco & Fleurs' },
-  { key: 'beaute', label: 'Beauté' },
-  { key: 'tenues', label: 'Tenues' },
-  { key: 'transport', label: 'Transport' },
-  { key: 'juif', label: 'Mariage Juif' },
-  { key: 'chabbat-hattan', label: 'Chabbat Hattan' },
-  { key: 'patisserie', label: 'Pâtisserie' },
-  { key: 'planner', label: 'Wedding Planner' },
-  { key: 'animation', label: 'Animation' },
-  { key: 'autre', label: 'Autre' },
-];
+const CATEGORIES = PRESTA_CATEGORIES.map((c) => ({ key: c.key, label: c.label }));
 
 /** Durées proposées pour la gratuité (en mois) ; 0 = sans limite. */
 export const GRANT_DURATIONS = [

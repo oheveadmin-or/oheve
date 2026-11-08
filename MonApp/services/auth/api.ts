@@ -293,11 +293,10 @@ export const prestatairesApi = {
     });
   },
 
-  getPhotos: (accessToken: string, userId?: number) => {
-    const url = userId
-      ? `${API_ENDPOINTS.prestataires}/${userId}/photos`
-      : `${API_ENDPOINTS.prestataires}/me/photos`;
-    return get(url, accessToken);
+  getPhotos: (accessToken: string | undefined, userId?: number) => {
+    // Portfolio d'un prestataire = public (jeton facultatif) ; /me = privé.
+    if (userId) return getPublic(`${API_ENDPOINTS.prestataires}/${userId}/photos`, accessToken);
+    return get(`${API_ENDPOINTS.prestataires}/me/photos`, accessToken ?? '');
   },
 
   uploadPhoto: (accessToken: string, formData: FormData) =>
