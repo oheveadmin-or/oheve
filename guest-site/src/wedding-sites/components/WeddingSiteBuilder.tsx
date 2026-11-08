@@ -10,7 +10,7 @@ import { createDefaultRSVPForm, newEvent, type RSVPEvent, type RSVPForm } from '
 import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS, type ThemePreset } from '../data/weddingThemes';
 import { defaultInvitationTexts, invitationTextFields, withInvitationTexts, type InvitationTextKey } from '../data/invitationTexts';
 import { applyColorCombination, COLOR_COMBINATIONS, type ColorCombination } from '../data/colorCombinations';
-import { MUSIC_SUGGESTIONS, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId, isYouTubeUrl } from '../data/musicSuggestions';
+import { musicSuggestionsFor, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId, isYouTubeUrl } from '../data/musicSuggestions';
 import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, uploadWeddingMusic, adaptPhotoToTheme } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
@@ -35,7 +35,7 @@ import type {
 import { defaultWeddingTheme } from '../types';
 import { autoSections } from '../utils/autoSections';
 import { withPrettyNames } from '../utils/names';
-import { eventDefaultPaletteName, eventHeroName, eventSiteConfig, isWeddingEvent, mainEventLabel, normalizeEventType, programDefaults, siteDisplayName } from '../utils/eventType';
+import { eventDefaultPaletteName, eventHeroName, eventSiteConfig, isWeddingEvent, mainEventLabel, normalizeEventType, programDefaults, shabbatHotelLabel, siteDisplayName, verseSuggestions } from '../utils/eventType';
 import type { SiteEventType } from '../utils/eventType';
 import { eventBasePath, eventTypeFromPath, useCanonicalEventPath } from '../utils/eventRoutes';
 import { EventIcon, mainIconKind } from './EventIcon';
@@ -1050,7 +1050,7 @@ export function WeddingSiteBuilder() {
     <div className="wedding-builder-layout">
       <div style={formColumn} ref={formColumnRef}>
         <header style={{ marginBottom: '0.5rem' }}>
-          <h1 style={h1}>{namesLocked ? `Personnaliser le site · ${groomName} & ${brideName}` : 'Créer le mini-site'}</h1>
+          <h1 style={h1}>{namesLocked ? `Personnaliser le site · ${wedding ? `${groomName} & ${brideName}` : displayCouple}` : 'Créer le mini-site'}</h1>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <Link to="/" style={{ fontSize: '0.92rem' }}>← Retour</Link>
             {!SINGLE_MODEL && (
@@ -1310,17 +1310,7 @@ export function WeddingSiteBuilder() {
                 ✡️ פסוק — Verset hébraïque (affiché en arc)
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: '0.75rem', direction: 'rtl' }}>
-                {[
-                  { v: '', label: '— Aucun —' },
-                  { v: 'אֲנִי לְדוֹדִי וְדוֹדִי לִי', label: 'אֲנִי לְדוֹדִי וְדוֹדִי לִי' },
-                  { v: 'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה קוֹל חָתָן וְקוֹל כַּלָּה', label: 'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה' },
-                  { v: 'נעלה את ירושלים על ראש שמחתנו', label: 'נעלה את ירושלים' },
-                  { v: 'זֶה הַיּוֹם עָשָׂה ה׳ נָגִילָה וְנִשְׂמְחָה בוֹ', label: 'זֶה הַיּוֹם עָשָׂה ה׳' },
-                  { v: 'שִׂמְחוּ אֶת יְרוּשָׁלִַם וְגִילוּ בָהּ', label: 'שִׂמְחוּ אֶת יְרוּשָׁלִַם' },
-                  { v: 'בְּרוּךְ הַבָּא בְּשֵׁם ה׳', label: 'בְּרוּךְ הַבָּא' },
-                  { v: 'שִׂישׂ אָשִׂישׂ בַּה׳ תָּגֵל נַפְשִׁי בֵּאלֹהַי', label: 'שִׂישׂ אָשִׂישׂ' },
-                  { v: 'כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ', label: 'כִּי טוֹב' },
-                ].map(({ v, label }) => {
+                {[{ v: '', label: '— Aucun —' }, ...verseSuggestions(eventType)].map(({ v, label }) => {
                   const isSelected = (content.hebrewQuote ?? '') === v;
                   return (
                     <button
@@ -1788,7 +1778,7 @@ export function WeddingSiteBuilder() {
                 value={theme.scriptFontFamily ?? ''}
                 onChange={(v) => setTheme({ ...theme, scriptFontFamily: v || undefined })}
                 allowAuto
-                sample={`${brideName || 'Myriam'} & ${groomName || 'Eden'}`}
+                sample={wedding ? `${brideName || 'Myriam'} & ${groomName || 'Eden'}` : (brideName.trim() || `Famille ${groomName.trim() || eventCfg.names.secondPlaceholder}`)}
                 sampleSize="1.5rem"
               />
             </div>
@@ -2031,10 +2021,13 @@ export function WeddingSiteBuilder() {
                     <input style={inp} placeholder="Google Maps URL" value={hotel.googleMapsUrl} onChange={(e) => upsertAccommodation(idx, { googleMapsUrl: e.target.value })} />
                     <input style={inp} placeholder="Waze URL" value={hotel.wazeUrl ?? ''} onChange={(e) => upsertAccommodation(idx, { wazeUrl: e.target.value })} />
                     <input style={inp} placeholder="URL de réservation" value={hotel.bookingUrl} onChange={(e) => upsertAccommodation(idx, { bookingUrl: e.target.value })} />
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={hotel.isShabbatHatan ?? false} onChange={(e) => upsertAccommodation(idx, { isShabbatHatan: e.target.checked })} />
-                      Hébergement Chabbat Hatan (section séparée)
-                    </label>
+                    {/* Pas de Chabbat pour une Brit Mila : la case n'a pas de sens */}
+                    {shabbatHotelLabel(eventType) ? (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={hotel.isShabbatHatan ?? false} onChange={(e) => upsertAccommodation(idx, { isShabbatHatan: e.target.checked })} />
+                        {shabbatHotelLabel(eventType)} (section séparée)
+                      </label>
+                    ) : null}
                     <button type="button" style={dangerInlineBtn} onClick={() => removeAccommodation(hotel.id)}>
                       Supprimer
                     </button>
@@ -2367,11 +2360,17 @@ export function WeddingSiteBuilder() {
                 onChange={(e) => setContent((c) => ({ ...c, musicUrl: e.target.value }))}
               >
                 <option value="">— Choisir une chanson —</option>
-                {MUSIC_SUGGESTIONS.map((m) => (
+                {musicSuggestionsFor(eventType).map((m) => (
                   <option key={m.id} value={`${DEEZER_SCHEME}${m.id}`}>
                     {m.title} — {m.artist}
                   </option>
                 ))}
+                {/* Chanson déjà choisie mais hors de la playlist de l'événement : reste sélectionnable */}
+                {(() => {
+                  const id = deezerTrackId(content.musicUrl);
+                  if (id == null || musicSuggestionsFor(eventType).some((m) => m.id === id)) return null;
+                  return <option value={content.musicUrl}>{musicLabelForUrl(content.musicUrl)}</option>;
+                })()}
               </select>
               <span style={{ fontSize: '0.72rem', color: '#7e8178', fontWeight: 400, marginTop: 2 }}>
                 La musique est jouée en fond, sans aucun lecteur visible : vos invités n'ont qu'une petite pastille 🔊 pour la couper. {musicLabelForUrl(content.musicUrl)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -14,6 +14,9 @@ const SAND = '#f5f2ed';
 
 const APP_STORE_URL = 'https://apps.apple.com/fr/app/oheve/id6785535857';
 const INSTAGRAM_URL = 'https://www.instagram.com/ohevewedding';
+/** Compte WhatsApp Business d'Oheve (même lien que le QR code public/whatsapp-qr.png) */
+const WHATSAPP_URL = 'https://wa.me/message/WCD5IA2FYR5KK1';
+const WA_GREEN = '#25D366';
 
 /* ─── ÉVÉNEMENTS ───────────────────────────────────────────────── */
 // Libellés alignés sur MonApp/lib/event-type.ts et wedding-sites/utils/eventType.ts.
@@ -102,7 +105,24 @@ function InstagramGlyph({ size = 18, color = MOKA_MID }: { size?: number; color?
   );
 }
 
+function WhatsAppGlyph({ size = 18, color = '#fff' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+    </svg>
+  );
+}
+
 /* ─── BOUTONS RÉUTILISABLES ─────────────────────────────────────── */
+
+function WhatsAppButton({ label = 'Nous écrire sur WhatsApp' }: { label?: string }) {
+  return (
+    <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="ohv-btn-wa">
+      <WhatsAppGlyph size={18} />
+      {label}
+    </a>
+  );
+}
 
 function AppStoreButton({ compact = false }: { compact?: boolean }) {
   return (
@@ -137,10 +157,10 @@ function InstagramButton({ label = 'Suivre @ohevewedding' }: { label?: string })
 
 /* ─── MAQUETTES IPHONE ──────────────────────────────────────────── */
 
-function Phone({ children, label, lifted = false }: { children: React.ReactNode; label: string; lifted?: boolean }) {
+function Phone({ children, label, lifted = false, delay = 0 }: { children: React.ReactNode; label: string; lifted?: boolean; delay?: number }) {
   return (
     <div className="ohv-phone-wrap" style={{ transform: lifted ? 'translateY(-18px)' : undefined }}>
-      <div className="ohv-phone">
+      <div className="ohv-phone ohv-phone-float" style={{ animationDelay: `${-delay}s` }}>
         <div className="ohv-phone-notch" />
         <div className="ohv-phone-screen">{children}</div>
       </div>
@@ -262,6 +282,44 @@ export default function Home() {
   // Événement choisi dans le sélecteur : change les maquettes et l'aperçu du site.
   const [evKey, setEvKey] = useState<EventKey>('mariage');
   const ev = EVENTS.find((e) => e.key === evKey) ?? EVENTS[0];
+  // Tant que le visiteur n'a rien choisi, les 4 fêtes défilent dans le titre
+  // (seulement quand le haut de page est visible, pour ne rien changer sous ses yeux plus bas).
+  const [autoCycle, setAutoCycle] = useState(true);
+  const pickEvent = (k: EventKey) => { setAutoCycle(false); setEvKey(k); };
+  useEffect(() => {
+    if (!autoCycle || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const id = window.setInterval(() => {
+      if (window.scrollY > window.innerHeight * 0.6) return;
+      setEvKey((k) => EVENTS[(EVENTS.findIndex((e) => e.key === k) + 1) % EVENTS.length].key);
+    }, 3200);
+    return () => window.clearInterval(id);
+  }, [autoCycle]);
+
+  // Apparitions au défilement + barre de progression
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    root.classList.add('ohv-anim');
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
+      }
+    }, { threshold: 0.12, rootMargin: '0px 0px -5% 0px' });
+    root.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        root.style.setProperty('--ohv-progress', String(max > 0 ? window.scrollY / max : 0));
+      });
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { io.disconnect(); cancelAnimationFrame(raf); window.removeEventListener('scroll', onScroll); };
+  }, []);
 
   return (
     <>
@@ -289,6 +347,134 @@ export default function Home() {
         .ohv-phones   { animation: fadeUp 0.7s 0.5s ease both; }
 
         .ohv-app-icon { animation: floatOrn 6s ease-in-out infinite; }
+
+        /* ── Vie de la page ── */
+        @keyframes drift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-40px,30px) scale(1.12); } }
+        @keyframes drift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(50px,-25px) scale(0.92); } }
+        @keyframes rise {
+          0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+          15%  { opacity: 0.7; }
+          100% { transform: translateY(-340px) rotate(160deg); opacity: 0; }
+        }
+        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @keyframes shine { 0% { left: -60%; } 60%,100% { left: 130%; } }
+        @keyframes phoneFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes waPulse {
+          0%   { box-shadow: 0 0 0 0 rgba(37,211,102,0.45); }
+          70%  { box-shadow: 0 0 0 18px rgba(37,211,102,0); }
+          100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }
+        }
+        @keyframes nudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
+
+        .ohv-blob-a { animation: drift1 14s ease-in-out infinite; }
+        .ohv-blob-b { animation: drift2 17s ease-in-out infinite; }
+        .ohv-spark {
+          position: absolute; bottom: -10px; color: ${GOLD};
+          animation: rise linear infinite; pointer-events: none;
+        }
+        .ohv-progress {
+          position: absolute; left: 0; bottom: -1px; height: 2px; width: 100%;
+          background: linear-gradient(90deg, ${SAGE}, ${GOLD});
+          transform-origin: left; transform: scaleX(var(--ohv-progress, 0));
+        }
+
+        .ohv-marquee {
+          overflow: hidden; border-top: 1px solid rgba(91,70,54,0.07); border-bottom: 1px solid rgba(91,70,54,0.07);
+          background: ${SAND}; padding: 0.85rem 0;
+          -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+                  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+        }
+        .ohv-marquee-track { display: flex; width: max-content; animation: marquee 38s linear infinite; }
+        .ohv-marquee:hover .ohv-marquee-track { animation-play-state: paused; }
+        .ohv-marquee-item {
+          display: inline-flex; align-items: center; gap: 1.1rem; padding-right: 1.1rem;
+          font-family: 'Fraunces', Georgia, serif; font-size: 1.05rem; font-style: italic; color: ${MOKA_MID}; white-space: nowrap;
+        }
+        .ohv-marquee-item i { font-style: normal; color: ${GOLD}; font-size: 0.7rem; }
+
+        /* Apparitions (la classe ohv-anim n'est posée qu'une fois le JS chargé) */
+        .ohv-anim [data-reveal] {
+          opacity: 0; transform: translateY(30px);
+          transition: opacity 0.8s cubic-bezier(.2,.7,.2,1), transform 0.8s cubic-bezier(.2,.7,.2,1);
+          transition-delay: var(--d, 0s);
+        }
+        .ohv-anim [data-reveal].is-in { opacity: 1; transform: none; }
+
+        .ohv-phone-float { animation: phoneFloat 6s ease-in-out infinite; }
+
+        .ohv-btn-store { position: relative; overflow: hidden; }
+        .ohv-btn-store::after {
+          content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+          background: linear-gradient(100deg, transparent, rgba(255,255,255,0.28), transparent);
+          transform: skewX(-18deg); animation: shine 4.5s ease-in-out infinite;
+        }
+        .ohv-btn-wa {
+          display: inline-flex; align-items: center; gap: 0.55rem;
+          padding: 0.75rem 1.5rem; border-radius: 50px; text-decoration: none;
+          font-family: 'Inter', sans-serif; font-size: 0.93rem; font-weight: 600; color: #fff;
+          background: ${WA_GREEN};
+          box-shadow: 0 6px 22px rgba(37,211,102,0.3);
+          transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+        }
+        .ohv-btn-wa:hover { background: #1ebe5b; transform: translateY(-2px); box-shadow: 0 10px 30px rgba(37,211,102,0.38); }
+
+        .ohv-wa-float {
+          position: fixed; right: 20px; bottom: 20px; z-index: 200;
+          display: inline-flex; align-items: center; gap: 0.55rem;
+          height: 56px; padding: 0 16px; border-radius: 30px;
+          background: ${WA_GREEN}; color: #fff; text-decoration: none;
+          font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.9rem;
+          box-shadow: 0 10px 28px rgba(33,26,20,0.22);
+          animation: waPulse 2.6s ease-out infinite;
+          transition: transform 0.2s ease;
+        }
+        .ohv-wa-float:hover { transform: translateY(-3px) scale(1.03); }
+        .ohv-wa-float-label { max-width: 0; overflow: hidden; white-space: nowrap; transition: max-width 0.35s ease; }
+        .ohv-wa-float:hover .ohv-wa-float-label, .ohv-wa-float:focus-visible .ohv-wa-float-label { max-width: 180px; }
+
+        .ohv-nav-link {
+          font-size: 0.84rem; font-weight: 500; color: ${MOKA_MID}; text-decoration: none;
+          padding: 0.4rem 0.7rem; border-radius: 50px; transition: background 0.2s ease, color 0.2s ease;
+        }
+        .ohv-nav-link:hover { background: ${SAGE_LIGHT}; color: ${MOKA}; }
+        .ohv-nav-wa { border-color: rgba(37,211,102,0.35) !important; }
+        .ohv-nav-wa:hover { background: #eafaf0 !important; border-color: ${WA_GREEN} !important; }
+
+        .ohv-contact {
+          max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 1.25rem;
+        }
+        .ohv-pres-card {
+          position: relative; overflow: hidden; border-radius: 24px; min-height: 340px;
+          display: flex; flex-direction: column; justify-content: flex-end; padding: 2rem;
+          color: #fff; text-decoration: none; isolation: isolate;
+          box-shadow: 0 10px 40px rgba(61,46,31,0.14);
+        }
+        .ohv-pres-card img {
+          position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2;
+          transform: scale(1.04); transition: transform 1.2s cubic-bezier(.2,.7,.2,1);
+        }
+        .ohv-pres-card::before {
+          content: ''; position: absolute; inset: 0; z-index: -1;
+          background: linear-gradient(180deg, rgba(52,54,48,0.05) 20%, rgba(52,54,48,0.82) 100%);
+        }
+        .ohv-pres-card:hover img { transform: scale(1.12); }
+        .ohv-pres-arrow { display: inline-block; animation: nudge 1.6s ease-in-out infinite; }
+        .ohv-wa-card {
+          background: #fff; border-radius: 24px; padding: 1.8rem 1.6rem; text-align: center;
+          border: 1px solid rgba(91,70,54,0.08); box-shadow: 0 4px 32px rgba(61,46,31,0.07);
+          display: flex; flex-direction: column; align-items: center; gap: 0.9rem;
+        }
+        .ohv-wa-qr {
+          width: 168px; height: 168px; border-radius: 16px; padding: 10px; background: #fff;
+          border: 1px solid rgba(91,70,54,0.1); box-shadow: 0 6px 20px rgba(61,46,31,0.08);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .ohv-blob-a, .ohv-blob-b, .ohv-spark, .ohv-marquee-track, .ohv-phone-float, .ohv-btn-store::after,
+          .ohv-wa-float, .ohv-pres-arrow, .ohv-app-icon { animation: none !important; }
+          .ohv-spark { display: none; }
+          .ohv-anim [data-reveal] { opacity: 1; transform: none; transition: none; }
+        }
 
         .ohv-btn-store {
           display: inline-flex; align-items: center; gap: 0.6rem;
@@ -416,6 +602,8 @@ export default function Home() {
         }
 
         @media (max-width: 860px) {
+          .ohv-contact { grid-template-columns: 1fr; }
+          .ohv-nav-link { display: none; }
           .ohv-ev-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .ohv-feat-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .ohv-phone-wrap { transform: none !important; }
@@ -444,10 +632,15 @@ export default function Home() {
           .ohv-phone-wrap { flex: 0 0 auto; scroll-snap-align: center; }
           .ohv-footer { flex-direction: column !important; gap: 1.1rem !important; text-align: center !important; }
           .ohv-insta-card { flex-direction: column !important; text-align: center !important; }
+          /* QR inutile sur le téléphone : le bouton suffit */
+          .ohv-wa-qr, .ohv-wa-qr-hint { display: none; }
+          .ohv-wa-float { right: 14px; bottom: 14px; height: 52px; padding: 0 14px; }
+          .ohv-pres-card { min-height: 300px; padding: 1.5rem; }
+          .ohv-pres-card::before { background: linear-gradient(180deg, rgba(52,54,48,0.3) 0%, rgba(52,54,48,0.86) 100%); }
         }
       `}</style>
 
-      <div style={{ background: IVORY, minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
+      <div ref={rootRef} style={{ background: IVORY, minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
 
         {/* ─── NAV ──────────────────────────────────────────── */}
         <nav className="ohv-nav" style={navStyle}>
@@ -455,18 +648,27 @@ export default function Home() {
             OHEVE
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <Link to="/presentation" className="ohv-nav-link">Présentation</Link>
+            <a href="#contact" className="ohv-nav-link">Contact</a>
+            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="ohv-nav-insta ohv-nav-wa" aria-label="WhatsApp Oheve">
+              <WhatsAppGlyph size={17} color={WA_GREEN} />
+            </a>
             <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="ohv-nav-insta" aria-label="Instagram Oheve">
               <InstagramGlyph size={17} />
             </a>
             <AppStoreButton compact />
           </div>
+          <div className="ohv-progress" aria-hidden="true" />
         </nav>
 
         {/* ─── HERO ─────────────────────────────────────────── */}
         <section style={heroSection}>
           <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
-            <div style={{ position: 'absolute', top: '-12%', right: '-8%', width: 460, height: 460, borderRadius: '50%', background: `radial-gradient(circle, ${SAGE_LIGHT} 0%, transparent 70%)`, opacity: 0.65 }} />
-            <div style={{ position: 'absolute', bottom: '0%', left: '-8%', width: 380, height: 380, borderRadius: '50%', background: `radial-gradient(circle, ${SAND} 0%, transparent 70%)`, opacity: 0.75 }} />
+            <div className="ohv-blob-a" style={{ position: 'absolute', top: '-12%', right: '-8%', width: 460, height: 460, borderRadius: '50%', background: `radial-gradient(circle, rgba(146,155,131,0.28) 0%, transparent 70%)` }} />
+            <div className="ohv-blob-b" style={{ position: 'absolute', bottom: '0%', left: '-8%', width: 380, height: 380, borderRadius: '50%', background: `radial-gradient(circle, rgba(116,126,104,0.18) 0%, transparent 70%)` }} />
+            {SPARKS.map((sp, i) => (
+              <span key={i} className="ohv-spark" style={{ left: sp.left, fontSize: sp.size, animationDuration: `${sp.dur}s`, animationDelay: `${sp.delay}s` }}>✦</span>
+            ))}
           </div>
 
           <div className="ohv-hero-inner" style={heroInner}>
@@ -501,7 +703,7 @@ export default function Home() {
             <div style={{ marginBottom: '1.6rem' }}>
               <div className="ohv-ev-switch" role="group" aria-label="Choisir un événement">
                 {EVENTS.map((e) => (
-                  <button key={e.key} type="button" className="ohv-ev-btn" aria-pressed={e.key === evKey} onClick={() => setEvKey(e.key)}>
+                  <button key={e.key} type="button" className="ohv-ev-btn" aria-pressed={e.key === evKey} onClick={() => pickEvent(e.key)}>
                     <span aria-hidden="true">{e.emoji}</span>{e.tab}
                   </button>
                 ))}
@@ -516,6 +718,7 @@ export default function Home() {
 
             <div className="ohv-cta-row" style={{ display: 'flex', gap: '0.9rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
               <AppStoreButton />
+              <WhatsAppButton label="Une question ? WhatsApp" />
               <a href="#app" className="ohv-btn-ghost">Découvrir l'application</a>
             </div>
             <p style={{ fontSize: '0.78rem', color: MOKA_MID, opacity: 0.6 }}>
@@ -524,9 +727,20 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ─── BANDEAU DÉFILANT ─────────────────────────────── */}
+        <div className="ohv-marquee" aria-hidden="true">
+          <div className="ohv-marquee-track">
+            {[0, 1].map((dup) => (
+              <span key={dup} className="ohv-marquee-item">
+                {MARQUEE.map((w) => (<span key={w} style={{ display: 'inline-flex', gap: '1.1rem', alignItems: 'center' }}>{w}<i>✦</i></span>))}
+              </span>
+            ))}
+          </div>
+        </div>
+
         {/* ─── MAQUETTES ────────────────────────────────────── */}
         <section id="app" style={phoneSection}>
-          <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 3rem' }}>
+          <div data-reveal style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 3rem' }}>
             <div style={sectionLabel}>L'APPLICATION</div>
             <h2 style={sectionTitle}>Toute l'organisation, au même endroit</h2>
             <p style={{ ...sectionSub, marginBottom: '1.6rem' }}>
@@ -534,7 +748,7 @@ export default function Home() {
             </p>
             <div className="ohv-ev-switch" role="group" aria-label="Voir l'application pour un événement">
               {EVENTS.map((e) => (
-                <button key={e.key} type="button" className="ohv-ev-btn" aria-pressed={e.key === evKey} onClick={() => setEvKey(e.key)}>
+                <button key={e.key} type="button" className="ohv-ev-btn" aria-pressed={e.key === evKey} onClick={() => pickEvent(e.key)}>
                   <span aria-hidden="true">{e.emoji}</span>{e.tab}
                 </button>
               ))}
@@ -542,9 +756,9 @@ export default function Home() {
           </div>
 
           <div className="ohv-phones ohv-phone-row">
-            <Phone label="Accueil"><ScreenHome ev={ev} /></Phone>
-            <Phone label="Invités & RSVP" lifted><ScreenGuests ev={ev} /></Phone>
-            <Phone label="Plan de table"><ScreenSeating ev={ev} /></Phone>
+            <Phone label="Accueil" delay={0}><ScreenHome ev={ev} /></Phone>
+            <Phone label="Invités & RSVP" lifted delay={1.2}><ScreenGuests ev={ev} /></Phone>
+            <Phone label="Plan de table" delay={2.4}><ScreenSeating ev={ev} /></Phone>
           </div>
           <p key={ev.key} className="ohv-ev-fade" style={{ textAlign: 'center', maxWidth: 520, margin: '2rem auto 0', fontSize: '0.92rem', color: MOKA_MID, lineHeight: 1.6 }}>
             {ev.pitch}
@@ -560,14 +774,16 @@ export default function Home() {
 
         {/* ─── ÉVÉNEMENTS ───────────────────────────────────── */}
         <section id="evenements" style={featSection}>
+          <div data-reveal>
           <div style={sectionLabel}>UNE APP, QUATRE FÊTES</div>
           <h2 style={sectionTitle}>Chaque événement a sa propre organisation</h2>
-          <p style={sectionSub}>
+          </div>
+          <p data-reveal style={sectionSub}>
             Choisissez votre événement à l'inscription : to-do, budget, prestataires et site s'adaptent tout seuls.
           </p>
           <div className="ohv-ev-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.1rem' }}>
-            {EVENT_CARDS.map((c) => (
-              <Link key={c.key} to={c.builder} className="ohv-ev-card">
+            {EVENT_CARDS.map((c, i) => (
+              <Link key={c.key} to={c.builder} className="ohv-ev-card" data-reveal style={{ ['--d' as string]: `${i * 0.09}s` }}>
                 <span style={{ fontSize: '1.7rem' }} aria-hidden="true">{c.emoji}</span>
                 <h3 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.25rem', fontWeight: 600, color: MOKA }}>{c.title}</h3>
                 <p style={{ fontSize: '0.86rem', color: MOKA_MID, lineHeight: 1.6, opacity: 0.85, flex: 1 }}>{c.desc}</p>
@@ -579,13 +795,15 @@ export default function Home() {
 
         {/* ─── FONCTIONNALITES ──────────────────────────────── */}
         <section id="features" style={featSection}>
+          <div data-reveal>
           <div style={sectionLabel}>FONCTIONNALITÉS</div>
           <h2 style={sectionTitle}>Ce que fait Oheve pour vous</h2>
-          <p style={sectionSub}>Six mois d'organisation tiennent dans votre poche — sans tableur, sans papier perdu.</p>
+          </div>
+          <p data-reveal style={sectionSub}>Six mois d'organisation tiennent dans votre poche — sans tableur, sans papier perdu.</p>
 
           <div className="ohv-feat-grid" style={featGrid}>
-            {FEATURES.map((f) => (
-              <div key={f.title} className="ohv-feat-card">
+            {FEATURES.map((f, i) => (
+              <div key={f.title} className="ohv-feat-card" data-reveal style={{ ['--d' as string]: `${(i % 4) * 0.08}s` }}>
                 <div style={{ fontSize: '1.7rem', marginBottom: '0.8rem' }}>{f.icon}</div>
                 <h3 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.2rem', fontWeight: 600, color: MOKA, marginBottom: '0.45rem' }}>{f.title}</h3>
                 <p style={{ fontSize: '0.88rem', color: MOKA_MID, lineHeight: 1.62, opacity: 0.85 }}>{f.desc}</p>
@@ -596,7 +814,7 @@ export default function Home() {
 
         {/* ─── SITE D'INVITATION ────────────────────────────── */}
         <section style={previewSection}>
-          <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
+          <div data-reveal style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
             <div style={sectionLabel}>INCLUS DANS L'APP</div>
             <h2 style={{ ...sectionTitle, marginBottom: '1rem' }}>Votre site d'invitation, en quelques minutes</h2>
             <p style={{ ...sectionSub, marginBottom: '1.6rem' }}>
@@ -607,7 +825,7 @@ export default function Home() {
             <div style={{ marginBottom: '2rem' }}>
               <div className="ohv-ev-switch" role="group" aria-label="Aperçu du site pour un événement">
                 {EVENTS.map((e) => (
-                  <button key={e.key} type="button" className="ohv-ev-btn" aria-pressed={e.key === evKey} onClick={() => setEvKey(e.key)}>
+                  <button key={e.key} type="button" className="ohv-ev-btn" aria-pressed={e.key === evKey} onClick={() => pickEvent(e.key)}>
                     <span aria-hidden="true">{e.emoji}</span>{e.tab}
                   </button>
                 ))}
@@ -644,7 +862,7 @@ export default function Home() {
 
         {/* ─── INSTAGRAM ────────────────────────────────────── */}
         <section style={{ padding: '4.5rem 1.5rem' }}>
-          <div className="ohv-insta-card" style={instaCard}>
+          <div className="ohv-insta-card" data-reveal style={instaCard}>
             <div style={{ flex: 1, textAlign: 'left' }}>
               <div style={{ ...sectionLabel, marginBottom: '0.6rem' }}>INSTAGRAM</div>
               <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.9rem', fontWeight: 300, color: MOKA, lineHeight: 1.2, marginBottom: '0.6rem' }}>
@@ -671,9 +889,49 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ─── PRÉSENTATION + CONTACT WHATSAPP ──────────────── */}
+        <section id="contact" style={{ padding: '1rem 1.5rem 4.5rem', scrollMarginTop: 70 }}>
+          <div data-reveal style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 2.2rem' }}>
+            <div style={sectionLabel}>PARLONS-EN</div>
+            <h2 style={sectionTitle}>Prestataire, futur marié ou parent&nbsp;?</h2>
+            <p style={{ ...sectionSub, marginBottom: 0 }}>
+              Découvrez la vision d'Oheve en quelques minutes, ou écrivez-nous directement : on vous répond sur WhatsApp.
+            </p>
+          </div>
+          <div className="ohv-contact">
+            <Link to="/presentation" className="ohv-pres-card" data-reveal>
+              <img src="/presentation/bureau.jpg" alt="" loading="lazy" />
+              <span style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.85, marginBottom: '0.5rem' }}>
+                Présentation interactive
+              </span>
+              <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.9rem', fontWeight: 300, lineHeight: 1.15, marginBottom: '0.6rem' }}>
+                Oheve, le projet<br /><em style={{ fontStyle: 'italic' }}>et sa vision à 5 ans</em>
+              </span>
+              <span style={{ fontSize: '0.9rem', opacity: 0.88, lineHeight: 1.55, marginBottom: '1.1rem', maxWidth: '40ch' }}>
+                Problématique, solution, fonctionnalités et ce que nous apportons aux prestataires.
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-start', background: '#fff', color: MOKA, borderRadius: 50, padding: '0.6rem 1.2rem', fontSize: '0.88rem', fontWeight: 600 }}>
+                Voir la présentation <span className="ohv-pres-arrow">→</span>
+              </span>
+            </Link>
+            <div className="ohv-wa-card" data-reveal style={{ ['--d' as string]: '0.12s' }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#eafaf0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <WhatsAppGlyph size={26} color={WA_GREEN} />
+              </div>
+              <h3 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.45rem', fontWeight: 400, color: MOKA }}>Écrivez-nous sur WhatsApp</h3>
+              <p style={{ fontSize: '0.88rem', color: MOKA_MID, opacity: 0.8, lineHeight: 1.55 }}>
+                Une question sur l'app, un partenariat prestataire, une aide pour votre site&nbsp;: une vraie personne vous répond.
+              </p>
+              <img className="ohv-wa-qr" src="/whatsapp-qr.png" alt="QR code WhatsApp Oheve" loading="lazy" width={168} height={168} />
+              <p className="ohv-wa-qr-hint" style={{ fontSize: '0.74rem', color: MOKA_MID, opacity: 0.6 }}>Scannez avec votre téléphone</p>
+              <WhatsAppButton label="Démarrer la discussion" />
+            </div>
+          </div>
+        </section>
+
         {/* ─── CTA FINAL ────────────────────────────────────── */}
         <section style={ctaSection}>
-          <div style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
+          <div data-reveal style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
             <svg width="36" height="36" viewBox="0 0 36 36" style={{ marginBottom: '1rem' }}>
               <polygon points="18,2 21,12 31,12 23,19 26,29 18,23 10,29 13,19 5,12 15,12" fill={GOLD} opacity="0.6" />
             </svg>
@@ -685,6 +943,7 @@ export default function Home() {
             </p>
             <div style={{ display: 'flex', gap: '0.9rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <AppStoreButton />
+              <WhatsAppButton label="WhatsApp" />
               <InstagramButton label="Nous suivre" />
             </div>
           </div>
@@ -698,6 +957,8 @@ export default function Home() {
           <div style={{ display: 'flex', gap: '1.2rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
             <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" style={footerLink}>App Store</a>
             <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" style={footerLink}>Instagram</a>
+            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" style={footerLink}>WhatsApp</a>
+            <Link to="/presentation" style={footerLink}>Présentation</Link>
             <Link to="/privacy" style={footerLink}>Confidentialité</Link>
             <Link to="/cgu" style={footerLink}>CGU</Link>
             <Link to="/support" style={footerLink}>Support</Link>
@@ -705,12 +966,29 @@ export default function Home() {
             <span style={{ fontSize: '0.78rem', color: MOKA_MID, opacity: 0.5 }}>© 2026 Oheve</span>
           </div>
         </footer>
+
+        <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="ohv-wa-float" aria-label="Nous écrire sur WhatsApp">
+          <WhatsAppGlyph size={26} />
+          <span className="ohv-wa-float-label">Une question ?</span>
+        </a>
       </div>
     </>
   );
 }
 
 /* ─── DATA ──────────────────────────────────────────────────────── */
+
+const MARQUEE = ['Houppa', 'Henné', 'Mise des téfilines', 'Bat Mitsva', 'Brit Mila', 'RSVP en ligne', 'Plan de table', 'Budget', 'Faire-part animé', 'Chabbat Hatan', 'Séouda', 'Prestataires'];
+
+/** Petites étoiles qui montent doucement dans le haut de page (positions fixes : rendu stable) */
+const SPARKS = [
+  { left: '8%', size: '0.7rem', dur: 11, delay: 0 },
+  { left: '18%', size: '0.5rem', dur: 14, delay: 4 },
+  { left: '31%', size: '0.6rem', dur: 12, delay: 7 },
+  { left: '64%', size: '0.55rem', dur: 13, delay: 2 },
+  { left: '77%', size: '0.75rem', dur: 10, delay: 5.5 },
+  { left: '89%', size: '0.5rem', dur: 15, delay: 9 },
+];
 
 const EVENT_CARDS: { key: EventKey; emoji: string; title: string; desc: string; builder: string }[] = [
   {

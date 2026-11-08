@@ -17,7 +17,7 @@ import { deezerTrackId, defaultStartSeconds, fullTrackForDeezer, isYouTubeUrl, r
 import { cardStyleSurface } from './templateCardStyles';
 import { resolveThemeColors } from '../utils/themeColors';
 import { vintageTokens } from '../themes/VintageTheme';
-import { isWeddingEvent, mainEventLabel } from '../utils/eventType';
+import { isWeddingEvent, mainEventLabel, shabbatHotelLabel } from '../utils/eventType';
 import { sitePath } from '../utils/eventRoutes';
 
 type GrandparentsData = {
@@ -583,6 +583,15 @@ export function PublicMusicButton({ site, color, background, className }: { site
   );
 }
 
+/**
+ * Hôtel rangé dans la section « Chabbat » (Chabbat Hatan / Bar Mitsva…).
+ * Brit Mila : pas de Chabbat, une case cochée reste dans les hébergements.
+ */
+function shabbatHotelFilter(site: WeddingSite) {
+  const hasShabbat = !!shabbatHotelLabel(site.eventType, site.language);
+  return (h: { isShabbatHatan?: boolean }) => hasShabbat && !!h.isShabbatHatan;
+}
+
 export function PublicStickyNav({ site }: { site: WeddingSite }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [visible, setVisible] = useState(true);
@@ -636,7 +645,8 @@ export function PublicStickyNav({ site }: { site: WeddingSite }) {
     </button>
   ) : null;
 
-  const hasAccommodations = site.sections.accommodations && (site.content?.accommodations ?? []).some((h) => !h.isShabbatHatan);
+  const isShabbatHotel = shabbatHotelFilter(site);
+  const hasAccommodations = site.sections.accommodations && (site.content?.accommodations ?? []).some((h) => !isShabbatHotel(h));
   const hasFaq = site.sections.faq && (site.content?.faq ?? []).length > 0;
   const hasLocation = site.sections.location && !!(site.content?.venue?.name || site.content?.venue?.address || site.venue || site.city);
 
@@ -1040,7 +1050,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
           <p style={{ margin: 0, fontSize: '0.72rem', letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.65 }}>{heading}</p>
         ) : null}
         {p.photoUrl ? (
-          <img src={p.photoUrl} alt={p.name || 'Lieu du mariage'} loading="lazy" style={{ width: '100%', borderRadius: 12, maxHeight: 300, objectFit: 'cover' }} />
+          <img src={p.photoUrl} alt={p.name || 'Lieu'} loading="lazy" style={{ width: '100%', borderRadius: 12, maxHeight: 300, objectFit: 'cover' }} />
         ) : null}
         {p.name ? <p style={{ margin: 0, fontWeight: 700 }}>{p.name}</p> : null}
         {p.address ? <p style={{ margin: 0, lineHeight: 1.7 }}>{p.address}</p> : null}
@@ -1071,8 +1081,9 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
   }
   if (site.sections.accommodations) {
     const allHotels = site.content?.accommodations ?? [];
-    const mainHotels = allHotels.filter((h) => !h.isShabbatHatan);
-    const shabbatHotels = allHotels.filter((h) => h.isShabbatHatan);
+    const isShabbatHotel = shabbatHotelFilter(site);
+    const mainHotels = allHotels.filter((h) => !isShabbatHotel(h));
+    const shabbatHotels = allHotels.filter(isShabbatHotel);
 
     if (mainHotels.length) {
       blocks.push(
@@ -1093,7 +1104,7 @@ function OptionalSections({ site, useCard }: { site: WeddingSite; useCard: typeo
     if (shabbatHotels.length) {
       blocks.push(
         <section id="shabbat-accommodations" key="shabbat-accommodations" className="wedding-fade-in" style={{ marginTop: '2.25rem', scrollMarginTop: 88 }}>
-          <SectionHeading label="Hébergement Chabbat Hatan" color={t.primaryColor} theme={t} />
+          <SectionHeading label={shabbatHotelLabel(site.eventType, site.language) ?? ''} color={t.primaryColor} theme={t} />
           <div style={{ ...useCard({ theme: t }), marginTop: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
               {shabbatHotels.map((h) => (

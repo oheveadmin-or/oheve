@@ -14,6 +14,9 @@
  * vidéo n'est affiché : la musique reste invisible (pastille 🔊/🔇 seulement).
  */
 
+import type { SiteEventType } from '../utils/eventType';
+import { normalizeEventType } from '../utils/eventType';
+
 export type MusicSuggestion = {
   /** ID de piste Deezer (stable) */
   id: number;
@@ -21,33 +24,54 @@ export type MusicSuggestion = {
   artist: string;
   /** Chanson complète (MP3 hébergé) — lue à la place de l'extrait 30 s */
   mp3Url?: string;
+  /** Événements où la chanson est proposée (absent = toutes les fêtes) */
+  events?: SiteEventType[];
 };
+
+const W: SiteEventType[] = ['mariage'];
 
 /** Préfixe de schéma utilisé dans `content.musicUrl` pour une piste Deezer. */
 export const DEEZER_SCHEME = 'deezer:';
 
 export const MUSIC_SUGGESTIONS: MusicSuggestion[] = [
-  { id: 2299667255, title: 'בסוף אנחנו נתחתן', artist: 'Adir Getz' },
-  { id: 2723237792, title: 'בואי בשלום', artist: 'Alliel' },
-  { id: 100431306, title: 'Boei Kala', artist: 'Gad Elbaz' },
-  { id: 109094410, title: 'Birkat Chupa', artist: 'Ohad Moskowitz' },
-  { id: 1892007337, title: 'Mi Adir', artist: 'Daniel Ben Haim' },
-  { id: 109898594, title: 'Asher Bara', artist: 'Eli Zion' },
-  { id: 118243878, title: 'Yismach Chatani', artist: 'Meir Green' },
+  { id: 2299667255, title: 'בסוף אנחנו נתחתן', artist: 'Adir Getz', events: W },
+  { id: 2723237792, title: 'בואי בשלום', artist: 'Alliel', events: W },
+  { id: 100431306, title: 'Boei Kala', artist: 'Gad Elbaz', events: W },
+  { id: 109094410, title: 'Birkat Chupa', artist: 'Ohad Moskowitz', events: W },
+  { id: 1892007337, title: 'Mi Adir', artist: 'Daniel Ben Haim', events: W },
+  { id: 109898594, title: 'Asher Bara', artist: 'Eli Zion', events: W },
+  { id: 118243878, title: 'Yismach Chatani', artist: 'Meir Green', events: W },
   { id: 108563234, title: 'Mimaamakim', artist: 'Itzik Dadya' },
   { id: 620773182, title: 'ניגון ארבע בבות', artist: 'Hilik Frank' },
-  { id: 1405775002, title: 'חתונה של השמחות', artist: 'Dudu Aharon' },
-  { id: 1390863842, title: 'חתונת השמחות (רמיקס)', artist: 'Regev Hod' },
-  { id: 384581701, title: 'חתונת השנה', artist: 'Itay Levy' },
-  { id: 886644942, title: 'יש חתונה פה', artist: 'Itzik Eshel' },
-  { id: 2670262182, title: 'רק שלך', artist: 'Lior Narkis' },
-  { id: 691745952, title: 'תיתן לה פרחים', artist: 'Omer Adam' },
+  { id: 1405775002, title: 'חתונה של השמחות', artist: 'Dudu Aharon', events: W },
+  { id: 1390863842, title: 'חתונת השמחות (רמיקס)', artist: 'Regev Hod', events: W },
+  { id: 384581701, title: 'חתונת השנה', artist: 'Itay Levy', events: W },
+  { id: 886644942, title: 'יש חתונה פה', artist: 'Itzik Eshel', events: W },
+  { id: 2670262182, title: 'רק שלך', artist: 'Lior Narkis', events: W },
+  { id: 691745952, title: 'תיתן לה פרחים', artist: 'Omer Adam', events: W },
   { id: 737305972, title: 'מזל', artist: 'Eyal Golan' },
-  { id: 2008887127, title: 'אהבה כמו שלנו (קיסריה Live)', artist: 'Sarit Hadad' },
-  { id: 1086787242, title: 'אישתי', artist: 'Maor Edri' },
-  { id: 2420120435, title: 'אהיה שלך לעד', artist: 'Dudi Buzaglo' },
-  { id: 90977509, title: 'גיבור של אמא', artist: 'Moshe Peretz' },
+  { id: 2008887127, title: 'אהבה כמו שלנו (קיסריה Live)', artist: 'Sarit Hadad', events: W },
+  { id: 1086787242, title: 'אישתי', artist: 'Maor Edri', events: W },
+  { id: 2420120435, title: 'אהיה שלך לעד', artist: 'Dudi Buzaglo', events: W },
+  { id: 90977509, title: 'גיבור של אמא', artist: 'Moshe Peretz', events: ['mariage', 'bar_mitsva', 'brit_mila'] },
+  // ── Bar / Bat Mitsva, Brit Mila (vérifiés sur l'API Deezer, extrait disponible) ──
+  { id: 1408001372, title: 'סימן טוב ומזל טוב', artist: 'Ehud Banai', events: ['bar_mitsva', 'bat_mitsva', 'brit_mila'] },
+  { id: 2107589, title: 'Hava Nagila', artist: 'The Klezmer Lounge Band', events: ['bar_mitsva', 'bat_mitsva', 'brit_mila'] },
+  { id: 2096934077, title: 'Bar mitzva', artist: 'Les Chevatim', events: ['bar_mitsva'] },
+  { id: 4221204782, title: 'יום הולדת', artist: 'Moshe Peretz', events: ['bar_mitsva', 'bat_mitsva'] },
+  { id: 2894802251, title: 'Bat mitsva', artist: 'Les Chevatim', events: ['bat_mitsva'] },
+  { id: 3168185521, title: 'בת מצווה', artist: 'Motty Ilowitz', events: ['bat_mitsva'] },
+  { id: 3923223621, title: 'בת מצווה', artist: 'מיטל ונעלי הפלא', events: ['bat_mitsva'] },
+  { id: 492272342, title: 'נסיכה שלי', artist: 'Ivri Lider', events: ['bat_mitsva'] },
+  { id: 9035136, title: 'HaMalach HaGoel', artist: 'Maccabeats', events: ['brit_mila'] },
+  { id: 70107386, title: 'Ani Maamin', artist: 'Avraham Fried', events: ['bar_mitsva', 'brit_mila'] },
 ];
+
+/** Playlist proposée pour un événement (pas de « חתונה » pour une Bar Mitsva) */
+export function musicSuggestionsFor(eventType?: string | null): MusicSuggestion[] {
+  const ev = normalizeEventType(eventType);
+  return MUSIC_SUGGESTIONS.filter((m) => !m.events || m.events.includes(ev));
+}
 
 /** Libellé lisible « Titre — Artiste » pour une valeur `deezer:<id>`. */
 export function musicLabelForUrl(url: string | undefined): string | null {

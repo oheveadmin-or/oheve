@@ -1,5 +1,5 @@
-import { Fragment, lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Fragment, lazy, Suspense, useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import GuestSiteView from '@guest/GuestSiteView';
 import Home from '@guest/Home';
@@ -14,6 +14,15 @@ import { EVENT_PATH_PREFIXES } from '@guest/wedding-sites/utils/eventRoutes';
 
 const PresentationPage = lazy(() => import('@guest/presentation/PresentationPage'));
 
+/** Nouvelle page = haut de page (sinon /presentation s'ouvre au niveau où l'on était sur l'accueil) */
+function ScrollToTopOnNavigate() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (!hash) window.scrollTo(0, 0);
+  }, [pathname, hash]);
+  return null;
+}
+
 export default function App() {
   return (
     <ErrorBoundary fallback={
@@ -26,6 +35,7 @@ export default function App() {
         </div>
       </div>
     }>
+      <ScrollToTopOnNavigate />
       <CookieBanner />
       <Routes>
         <Route path="/" element={<Home />} />

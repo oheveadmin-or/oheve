@@ -65,7 +65,19 @@ type EventSiteConfig = {
   messageTo: Lang3;
   /** Phrases du faire-part préremplies */
   texts: { thanks: Lang3<string>; invitation: Lang3<string>; reception: Lang3<string> };
+  /** Versets (פסוק) proposés dans l'étape Passouk : jamais « קול חתן וקול כלה » hors mariage */
+  verses: VerseSuggestion[];
+  /** Case « hébergement du Chabbat » sur un hôtel (section séparée) ; null = pas de Chabbat */
+  shabbatHotel: Lang3 | null;
 };
+
+export type VerseSuggestion = { v: string; label: string };
+
+/** Versets valables pour toutes les fêtes */
+const VERSE_ZE_HAYOM: VerseSuggestion = { v: 'זֶה הַיּוֹם עָשָׂה ה׳ נָגִילָה וְנִשְׂמְחָה בוֹ', label: 'זֶה הַיּוֹם עָשָׂה ה׳' };
+const VERSE_BAROUKH_HABA: VerseSuggestion = { v: 'בְּרוּךְ הַבָּא בְּשֵׁם ה׳', label: 'בְּרוּךְ הַבָּא' };
+const VERSE_KI_TOV: VerseSuggestion = { v: 'כִּי טוֹב כִּי לְעוֹלָם חַסְדּוֹ', label: 'כִּי טוֹב' };
+const VERSE_ETS_HAYIM: VerseSuggestion = { v: 'עֵץ חַיִּים הִיא לַמַּחֲזִיקִים בָּהּ', label: 'עֵץ חַיִּים הִיא' };
 
 const WEDDING_PROGRAM: ProgramDefault[] = [
   { type: 'henne', label: 'Henné', emoji: '🌸' },
@@ -113,6 +125,17 @@ const CONFIG: Record<SiteEventType, EventSiteConfig> = {
         en: 'and at the reception that follows.',
       },
     },
+    verses: [
+      { v: 'אֲנִי לְדוֹדִי וְדוֹדִי לִי', label: 'אֲנִי לְדוֹדִי וְדוֹדִי לִי' },
+      { v: 'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה קוֹל חָתָן וְקוֹל כַּלָּה', label: 'קוֹל שָׂשׂוֹן וְקוֹל שִׂמְחָה' },
+      { v: 'נעלה את ירושלים על ראש שמחתנו', label: 'נעלה את ירושלים' },
+      VERSE_ZE_HAYOM,
+      { v: 'שִׂמְחוּ אֶת יְרוּשָׁלִַם וְגִילוּ בָהּ', label: 'שִׂמְחוּ אֶת יְרוּשָׁלִַם' },
+      VERSE_BAROUKH_HABA,
+      { v: 'שִׂישׂ אָשִׂישׂ בַּה׳ תָּגֵל נַפְשִׁי בֵּאלֹהַי', label: 'שִׂישׂ אָשִׂישׂ' },
+      VERSE_KI_TOV,
+    ],
+    shabbatHotel: { fr: 'Hébergement Chabbat Hatan', he: 'לינה לשבת חתן', en: 'Shabbat Chatan accommodation' },
   },
   bar_mitsva: {
     label: { fr: 'Bar Mitsva', he: 'בר מצווה', en: 'Bar Mitzvah' },
@@ -154,6 +177,15 @@ const CONFIG: Record<SiteEventType, EventSiteConfig> = {
         en: 'Your presence will be our greatest gift.',
       },
     },
+    verses: [
+      { v: 'תּוֹרָה צִוָּה לָנוּ מֹשֶׁה מוֹרָשָׁה קְהִלַּת יַעֲקֹב', label: 'תּוֹרָה צִוָּה לָנוּ מֹשֶׁה' },
+      { v: 'שְׁמַע יִשְׂרָאֵל ה׳ אֱלֹהֵינוּ ה׳ אֶחָד', label: 'שְׁמַע יִשְׂרָאֵל' },
+      VERSE_ETS_HAYIM,
+      VERSE_ZE_HAYOM,
+      VERSE_BAROUKH_HABA,
+      VERSE_KI_TOV,
+    ],
+    shabbatHotel: { fr: 'Hébergement Chabbat Bar Mitsva', he: 'לינה לשבת בר המצווה', en: 'Bar Mitzvah Shabbat accommodation' },
   },
   bat_mitsva: {
     label: { fr: 'Bat Mitsva', he: 'בת מצווה', en: 'Bat Mitzvah' },
@@ -195,6 +227,15 @@ const CONFIG: Record<SiteEventType, EventSiteConfig> = {
         en: 'Your presence will be our greatest gift.',
       },
     },
+    verses: [
+      { v: 'רַבּוֹת בָּנוֹת עָשׂוּ חָיִל וְאַתְּ עָלִית עַל כֻּלָּנָה', label: 'רַבּוֹת בָּנוֹת עָשׂוּ חָיִל' },
+      { v: 'כָּל כְּבוּדָּה בַת מֶלֶךְ פְּנִימָה', label: 'כָּל כְּבוּדָּה בַת מֶלֶךְ' },
+      VERSE_ETS_HAYIM,
+      VERSE_ZE_HAYOM,
+      VERSE_BAROUKH_HABA,
+      VERSE_KI_TOV,
+    ],
+    shabbatHotel: { fr: 'Hébergement Chabbat Bat Mitsva', he: 'לינה לשבת בת המצווה', en: 'Bat Mitzvah Shabbat accommodation' },
   },
   brit_mila: {
     label: { fr: 'Brit Mila', he: 'ברית מילה', en: 'Brit Milah' },
@@ -235,6 +276,15 @@ const CONFIG: Record<SiteEventType, EventSiteConfig> = {
         en: 'followed by the festive meal.',
       },
     },
+    verses: [
+      { v: 'וּבַיּוֹם הַשְּׁמִינִי יִמּוֹל בְּשַׂר עָרְלָתוֹ', label: 'וּבַיּוֹם הַשְּׁמִינִי יִמּוֹל' },
+      { v: 'כְּשֵׁם שֶׁנִּכְנַס לַבְּרִית כֵּן יִכָּנֵס לְתוֹרָה וּלְחֻפָּה וּלְמַעֲשִׂים טוֹבִים', label: 'כְּשֵׁם שֶׁנִּכְנַס לַבְּרִית' },
+      { v: 'הַמַּלְאָךְ הַגֹּאֵל אֹתִי מִכָּל רָע יְבָרֵךְ אֶת הַנְּעָרִים', label: 'הַמַּלְאָךְ הַגֹּאֵל' },
+      { v: 'אֶל הַנַּעַר הַזֶּה הִתְפַּלָּלְתִּי', label: 'אֶל הַנַּעַר הַזֶּה הִתְפַּלָּלְתִּי' },
+      { v: 'זֶה הַקָּטֹן גָּדוֹל יִהְיֶה', label: 'זֶה הַקָּטֹן גָּדוֹל יִהְיֶה' },
+      VERSE_BAROUKH_HABA,
+    ],
+    shabbatHotel: null,
   },
 };
 
@@ -288,6 +338,17 @@ export function rsvpMessageLabel(v: string | null | undefined, lang?: SiteLangua
 /** Événements du programme proposés dans le builder */
 export function programDefaults(v?: string | null): ProgramDefault[] {
   return eventSiteConfig(v).program;
+}
+
+/** Versets proposés dans l'étape Passouk */
+export function verseSuggestions(v?: string | null): VerseSuggestion[] {
+  return eventSiteConfig(v).verses;
+}
+
+/** Titre de la section « hébergement du Chabbat » (null : pas de Chabbat pour cet événement) */
+export function shabbatHotelLabel(v: string | null | undefined, lang?: SiteLanguage | string): string | null {
+  const l = eventSiteConfig(v).shabbatHotel;
+  return l ? pick(l, lang) : null;
 }
 
 /** Phrases du faire-part par défaut (français, l'hébreu reste une proposition) */
