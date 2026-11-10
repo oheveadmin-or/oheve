@@ -449,6 +449,18 @@ export const adminApi = {
   deleteUser: (accessToken: string, userId: number) =>
     adminFetch(accessToken, `${API_ENDPOINTS.adminUsers}/${userId}`, 'DELETE'),
 
+  /** Tous les comptes prestataires/boutiques avec identifiant, mot de passe admin et ID. */
+  listCredentials: (accessToken: string) =>
+    get(API_ENDPOINTS.adminCredentials, accessToken),
+
+  /** Tous les événements (mariage, Bar/Bat Mitsva, Brit Mila) + résumé par type. */
+  listEvents: (accessToken: string, params?: { type?: string; search?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.type) q.set('type', params.type);
+    if (params?.search) q.set('search', params.search);
+    return get(`${API_ENDPOINTS.adminEvents}?${q.toString()}`, accessToken);
+  },
+
   listPrestataires: (accessToken: string, search?: string) => {
     const q = search ? `?search=${encodeURIComponent(search)}` : '';
     return get(`${API_ENDPOINTS.adminPrestataires}${q}`, accessToken);

@@ -186,6 +186,8 @@ export const API_ENDPOINTS = {
   adminPaymentsStats: `${API_BASE_URL}/api/admin/payments/stats`,
   adminSubscriptions: `${API_BASE_URL}/api/admin/subscriptions`,
   adminExport: `${API_BASE_URL}/api/admin/export`,
+  adminCredentials: `${API_BASE_URL}/api/admin/credentials`,
+  adminEvents: `${API_BASE_URL}/api/admin/events`,
   // Abonnements
   subscriptionPlans: `${API_BASE_URL}/api/subscriptions/plans`,
   subscriptionMe: `${API_BASE_URL}/api/subscriptions/me`,

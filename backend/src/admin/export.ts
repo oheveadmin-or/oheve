@@ -83,7 +83,7 @@ export const EXPORT_SHEETS = {
       ORDER BY r.created_at DESC`,
   },
   sites: {
-    title: 'Sites mariage',
+    title: 'Sites (ancien format)',
     sql: `
       SELECT ps.id AS "ID", ps.bride_name AS "Mariée", ps.groom_name AS "Marié",
              ${day('ps.wedding_date')} AS "Date du mariage", ps.location AS "Lieu",
@@ -92,6 +92,39 @@ export const EXPORT_SHEETS = {
       FROM public_sites ps
       JOIN users u ON u.id = ps.user_id
       ORDER BY ps.created_at DESC`,
+  },
+  evenements: {
+    title: 'Événements',
+    sql: `
+      SELECT u.id AS "ID",
+             CASE COALESCE(NULLIF(u.event_type, ''), 'mariage')
+               WHEN 'mariage' THEN 'Mariage' WHEN 'bar_mitsva' THEN 'Bar Mitsva'
+               WHEN 'bat_mitsva' THEN 'Bat Mitsva' WHEN 'brit_mila' THEN 'Brit Mila'
+               ELSE u.event_type END AS "Événement",
+             u.bride_name AS "Prénom 1", u.groom_name AS "Prénom 2",
+             u.prenom AS "Prénom du compte", u.nom AS "Nom du compte",
+             ${sqlVisibleEmail('u.email')} AS "Email", u.phone AS "Téléphone",
+             ${day('u.date_mariage')} AS "Date de l'événement", u.wedding_city AS "Ville",
+             (SELECT COUNT(*)::int FROM wedding_guests g WHERE g.user_id = u.id) AS "Invités",
+             (SELECT ws.slug FROM wedding_sites ws WHERE ws.user_id = u.id ORDER BY ws.updated_at DESC LIMIT 1) AS "Site / invitation",
+             ${yesNo('u.premium')} AS "Premium", ${stamp('u.created_at')} AS "Inscrit le"
+      FROM users u
+      WHERE u.role = 'client'
+      ORDER BY u.date_mariage NULLS LAST, u.created_at DESC`,
+  },
+  identifiants: {
+    title: 'Identifiants prestataires',
+    sql: `
+      SELECT u.id AS "ID", COALESCE(pp.business_name, TRIM(CONCAT(u.prenom, ' ', u.nom))) AS "Entreprise",
+             pp.category AS "Catégorie", u.username AS "Identifiant",
+             ${sqlVisibleEmail('u.email')} AS "Email",
+             COALESCE(apc.password, '(choisi par le prestataire, non lisible)') AS "Mot de passe",
+             ${stamp('u.created_at')} AS "Créé le"
+      FROM users u
+      LEFT JOIN prestataire_profiles pp ON pp.user_id = u.id
+      LEFT JOIN admin_presta_credentials apc ON apc.user_id = u.id
+      WHERE u.role IN ('prestataire', 'boutique')
+      ORDER BY u.created_at DESC`,
   },
 } as const;
 

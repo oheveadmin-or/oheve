@@ -10,7 +10,9 @@ export const EXPORT_CHOICES = [
   { key: 'prestataires', label: 'Prestataires', icon: 'business-outline' },
   { key: 'paiements', label: 'Paiements', icon: 'card-outline' },
   { key: 'reservations', label: 'Réservations', icon: 'calendar-outline' },
-  { key: 'sites', label: 'Sites mariage', icon: 'globe-outline' },
+  { key: 'evenements', label: 'Tous les événements', icon: 'sparkles-outline' },
+  { key: 'identifiants', label: 'Identifiants prestataires', icon: 'key-outline' },
+  { key: 'sites', label: 'Sites (ancien format)', icon: 'globe-outline' },
 ] as const;
 
 type Sheet = { key: string; title: string; columns: string[]; rows: Record<string, unknown>[] };

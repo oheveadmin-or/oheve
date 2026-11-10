@@ -49,7 +49,8 @@ adminRoutes.get('/users', async (req: Request, res: Response) => {
   try {
     const r = await pool.query(
       `SELECT id,email,nom,prenom,role,is_active,avatar_url,phone,
-              subscription_plan,subscription_status,subscription_expires_at,created_at
+              subscription_plan,subscription_status,subscription_expires_at,created_at,
+              COALESCE(NULLIF(event_type, ''), 'mariage') AS event_type
        FROM users ${where}
        ORDER BY created_at DESC LIMIT $${i++} OFFSET $${i}`,
       vals
@@ -157,7 +158,11 @@ adminRoutes.get('/stats', async (_req: Request, res: Response) => {
         (SELECT COUNT(*)::int FROM public_sites) AS public_sites,
         (SELECT COUNT(*)::int FROM payments WHERE status='succeeded') AS succeeded_payments,
         (SELECT COALESCE(SUM(amount_total),0)::int FROM payments WHERE status='succeeded') AS total_revenue_cents,
-        (SELECT COALESCE(SUM(commission_amount),0)::int FROM payments WHERE status='succeeded') AS total_commission_cents
+        (SELECT COALESCE(SUM(commission_amount),0)::int FROM payments WHERE status='succeeded') AS total_commission_cents,
+        (SELECT COALESCE(json_object_agg(t, n), '{}'::json) FROM (
+           SELECT COALESCE(NULLIF(event_type, ''), 'mariage') AS t, COUNT(*)::int AS n
+           FROM users WHERE role='client' GROUP BY 1
+         ) ev) AS events_by_type
     `);
     return res.json({ success: true, data: r.rows[0] });
   } catch (err) {
@@ -178,6 +183,90 @@ adminRoutes.get('/export', async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: "Impossible de préparer l'export" });
+  }
+});
+
+// ── GET /api/admin/credentials ────────────────────────────────────────────────
+// Liste complète des comptes prestataires/boutiques avec leurs identifiants :
+// ID, identifiant, email, et le mot de passe donné par l'admin (NULL si le
+// prestataire l'a changé lui-même : seul son hash existe alors).
+adminRoutes.get('/credentials', async (_req: Request, res: Response) => {
+  try {
+    const r = await pool.query(
+      `SELECT u.id, u.role, u.username, ${sqlVisibleEmail('u.email')} AS email,
+              u.prenom, u.nom, u.must_change_password, u.is_active, u.created_at,
+              pp.business_name, pp.category,
+              apc.password AS admin_password
+       FROM users u
+       LEFT JOIN prestataire_profiles pp ON pp.user_id = u.id
+       LEFT JOIN admin_presta_credentials apc ON apc.user_id = u.id
+       WHERE u.role IN ('prestataire','boutique')
+       ORDER BY (apc.user_id IS NULL), u.created_at DESC`
+    );
+    return res.json({ success: true, data: r.rows });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Erreur' });
+  }
+});
+
+// ── GET /api/admin/events?type=mariage|bar_mitsva|bat_mitsva|brit_mila ─────────
+// Vue unique de TOUS les événements organisés dans l'app (un compte client =
+// un événement). users.event_type NULL = mariage (comptes d'avant l'option).
+const EVENT_TYPE_SQL = `COALESCE(NULLIF(u.event_type, ''), 'mariage')`;
+const ADMIN_EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila'];
+
+adminRoutes.get('/events', async (req: Request, res: Response) => {
+  const type = String(req.query.type ?? '');
+  const search = String(req.query.search ?? '').trim();
+  const conditions = [`u.role = 'client'`];
+  const vals: unknown[] = [];
+  if (ADMIN_EVENT_TYPES.includes(type)) { vals.push(type); conditions.push(`${EVENT_TYPE_SQL} = $${vals.length}`); }
+  if (search) {
+    vals.push(`%${search}%`);
+    const p = `$${vals.length}`;
+    conditions.push(`(u.nom ILIKE ${p} OR u.prenom ILIKE ${p} OR u.email ILIKE ${p} OR u.bride_name ILIKE ${p}
+                      OR u.groom_name ILIKE ${p} OR u.wedding_city ILIKE ${p})`);
+  }
+  try {
+    const [list, summary] = await Promise.all([
+      pool.query(
+        `SELECT u.id, u.prenom, u.nom, ${sqlVisibleEmail('u.email')} AS email, u.phone,
+                ${EVENT_TYPE_SQL} AS event_type, u.bride_name, u.groom_name,
+                to_char(u.date_mariage, 'YYYY-MM-DD') AS event_date, u.wedding_city AS city,
+                u.premium, u.is_active, u.created_at,
+                COALESCE(g.guests, 0)::int AS guests, COALESCE(g.people, 0)::int AS guest_people,
+                ws.slug AS site_slug,
+                COALESCE(pay.total, 0)::int AS paid_cents
+         FROM users u
+         LEFT JOIN (
+           SELECT user_id, COUNT(*) AS guests, SUM(guest_count) AS people
+           FROM wedding_guests GROUP BY user_id
+         ) g ON g.user_id = u.id
+         LEFT JOIN LATERAL (
+           SELECT slug FROM wedding_sites WHERE user_id = u.id ORDER BY updated_at DESC LIMIT 1
+         ) ws ON true
+         LEFT JOIN (
+           SELECT client_id, SUM(amount_total) AS total FROM payments WHERE status = 'succeeded' GROUP BY client_id
+         ) pay ON pay.client_id = u.id
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY (u.date_mariage IS NULL), (u.date_mariage < CURRENT_DATE), u.date_mariage, u.created_at DESC
+         LIMIT 500`,
+        vals
+      ),
+      pool.query(
+        `SELECT ${EVENT_TYPE_SQL} AS event_type,
+                COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE u.date_mariage >= CURRENT_DATE)::int AS upcoming,
+                COUNT(*) FILTER (WHERE u.premium)::int AS premium
+         FROM users u WHERE u.role = 'client'
+         GROUP BY 1`
+      ),
+    ]);
+    return res.json({ success: true, data: list.rows, summary: summary.rows });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Erreur' });
   }
 });
 

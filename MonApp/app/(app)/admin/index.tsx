@@ -10,6 +10,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EXPORT_CHOICES, exportAdminExcel } from '@/components/admin/admin-export';
+import { AdminCredentials } from '@/components/admin/admin-credentials';
+import { AdminEvents } from '@/components/admin/admin-events';
 import { CommunityModeration } from '@/components/admin/community-moderation';
 import {
   CreatePrestataireModal, GRANT_DURATIONS, generatePassword, grantUntil,
@@ -17,9 +19,10 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { useAuth, UserRole } from '@/contexts/auth-context';
 import { adminApi } from '@/services/auth/api';
+import { EVENT_TYPES, eventConfig } from '@/lib/event-type';
 import { categoryLabel } from '@/lib/presta-categories';
 
-type Tab = 'dashboard' | 'users' | 'prestataires' | 'boutiques' | 'contenus' | 'reservations' | 'payments' | 'communaute';
+type Tab = 'dashboard' | 'evenements' | 'users' | 'prestataires' | 'identifiants' | 'boutiques' | 'contenus' | 'reservations' | 'payments' | 'communaute';
 
 type Stats = {
   total_users: number;
@@ -33,6 +36,7 @@ type Stats = {
   active_subscriptions: number;
   verified_prestataires: number;
   public_sites: number;
+  events_by_type?: Record<string, number>;
 };
 
 type User = {
@@ -44,12 +48,15 @@ type User = {
   is_active: boolean;
   subscription_plan?: string;
   subscription_status?: string;
+  event_type?: string | null;
 };
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'grid-outline' },
+  { key: 'evenements', label: 'Événements', icon: 'sparkles-outline' },
   { key: 'users', label: 'Utilisateurs', icon: 'people-outline' },
   { key: 'prestataires', label: 'Prestataires', icon: 'business-outline' },
+  { key: 'identifiants', label: 'Identifiants', icon: 'key-outline' },
   { key: 'boutiques', label: 'Boutiques', icon: 'storefront-outline' },
   { key: 'contenus', label: 'Contenus', icon: 'document-text-outline' },
   { key: 'reservations', label: 'Réservations', icon: 'calendar-outline' },
@@ -60,6 +67,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 /** Onglet de la liste → export Excel correspondant. */
 const TAB_EXPORT: Partial<Record<Tab, string>> = {
   users: 'utilisateurs', prestataires: 'prestataires', contenus: 'sites',
+  evenements: 'evenements', identifiants: 'identifiants',
   reservations: 'reservations', payments: 'paiements',
 };
 
@@ -190,6 +198,13 @@ export default function AdminDashboard() {
           <View style={[styles.badge, { backgroundColor: '#929B8322' }]}>
             <ThemedText style={[styles.badgeTxt, { color: '#6b7c5e' }]}>{u.role}</ThemedText>
           </View>
+          {u.role === 'client' ? (
+            <View style={[styles.badge, { backgroundColor: '#f5f2ed' }]}>
+              <ThemedText style={[styles.badgeTxt, { color: '#5c5f57' }]}>
+                {eventConfig(u.event_type).emoji} {eventConfig(u.event_type).label}
+              </ThemedText>
+            </View>
+          ) : null}
           {!u.is_active && (
             <View style={[styles.badge, { backgroundColor: '#fecaca' }]}>
               <ThemedText style={[styles.badgeTxt, { color: '#dc2626' }]}>désactivé</ThemedText>
@@ -536,6 +551,20 @@ export default function AdminDashboard() {
                 <ThemedText style={styles.statLbl}>{s.label}</ThemedText>
               </View>
             ))}
+            {stats.events_by_type ? (
+              <Pressable style={styles.stripeCard} onPress={() => setTab('evenements')}>
+                <ThemedText style={styles.stripeTitle}>Événements (tous types)</ThemedText>
+                <View style={styles.eventRow}>
+                  {EVENT_TYPES.map((t) => (
+                    <View key={t} style={styles.eventCell}>
+                      <ThemedText style={styles.eventNum}>{stats.events_by_type?.[t] ?? 0}</ThemedText>
+                      <ThemedText style={styles.eventLbl} numberOfLines={1}>{eventConfig(t).emoji} {eventConfig(t).label}</ThemedText>
+                    </View>
+                  ))}
+                </View>
+                <ThemedText style={styles.stripeTxt}>Toucher pour voir tous les événements →</ThemedText>
+              </Pressable>
+            ) : null}
             {paymentStats && (
               <View style={styles.stripeCard}>
                 <ThemedText style={styles.stripeTitle}>Stripe Connect</ThemedText>
@@ -567,7 +596,7 @@ export default function AdminDashboard() {
           </View>
         )}
 
-        {tab !== 'dashboard' && tab !== 'payments' && tab !== 'communaute' && (
+        {tab !== 'dashboard' && tab !== 'payments' && tab !== 'communaute' && tab !== 'evenements' && tab !== 'identifiants' && (
           <TextInput
             style={styles.search}
             value={search}
@@ -634,6 +663,8 @@ export default function AdminDashboard() {
                 ListEmptyComponent={<ThemedText style={styles.empty}>Aucune réservation</ThemedText>} />
             )}
             {tab === 'communaute' && token && <CommunityModeration token={token} />}
+            {tab === 'evenements' && token && <AdminEvents token={token} />}
+            {tab === 'identifiants' && token && <AdminCredentials token={token} />}
             {tab === 'payments' && (
               <FlatList data={payments} keyExtractor={(p) => String(p.id)} scrollEnabled={false}
                 renderItem={renderPayment} ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -660,7 +691,7 @@ const styles = StyleSheet.create({
   heroLabel: { fontSize: 11, color: '#c5cbb8', fontWeight: '600', letterSpacing: 1 },
   heroTitle: { fontSize: 22, fontFamily: 'OheveSerif-Medium', color: '#fff' },
   adminBadge: { marginLeft: 'auto', width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  tabScroll: { flexGrow: 0, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#ece8e0' },
+  tabScroll: { flexGrow: 0, flexShrink: 0, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#ece8e0' },
   tabRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   tabChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: '#f5f2ed' },
   tabChipOn: { backgroundColor: '#929B83' },
@@ -702,6 +733,10 @@ const styles = StyleSheet.create({
   exportChipTxt: { fontSize: 12, fontWeight: '600', color: '#4a5240', flexShrink: 1 },
   exportTabBtn: { alignSelf: 'flex-start' },
   createTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  eventRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10, gap: 8 },
+  eventCell: { width: '47%', flexGrow: 1, backgroundColor: '#f7f8f4', borderRadius: 10, padding: 10 },
+  eventNum: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: '#4a5240' },
+  eventLbl: { fontSize: 11, color: '#5c5f57', fontWeight: '600' },
   iconBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#ece8e0', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfbf9' },
   empty: { textAlign: 'center', color: '#9a9c93', marginTop: 32, fontSize: 14 },
 });
