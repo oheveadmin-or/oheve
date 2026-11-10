@@ -12,6 +12,10 @@ export const EXPORT_CHOICES = [
   { key: 'reservations', label: 'Réservations', icon: 'calendar-outline' },
   { key: 'evenements', label: 'Tous les événements', icon: 'sparkles-outline' },
   { key: 'identifiants', label: 'Identifiants prestataires', icon: 'key-outline' },
+  { key: 'liste_lieux_paris', label: 'Lieux Paris', icon: 'business-outline' },
+  { key: 'liste_lieux_lyon', label: 'Lieux Lyon', icon: 'business-outline' },
+  { key: 'liste_lieux_marseille', label: 'Lieux Marseille-Aix', icon: 'business-outline' },
+  { key: 'liste_traiteurs', label: 'Traiteurs casher', icon: 'restaurant-outline' },
   { key: 'sites', label: 'Sites (ancien format)', icon: 'globe-outline' },
 ] as const;
 

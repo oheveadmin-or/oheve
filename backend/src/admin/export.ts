@@ -13,6 +13,32 @@ const stamp = (col: string) => `to_char(${col} AT TIME ZONE 'Europe/Paris', 'DD/
 const euros = (cents: string) => `ROUND(COALESCE(${cents}, 0) / 100.0, 2)::float`;
 const yesNo = (cond: string) => `CASE WHEN ${cond} THEN 'Oui' ELSE 'Non' END`;
 
+/** Libellé lisible de la liste de prospection d'origine (NULL = créé à la main). */
+const PROSPECT_LIST_LABEL = `CASE api.source
+  WHEN 'lieux-paris' THEN 'Lieux Paris' WHEN 'lieux-lyon' THEN 'Lieux Lyon'
+  WHEN 'lieux-marseille-aix' THEN 'Lieux Marseille-Aix' WHEN 'traiteurs-casher-paris' THEN 'Traiteurs casher'
+  ELSE COALESCE(api.source, 'Créé à la main') END`;
+
+/** Un onglet = une liste de prospection importée, prête à transmettre. */
+function prospectSheet(source: string, title: string) {
+  return {
+    title,
+    sql: `
+      SELECT u.id AS "ID", pp.business_name AS "Entreprise", pp.location_city AS "Ville",
+             COALESCE(pp.phone, u.phone) AS "Téléphone", api.contact_email AS "Email de contact",
+             u.username AS "Identifiant",
+             COALESCE(apc.password, '(changé par le prestataire)') AS "Mot de passe",
+             ${yesNo('NOT u.must_change_password')} AS "Déjà connecté",
+             api.source_ref AS "Réf. liste", api.notes AS "Notes (interne)"
+      FROM admin_presta_import api
+      JOIN users u ON u.id = api.user_id
+      JOIN prestataire_profiles pp ON pp.user_id = u.id
+      LEFT JOIN admin_presta_credentials apc ON apc.user_id = u.id
+      WHERE api.source = '${source}'
+      ORDER BY u.id`,
+  };
+}
+
 export const EXPORT_SHEETS = {
   utilisateurs: {
     title: 'Utilisateurs',
@@ -116,16 +142,25 @@ export const EXPORT_SHEETS = {
     title: 'Identifiants prestataires',
     sql: `
       SELECT u.id AS "ID", COALESCE(pp.business_name, TRIM(CONCAT(u.prenom, ' ', u.nom))) AS "Entreprise",
-             pp.category AS "Catégorie", u.username AS "Identifiant",
-             ${sqlVisibleEmail('u.email')} AS "Email",
+             pp.category AS "Catégorie", pp.location_city AS "Ville",
+             u.username AS "Identifiant",
              COALESCE(apc.password, '(choisi par le prestataire, non lisible)') AS "Mot de passe",
+             COALESCE(pp.phone, u.phone) AS "Téléphone",
+             COALESCE(api.contact_email, ${sqlVisibleEmail('u.email')}) AS "Email de contact",
+             ${yesNo('NOT u.must_change_password')} AS "Déjà connecté",
+             ${PROSPECT_LIST_LABEL} AS "Liste",
              ${stamp('u.created_at')} AS "Créé le"
       FROM users u
       LEFT JOIN prestataire_profiles pp ON pp.user_id = u.id
       LEFT JOIN admin_presta_credentials apc ON apc.user_id = u.id
+      LEFT JOIN admin_presta_import api ON api.user_id = u.id
       WHERE u.role IN ('prestataire', 'boutique')
       ORDER BY u.created_at DESC`,
   },
+  liste_lieux_paris: prospectSheet('lieux-paris', 'Lieux Paris'),
+  liste_lieux_lyon: prospectSheet('lieux-lyon', 'Lieux Lyon'),
+  liste_lieux_marseille: prospectSheet('lieux-marseille-aix', 'Lieux Marseille-Aix'),
+  liste_traiteurs: prospectSheet('traiteurs-casher-paris', 'Traiteurs casher'),
 } as const;
 
 export type ExportSheetKey = keyof typeof EXPORT_SHEETS;

@@ -2,6 +2,7 @@ import { CREATE_USER_AVATARS, migrateDiskAvatarsToDb } from '../avatars/avatarSt
 import { CREATE_STORED_FILES } from '../utils/persistent-uploads';
 import { ensureCommunitySchema } from '../community/repository';
 import { pool } from '../config/database';
+import { ensureProspectSchema } from '../admin/importProspects';
 
 // ── users ────────────────────────────────────────────────────────────────────
 const CREATE_USERS = `
@@ -599,6 +600,9 @@ export async function runMigrations(): Promise<void> {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    // ── Prestataires importés depuis les listes de prospection (admin seul)
+    // + RLS sur les tables d'identifiants (mots de passe en clair) ─────────────
+    await ensureProspectSchema(pool).catch((err) => console.error('❌ Import prospects:', (err as Error).message));
 
     // ── Communauté Oheve (salon commun des mariés) ─────────────────────────────
     await ensureCommunitySchema().catch((err) => console.error('❌ Communauté:', (err as Error).message));

@@ -67,7 +67,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 /** Onglet de la liste → export Excel correspondant. */
 const TAB_EXPORT: Partial<Record<Tab, string>> = {
   users: 'utilisateurs', prestataires: 'prestataires', contenus: 'sites',
-  evenements: 'evenements', identifiants: 'identifiants',
+  evenements: 'evenements',
   reservations: 'reservations', payments: 'paiements',
 };
 

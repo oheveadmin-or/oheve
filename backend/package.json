@@ -12,7 +12,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
-    "seed:admin": "tsx src/db/seed-admin.ts"
+    "seed:admin": "tsx src/db/seed-admin.ts",
+    "import:prestataires": "tsx src/db/import-prestataires.ts"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",

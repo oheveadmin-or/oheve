@@ -195,13 +195,16 @@ adminRoutes.get('/credentials', async (_req: Request, res: Response) => {
     const r = await pool.query(
       `SELECT u.id, u.role, u.username, ${sqlVisibleEmail('u.email')} AS email,
               u.prenom, u.nom, u.must_change_password, u.is_active, u.created_at,
-              pp.business_name, pp.category,
-              apc.password AS admin_password
+              pp.business_name, pp.category, pp.location_city AS city,
+              COALESCE(pp.phone, u.phone) AS phone,
+              apc.password AS admin_password,
+              api.source, api.contact_email
        FROM users u
        LEFT JOIN prestataire_profiles pp ON pp.user_id = u.id
        LEFT JOIN admin_presta_credentials apc ON apc.user_id = u.id
+       LEFT JOIN admin_presta_import api ON api.user_id = u.id
        WHERE u.role IN ('prestataire','boutique')
-       ORDER BY (apc.user_id IS NULL), u.created_at DESC`
+       ORDER BY (apc.user_id IS NULL), (api.source IS NOT NULL), api.source, u.id`
     );
     return res.json({ success: true, data: r.rows });
   } catch (err) {
