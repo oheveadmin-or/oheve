@@ -11,11 +11,6 @@ const GOLD = '#747e68';
 const IVORY = '#fcfbf9';
 const IVORY_CARD = '#ffffff';
 const SAND = '#f5f2ed';
-/* Repris de /presentation : fond sable, taupe des sur-titres, courbe d'animation */
-const PAGE_BG = '#f5f2ed';
-const SAND_DEEP = '#ece8e0';
-const TAUPE = '#7e8178';
-const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
 const APP_STORE_URL = 'https://apps.apple.com/fr/app/oheve/id6785535857';
 const INSTAGRAM_URL = 'https://www.instagram.com/ohevewedding';
@@ -157,30 +152,6 @@ function InstagramButton({ label = 'Suivre @ohevewedding' }: { label?: string })
       <InstagramGlyph size={17} color="#fff" />
       {label}
     </a>
-  );
-}
-
-/* ─── ÉLÉMENTS REPRIS DE /presentation ──────────────────────────── */
-
-/** Titre dont chaque mot remonte derrière un masque (comme sur /presentation). */
-function Split({ text, delay = 0 }: { text: string; delay?: number }) {
-  return (
-    <span className="ohv-split" style={{ ['--d' as string]: `${delay}s` }}>
-      {text.split(' ').map((w, i) => (
-        <span key={i}>
-          <span style={{ ['--i' as string]: i }}>{w}</span>
-        </span>
-      ))}
-    </span>
-  );
-}
-
-/** Sur-titre numéroté « 01 — L'application » précédé d'un filet. */
-function Kicker({ n, children, center = true }: { n: number; children: React.ReactNode; center?: boolean }) {
-  return (
-    <div className="ohv-kicker" style={center ? { justifyContent: 'center' } : undefined}>
-      {String(n).padStart(2, '0')} — {children}
-    </div>
   );
 }
 
@@ -335,7 +306,7 @@ export default function Home() {
         if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
       }
     }, { threshold: 0.12, rootMargin: '0px 0px -5% 0px' });
-    root.querySelectorAll('[data-reveal], .ohv-split, .ohv-curtain, .ohv-rule').forEach((el) => io.observe(el));
+    root.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -355,7 +326,7 @@ export default function Home() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400&family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: ${PAGE_BG}; }
+        body { background: ${IVORY}; }
         html { scroll-behavior: smooth; }
 
         @keyframes fadeUp {
@@ -498,108 +469,11 @@ export default function Home() {
           border: 1px solid rgba(91,70,54,0.1); box-shadow: 0 6px 20px rgba(61,46,31,0.08);
         }
 
-        /* ── Design repris de /presentation ── */
-        .ohv-grain {
-          position: fixed; inset: 0; pointer-events: none; z-index: 150; opacity: 0.07; mix-blend-mode: multiply;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-        }
-        .ohv-hero-shadow {
-          position: absolute; width: min(80vw, 900px); opacity: 0.55; pointer-events: none;
-          filter: blur(1.5px); animation: ohvSway 9s ease-in-out infinite alternate;
-        }
-        .ohv-hero-shadow.is-a { top: -8%; right: -12%; }
-        .ohv-hero-shadow.is-b { bottom: -18%; left: -18%; transform: rotate(180deg); animation-name: ohvSwayB; animation-delay: -4s; }
-        @keyframes ohvSway { from { transform: translate3d(0,0,0) rotate(0deg) skewX(0deg); } to { transform: translate3d(-18px,12px,0) rotate(2deg) skewX(-2deg); } }
-        @keyframes ohvSwayB { from { transform: rotate(180deg) translate3d(0,0,0); } to { transform: rotate(178deg) translate3d(16px,-10px,0) skewX(2deg); } }
-
-        .ohv-word {
-          font-family: 'Fraunces', Georgia, serif; font-weight: 400;
-          font-size: clamp(4.2rem, 17vw, 11.5rem); line-height: 0.9; letter-spacing: 0.04em;
-          color: ${SAGE}; display: flex; justify-content: center; margin-bottom: 0.4rem;
-        }
-        .ohv-word span {
-          display: inline-block; opacity: 0; filter: blur(14px); transform: translateY(30px);
-          animation: ohvLetter 1.4s ${EASE} forwards; animation-delay: calc(0.15s + var(--i) * 0.12s);
-          transition: transform 0.5s ${EASE}, color 0.5s;
-        }
-        .ohv-word span:hover { color: ${GOLD}; transform: translateY(-10px); }
-        @keyframes ohvLetter { to { opacity: 1; filter: blur(0); transform: none; } }
-
-        .ohv-scroll-cue {
-          display: inline-flex; flex-direction: column; align-items: center; gap: 0.6rem; margin-top: 2.4rem;
-          font-family: 'Fraunces', Georgia, serif; font-size: 0.72rem; letter-spacing: 0.3em; text-transform: uppercase;
-          color: ${TAUPE}; text-decoration: none;
-        }
-        .ohv-scroll-cue i {
-          width: 1px; height: 46px; background: linear-gradient(${MOKA} 50%, transparent 50%);
-          background-size: 100% 200%; animation: ohvDrip 1.8s ease-in-out infinite;
-        }
-        @keyframes ohvDrip { from { background-position: 0 100%; } to { background-position: 0 -100%; } }
-
-        .ohv-kicker {
-          display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.1rem;
-          font-family: 'Fraunces', Georgia, serif; font-size: 0.8rem; font-weight: 600;
-          letter-spacing: 0.32em; text-transform: uppercase; color: ${TAUPE};
-        }
-        .ohv-kicker::before { content: ''; width: 36px; height: 1px; background: currentColor; }
-
-        .ohv-split { display: inline-flex; flex-wrap: wrap; justify-content: inherit; column-gap: 0.28em; }
-        .ohv-split > span { display: inline-block; overflow: hidden; white-space: nowrap; padding-bottom: 0.08em; }
-        .ohv-split > span > span {
-          display: inline-block; transform: translateY(105%);
-          transition: transform 1.1s ${EASE}; transition-delay: calc(var(--i) * 0.07s + var(--d, 0s));
-        }
-        .ohv-split.is-in > span > span { transform: none; }
-
-        .ohv-rule {
-          height: 1px; background: ${MOKA}; transform-origin: left; transform: scaleX(0);
-          transition: transform 1.4s ${EASE} 0.2s; margin: 0 0 2rem;
-        }
-        .ohv-rule.is-in { transform: scaleX(1); }
-
-        .ohv-curtain { position: relative; overflow: hidden; }
-        .ohv-curtain::after {
-          content: ''; position: absolute; inset: 0; background: ${SAND_DEEP};
-          transform-origin: top; transition: transform 1.3s ${EASE};
-        }
-        .ohv-curtain img { transform: scale(1.18); transition: transform 1.8s ${EASE}; }
-        .ohv-curtain.is-in::after { transform: scaleY(0); }
-        .ohv-curtain.is-in img { transform: scale(1); }
-
-        .ohv-manifest {
-          display: grid; grid-template-columns: 1.2fr 1fr; background: ${SAND_DEEP};
-        }
-        .ohv-manifest-text { padding: clamp(4rem, 10vh, 7rem) clamp(1.25rem, 6vw, 5.5rem); }
-        .ohv-manifest-media { position: relative; min-height: 60vh; }
-        .ohv-manifest-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-        .ohv-strike { position: relative; display: inline-block; }
-        .ohv-strike::after {
-          content: ''; position: absolute; left: 0; top: 55%; height: 1.5px; width: 100%; background: ${MOKA};
-          transform: scaleX(0); transform-origin: left; transition: transform 0.8s ${EASE}; transition-delay: var(--d, 0.4s);
-        }
-        .is-in .ohv-strike::after { transform: scaleX(1); }
-        .ohv-stack { list-style: none; margin: 1.8rem 0; display: grid; gap: 0; }
-        .ohv-stack li {
-          font-family: 'Fraunces', Georgia, serif; font-size: clamp(1.1rem, 2vw, 1.35rem); color: ${MOKA};
-          padding: 0.7rem 0; border-bottom: 1px solid rgba(52,54,48,0.16);
-          display: flex; align-items: baseline; gap: 1rem;
-        }
-        .ohv-stack li b { font-size: 0.78rem; font-weight: 600; color: ${TAUPE}; letter-spacing: 0.1em; }
-
-        @media (max-width: 860px) {
-          .ohv-manifest { grid-template-columns: 1fr; }
-          .ohv-manifest-media { min-height: 52vh; }
-        }
-
         @media (prefers-reduced-motion: reduce) {
           .ohv-blob-a, .ohv-blob-b, .ohv-spark, .ohv-marquee-track, .ohv-phone-float, .ohv-btn-store::after,
-          .ohv-wa-float, .ohv-pres-arrow, .ohv-app-icon, .ohv-hero-shadow, .ohv-scroll-cue i { animation: none !important; }
+          .ohv-wa-float, .ohv-pres-arrow, .ohv-app-icon { animation: none !important; }
           .ohv-spark { display: none; }
           .ohv-anim [data-reveal] { opacity: 1; transform: none; transition: none; }
-          .ohv-word span { animation: none; opacity: 1; filter: none; transform: none; }
-          .ohv-split > span > span, .ohv-curtain img { transform: none !important; transition: none; }
-          .ohv-curtain::after { display: none; }
-          .ohv-rule { transform: none; }
         }
 
         .ohv-btn-store {
@@ -766,12 +640,11 @@ export default function Home() {
         }
       `}</style>
 
-      <div ref={rootRef} style={{ background: PAGE_BG, minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
-        <div className="ohv-grain" aria-hidden="true" />
+      <div ref={rootRef} style={{ background: IVORY, minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
 
         {/* ─── NAV ──────────────────────────────────────────── */}
         <nav className="ohv-nav" style={navStyle}>
-          <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.05rem', fontWeight: 400, color: GOLD, letterSpacing: '0.32em' }}>
+          <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.1rem', fontWeight: 600, color: MOKA, letterSpacing: '0.06em' }}>
             OHEVE
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -791,9 +664,8 @@ export default function Home() {
         {/* ─── HERO ─────────────────────────────────────────── */}
         <section style={heroSection}>
           <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
-            {/* Ombres de feuillage qui ondulent, comme le haut de /presentation */}
-            <img className="ohv-hero-shadow is-a" src="/presentation/ombre-feuillage.png" alt="" aria-hidden="true" />
-            <img className="ohv-hero-shadow is-b" src="/presentation/ombre-feuillage.png" alt="" aria-hidden="true" />
+            <div className="ohv-blob-a" style={{ position: 'absolute', top: '-12%', right: '-8%', width: 460, height: 460, borderRadius: '50%', background: `radial-gradient(circle, rgba(146,155,131,0.28) 0%, transparent 70%)` }} />
+            <div className="ohv-blob-b" style={{ position: 'absolute', bottom: '0%', left: '-8%', width: 380, height: 380, borderRadius: '50%', background: `radial-gradient(circle, rgba(116,126,104,0.18) 0%, transparent 70%)` }} />
             {SPARKS.map((sp, i) => (
               <span key={i} className="ohv-spark" style={{ left: sp.left, fontSize: sp.size, animationDuration: `${sp.dur}s`, animationDelay: `${sp.delay}s` }}>✦</span>
             ))}
@@ -805,11 +677,16 @@ export default function Home() {
               Application iPhone · Fêtes juives
             </div>
 
-            {/* Grand OHEVE lettre par lettre (repris de /presentation) */}
-            <div className="ohv-word" aria-hidden="true">
-              {'OHEVE'.split('').map((l, i) => (
-                <span key={i} style={{ ['--i' as string]: i }}>{l}</span>
-              ))}
+            {/* Icône de l'app */}
+            <div className="ohv-icon" style={{ marginBottom: '1.6rem' }}>
+              <img
+                src="/app-icon.jpg"
+                alt="Icône de l'application Oheve"
+                className="ohv-app-icon"
+                width={104}
+                height={104}
+                style={{ width: 104, height: 104, borderRadius: 26, boxShadow: '0 12px 34px rgba(61,46,31,0.18)', border: '1px solid rgba(91,70,54,0.08)' }}
+              />
             </div>
 
             <h1 className="ohv-title" style={heroTitle}>
@@ -847,10 +724,6 @@ export default function Home() {
             <p style={{ fontSize: '0.78rem', color: MOKA_MID, opacity: 0.6 }}>
               Téléchargement gratuit · Connexion avec Apple, Google ou email
             </p>
-            <a href="#manifeste" className="ohv-scroll-cue">
-              Découvrir
-              <i />
-            </a>
           </div>
         </section>
 
@@ -865,44 +738,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ─── MANIFESTE (bloc « La solution » de /presentation) ─── */}
-        <section id="manifeste" className="ohv-manifest" style={{ scrollMarginTop: 60 }}>
-          <div className="ohv-manifest-text">
-            <Kicker n={1} center={false}>Notre réponse</Kicker>
-            <h2 style={{ ...sectionTitle, textAlign: 'left' }}>
-              <Split text="Une seule application" />
-            </h2>
-            <div className="ohv-rule" />
-            <p data-reveal style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 'clamp(1.15rem, 2vw, 1.4rem)', lineHeight: 1.55, color: MOKA, maxWidth: '40ch' }}>
-              Oheve réunit tout ce dont vous avez besoin pour préparer le plus beau jour de votre vie, et de celle de vos enfants.
-            </p>
-            <ul className="ohv-stack">
-              {['To-do list & rappels', 'Budget & acomptes', 'Invités, RSVP & plan de table', "Site d'invitation", 'Prestataires sélectionnés'].map((t, i) => (
-                <li key={t} data-reveal style={{ ['--d' as string]: `${i * 0.08}s` }}>
-                  <b>{String(i + 1).padStart(2, '0')}</b>{t}
-                </li>
-              ))}
-            </ul>
-            <p data-reveal style={{ fontSize: '1rem', color: MOKA_MID, lineHeight: 1.75, maxWidth: '52ch' }}>
-              Fini <span className="ohv-strike">les tableaux Excel</span>,{' '}
-              <span className="ohv-strike" style={{ ['--d' as string]: '0.6s' }}>les notes dispersées</span> et{' '}
-              <span className="ohv-strike" style={{ ['--d' as string]: '0.8s' }}>les informations perdues entre plusieurs applications</span>.
-              Vous voyez d'un coup d'œil où en est votre fête.
-            </p>
-            <p data-reveal style={{ marginTop: '2.2rem', paddingTop: '1.4rem', borderTop: '1px solid rgba(52,54,48,0.16)', fontFamily: "'Fraunces', Georgia, serif", fontSize: 'clamp(1.25rem, 2.6vw, 1.8rem)', lineHeight: 1.3, color: GOLD }}>
-              « Toute la fête. Une seule application. Une préparation sans stress. »
-            </p>
-          </div>
-          <div className="ohv-manifest-media ohv-curtain">
-            <img src="/presentation/escalier.jpg" alt="Escalier de pierre menant à une arche" loading="lazy" />
-          </div>
-        </section>
-
         {/* ─── MAQUETTES ────────────────────────────────────── */}
         <section id="app" style={phoneSection}>
           <div data-reveal style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 3rem' }}>
-            <Kicker n={2}>L'application</Kicker>
-            <h2 style={sectionTitle}><Split text="Toute l'organisation, au même endroit" /></h2>
+            <div style={sectionLabel}>L'APPLICATION</div>
+            <h2 style={sectionTitle}>Toute l'organisation, au même endroit</h2>
             <p style={{ ...sectionSub, marginBottom: '1.6rem' }}>
               De la première to-do au plan de table imprimé, chaque étape se suit depuis votre téléphone.
             </p>
@@ -935,8 +775,8 @@ export default function Home() {
         {/* ─── ÉVÉNEMENTS ───────────────────────────────────── */}
         <section id="evenements" style={featSection}>
           <div data-reveal>
-          <Kicker n={3}>Une app, quatre fêtes</Kicker>
-          <h2 style={sectionTitle}><Split text="Chaque événement a sa propre organisation" /></h2>
+          <div style={sectionLabel}>UNE APP, QUATRE FÊTES</div>
+          <h2 style={sectionTitle}>Chaque événement a sa propre organisation</h2>
           </div>
           <p data-reveal style={sectionSub}>
             Choisissez votre événement à l'inscription : to-do, budget, prestataires et site s'adaptent tout seuls.
@@ -956,8 +796,8 @@ export default function Home() {
         {/* ─── FONCTIONNALITES ──────────────────────────────── */}
         <section id="features" style={featSection}>
           <div data-reveal>
-          <Kicker n={4}>Fonctionnalités</Kicker>
-          <h2 style={sectionTitle}><Split text="Ce que fait Oheve pour vous" /></h2>
+          <div style={sectionLabel}>FONCTIONNALITÉS</div>
+          <h2 style={sectionTitle}>Ce que fait Oheve pour vous</h2>
           </div>
           <p data-reveal style={sectionSub}>Six mois d'organisation tiennent dans votre poche — sans tableur, sans papier perdu.</p>
 
@@ -975,8 +815,8 @@ export default function Home() {
         {/* ─── SITE D'INVITATION ────────────────────────────── */}
         <section style={previewSection}>
           <div data-reveal style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
-            <Kicker n={5}>Inclus dans l'app</Kicker>
-            <h2 style={{ ...sectionTitle, marginBottom: '1rem' }}><Split text="Votre site d'invitation, en quelques minutes" /></h2>
+            <div style={sectionLabel}>INCLUS DANS L'APP</div>
+            <h2 style={{ ...sectionTitle, marginBottom: '1rem' }}>Votre site d'invitation, en quelques minutes</h2>
             <p style={{ ...sectionSub, marginBottom: '1.6rem' }}>
               Thèmes élégants, faire-part numérique, versets hébraïques, musique et galerie photos.
               Les phrases du faire-part s'adaptent à l'événement et les réponses de vos invités
@@ -1052,8 +892,8 @@ export default function Home() {
         {/* ─── PRÉSENTATION + CONTACT WHATSAPP ──────────────── */}
         <section id="contact" style={{ padding: '1rem 1.5rem 4.5rem', scrollMarginTop: 70 }}>
           <div data-reveal style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 2.2rem' }}>
-            <Kicker n={6}>Parlons-en</Kicker>
-            <h2 style={sectionTitle}><Split text={'Prestataire, futur marié ou parent ?'} /></h2>
+            <div style={sectionLabel}>PARLONS-EN</div>
+            <h2 style={sectionTitle}>Prestataire, futur marié ou parent&nbsp;?</h2>
             <p style={{ ...sectionSub, marginBottom: 0 }}>
               Découvrez la vision d'Oheve en quelques minutes, ou écrivez-nous directement : on vous répond sur WhatsApp.
             </p>
