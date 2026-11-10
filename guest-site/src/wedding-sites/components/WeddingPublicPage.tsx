@@ -16,7 +16,7 @@ import { filterSiteForInvite, getActiveInviteToken, setActiveInviteToken } from 
 import { resolveGuestName } from '../utils/guestName';
 import { EnvelopeOpening } from './EnvelopeOpening';
 import { InvitationOpening } from './InvitationOpening';
-import { invitationEffects } from '../themes/InvitationTheme';
+import { invitationEffects, isAnimatedInvitation } from '../themes/InvitationTheme';
 
 export function WeddingPublicPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -137,7 +137,7 @@ export function WeddingPublicPage() {
   const heroImage = (site?.content as Record<string, unknown> | undefined)?.heroImageUrl as string | undefined;
 
   // Invitation animée : son ouverture (carte → enveloppe → accueil) fait partie du modèle
-  const animatedInvitation = site?.theme?.style === 'invitation-animee';
+  const animatedInvitation = isAnimatedInvitation(site?.theme?.style);
   // Un lien au nom d'un invité ouvre toujours l'enveloppe (c'est tout son intérêt)
   const wantsOpening = site && animatedInvitation
     ? invitationEffects(site.theme).opening || !!guestName

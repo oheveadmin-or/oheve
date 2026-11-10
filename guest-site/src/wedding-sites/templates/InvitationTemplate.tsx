@@ -41,7 +41,7 @@ import {
   renderOptionalSections,
 } from './templateParts';
 import type { InvitationStyle } from './templateParts';
-import { coupleNames, GoldMonogram, INVITATION_PARTS_CSS, IvoryBloom, prefersReducedMotion } from './invitationParts';
+import { coupleNames, GoldMonogram, INVITATION_PARTS_CSS, IvoryBloom, prefersReducedMotion, TefillinArt } from './invitationParts';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Textes de l'interface                                                      */
@@ -359,7 +359,7 @@ function EventPage({ page, site, tk, S }: { page: Page; site: WeddingSite; tk: I
       band={<DirectionsBand place={target.query} label={fr ? frenchAt(target.name) : target.name} googleMapsUrl={ev.googleMapsUrl} wazeUrl={ev.wazeUrl} S={S} />}
     >
       <Bsd tk={tk} S={S} />
-      <GoldMonogram site={site} tk={tk} size="min(16cqw, 84px)" />
+      {tk.dark ? <span className="ia-tf-rule" aria-hidden /> : <GoldMonogram site={site} tk={tk} size="min(16cqw, 84px)" />}
       <h2 className="ia-title" style={{ fontSize: tk.sizes.title }}>
         {ev.label}
       </h2>
@@ -430,7 +430,7 @@ function MainPage({ site, tk, S }: { site: WeddingSite; tk: InvitationTokens; S:
           />
         </div>
       ) : null}
-      <GoldMonogram site={site} tk={tk} size="min(20cqw, 104px)" />
+      {tk.dark ? <span className="ia-tf-rule" aria-hidden /> : <GoldMonogram site={site} tk={tk} size="min(20cqw, 104px)" />}
       {columns.length ? (
         <div className="ia-families">
           <FamilyColumnsRow columns={columns} accent={tk.colors.foil} textColor={tk.colors.ink} titleFontFamily={tk.fonts.script} bodyFontFamily={tk.fonts.body} titleVariant="script" lineSize="0.98rem" hideTitles />
@@ -608,7 +608,7 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
     sections: { ...site.sections, program: false, rsvp: false, location: false, jewishSection: false, hero: false, qrCode: false },
   };
   const surface = () => ({
-    background: 'rgba(255,255,255,0.72)',
+    background: tk.colors.surface,
     border: `1px solid ${tk.colors.hairline}`,
     borderRadius: 3,
     boxShadow: `0 18px 40px -30px ${tk.colors.shadow}`,
@@ -637,6 +637,10 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
     '--ia-body': tk.fonts.body,
     '--ia-bar': `${tk.colors.paper}eb`,
     '--ia-tabs-h': '64px',
+    '--ia-btn-ink': tk.colors.buttonInk,
+    '--ia-field': tk.colors.field,
+    '--ia-tab-active': tk.colors.tabActive,
+    '--ia-cell': tk.dark ? 'transparent' : 'rgba(255,255,255,0.82)',
   } as CSSProperties;
 
   return (
@@ -645,7 +649,7 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
       id="top"
       dir={dir}
       lang={site.language}
-      className={`wedding-template-root ia-root${tk.effects.bottomBar && tabs.length > 1 ? ' has-tabs' : ''}${navMode ? ' has-top' : ''}`}
+      className={`wedding-template-root ia-root ia-decor-${tk.decor}${tk.effects.bottomBar && tabs.length > 1 ? ' has-tabs' : ''}${navMode ? ' has-top' : ''}`}
       style={{ ...cssVars, fontFamily: tk.fonts.body, color: tk.colors.ink, background: tk.colors.paper }}
     >
       <style>{INVITATION_CSS + INVITATION_PARTS_CSS}</style>
@@ -656,7 +660,11 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
 
       {/* Fleur ivoire immobile derrière toutes les pages */}
       <div className="ia-bloom-layer" aria-hidden>
-        <IvoryBloom tint={shade(tk.colors.paper, -0.07)} uid="page" className="ia-bloom" />
+        {tk.dark ? (
+          <TefillinArt uid="page" className="ia-art" />
+        ) : (
+          <IvoryBloom tint={shade(tk.colors.paper, -0.07)} uid="page" className="ia-bloom" />
+        )}
       </div>
 
       {navMode ? (
@@ -816,10 +824,10 @@ const INVITATION_CSS = `
   font-family: var(--ia-body); color: var(--ia-ink);
 }
 .ia-rsvp input:not([type="checkbox"]):not([type="radio"]), .ia-rsvp textarea, .ia-rsvp select {
-  border-radius: 2px !important; background: rgba(255,255,255,0.85) !important; font-family: var(--ia-body);
+  border-radius: 2px !important; background: var(--ia-field) !important; font-family: var(--ia-body);
 }
 .ia-rsvp button[type="submit"] {
-  background: var(--ia-btn) !important; border-radius: 2px !important; margin-top: 1.2rem !important;
+  background: var(--ia-btn) !important; color: var(--ia-btn-ink) !important; border-radius: 2px !important; margin-top: 1.2rem !important;
   font-family: var(--ia-label); font-weight: 600 !important; font-size: 0.72rem !important; letter-spacing: 0.25em !important;
   box-shadow: 0 10px 24px -12px var(--ia-shadow), inset 0 1px 0 rgba(255,255,255,0.25) !important;
 }
@@ -864,7 +872,7 @@ const INVITATION_CSS = `
   transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
 }
 .ia-tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ia-tab.is-active { background: #fff; border-color: var(--ia-hair); color: var(--ia-ink); box-shadow: 0 4px 12px -8px var(--ia-shadow); }
+.ia-tab.is-active { background: var(--ia-tab-active); border-color: var(--ia-hair); color: var(--ia-ink); box-shadow: 0 4px 12px -8px var(--ia-shadow); }
 .ia-tab:focus-visible { outline: 2px solid var(--ia-foil); outline-offset: 1px; }
 
 /* Apparition au défilement — seulement une fois la racine armée par le script */
@@ -873,6 +881,22 @@ const INVITATION_CSS = `
   transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .ia-root[data-reveal="on"] .ia-reveal.is-in { opacity: 1; transform: none; }
+
+/* Hébreu : les lettres hébraïques ne s'espacent pas comme des capitales latines */
+.ia-root[dir="rtl"] .ia-title, .ia-root[dir="rtl"] .ia-band-title, .ia-root[dir="rtl"] .ia-rsvp-title,
+.ia-root[dir="rtl"] .ia-hebdate, .ia-root[dir="rtl"] .ia-sign-names, .ia-root[dir="rtl"] .ia-wa,
+.ia-root[dir="rtl"] .ia-band-link, .ia-root[dir="rtl"] .ia-top-links a { letter-spacing: 0.02em; }
+
+/* ── Décor tefillin (Bar Mitsva) : fond bordeaux, noms en capitales ──── */
+.ia-art { width: min(100%, 760px); height: 100%; opacity: 0.6; }
+/* Filet losangé à la place du monogramme (les lanières occupent déjà le décor) */
+.ia-tf-rule { display: block; width: min(46cqw, 200px); height: 9px; margin: 0.2rem auto 0.4rem;
+  background: linear-gradient(90deg, transparent, var(--ia-foil) 40%, transparent 40% 60%, var(--ia-foil) 60%, transparent) center / 100% 1px no-repeat; position: relative; }
+.ia-tf-rule::after { content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; border: 1px solid var(--ia-foil); transform: translate(-50%, -50%) rotate(45deg); }
+.ia-decor-tefillin .ia-names { text-transform: uppercase; letter-spacing: 0.06em; text-shadow: 0 2px 20px rgba(0,0,0,0.6); }
+.ia-decor-tefillin .ia-rsvp input:not([type="checkbox"]):not([type="radio"]),
+.ia-decor-tefillin .ia-rsvp textarea, .ia-decor-tefillin .ia-rsvp select { color: var(--ia-ink) !important; border-color: var(--ia-hair) !important; }
+.ia-decor-tefillin .ia-rsvp label, .ia-decor-tefillin .ia-rsvp p, .ia-decor-tefillin .ia-rsvp span { color: var(--ia-ink); }
 
 @media (prefers-reduced-motion: reduce) {
   .ia-photo img { animation: none; }

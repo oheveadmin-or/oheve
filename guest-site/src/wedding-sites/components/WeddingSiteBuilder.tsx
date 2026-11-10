@@ -48,7 +48,7 @@ import { generateSlugFromDisplayName, slugify } from '../utils/slug';
 import { getMyAccount } from '../services/weddingSiteService';
 import { defaultRSVPEvents } from '@guest/rsvp/types';
 import { applyThemePreset } from '../templates/themePresets';
-import { invitationEffects } from '../themes/InvitationTheme';
+import { invitationEffects, isAnimatedInvitation } from '../themes/InvitationTheme';
 
 import { WeddingSitePreview } from './WeddingSitePreview';
 import { GuestEnvelopeLinks } from './GuestEnvelopeLinks';
@@ -209,6 +209,7 @@ function wizardStep(idx: number, eventType: SiteEventType) {
 
 /** Couleurs de l'événement (Bar Mitsva bleu nuit, Bat Mitsva pêche, Brit Mila bleu ciel) */
 function withEventPalette(theme: WeddingTheme, ev: SiteEventType): WeddingTheme {
+  if (theme.style === 'invitation-tefillin') return theme;
   const name = eventDefaultPaletteName(ev);
   const combo = name ? COLOR_COMBINATIONS.find((c) => c.name === name) : undefined;
   return combo ? applyColorCombination(theme, combo) : theme;
@@ -1036,6 +1037,7 @@ export function WeddingSiteBuilder() {
         key={loadedStyle ?? 'new'}
         currentStyleId={theme.style}
         isExisting={loadedStyle != null}
+        eventType={eventType}
         onSelect={(preset) => {
           // Même thème que le site enregistré : on garde ses réglages tels quels
           if (preset.id === theme.style && loadedStyle != null) { setStep('build'); return; }
@@ -1492,7 +1494,7 @@ export function WeddingSiteBuilder() {
             <h2 style={h2}>🎨 Style & thème</h2>
 
             {/* Invitation animée : décor et couleurs fixes du modèle — ni studio ni couleurs à choisir */}
-            {theme.style !== 'invitation-animee' && (<>
+            {!isAnimatedInvitation(theme.style) && (<>
             {/* ── Studio de Design ─────────────────────────────────────────── */}
             <div style={{ marginTop: '0.5rem', padding: '1rem', background: 'linear-gradient(135deg, #FCFBF9 0%, #F5F2ED 100%)', borderRadius: 12, border: '1px solid #E2DED5' }}>
               <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', fontWeight: 800, color: '#929B83', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -1867,12 +1869,12 @@ export function WeddingSiteBuilder() {
               <div style={{ display: 'flex', gap: 8 }}>
                 {([
                   // Invitation animée : sans barre en haut par défaut (onglets en bas)
-                  ...(theme.style === 'invitation-animee' ? [{ v: 'none' as const, label: 'Aucune', desc: 'Onglets en bas' }] : []),
+                  ...(isAnimatedInvitation(theme.style) ? [{ v: 'none' as const, label: 'Aucune', desc: 'Onglets en bas' }] : []),
                   { v: 'horizontal', label: 'Horizontale', desc: 'Liens en haut' },
                   { v: 'hamburger', label: 'Menu', desc: 'Tiroir latéral' },
                   { v: 'minimal', label: 'Minimale', desc: 'Prénom seul' },
                 ] as const).map(({ v, label, desc }) => {
-                  const cur = (theme.navStyle ?? (theme.style === 'invitation-animee' ? 'none' : 'horizontal')) as string;
+                  const cur = (theme.navStyle ?? (isAnimatedInvitation(theme.style) ? 'none' : 'horizontal')) as string;
                   const sel = cur === v;
                   return (
                     <button
@@ -2130,8 +2132,8 @@ export function WeddingSiteBuilder() {
           )}
 
           {wiz === 'invitation' && (() => {
-            const invitationPreset = STYLE_PRESETS.find((p) => p.id === 'invitation-animee');
-            const isInvitation = theme.style === 'invitation-animee';
+            const invitationPreset = STYLE_PRESETS.find((p) => p.id === (eventType === 'bar_mitsva' ? 'invitation-tefillin' : 'invitation-animee'));
+            const isInvitation = isAnimatedInvitation(theme.style);
             const fx = invitationEffects(theme);
             const setFx = (key: keyof InvitationEffects, on: boolean) =>
               setTheme((t) => ({ ...t, invitation: { ...t.invitation, [key]: on } }));
@@ -2200,7 +2202,7 @@ export function WeddingSiteBuilder() {
                           <span>
                             <strong style={{ display: 'block', fontSize: '0.92rem' }}>Carte, enveloppe et écran d'accueil</strong>
                             <span style={{ display: 'block', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.45 }}>
-                              L'invité touche la carte : elle se retourne, l'enveloppe s'ouvre, puis vos prénoms et le compte à rebours
+                              L'invité touche la carte : elle se retourne, l'enveloppe s'ouvre, puis {isWeddingEvent(eventType) ? 'vos prénoms' : 'le prénom'} et le compte à rebours
                               apparaissent avec « Voir l'invitation ».
                             </span>
                           </span>

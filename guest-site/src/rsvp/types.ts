@@ -105,7 +105,7 @@ export const RSVP_FIELD_META: Record<RSVPField, { adminLabelFr: string }> = {
   lastname: { adminLabelFr: 'Nom' },
   email: { adminLabelFr: 'Email' },
   phone: { adminLabelFr: 'Téléphone' },
-  message: { adminLabelFr: 'Message aux mariés' },
+  message: { adminLabelFr: 'Message des invités' },
   dietaryRestrictions: { adminLabelFr: 'Restrictions alimentaires' },
 };
 

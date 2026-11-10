@@ -88,7 +88,7 @@ export function Countdown({ iso, tk, units, doneText, className, style }: { iso:
     >
       {values.map((v, i) => (
         <div key={i} aria-hidden className="ia-count-cell">
-          <span style={{ display: 'block', fontFamily: tk.fonts.body, fontSize: 'min(6.4cqw, 1.6rem)', lineHeight: 1.1, color: tk.colors.ink }}>{v}</span>
+          <span style={{ display: 'block', fontFamily: tk.fonts.body, fontSize: 'min(6.4cqw, 1.6rem)', lineHeight: 1.1, color: tk.colors.ink }}>{tk.dark ? String(v).padStart(2, '0') : v}</span>
           <span style={{ display: 'block', marginTop: 2, fontFamily: tk.fonts.body, fontStyle: 'italic', fontSize: 'min(3cqw, 0.72rem)', color: tk.colors.muted }}>{units[i]}</span>
         </div>
       ))}
@@ -162,6 +162,141 @@ export function IvoryBloom({ tint, uid, className, style }: { tint: string; uid:
   );
 }
 
+/* ── Décor Bar Mitsva : tefillin et lanières de cuir (SVG) ─────────────── */
+
+type Pt = [number, number];
+const add = (a: Pt, b: Pt): Pt => [a[0] + b[0], a[1] + b[1]];
+const poly = (pts: Pt[]) => pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+
+/**
+ * Boîtier cubique (bayit) posé sur sa base plate (titoura), vu de trois quarts.
+ * `ang` : rotation autour de l'axe vertical, en degrés (0..90).
+ */
+function TefillinBox({ x, y, size, ang, uid }: { x: number; y: number; size: number; ang: number; uid: string }) {
+  const a = (ang * Math.PI) / 180;
+  const box = (c: Pt, s: number, h: number, faces: [string, string, string], key: string) => {
+    const r: Pt = [s * Math.cos(a), s * 0.5 * Math.sin(a)];
+    const l: Pt = [-s * Math.sin(a), s * 0.5 * Math.cos(a)];
+    const down: Pt = [0, h];
+    const C = c;
+    const R = add(C, r);
+    const L = add(C, l);
+    const F = add(R, l);
+    return (
+      <g key={key}>
+        {/* Face gauche (le long de r, depuis L) puis face droite (le long de l, depuis R) */}
+        <polygon points={poly([L, F, add(F, down), add(L, down)])} fill={faces[1]} />
+        <polygon points={poly([R, F, add(F, down), add(R, down)])} fill={faces[2]} />
+        <polygon points={poly([C, R, F, L])} fill={faces[0]} />
+        <polyline points={poly([L, F, R])} fill="none" stroke="#E7BDB2" strokeOpacity="0.55" strokeWidth="0.9" />
+        <line x1={F[0]} y1={F[1]} x2={F[0]} y2={F[1] + h} stroke="#E7BDB2" strokeOpacity="0.35" strokeWidth="0.8" />
+        <polyline points={poly([C, R])} fill="none" stroke="#E7BDB2" strokeOpacity="0.25" strokeWidth="0.7" />
+        <polyline points={poly([C, L])} fill="none" stroke="#E7BDB2" strokeOpacity="0.25" strokeWidth="0.7" />
+      </g>
+    );
+  };
+  const top = `url(#tf-top-${uid})`;
+  const left = `url(#tf-left-${uid})`;
+  const right = `url(#tf-right-${uid})`;
+  const base = size * 1.42;
+  const slabH = size * 0.16;
+  // La base est centrée sous le cube : on recule son coin arrière
+  const shift = (size - base) / 2;
+  const back: Pt = [x + shift * (Math.cos(a) - Math.sin(a)), y + shift * 0.5 * (Math.sin(a) + Math.cos(a))];
+  // (x, y) = coin arrière du cube sur le dessus de la base ; son dessus est une hauteur plus haut
+  const cubeH = size * 0.96;
+  return (
+    <g filter={`url(#tf-drop-${uid})`}>
+      {box(back, base, slabH, [top, left, right], 'slab')}
+      {box([x, y - cubeH], size, cubeH, [top, left, right], 'cube')}
+    </g>
+  );
+}
+
+/** Lanière : cuir sombre, reflet métallique au centre, filet de lumière */
+function Strap({ d, w, uid }: { d: string; w: number; uid: string }) {
+  return (
+    <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+      {/* Ombre portée, tranches claires, puis la face du cuir : un ruban plat, pas un câble */}
+      <path d={d} stroke="#0E0306" strokeWidth={w + 4} strokeOpacity="0.5" transform="translate(2,4)" />
+      <path d={d} stroke="#E2B2A8" strokeOpacity="0.7" strokeWidth={w} />
+      <path d={d} stroke={`url(#tf-strap-${uid})`} strokeWidth={w - 2.2} />
+      <path d={d} stroke="#FFFFFF" strokeOpacity="0.07" strokeWidth={(w - 2.2) * 0.45} transform="translate(-1,-1)" />
+    </g>
+  );
+}
+
+/**
+ * Fond du décor tefillin : deux boîtiers en haut, lanières qui ondulent sur
+ * les côtés, halo bordeaux au centre et léger grain vertical. Dessiné ici,
+ * aucune image externe. viewBox portrait 400×800, rogné (slice) pour remplir.
+ */
+export function TefillinArt({ uid, className, style, top = false }: { uid: string; className?: string; style?: CSSProperties; /** Cadre sur le haut (les boîtiers) : vignettes */ top?: boolean }) {
+  return (
+    <svg aria-hidden className={className} style={style} viewBox="0 0 400 800" preserveAspectRatio={top ? 'xMidYMin slice' : 'xMidYMid slice'}>
+      <defs>
+        <radialGradient id={`tf-glow-${uid}`} cx="0.5" cy="0.42" r="0.62">
+          <stop offset="0" stopColor="#4C1621" />
+          <stop offset="0.6" stopColor="#300C14" />
+          <stop offset="1" stopColor="#1C060B" />
+        </radialGradient>
+        <pattern id={`tf-grain-${uid}`} width="7" height="800" patternUnits="userSpaceOnUse">
+          <rect width="1" height="800" x="1" fill="#000" opacity="0.18" />
+          <rect width="0.6" height="800" x="4.5" fill="#fff" opacity="0.025" />
+        </pattern>
+        <linearGradient id={`tf-strap-${uid}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="400" y2="800">
+          <stop offset="0" stopColor="#5A1E29" />
+          <stop offset="0.18" stopColor="#B57D7A" />
+          <stop offset="0.32" stopColor="#4A1520" />
+          <stop offset="0.5" stopColor="#9C5F62" />
+          <stop offset="0.66" stopColor="#3F111A" />
+          <stop offset="0.84" stopColor="#B88280" />
+          <stop offset="1" stopColor="#4A1520" />
+        </linearGradient>
+        <linearGradient id={`tf-top-${uid}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#9A5A60" />
+          <stop offset="1" stopColor="#5A2230" />
+        </linearGradient>
+        <linearGradient id={`tf-left-${uid}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#5E2430" />
+          <stop offset="1" stopColor="#2A0A12" />
+        </linearGradient>
+        <linearGradient id={`tf-right-${uid}`} x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#3E1019" />
+          <stop offset="1" stopColor="#1A050A" />
+        </linearGradient>
+        <filter id={`tf-drop-${uid}`} x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#000" floodOpacity="0.55" />
+        </filter>
+      </defs>
+
+      <rect width="400" height="800" fill={`url(#tf-glow-${uid})`} />
+      <rect width="400" height="800" fill={`url(#tf-grain-${uid})`} />
+
+      <g className="tf-drift tf-drift-a">
+        {/* Lanière qui traverse le haut, derrière les boîtiers */}
+        <Strap uid={uid} w={13} d="M-30 70 C 60 20, 150 110, 225 72 S 350 0, 440 46" />
+        {/* Côté gauche : lanière du boîtier de tête qui descend en boucles */}
+        <Strap uid={uid} w={17} d="M118 214 C 60 260, -10 280, 22 360 S 150 430, 70 520 S -40 640, 30 720 S 120 800, 60 860" />
+        <Strap uid={uid} w={10} d="M96 226 C 150 300, 120 340, 64 380 S -6 470, 40 560" />
+        <TefillinBox uid={uid} x={86} y={196} size={62} ang={34} />
+      </g>
+
+      <g className="tf-drift tf-drift-b">
+        {/* Côté droit : boîtier du bras et sa lanière enroulée */}
+        <Strap uid={uid} w={16} d="M300 172 C 370 230, 430 300, 360 380 S 250 460, 330 560 S 440 690, 370 760 S 300 820, 350 880" />
+        <Strap uid={uid} w={10} d="M318 178 C 260 250, 300 300, 352 330 S 420 420, 372 470" />
+        <TefillinBox uid={uid} x={292} y={150} size={50} ang={58} />
+      </g>
+
+      {/* Boucle basse, très douce, pour habiller le bas de l'écran */}
+      <g opacity="0.7" className="tf-drift tf-drift-a">
+        <Strap uid={uid} w={12} d="M-30 760 C 80 700, 160 800, 240 744 S 360 680, 440 730" />
+      </g>
+    </svg>
+  );
+}
+
 /* ── Monogramme doré ─────────────────────────────────────────────────────── */
 
 /**
@@ -212,10 +347,15 @@ export const INVITATION_PARTS_CSS = `
 @keyframes ia-shine { to { background-position: -150% center; } }
 .ia-count-cell {
   text-align: center; padding: 0.55em 0.2em 0.45em;
-  background: rgba(255,255,255,0.82); border: 1px solid var(--ia-hair);
+  background: var(--ia-cell, rgba(255,255,255,0.82)); border: 1px solid var(--ia-hair);
   border-radius: 3px; box-shadow: 0 6px 16px -12px var(--ia-shadow);
 }
+/* Décor tefillin : le cuir ondule à peine, comme posé sur du velours */
+.tf-drift { animation: tf-drift 9s ease-in-out infinite alternate; transform-box: view-box; }
+.tf-drift-b { animation-duration: 11s; animation-delay: -4s; }
+@keyframes tf-drift { from { transform: translateY(-4px); } to { transform: translateY(5px); } }
 @media (prefers-reduced-motion: reduce) {
   .ia-gold { animation: none; background-position: 50% center; }
+  .tf-drift { animation: none; }
 }
 `;

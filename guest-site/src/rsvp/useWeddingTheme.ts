@@ -24,9 +24,14 @@ export function mergeWeddingUi(site: WeddingSite, rsvpForm?: RSVPForm | null) {
   const cardStyle = o?.cardStyle ?? t.cardStyle ?? 'default';
   const stylePreset = o?.style ?? t.style ?? 'classic';
 
-  const isDarkish =
-    backgroundColor.toLowerCase().includes('#0') &&
-    parseInt(backgroundColor.slice(1, 3), 16) < 56;
+  // Fond sombre (noir, bordeaux de l'invitation Bar Mitsva…) : luminance réelle,
+  // pas seulement les couleurs en « #0… »
+  const isDarkish = (() => {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(backgroundColor.trim());
+    if (!m) return false;
+    const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b < 70;
+  })();
 
   const page: CSSProperties = {
     minHeight: '100vh',

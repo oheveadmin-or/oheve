@@ -8,6 +8,7 @@ import { EditorialCardsTemplate } from '@guest/wedding-sites/templates/Editorial
 import { StripesEditorialTemplate } from '@guest/wedding-sites/templates/StripesEditorialTemplate';
 import { VoileIvoireTemplate } from '@guest/wedding-sites/templates/VoileIvoireTemplate';
 import { InvitationTemplate } from '@guest/wedding-sites/templates/InvitationTemplate';
+import { isAnimatedInvitation } from '@guest/wedding-sites/themes/InvitationTheme';
 
 // Legacy templates — kept for sites created before the UniversalTemplate system
 import { ArtDecoTemplate } from '@guest/wedding-sites/templates/ArtDecoTemplate';
@@ -32,6 +33,10 @@ export function getTemplateByTheme(
   theme: WeddingTheme,
   language: SiteLanguage
 ): WeddingTemplateComponent {
+  // L'Invitation animée (ivoire ou Bar Mitsva) a ses propres textes hébreux et
+  // gère le RTL : elle garde son déroulé (carte → enveloppe → pages) en hébreu.
+  if (theme && isAnimatedInvitation(theme.style)) return InvitationTemplate;
+
   // Hebrew always uses the dedicated RTL template
   if (language === 'he') return HebrewElegantTemplate;
 
@@ -42,7 +47,7 @@ export function getTemplateByTheme(
   if (theme.style === 'stripes-editorial') return StripesEditorialTemplate;
   if (theme.style === 'editorial-cards') return EditorialCardsTemplate;
   if (theme.style === 'voile-ivoire') return VoileIvoireTemplate;
-  if (theme.style === 'invitation-animee') return InvitationTemplate;
+  if (isAnimatedInvitation(theme.style)) return InvitationTemplate;
 
   // v2 sites: heroStyle is set → use the new universal template
   if (theme.heroStyle) return UniversalTemplate;

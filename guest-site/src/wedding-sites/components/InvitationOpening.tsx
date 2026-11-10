@@ -27,6 +27,7 @@ import {
   INVITATION_PARTS_CSS,
   IvoryBloom,
   prefersReducedMotion,
+  TefillinArt,
 } from '../templates/invitationParts';
 
 type Stage = 'cover' | 'turn' | 'open' | 'leave' | 'intro' | 'exit';
@@ -188,6 +189,12 @@ export function InvitationOpening({ site, contained = false, guestName, onDone }
     '--ia-wax': tk.colors.foil,
     '--ia-wax-lo': tk.colors.goldLo,
     '--ia-btn': tk.colors.button,
+    '--ia-btn-ink': tk.colors.buttonInk,
+    '--ia-cover': tk.colors.coverCard,
+    '--ia-card': tk.colors.cardPaper,
+    '--ia-env-hi': tk.colors.envelopeHi,
+    '--ia-env-lo': tk.colors.envelopeLo,
+    '--ia-cell': tk.dark ? 'transparent' : 'rgba(255,255,255,0.82)',
   } as CSSProperties;
 
   // Entrées échelonnées de l'écran d'accueil
@@ -201,14 +208,18 @@ export function InvitationOpening({ site, contained = false, guestName, onDone }
       aria-label={S.dialog}
       dir={dir}
       lang={site.language}
-      className={`io-root${contained ? ' is-contained' : ''}${stage === 'exit' ? ' is-exiting' : ''}`}
+      className={`io-root io-decor-${tk.decor}${contained ? ' is-contained' : ''}${stage === 'exit' ? ' is-exiting' : ''}`}
       style={{ ...vars, background: tk.colors.paper, color: tk.colors.ink, fontFamily: tk.fonts.body }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') finish();
       }}
     >
       <style>{OPENING_CSS + INVITATION_PARTS_CSS}</style>
-      <IvoryBloom tint={shade(tk.colors.paper, -0.07)} uid="opening" className={`io-bloom${showIntro ? ' is-intro' : ''}`} />
+      {tk.dark ? (
+        <TefillinArt uid="opening" className={`io-art${showIntro ? ' is-intro' : ''}`} />
+      ) : (
+        <IvoryBloom tint={shade(tk.colors.paper, -0.07)} uid="opening" className={`io-bloom${showIntro ? ' is-intro' : ''}`} />
+      )}
 
       {/* 1–2. Carte puis enveloppe */}
       <div className={`io-screen${leaving ? ' is-leaving' : ''}`} aria-hidden={showIntro || undefined}>
@@ -277,7 +288,7 @@ export function InvitationOpening({ site, contained = false, guestName, onDone }
       {/* 3. Écran d'accueil */}
       {showIntro ? (
         <div className="io-intro">
-          <GoldMonogram site={site} tk={tk} size="min(19cqw, 10cqh, 120px)" className="io-in" style={enter()} />
+          {tk.dark ? null : <GoldMonogram site={site} tk={tk} size="min(19cqw, 10cqh, 120px)" className="io-in" style={enter()} />}
           <p className="io-in io-kicker" style={enter()}>
             {S.wedding}
           </p>
@@ -359,7 +370,7 @@ const OPENING_CSS = `
 .io-turn.is-turned .io-back { visibility: visible; }
 .io-front, .io-back { position: absolute; inset: 0; display: block; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .io-front {
-  background: rgba(255,255,255,0.84); border-radius: 4px;
+  background: var(--ia-cover); border-radius: 4px;
   filter: drop-shadow(0 14px 20px var(--ia-shadow));
 }
 .io-frame {
@@ -380,7 +391,7 @@ const OPENING_CSS = `
 .io-card {
   position: absolute; left: 6%; right: 6%; top: 5%; height: 88%; z-index: 1;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-  padding-top: 5%; gap: 1.5cqw; background: #FFFDF9; border-radius: 2px;
+  padding-top: 5%; gap: 1.5cqw; background: var(--ia-card); border-radius: 2px;
   box-shadow: 0 4px 12px -6px var(--ia-shadow); opacity: 0;
   transition: opacity 0.4s ease 0.3s, transform 1s cubic-bezier(0.3, 0.7, 0.2, 1) 0.6s;
 }
@@ -390,7 +401,7 @@ const OPENING_CSS = `
 .io-pocket {
   position: absolute; inset: 0; z-index: 2; display: block;
   clip-path: polygon(0 0, 50% 53.6%, 100% 0, 100% 100%, 0 100%);
-  background: linear-gradient(180deg, #FFFFFF 0%, #FFFCF8 100%);
+  background: linear-gradient(180deg, var(--ia-env-hi) 0%, var(--ia-env-lo) 100%);
 }
 .io-pocket svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .io-flap {
@@ -400,7 +411,7 @@ const OPENING_CSS = `
 }
 .io-back.is-open .io-flap { transform: rotateX(180deg); z-index: 0; }
 .io-flap-front, .io-flap-back { position: absolute; inset: 0; display: block; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.io-flap-front { clip-path: polygon(0 0, 100% 0, 50% 53.6%); background: linear-gradient(180deg, #FFFFFF 0%, #F9F3EB 100%); }
+.io-flap-front { clip-path: polygon(0 0, 100% 0, 50% 53.6%); background: linear-gradient(180deg, var(--ia-env-hi) 0%, var(--ia-env-lo) 100%); }
 .io-flap-back { clip-path: polygon(0 100%, 100% 100%, 50% 46.4%); background: var(--ia-flap-in); transform: rotateX(180deg); }
 .io-seal {
   position: absolute; left: 50%; top: 53.6%; z-index: 4; width: 17%; aspect-ratio: 1;
@@ -455,7 +466,7 @@ const OPENING_CSS = `
 .io-see {
   margin-top: min(4cqh, 32px); display: inline-flex; align-items: center; gap: 0.7rem;
   padding: 0.95rem 1.7rem; border: 0; border-radius: 2px; cursor: pointer;
-  background: var(--ia-btn); color: #fff; text-shadow: none;
+  background: var(--ia-btn); color: var(--ia-btn-ink); text-shadow: none;
   font-family: 'Montserrat', 'DM Sans', sans-serif; font-weight: 600; font-size: 0.72rem;
   letter-spacing: 0.22em; text-transform: uppercase;
   box-shadow: 0 10px 24px -12px var(--ia-shadow), inset 0 1px 0 rgba(255,255,255,0.25);
@@ -465,8 +476,35 @@ const OPENING_CSS = `
 .io-see:active { transform: scale(0.98); }
 .io-see:focus-visible { outline: 2px solid var(--ia-foil); outline-offset: 4px; }
 
+/* ── Décor tefillin (Bar Mitsva) ─────────────────────────────────────── */
+.io-art { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 1.2s ease; }
+.io-art.is-intro { opacity: 0.85; }
+.io-decor-tefillin .io-kicker { font-family: 'Montserrat', 'DM Sans', sans-serif; font-weight: 400; font-size: min(3.8cqw, 2.4cqh, 1rem); letter-spacing: 0.42em; }
+.io-decor-tefillin .io-names {
+  text-transform: uppercase; letter-spacing: 0.06em; padding-inline-start: 0.06em; line-height: 1.05;
+  font-size: min(15cqw, 8cqh, 4.6rem); color: var(--ia-ink);
+  text-shadow: 0 2px 24px rgba(0,0,0,0.65), 0 0 2px rgba(0,0,0,0.4);
+}
+.io-decor-tefillin .io-phrase { font-family: 'Montserrat', 'DM Sans', sans-serif; font-style: normal; text-transform: uppercase; letter-spacing: 0.22em; font-size: min(3cqw, 1.9cqh, 0.78rem); line-height: 1.9; }
+.io-decor-tefillin .io-count { max-width: 360px !important; }
+.io-decor-tefillin .io-count .ia-count-cell { border: 0; border-inline-start: 1px solid var(--ia-hair); border-radius: 0; box-shadow: none; }
+.io-decor-tefillin .io-count .ia-count-cell > span:first-child { font-family: 'Bodoni Moda', Georgia, serif !important; font-size: min(11cqw, 2.6rem) !important; }
+.io-decor-tefillin .io-count .ia-count-cell > span:last-child { font-family: 'Montserrat', 'DM Sans', sans-serif !important; font-style: normal !important; text-transform: uppercase; letter-spacing: 0.2em; font-size: min(2.4cqw, 0.6rem) !important; margin-top: 8px !important; }
+.io-decor-tefillin .io-count .ia-count-cell:first-child { border-inline-start: 0; }
+.io-decor-tefillin .io-see {
+  background: transparent; color: var(--ia-ink); border: 1px solid var(--ia-foil); border-radius: 999px;
+  box-shadow: inset 0 0 0 3px var(--ia-paper), inset 0 0 0 4px var(--ia-hair); font-weight: 500;
+}
+.io-decor-tefillin .io-see:hover { background: rgba(255,255,255,0.06); }
+.io-decor-tefillin .io-hint { color: var(--ia-ink) !important; opacity: 0.85; }
+
+/* Hébreu : la flèche suit le sens de lecture, et pas d'espacement entre les lettres */
+.io-root[dir="rtl"] .io-see svg { transform: scaleX(-1); }
+.io-root[dir="rtl"] .io-hint, .io-root[dir="rtl"] .io-kicker, .io-root[dir="rtl"] .io-phrase,
+.io-root[dir="rtl"] .io-see, .io-root[dir="rtl"] .ia-count-cell > span { letter-spacing: 0.02em !important; }
+
 @media (prefers-reduced-motion: reduce) {
-  .io-root, .io-bloom, .io-screen, .io-turn, .io-card, .io-flap, .io-seal { transition: none; }
+  .io-root, .io-bloom, .io-art, .io-screen, .io-turn, .io-card, .io-flap, .io-seal { transition: none; }
   .io-in, .io-hint, .io-seal-wax, .io-seal-shine { animation: none; }
 }
 `;

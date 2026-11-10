@@ -301,7 +301,7 @@ export function RSVPBuilder({ form, onChange }: RSVPBuilderProps) {
               patch({ ...form, activeFields: nextFields, settings: { ...settings, showMessage: show } });
             }}
           />
-          Activer "Message aux mariés"
+          Activer « Message des invités »
         </label>
 
       </fieldset>

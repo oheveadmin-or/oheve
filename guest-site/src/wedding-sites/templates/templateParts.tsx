@@ -338,8 +338,15 @@ export type InvitationStyle = {
 
 const HEBREW_FONT = "'Frank Ruhl Libre', 'Noto Serif Hebrew', serif";
 
-function InvitationPhrase({ text, s, soft = false }: { text?: { fr: string; he?: string }; s: InvitationStyle; soft?: boolean }) {
+function InvitationPhrase({ text, s, soft = false, heOnly = false }: { text?: { fr: string; he?: string }; s: InvitationStyle; soft?: boolean; /** Site en hébreu : la version hébraïque seule, si elle existe */ heOnly?: boolean }) {
   if (!text?.fr?.trim()) return null;
+  if (heOnly && text.he?.trim()) {
+    return (
+      <p dir="rtl" lang="he" style={{ margin: 0, fontFamily: HEBREW_FONT, fontSize: s.size ?? '1rem', lineHeight: 1.7, color: soft ? (s.muted ?? s.text) : s.text, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+        {text.he.trim()}
+      </p>
+    );
+  }
   const size = s.size ?? '1rem';
   const style: CSSProperties = {
     margin: 0,
@@ -370,7 +377,7 @@ export function InvitationThanks({ site, s, style }: { site: WeddingSite; s: Inv
   if (!thanks?.fr?.trim()) return null;
   return (
     <div style={{ textAlign: 'center', ...style }}>
-      <InvitationPhrase text={thanks} s={s} />
+      <InvitationPhrase text={thanks} s={s} heOnly={site.language === 'he'} />
     </div>
   );
 }
@@ -384,8 +391,12 @@ export function InvitationThanks({ site, s, style }: { site: WeddingSite; s: Inv
 export function InvitationDetails({ site, s, style }: { site: WeddingSite; s: InvitationStyle; style?: CSSProperties }) {
   const texts = site.content?.invitationTexts ?? {};
   const dateIso = site.date?.slice(0, 10) ?? '';
-  const longDate = dateIso ? frenchLongDate(dateIso) : '';
-  const hebDate = dateIso ? hebrewDateFromIso(dateIso)?.fr : '';
+  const he = site.language === 'he';
+  // Site en hébreu : date grégorienne en hébreu, pas de translittération (« téveth »)
+  const longDate = !dateIso ? '' : he
+    ? new Date(`${dateIso}T12:00:00`).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : frenchLongDate(dateIso);
+  const hebDate = dateIso && !he ? hebrewDateFromIso(dateIso)?.fr : '';
   // Date en lettres hébraïques (« י״ד באלול תשפ״ו »)
   const hebLetters = dateIso ? hebrewDateFromIso(dateIso)?.he : '';
   const time = /^\d{1,2}:\d{2}/.test(site.time ?? '') ? site.time.slice(0, 5).replace(':', 'h') : '';
@@ -404,13 +415,13 @@ export function InvitationDetails({ site, s, style }: { site: WeddingSite; s: In
 
   return (
     <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '1.1rem', ...style }}>
-      <InvitationPhrase text={texts.invitation} s={s} />
+      <InvitationPhrase text={texts.invitation} s={s} heOnly={he} />
       {longDate ? (
         <div>
           <p style={{ ...lineStyle, fontSize: s.dateSize ?? `calc(${size} * 1.25)` }}>{longDate}</p>
           {hebDate || time ? (
             <p style={{ ...lineStyle, marginTop: '0.25rem', fontSize: size, opacity: 0.85 }}>
-              {[hebDate, time ? `à ${time}` : ''].filter(Boolean).join(' · ')}
+              {[hebDate, time ? (he ? `בשעה ${time.replace('h', ':')}` : `à ${time}`) : ''].filter(Boolean).join(' · ')}
             </p>
           ) : null}
           {hebLetters ? (
@@ -426,10 +437,11 @@ export function InvitationDetails({ site, s, style }: { site: WeddingSite; s: In
       <InvitationPhrase
         text={reception && texts.reception ? { ...texts.reception, fr: texts.reception.fr.trim().replace(/[.\s]+$/, '') } : texts.reception}
         s={s}
+        heOnly={he}
       />
       {reception ? <PlaceLines place={reception} fr={fr} lineStyle={lineStyle} size={size} /> : null}
-      <InvitationPhrase text={texts.memorial} s={s} soft />
-      <InvitationPhrase text={texts.dressCode} s={s} soft />
+      <InvitationPhrase text={texts.memorial} s={s} soft heOnly={he} />
+      <InvitationPhrase text={texts.dressCode} s={s} soft heOnly={he} />
     </div>
   );
 }

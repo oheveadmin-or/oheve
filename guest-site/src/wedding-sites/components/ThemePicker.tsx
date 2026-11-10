@@ -6,6 +6,8 @@
 import { useState } from 'react';
 import type { ThemePreset } from '../data/weddingThemes';
 import { STYLE_PRESETS } from '../data/weddingThemes';
+import { isAnimatedInvitation } from '../themes/InvitationTheme';
+import { TefillinArt } from '../templates/invitationParts';
 
 type Props = {
   onSelect: (preset: ThemePreset) => void;
@@ -13,6 +15,8 @@ type Props = {
   currentStyleId?: string;
   /** Site déjà enregistré : présélectionne son thème tel quel. */
   isExisting?: boolean;
+  /** Événement du site : le décor tefillin n'est proposé qu'aux Bar Mitsva */
+  eventType?: string;
 };
 
 /** Génère un dégradé représentatif à partir de la couleur principale + fond */
@@ -274,14 +278,22 @@ function AnimatedInvitationCard({ preset, selected, onClick }: { preset: ThemePr
         </span>
       )}
       <div style={{ width: 'min(34%, 190px)', flexShrink: 0, display: 'flex', minHeight: 112, borderRadius: 0, overflow: 'hidden' }}>
-        <ThemeCardSwatch bg={bg} primary={primary} secondary={secondary} />
+        {preset.id === 'invitation-tefillin' ? (
+          <span style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
+            <TefillinArt uid="picker" top style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />
+          </span>
+        ) : (
+          <ThemeCardSwatch bg={bg} primary={primary} secondary={secondary} />
+        )}
       </div>
       <div style={{ padding: '0.85rem 1rem', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
         <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1rem', fontWeight: 700, color: '#1e1e1e' }}>
           {preset.label.replace('✦ ', '')}
         </span>
         <span style={{ fontSize: '0.74rem', color: '#6f665c', lineHeight: 1.45 }}>
-          Carte au nom de l'invité qui s'ouvre en enveloppe, une page par événement et la réponse intégrée.
+          {preset.id === 'invitation-tefillin'
+            ? "Le même déroulé que l'Invitation animée, sur un fond bordeaux avec des tefillin et leurs lanières."
+            : "Carte au nom de l'invité qui s'ouvre en enveloppe, une page par événement et la réponse intégrée."}
         </span>
         <span style={{ fontSize: '0.68rem', color: '#9a8f83', lineHeight: 1.4 }}>
           Modèle clé en main : décor et couleurs fixes, moins personnalisable que les thèmes ci-dessus.
@@ -291,7 +303,7 @@ function AnimatedInvitationCard({ preset, selected, onClick }: { preset: ThemePr
   );
 }
 
-export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Props) {
+export function ThemePicker({ onSelect, currentStyleId, isExisting = false, eventType }: Props) {
   // Par défaut : vintage-blue si aucun style existant, sinon le style du site en cours d'édition
   // (« classic » est aussi le style par défaut d'un site neuf : on ne le garde
   // que pour un site existant, sinon « Commencer » basculait son site Classique
@@ -303,8 +315,13 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Pr
   const chosen = STYLE_PRESETS.find((p) => p.id === selected) ?? STYLE_PRESETS[0];
   // Les thèmes personnalisables d'abord ; l'Invitation animée (décor et couleurs
   // fixes) est présentée à part, en dessous, comme un autre style.
-  const customizable = STYLE_PRESETS.filter((p) => p.id !== 'invitation-animee');
-  const animated = STYLE_PRESETS.find((p) => p.id === 'invitation-animee');
+  const customizable = STYLE_PRESETS.filter((p) => !isAnimatedInvitation(p.id));
+  // Décor tefillin : pour une Bar Mitsva (ou un site qui l'utilise déjà), présenté en premier
+  const showTefillin = eventType === 'bar_mitsva' || currentStyleId === 'invitation-tefillin';
+  const animatedList = (showTefillin ? ['invitation-tefillin', 'invitation-animee'] : ['invitation-animee'])
+    .map((id) => STYLE_PRESETS.find((p) => p.id === id))
+    .filter((p): p is ThemePreset => Boolean(p));
+  const animated = animatedList[0];
 
   return (
     <div
@@ -385,7 +402,11 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false }: Pr
               </span>
               <span style={{ flex: 1, height: 1, background: '#e2dacd' }} />
             </div>
-            <AnimatedInvitationCard preset={animated} selected={selected === animated.id} onClick={() => setSelected(animated.id)} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {animatedList.map((p) => (
+                <AnimatedInvitationCard key={p.id} preset={p} selected={selected === p.id} onClick={() => setSelected(p.id)} />
+              ))}
+            </div>
           </div>
         ) : null}
       </div>

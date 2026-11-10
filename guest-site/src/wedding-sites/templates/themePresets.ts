@@ -397,6 +397,15 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cornerDecor: false,
     fontFamily: "'Cormorant Garamond', Georgia, serif",
   },
+  // Même modèle, décor Bar Mitsva (tefillin sur fond bordeaux)
+  'invitation-tefillin': {
+    heroStyle: 'faire-part',
+    patternId: 'none',
+    separatorStyle: 'none',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+  },
 };
 
 /** Merge preset overrides into the theme, preserving explicit user values */

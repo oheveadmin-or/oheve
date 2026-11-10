@@ -42,7 +42,9 @@ export type ThemeStyle =
   | 'editorial-cards'
   | 'stripes-editorial'
   | 'voile-ivoire'
-  | 'invitation-animee';
+  | 'invitation-animee'
+  /** Invitation animée, décor Bar Mitsva : fond bordeaux, tefillin et lanières */
+  | 'invitation-tefillin';
 
 export type TitleSize = 'small' | 'medium' | 'large' | 'huge';
 

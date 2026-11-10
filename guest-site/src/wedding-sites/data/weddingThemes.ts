@@ -91,6 +91,25 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
     },
   },
   {
+    id: 'invitation-tefillin',
+    label: '✦ Invitation animée · Bar Mitsva',
+    description: 'Le même déroulé que l’Invitation animée, sur un fond bordeaux avec des tefillin et leurs lanières',
+    theme: {
+      style: 'invitation-tefillin',
+      backgroundColor: '#2A0B12',
+      textColor: '#EED9D2',
+      primaryColor: '#C79C92',
+      secondaryColor: '#B98A84',
+      mutedTextColor: '#C9AFA8',
+      fontFamily: "'Cormorant Garamond', Georgia, serif",
+      titleFontFamily: "'Bodoni Moda', 'GFS Didot', Georgia, serif",
+      scriptFontFamily: "'Bodoni Moda', 'GFS Didot', Georgia, serif",
+      cardStyle: 'shadow',
+      layout: 'centered',
+      borderRadius: 4,
+    },
+  },
+  {
     id: 'provence',
     label: 'Provence',
     description: 'Beige, ocre, vert olivier, serif doux',
@@ -622,6 +641,8 @@ const VISIBLE_STYLE_IDS: ThemeStyle[] = [
   'classic',
   // Le plus récent, présenté en dernier
   'invitation-animee',
+  // Décor Bar Mitsva : proposé seulement aux sites de Bar Mitsva (cf. ThemePicker)
+  'invitation-tefillin',
 ];
 
 export const STYLE_PRESETS: ThemePreset[] = VISIBLE_STYLE_IDS
