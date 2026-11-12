@@ -616,8 +616,29 @@ export async function runMigrations(): Promise<void> {
     // ── Communauté Oheve (salon commun des mariés) ─────────────────────────────
     await ensureCommunitySchema().catch((err) => console.error('❌ Communauté:', (err as Error).message));
 
+    // ── Filet de sécurité RLS : TOUTE table du schéma public doit avoir le RLS
+    // activé. Le backend (rôle postgres, bypass RLS) n'est pas impacté ; sans
+    // ça, la clé publique Supabase embarquée dans l'app permettrait de lire et
+    // d'écrire ces tables via l'API REST (alerte « UNRESTRICTED »).
+    await enforceRlsOnAllTables().catch((err) => console.error('❌ RLS:', (err as Error).message));
+
     console.log('✅ Schema DB synchronisé (roles, boutique, subscriptions, refresh_tokens, prestataires, messaging, push_tokens, rsvp, payments, stripe_connect, devis, reservations, calendar, admin, photo_likes, photo_comments)');
   } catch (err) {
     console.error('❌ Migration DB:', (err as Error).message);
   }
+}
+
+/** Active le RLS (sans policy = accès refusé à anon/authenticated) sur chaque table publique qui ne l'a pas. */
+export async function enforceRlsOnAllTables(): Promise<string[]> {
+  const { rows } = await pool.query<{ relname: string }>(`
+    SELECT c.relname FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND NOT c.relrowsecurity
+  `);
+  for (const { relname } of rows) {
+    const t = `public."${relname.replace(/"/g, '""')}"`;
+    await pool.query(`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY`);
+    console.warn(`🔒 RLS activé sur ${relname}`);
+  }
+  return rows.map(r => r.relname);
 }
