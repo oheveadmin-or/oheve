@@ -31,7 +31,8 @@ const VIDEO_EXT = new Set(['.mp4', '.mov', '.m4v', '.webm', '.avi']);
 const HEAVY_BYTES = 20 * 1024 * 1024;
 
 const REMUX_TIMEOUT_MS = 60_000;
-const TRANSCODE_TIMEOUT_MS = 5 * 60_000;
+// Vidéos jusqu'à 2 min (parfois 4K Android) : marge large sur le CPU Railway.
+const TRANSCODE_TIMEOUT_MS = 12 * 60_000;
 
 // Paysage → largeur plafonnée ; portrait → hauteur plafonnée. L'autre dimension
 // (`-2`) suit le ratio en restant paire.
@@ -128,6 +129,9 @@ export async function optimizeVideoFile(filePath: string): Promise<string | null
           // calculée en gardant un nombre pair, exigé par H.264.
           '-vf', SCALE_LONG_SIDE_1280,
           '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
+          // Plafond de débit : ~50 Mo max pour 2 min, même pour une vidéo très
+          // chargée (la vidéo est stockée en base, voir persistent-uploads).
+          '-maxrate', '3M', '-bufsize', '6M',
           // Sans forçage, un source en 4:2:2/4:4:4 produit un MP4 que les
           // décodeurs matériels iOS/Android refusent de lire.
           '-pix_fmt', 'yuv420p',

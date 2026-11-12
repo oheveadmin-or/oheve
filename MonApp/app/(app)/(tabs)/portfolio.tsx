@@ -27,6 +27,7 @@ import { askCoverInFeed } from '@/lib/ask-cover-in-feed';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
+import { isTooLong, TOO_LONG_MESSAGE, VIDEO_PICK_OPTIONS } from '@/lib/video-pick';
 import { prestatairesApi, uploadFile } from '@/services/auth/api';
 import { API_ENDPOINTS } from '@/constants/config';
 
@@ -122,9 +123,8 @@ export default function PortfolioScreen() {
         mediaTypes: ['images', 'videos'],
         allowsMultipleSelection: true,
         quality: 0.85,
-        videoMaxDuration: 90,
-        // `quality` ne s'applique pas aux vidéos — sans ceci iOS envoie l'original 4K.
-        videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
+        // Vidéos jusqu'à 2 min, réencodées en 720p par l'iPhone avant l'envoi.
+        ...VIDEO_PICK_OPTIONS,
         // ⚠️ selectionLimit: 0 (illimité) masque le bouton « Ajouter » du sélecteur
         // iOS sur certaines versions → l'utilisateur ne peut plus valider sa sélection.
         // Une limite finie restaure le bouton. 30 photos par lot (répétable).
@@ -136,6 +136,12 @@ export default function PortfolioScreen() {
     }
 
     if (result.canceled || !result.assets.length) return;
+    const tooLong = result.assets.filter(isTooLong).length;
+    if (tooLong) {
+      Alert.alert(tooLong > 1 ? `${tooLong} vidéos ignorées` : 'Vidéo ignorée', TOO_LONG_MESSAGE);
+      result = { ...result, assets: result.assets.filter((a) => !isTooLong(a)) };
+      if (!result.assets.length) return;
+    }
 
     // Un seul média → on demande d'abord la description (facultative).
     // Plusieurs médias → upload direct (description ajoutable ensuite par média).

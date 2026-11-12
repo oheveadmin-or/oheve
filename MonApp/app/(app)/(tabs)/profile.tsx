@@ -27,6 +27,7 @@ import { VideoThumbnail } from '@/components/video-thumbnail';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
+import { isTooLong, TOO_LONG_MESSAGE, VIDEO_PICK_OPTIONS } from '@/lib/video-pick';
 import { prestatairesApi, messagingApi, authApi, uploadFile } from '@/services/auth/api';
 import { API_ENDPOINTS } from '@/constants/config';
 import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
@@ -205,11 +206,10 @@ function PrestataireInstaProfile() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       quality: 0.85,
-      videoMaxDuration: 90,
-      // `quality` ne s'applique pas aux vidéos — sans ceci iOS envoie l'original 4K.
-      videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
+      ...VIDEO_PICK_OPTIONS,
     });
     if (result.canceled || !result.assets[0]) return;
+    if (isTooLong(result.assets[0])) { Alert.alert('Vidéo ignorée', TOO_LONG_MESSAGE); return; }
     setCaptionDraft('');
     setPendingIsVideo(result.assets[0].type === 'video');
     setPendingPhotoUri(result.assets[0].uri);

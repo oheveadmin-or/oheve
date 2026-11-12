@@ -35,6 +35,14 @@ function adminTargetUserId(req: Request): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+/** Empreinte SHA-256 en flux : une vidéo de plusieurs centaines de Mo n'est pas chargée en mémoire. */
+function hashFile(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const h = crypto.createHash('sha256');
+    fs.createReadStream(filePath).on('data', (c) => h.update(c)).on('error', reject).on('end', () => resolve(h.digest('hex')));
+  });
+}
+
 /**
  * Anti-doublon (à placer juste après multer, AVANT les optimisations qui
  * réécrivent le fichier) : empreinte SHA-256 du fichier reçu ; si ce
@@ -44,7 +52,7 @@ export function rejectDuplicatePhoto() {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.file?.path) return next();
     try {
-      const hash = crypto.createHash('sha256').update(await fs.promises.readFile(req.file.path)).digest('hex');
+      const hash = await hashFile(req.file.path);
       (req as Request & { contentHash?: string }).contentHash = hash;
       const userId = adminTargetUserId(req);
       const prestataireId = userId ? await repo.findPrestataireIdByUserId(userId) : null;

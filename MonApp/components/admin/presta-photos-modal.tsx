@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { askCoverInFeed } from '@/lib/ask-cover-in-feed';
+import { isTooLong, TOO_LONG_MESSAGE, VIDEO_PICK_OPTIONS } from '@/lib/video-pick';
 import { adminApi } from '@/services/auth/api';
 
 type Photo = { id: number; url: string; is_cover: boolean; in_feed?: boolean; media_type?: 'image' | 'video' };
@@ -81,8 +82,7 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
         mediaTypes: ['images', 'videos'],
         allowsMultipleSelection: true,
         quality: 0.85,
-        videoMaxDuration: 90,
-        videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
+        ...VIDEO_PICK_OPTIONS,
         // Limite finie : avec 0 (illimité) iOS masque parfois le bouton « Ajouter ».
         selectionLimit: 30,
       });
@@ -94,15 +94,21 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
 
     // Même fichier choisi deux fois dans le même lot → envoyé une seule fois.
     const seen = new Set<string>();
-    const assets = result.assets.filter((a) => {
+    const errors: string[] = [];
+    const unique = result.assets.filter((a) => {
       const k = a.assetId || a.uri;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
     });
     let added = 0;
-    let dupes = result.assets.length - assets.length;
-    const errors: string[] = [];
+    let dupes = result.assets.length - unique.length;
+    const assets = unique.filter((a) => !isTooLong(a));
+    for (let n = unique.length - assets.length; n > 0; n--) errors.push(TOO_LONG_MESSAGE);
+    if (!assets.length) {
+      Alert.alert('Rien ajouté', TOO_LONG_MESSAGE);
+      return;
+    }
     setProgress({ done: 0, total: assets.length });
     for (const [i, a] of assets.entries()) {
       const res = await adminApi.uploadPrestatairePhoto(token, userId, a.uri);

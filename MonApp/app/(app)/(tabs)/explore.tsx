@@ -31,6 +31,7 @@ import { FeedVideo } from '@/components/feed-video';
 import { VideoThumbnail } from '@/components/video-thumbnail';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
+import { isTooLong, TOO_LONG_MESSAGE, VIDEO_PICK_OPTIONS } from '@/lib/video-pick';
 import { useBoutique } from '@/contexts/boutique-context';
 import { API_ENDPOINTS, SHARE_BASE_URL } from '@/constants/config';
 import { uploadFile } from '@/services/auth/api';
@@ -867,13 +868,14 @@ function CreatePostModal({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       quality: 0.8,
-      videoMaxDuration: 90,
-      // `quality` ne concerne QUE les images : sans `videoQuality`, iOS exporte
-      // la vidéo d'origine (jusqu'à 4K, plusieurs dizaines de Mo) → upload long
-      // et lecture qui rame dans le feed. 720p suffit largement à l'affichage.
-      videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
+      // Vidéos jusqu'à 2 min, réencodées en 720p par l'iPhone avant l'envoi.
+      ...VIDEO_PICK_OPTIONS,
       allowsEditing: false,
     });
+    if (!result.canceled && result.assets[0] && isTooLong(result.assets[0])) {
+      Alert.alert('Vidéo ignorée', TOO_LONG_MESSAGE);
+      return;
+    }
     if (!result.canceled && result.assets[0]) {
       setNewMediaUri(result.assets[0].uri);
       setNewMediaType(result.assets[0].type === 'video' ? 'video' : 'image');

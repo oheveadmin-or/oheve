@@ -23,10 +23,14 @@ const storage = multer.diskStorage({
     cb(null, `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
   },
 });
-// Photos ET vidéos (reels) — 100 Mo max pour couvrir les vidéos de réalisation.
+// Photos ET vidéos (reels) — vidéos jusqu'à 2 min : 720p depuis l'iPhone
+// (~100 Mo), mais Android envoie l'original (1080p/4K) → marge large. Le
+// fichier est ensuite réencodé en 720p (optimizeUploadedVideo) avant d'être
+// stocké en base.
+const MAX_MEDIA_MB = 600;
 const upload = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: MAX_MEDIA_MB * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     // iOS envoie parfois la vidéo en application/octet-stream : on retombe alors
     // sur l'extension pour ne pas rejeter à tort une vidéo légitime.

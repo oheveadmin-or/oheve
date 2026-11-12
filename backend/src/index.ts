@@ -158,7 +158,7 @@ app.use((err: Error & { code?: string }, _req: express.Request, res: express.Res
   if (res.headersSent) return;
   logger.error({ err }, 'Unhandled error');
   if (err.code === 'LIMIT_FILE_SIZE') {
-    res.status(400).json({ success: false, message: 'Fichier trop volumineux (15 Mo max)' });
+    res.status(400).json({ success: false, message: 'Fichier trop volumineux. Choisissez un fichier plus léger (vidéo plus courte).' });
     return;
   }
   const isClientError = err.message?.startsWith('Type de fichier');
