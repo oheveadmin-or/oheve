@@ -2,7 +2,7 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import puppeteer, { type Browser } from 'puppeteer-core';
+import type { Browser } from 'puppeteer-core';
 
 /**
  * Capture d'écran du VRAI site des mariés, utilisée comme image d'aperçu de
@@ -65,6 +65,24 @@ function findChromium(): string | null {
   return fs.existsSync(mac) ? mac : null;
 }
 
+/**
+ * puppeteer-core ≥ 25 est un paquet ESM pur : chargé à la demande via un vrai
+ * import() (non transformé en require par tsc). Si le chargement échoue, seule
+ * la capture d'aperçu échoue (l'appelant retombe sur la carte générée) — le
+ * serveur, lui, démarre toujours.
+ */
+type PuppeteerModule = typeof import('puppeteer-core');
+const importEsm = new Function('s', 'return import(s)') as (s: string) => Promise<PuppeteerModule>;
+let puppeteerPromise: Promise<PuppeteerModule['default']> | null = null;
+function loadPuppeteer() {
+  if (!puppeteerPromise) {
+    puppeteerPromise = importEsm('puppeteer-core')
+      .then((m) => m.default)
+      .catch((err) => { puppeteerPromise = null; throw err; });
+  }
+  return puppeteerPromise;
+}
+
 let browserPromise: Promise<Browser> | null = null;
 let idleTimer: NodeJS.Timeout | null = null;
 
@@ -84,13 +102,13 @@ function getBrowser(): Promise<Browser> {
     const executablePath = findChromium();
     if (!executablePath) return Promise.reject(new Error('Chromium introuvable'));
     const fontsConf = process.platform === 'linux' ? fontconfigFile() : null;
-    browserPromise = puppeteer
-      .launch({
+    browserPromise = loadPuppeteer()
+      .then((puppeteer) => puppeteer.launch({
         executablePath,
         headless: true,
         env: fontsConf ? { ...process.env, FONTCONFIG_FILE: fontsConf } : process.env,
         args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--hide-scrollbars', '--mute-audio'],
-      })
+      }))
       .then((b) => {
         b.on('disconnected', () => { browserPromise = null; });
         return b;
