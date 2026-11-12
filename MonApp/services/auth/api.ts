@@ -521,8 +521,11 @@ export const adminApi = {
     get(`${API_ENDPOINTS.prestataires}/${userId}/photos`, accessToken),
 
   /** Ajoute une photo/vidéo au portfolio d'un prestataire (409 si déjà présente). */
-  uploadPrestatairePhoto: (accessToken: string, userId: number, fileUri: string) =>
-    uploadFile(`${API_ENDPOINTS.prestataires}/${userId}/photos`, accessToken, fileUri),
+  uploadPrestatairePhoto: (accessToken: string, userId: number, fileUri: string, opts?: { caption?: string; inFeed?: boolean }) =>
+    uploadFile(`${API_ENDPOINTS.prestataires}/${userId}/photos`, accessToken, fileUri, 'photo', {
+      ...(opts?.caption?.trim() ? { caption: opts.caption.trim() } : {}),
+      ...(opts?.inFeed === undefined ? {} : { inFeed: String(opts.inFeed) }),
+    }),
 
   setPrestatairePhotoCover: (accessToken: string, userId: number, photoId: number, inFeed?: boolean) =>
     adminFetch(accessToken, `${API_ENDPOINTS.prestataires}/${userId}/photos/${photoId}/cover`, 'PUT', inFeed === undefined ? undefined : { inFeed }),

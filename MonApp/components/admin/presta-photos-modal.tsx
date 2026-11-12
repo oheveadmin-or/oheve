@@ -9,7 +9,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -17,8 +17,11 @@ import { askCoverInFeed } from '@/lib/ask-cover-in-feed';
 import { isTooLong, TOO_LONG_MESSAGE, VIDEO_PICK_OPTIONS } from '@/lib/video-pick';
 import { adminApi } from '@/services/auth/api';
 
-type Photo = { id: number; url: string; is_cover: boolean; in_feed?: boolean; media_type?: 'image' | 'video' };
+type Photo = { id: number; url: string; is_cover: boolean; in_feed?: boolean; media_type?: 'image' | 'video'; caption?: string | null };
 type Doc = { id: number; title: string; size: number | null; url: string };
+type Pending = { key: string; uri: string; isVideo: boolean; duration: number | null; caption: string };
+
+const durLabel = (ms: number | null) => (ms ? `${Math.floor(ms / 60000)}:${String(Math.round((ms % 60000) / 1000)).padStart(2, '0')}` : '');
 
 const sizeLabel = (n: number | null) => (!n ? '' : n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`);
 
@@ -45,6 +48,9 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [changed, setChanged] = useState(false);
+  // Fichiers choisis, pas encore envoyés : l'admin ajoute un commentaire puis confirme.
+  const [pending, setPending] = useState<Pending[]>([]);
+  const [pendingInFeed, setPendingInFeed] = useState(true);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -71,8 +77,13 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
     return () => { alive = false; };
   }, [token, userId]);
 
-  const close = () => { onClose(changed); setChanged(false); setLoading(true); };
+  const close = () => {
+    if (progress) return; // envoi en cours : on ne ferme pas au milieu
+    setPending([]);
+    onClose(changed); setChanged(false); setLoading(true);
+  };
 
+  /** Étape 1 : choisir les fichiers → écran de vérification (rien n'est encore envoyé). */
   const add = async () => {
     if (!userId || progress) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -96,32 +107,43 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
     }
     if (result.canceled || !result.assets.length) return;
 
-    // Même fichier choisi deux fois dans le même lot → envoyé une seule fois.
+    // Même fichier choisi deux fois dans le même lot → gardé une seule fois.
     const seen = new Set<string>();
-    const errors: string[] = [];
     const unique = result.assets.filter((a) => {
       const k = a.assetId || a.uri;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
     });
+    const ok = unique.filter((a) => !isTooLong(a));
+    const tooLong = unique.length - ok.length;
+    if (tooLong) Alert.alert(tooLong > 1 ? `${tooLong} vidéos ignorées` : 'Vidéo ignorée', TOO_LONG_MESSAGE);
+    if (!ok.length) return;
+    setPending((prev) => [
+      ...prev,
+      ...ok.map((a) => ({ key: a.assetId || a.uri, uri: a.uri, isVideo: a.type === 'video', duration: a.duration ?? null, caption: '' })),
+    ]);
+  };
+
+  /** Étape 2 : l'admin a vérifié et commenté → envoi. */
+  const send = async () => {
+    if (!userId || progress || !pending.length) return;
+    const items = pending;
     let added = 0;
-    let dupes = result.assets.length - unique.length;
-    const assets = unique.filter((a) => !isTooLong(a));
-    for (let n = unique.length - assets.length; n > 0; n--) errors.push(TOO_LONG_MESSAGE);
-    if (!assets.length) {
-      Alert.alert('Rien ajouté', TOO_LONG_MESSAGE);
-      return;
-    }
-    setProgress({ done: 0, total: assets.length });
-    for (const [i, a] of assets.entries()) {
-      const res = await adminApi.uploadPrestatairePhoto(token, userId, a.uri);
+    let dupes = 0;
+    const errors: string[] = [];
+    const failed: Pending[] = [];
+    setProgress({ done: 0, total: items.length });
+    for (const [i, it] of items.entries()) {
+      const res = await adminApi.uploadPrestatairePhoto(token, userId, it.uri, { caption: it.caption, inFeed: pendingInFeed });
       if (res.success && res.data) { added++; setPhotos((p) => [...p, res.data as unknown as Photo]); }
       else if ((res as { duplicate?: boolean }).duplicate) dupes++;
-      else errors.push(res.message ?? 'Erreur');
-      setProgress({ done: i + 1, total: assets.length });
+      else { errors.push(res.message ?? 'Erreur'); failed.push(it); }
+      setProgress({ done: i + 1, total: items.length });
     }
     setProgress(null);
+    // Les échecs restent dans la liste pour pouvoir réessayer sans tout rechoisir.
+    setPending(failed);
     if (added) setChanged(true);
     await load(); // ordre serveur (couverture en premier)
     if (dupes || errors.length) {
@@ -129,10 +151,15 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
         added ? `${added} ajoutée(s)` : 'Rien ajouté',
         [
           dupes ? `${dupes} doublon(s) ignoré(s) : déjà sur la fiche.` : '',
-          errors.length ? `${errors.length} échec(s) : ${errors[0]}` : '',
+          errors.length ? `${errors.length} échec(s) : ${errors[0]}\nIls restent dans la liste : touchez « Envoyer » pour réessayer.` : '',
         ].filter(Boolean).join('\n'),
       );
     }
+  };
+
+  const cancelPending = () => {
+    if (progress) return;
+    setPending([]);
   };
 
   const addPdf = async () => {
@@ -225,6 +252,62 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
           </Pressable>
         </View>
 
+        {pending.length > 0 ? (
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top + 40}>
+            <ThemedText style={styles.sectionTitle}>Vérifier avant l&apos;envoi · {pending.length}</ThemedText>
+            <ThemedText style={styles.foot}>Ajoutez un commentaire si vous voulez (il s&apos;affiche sous la photo/vidéo), puis touchez « Envoyer ».</ThemedText>
+            <ScrollView style={{ flex: 1, marginTop: 10 }} contentContainerStyle={{ gap: 10, paddingBottom: 12 }} keyboardShouldPersistTaps="handled">
+              {pending.map((it) => (
+                <View key={it.key} style={styles.pRow}>
+                  <View style={styles.pThumb}>
+                    {it.isVideo ? (
+                      <View style={[StyleSheet.absoluteFill, styles.video]}>
+                        <Ionicons name="play-circle" size={26} color="#fff" />
+                        {it.duration ? <ThemedText style={styles.pDur}>{durLabel(it.duration)}</ThemedText> : null}
+                      </View>
+                    ) : (
+                      <Image source={{ uri: it.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                    )}
+                  </View>
+                  <TextInput
+                    style={styles.pInput}
+                    value={it.caption}
+                    onChangeText={(t) => setPending((l) => l.map((x) => (x.key === it.key ? { ...x, caption: t } : x)))}
+                    placeholder="Ajouter un commentaire (facultatif)"
+                    placeholderTextColor="#9a9c93"
+                    multiline
+                    maxLength={500}
+                    editable={!progress}
+                  />
+                  <Pressable hitSlop={8} disabled={!!progress} accessibilityLabel="Retirer de l'envoi"
+                    onPress={() => setPending((l) => l.filter((x) => x.key !== it.key))}>
+                    <Ionicons name="close-circle" size={22} color="#9a9c93" />
+                  </Pressable>
+                </View>
+              ))}
+              <Pressable style={styles.pAddMore} onPress={add} disabled={!!progress}>
+                <Ionicons name="add" size={16} color="#4a5240" />
+                <ThemedText style={styles.pdfTxt}>Ajouter d&apos;autres fichiers</ThemedText>
+              </Pressable>
+            </ScrollView>
+            <Pressable style={styles.pFeedRow} onPress={() => setPendingInFeed((v) => !v)} disabled={!!progress}>
+              <Ionicons name={pendingInFeed ? 'checkbox' : 'square-outline'} size={20} color="#4a5240" />
+              <ThemedText style={styles.pFeedTxt}>Publier aussi dans les reels (sinon : fiche seulement)</ThemedText>
+            </Pressable>
+            <View style={styles.pBtns}>
+              <Pressable style={[styles.pCancel, !!progress && { opacity: 0.5 }]} onPress={cancelPending} disabled={!!progress}>
+                <ThemedText style={styles.pdfTxt}>Annuler</ThemedText>
+              </Pressable>
+              <Pressable style={[styles.addBtn, { flex: 1 }, !!progress && { opacity: 0.7 }]} onPress={send} disabled={!!progress}>
+                {progress ? <ActivityIndicator color="#fff" /> : <Ionicons name="cloud-upload-outline" size={18} color="#fff" />}
+                <ThemedText style={styles.addTxt}>
+                  {progress ? `Envoi ${progress.done}/${progress.total}…` : `Envoyer (${pending.length})`}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        ) : (
+        <>
         <Pressable style={[styles.addBtn, !!progress && { opacity: 0.7 }]} onPress={add} disabled={!!progress}>
           {progress ? <ActivityIndicator color="#fff" /> : <Ionicons name="images-outline" size={18} color="#fff" />}
           <ThemedText style={styles.addTxt}>
@@ -249,12 +332,21 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
                 ) : (
                   <Image source={{ uri: p.url }} style={StyleSheet.absoluteFill} contentFit="cover" />
                 )}
-                {p.is_cover ? (
-                  <View style={styles.coverBadge}><ThemedText style={styles.coverTxt}>Couverture</ThemedText></View>
+                <View style={styles.badges}>
+                  {p.is_cover ? (
+                    <View style={styles.coverBadge}><ThemedText style={styles.coverTxt}>Couverture</ThemedText></View>
+                  ) : null}
+                  {p.in_feed === false ? (
+                    <View style={styles.hiddenBadge}><Ionicons name="eye-off" size={11} color="#fff" /></View>
+                  ) : null}
+                </View>
+                {p.caption ? (
+                  <Pressable style={styles.captionBadge} hitSlop={6} onPress={() => Alert.alert('Commentaire', p.caption ?? '')}
+                    accessibilityLabel="Voir le commentaire">
+                    <Ionicons name="chatbubble-ellipses" size={12} color="#fff" />
+                  </Pressable>
                 ) : null}
-                {p.in_feed === false ? (
-                  <View style={styles.hiddenBadge}><Ionicons name="eye-off" size={11} color="#fff" /></View>
-                ) : null}
+
                 <View style={styles.actions}>
                   <Pressable style={styles.action} hitSlop={6} onPress={() => toggleFeed(p)}
                     accessibilityLabel={p.in_feed === false ? 'Publier dans les reels' : 'Retirer des reels'}>
@@ -301,6 +393,8 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
           </Pressable>
         </ScrollView>
         )}
+        </>
+        )}
       </View>
     </Modal>
   );
@@ -328,11 +422,22 @@ const styles = StyleSheet.create({
   // des cases qui prenaient la place mais restaient invisibles.
   tile: { borderRadius: 10, overflow: 'hidden', backgroundColor: '#ece8e0' },
   video: { backgroundColor: '#343630', alignItems: 'center', justifyContent: 'center' },
-  coverBadge: { position: 'absolute', left: 4, bottom: 4, backgroundColor: 'rgba(52,54,48,0.8)', borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2 },
+  badges: { position: 'absolute', left: 4, bottom: 4, flexDirection: 'row', gap: 4 },
+  coverBadge: { backgroundColor: 'rgba(52,54,48,0.8)', borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2 },
   coverTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  hiddenBadge: { position: 'absolute', left: 4, top: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(52,54,48,0.8)', alignItems: 'center', justifyContent: 'center' },
+  hiddenBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(52,54,48,0.8)', alignItems: 'center', justifyContent: 'center' },
   actions: { position: 'absolute', top: 4, right: 4, flexDirection: 'row', gap: 4 },
   action: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(52,54,48,0.65)', alignItems: 'center', justifyContent: 'center' },
   empty: { textAlign: 'center', color: '#9a9c93', marginTop: 32, fontSize: 14, paddingHorizontal: 20 },
   foot: { fontSize: 11, color: '#9a9c93' },
+  captionBadge: { position: 'absolute', right: 4, bottom: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(52,54,48,0.8)', alignItems: 'center', justifyContent: 'center' },
+  pRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#f0f0f0', padding: 8 },
+  pThumb: { width: 64, height: 64, borderRadius: 8, overflow: 'hidden', backgroundColor: '#ece8e0' },
+  pDur: { position: 'absolute', bottom: 3, right: 5, color: '#fff', fontSize: 10, fontWeight: '700' },
+  pInput: { flex: 1, minHeight: 64, maxHeight: 120, fontSize: 14, color: '#343630', textAlignVertical: 'top', paddingTop: 4 },
+  pAddMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 },
+  pFeedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  pFeedTxt: { flex: 1, fontSize: 13, color: '#343630' },
+  pBtns: { flexDirection: 'row', gap: 10 },
+  pCancel: { paddingHorizontal: 18, borderRadius: 14, borderWidth: 1.5, borderColor: '#d9ddd0', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
 });
