@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import type { Pool } from 'pg';
 
 import { USERNAME_RULE, placeholderEmail } from '../auth/username';
+import { findIn, loadExisting, lockPrestaCreation } from './duplicates';
 
 export type ProspectRow = {
   source: string;          // clé de la liste : lieux-paris, lieux-lyon, lieux-marseille-aix, traiteurs-casher-paris
@@ -75,8 +76,8 @@ export function slugify(name: string, max = 24): string {
 export type ImportResult = { created: number; skipped: number; rows: { id: number; username: string; password: string; business_name: string; source: string }[] };
 
 /**
- * Crée les comptes. Idempotent : une fiche déjà importée (même liste + même
- * nom d'entreprise) est ignorée, on peut donc relancer sans doublon.
+ * Crée les comptes. Idempotent : une fiche déjà présente (même nom + ville ou
+ * même téléphone, voir duplicates.ts) est ignorée, on peut relancer sans doublon.
  */
 export async function importProspects(pool: Pool, rows: ProspectRow[]): Promise<ImportResult> {
   await ensureProspectSchema(pool);
@@ -106,9 +107,16 @@ export async function importProspects(pool: Pool, rows: ProspectRow[]): Promise<
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await lockPrestaCreation(client);
+    // Anti-doublon toutes listes confondues : un prestataire déjà présent
+    // (même nom + ville, ou même téléphone), créé à la main ou importé depuis
+    // une autre liste, n'est pas recréé.
+    const existing = await loadExisting(client);
     for (const r of rows) {
       const key = `${r.source}|${r.business_name.toLowerCase()}`;
-      if (already.has(key)) { result.skipped++; continue; }
+      if (already.has(key) || findIn(existing, { business_name: r.business_name, city: r.city, phone: r.phone })) {
+        result.skipped++; continue;
+      }
       already.add(key);
       const username = pickUsername(r);
       const password = generatePassword();
@@ -134,6 +142,7 @@ export async function importProspects(pool: Pool, rows: ProspectRow[]): Promise<
         `INSERT INTO admin_presta_import (user_id, source, source_ref, contact_email, notes) VALUES ($1,$2,$3,$4,$5)`,
         [id, r.source, r.source_ref, r.contact_email, r.admin_notes],
       );
+      existing.push({ id, business_name: r.business_name, username, city: r.city, phone: r.phone });
       result.created++;
       result.rows.push({ id, username, password, business_name: r.business_name, source: r.source });
     }

@@ -3,6 +3,7 @@ import { CREATE_STORED_FILES } from '../utils/persistent-uploads';
 import { ensureCommunitySchema } from '../community/repository';
 import { pool } from '../config/database';
 import { ensureProspectSchema } from '../admin/importProspects';
+import { CREATE_PRESTATAIRE_DOCUMENTS } from '../prestataires/documents';
 
 // ── users ────────────────────────────────────────────────────────────────────
 const CREATE_USERS = `
@@ -578,6 +579,12 @@ export async function runMigrations(): Promise<void> {
     await pool.query(`ALTER TABLE prestataire_profiles ADD COLUMN IF NOT EXISTS profile_views INTEGER NOT NULL DEFAULT 0`);
     // ── Vidéos dans le portfolio / les reels ────────────────────────────────────
     await pool.query(`ALTER TABLE prestataire_photos ADD COLUMN IF NOT EXISTS media_type VARCHAR(10) NOT NULL DEFAULT 'image'`);
+    // Empreinte du fichier d'origine : la même photo n'est pas ajoutée 2 fois au même prestataire.
+    await pool.query(`ALTER TABLE prestataire_photos ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_prestataire_photos_hash ON prestataire_photos(prestataire_id, content_hash)`);
+    // ── Documents PDF des prestataires ──────────────────────────────────────────
+    await pool.query(CREATE_PRESTATAIRE_DOCUMENTS);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_prestataire_documents_presta ON prestataire_documents(prestataire_id)`);
     // ── Photos de profil persistantes (en base, pas sur le disque éphémère) ────
     await pool.query(CREATE_USER_AVATARS);
     await migrateDiskAvatarsToDb().catch((err) => console.error('❌ Import avatars:', (err as Error).message));

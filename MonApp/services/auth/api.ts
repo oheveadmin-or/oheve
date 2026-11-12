@@ -275,6 +275,17 @@ async function getPublic(url: string, token?: string) {
 }
 
 export const prestatairesApi = {
+  /** PDF publics d'un prestataire (fiche annuaire). */
+  listDocuments: (userId: number, accessToken?: string) =>
+    getPublic(`${API_ENDPOINTS.prestataires}/${userId}/documents`, accessToken),
+  /** Mes PDF (compte prestataire). */
+  myDocuments: (accessToken: string) =>
+    get(`${API_ENDPOINTS.prestataires}/me/documents`, accessToken),
+  uploadMyDocument: (accessToken: string, fileUri: string, title?: string) =>
+    uploadFile(`${API_ENDPOINTS.prestataires}/me/documents`, accessToken, fileUri, 'document', title ? { title } : undefined),
+  deleteMyDocument: (accessToken: string, docId: number) =>
+    request(`${API_ENDPOINTS.prestataires}/me/documents/${docId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }),
+
   list: (accessToken?: string, params?: { category?: string; city?: string }) => {
     const q = new URLSearchParams();
     if (params?.category) q.set('category', params.category);
@@ -485,6 +496,36 @@ export const adminApi = {
   /** Photo de couverture d'un prestataire (envoyée par l'admin). */
   uploadPrestataireCover: (accessToken: string, userId: number, fileUri: string) =>
     uploadFile(`${API_ENDPOINTS.prestataires}/${userId}/cover`, accessToken, fileUri),
+
+  /** Portfolio d'un prestataire (photos + vidéos, couverture en premier). */
+  listPrestatairePhotos: (accessToken: string, userId: number) =>
+    get(`${API_ENDPOINTS.prestataires}/${userId}/photos`, accessToken),
+
+  /** Ajoute une photo/vidéo au portfolio d'un prestataire (409 si déjà présente). */
+  uploadPrestatairePhoto: (accessToken: string, userId: number, fileUri: string) =>
+    uploadFile(`${API_ENDPOINTS.prestataires}/${userId}/photos`, accessToken, fileUri),
+
+  setPrestatairePhotoCover: (accessToken: string, userId: number, photoId: number) =>
+    adminFetch(accessToken, `${API_ENDPOINTS.prestataires}/${userId}/photos/${photoId}/cover`, 'PUT'),
+
+  deletePrestatairePhoto: (accessToken: string, userId: number, photoId: number) =>
+    adminFetch(accessToken, `${API_ENDPOINTS.prestataires}/${userId}/photos/${photoId}`, 'DELETE'),
+
+  /** Session du prestataire pour que l'admin gère son compte à sa place. */
+  openPrestataireSession: (accessToken: string, userId: number) =>
+    adminFetch(accessToken, `${API_ENDPOINTS.adminPrestataires}/${userId}/session`, 'POST'),
+
+  /** Email du prestataire (vide = retiré, il garde son identifiant). */
+  setPrestataireEmail: (accessToken: string, userId: number, email: string) =>
+    adminFetch(accessToken, `${API_ENDPOINTS.adminPrestataires}/${userId}/email`, 'PATCH', { email }),
+
+  /** PDF d'un prestataire (brochure, menu, tarifs…). */
+  listPrestataireDocuments: (accessToken: string, userId: number) =>
+    get(`${API_ENDPOINTS.prestataires}/${userId}/documents`, accessToken),
+  uploadPrestataireDocument: (accessToken: string, userId: number, fileUri: string, title?: string) =>
+    uploadFile(`${API_ENDPOINTS.prestataires}/${userId}/documents`, accessToken, fileUri, 'document', title ? { title } : undefined),
+  deletePrestataireDocument: (accessToken: string, userId: number, docId: number) =>
+    adminFetch(accessToken, `${API_ENDPOINTS.prestataires}/${userId}/documents/${docId}`, 'DELETE'),
 
   setPrestataireMode: (accessToken: string, userId: number, mode: 'offert' | 'payant', offert_until?: string | null) =>
     adminFetch(accessToken, `${API_ENDPOINTS.adminPrestataires}/${userId}/mode`, 'PATCH', { mode, offert_until }),

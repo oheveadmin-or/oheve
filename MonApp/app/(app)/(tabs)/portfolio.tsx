@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { VideoThumbnail } from '@/components/video-thumbnail';
+import { MyPrestaDocuments } from '@/components/presta-documents';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
@@ -393,6 +394,9 @@ export default function PortfolioScreen() {
               </Pressable>
             </AnimatedView>
           )}
+
+          {/* ── Documents PDF (brochure, menu, tarifs) ───────────────── */}
+          <MyPrestaDocuments />
 
           {/* ── Conseils ─────────────────────────────────────────────── */}
           <AnimatedView entering={FadeInDown.delay(240).springify()} style={styles.tipsCard}>

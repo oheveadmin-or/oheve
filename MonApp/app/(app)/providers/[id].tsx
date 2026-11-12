@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookingModal } from '@/components/booking-modal';
 import { FeedVideo } from '@/components/feed-video';
+import { PrestaDocumentsList } from '@/components/presta-documents';
 import { ThemedText } from '@/components/themed-text';
 import { VideoThumbnail } from '@/components/video-thumbnail';
 import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
@@ -414,6 +415,9 @@ export default function ProviderDetailScreen() {
               </View>
             </AnimatedView>
           )}
+
+          {/* ── Documents PDF (brochure, menu, tarifs) ─────────────── */}
+          {id && !isNaN(parseInt(id, 10)) ? <PrestaDocumentsList userId={parseInt(id, 10)} /> : null}
 
           {/* ── Notes personnelles ─────────────────────────────────── */}
           <AnimatedView entering={FadeInDown.delay(220).springify()}>

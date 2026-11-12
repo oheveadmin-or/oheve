@@ -21,7 +21,7 @@ import { logger } from './logger';
 
 const UPLOADS_ROOT = path.join(process.cwd(), 'uploads');
 // Sous-dossiers servis par /uploads et alimentés par des uploads utilisateurs.
-const PERSISTED_DIRS = ['photos', 'chat', 'music'];
+const PERSISTED_DIRS = ['photos', 'chat', 'music', 'documents'];
 
 export const CREATE_STORED_FILES = `
   CREATE TABLE IF NOT EXISTS stored_files (

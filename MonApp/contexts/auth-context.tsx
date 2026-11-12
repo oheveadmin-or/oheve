@@ -49,6 +49,11 @@ export interface AuthUser {
   // par l'admin à remplacer (écran /first-login proposé à la connexion).
   username?: string | null;
   must_change_password?: boolean;
+  /**
+   * Présent quand l'admin a ouvert ce compte prestataire (« Ouvrir son compte ») :
+   * c'est la session admin à restaurer avec « Revenir à l'admin ».
+   */
+  adminReturn?: AuthUser;
 }
 
 /** Un prestataire a accès à son espace si son abonnement est en essai ou actif. */
@@ -99,6 +104,10 @@ interface AuthContextValue {
   loading: boolean;
   signIn: (user: AuthUser) => Promise<void>;
   signOut: (allDevices?: boolean) => Promise<void>;
+  /** Mode admin : ouvre le compte d'un prestataire (session fournie par l'API admin). */
+  openAsAdmin: (prestaUser: AuthUser) => Promise<void>;
+  /** Quitte le compte prestataire ouvert par l'admin et restaure la session admin. */
+  returnToAdmin: () => Promise<void>;
   updateUser: (updates: Partial<AuthUser>) => Promise<void>;
   refreshAccessToken: () => Promise<string | null>;
   /** Rafraîchit le statut d'abonnement prestataire depuis le serveur. */
@@ -196,6 +205,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             userRef.current = stored;
             setUser(stored);
             return stored.accessToken;
+          }
+          // Session de compte prestataire ouverte par l'admin expirée (24 h) :
+          // on revient à la session admin au lieu de tout déconnecter.
+          if (current.adminReturn) {
+            const adminUser = current.adminReturn;
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(adminUser));
+            userRef.current = adminUser;
+            setUser(adminUser);
+            try { router.replace('/(app)/admin' as never); } catch { /* navigateur pas encore monté */ }
+            return null;
           }
           await AsyncStorage.removeItem(STORAGE_KEY);
           userRef.current = null;
@@ -301,7 +320,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(normalized);
   }, []);
 
+  const openAsAdmin = useCallback(async (prestaUser: AuthUser) => {
+    if (!user) return;
+    // On garde la session admin d'origine (même si l'admin enchaîne plusieurs comptes).
+    const adminUser = user.adminReturn ?? user;
+    const normalized = normalizeUser({ ...prestaUser, adminReturn: adminUser });
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    userRef.current = normalized;
+    setUser(normalized);
+    router.replace('/(app)/(tabs)' as never);
+  }, [user]);
+
+  const returnToAdmin = useCallback(async () => {
+    const current = userRef.current ?? user;
+    const adminUser = current?.adminReturn;
+    if (!current || !adminUser) return;
+    // Révoque la session ouverte sur le compte du prestataire.
+    try {
+      await fetch(API_ENDPOINTS.logout, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current.accessToken}` },
+        body: JSON.stringify({ refreshToken: current.refreshToken, allDevices: false }),
+      });
+    } catch {}
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(adminUser));
+    userRef.current = adminUser;
+    setUser(adminUser);
+    router.replace('/(app)/admin' as never);
+  }, [user]);
+
   const signOut = useCallback(async (allDevices = false) => {
+    // Compte prestataire ouvert par l'admin : « Se déconnecter » ramène à l'admin.
+    if (user?.adminReturn) { await returnToAdmin(); return; }
     if (user) {
       try {
         await fetch(API_ENDPOINTS.logout, {
@@ -316,7 +366,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.removeItem(STORAGE_KEY);
     setUser(null);
     router.replace('/(auth)');
-  }, [user]);
+  }, [user, returnToAdmin]);
 
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     return (await doRefresh())?.accessToken ?? null;
@@ -339,7 +389,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, updateUser, refreshAccessToken, refreshPrestaSub, onboardingComplete }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, openAsAdmin, returnToAdmin, updateUser, refreshAccessToken, refreshPrestaSub, onboardingComplete }}>
       {children}
     </AuthContext.Provider>
   );

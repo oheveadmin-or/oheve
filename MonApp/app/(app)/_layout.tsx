@@ -3,6 +3,7 @@ import { router, Stack } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
+import { AdminImpersonationBanner } from '@/components/admin/admin-impersonation-banner';
 import { useAuth } from '@/contexts/auth-context';
 import { messagingApi } from '@/services/auth/api';
 import { loadPersistedBudget, syncBudgetTotal, BudgetProvider } from '@/lib/budget-store';
@@ -95,7 +96,9 @@ export default function AppLayout() {
     if (!user?.accessToken) return;
 
     registerForPushNotifications().then((token) => {
-      if (!token) return;
+      // Compte prestataire ouvert par l'admin : ne pas rattacher le téléphone
+      // de l'admin à ce compte (il recevrait ses notifications).
+      if (!token || user.adminReturn) return;
       messagingApi.registerPushToken(user.accessToken, token, Platform.OS).catch(() => {});
     });
 
@@ -132,6 +135,7 @@ export default function AppLayout() {
       <Stack.Screen name="prestataire/profile-edit" />
       <Stack.Screen name="rabbins" />
     </Stack>
+    {user?.adminReturn ? <AdminImpersonationBanner /> : null}
     </BudgetProvider>
   );
 }

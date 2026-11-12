@@ -3,12 +3,17 @@ import { Router, Request, Response } from 'express';
 
 import { isAdminEmail, sanitizeAssignedRole } from '../auth/admin';
 import {
-  USERNAME_RULE, normalizeUsername, placeholderEmail, sqlVisibleEmail,
+  USERNAME_RULE, normalizeUsername, placeholderEmail, sqlVisibleEmail, visibleEmail,
 } from '../auth/username';
+import { UserRole, generateRefreshToken, signAccessToken } from '../auth/jwt';
+import { ConnexionInscriptionRepository } from '../connexion-inscription/repository';
 import { pool } from '../config/database';
 import { EXPORT_SHEETS, buildAdminExport, isExportSheetKey } from './export';
+import { duplicateMessage, findIn, loadExisting, lockPrestaCreation } from './duplicates';
 import { ADMIN_GRANT_SUB_ID, isAdminGrant, isPrestaSubActive } from '../prestataire-subscription';
 import { requireAdmin } from '../middleware/requireAdmin';
+
+const sessionRepo = new ConnexionInscriptionRepository();
 
 export const adminRoutes = Router();
 
@@ -198,11 +203,14 @@ adminRoutes.get('/credentials', async (_req: Request, res: Response) => {
               pp.business_name, pp.category, pp.location_city AS city,
               COALESCE(pp.phone, u.phone) AS phone,
               apc.password AS admin_password,
-              api.source, api.contact_email
+              api.source, api.contact_email,
+              COALESCE(ph.n, 0)::int AS photo_count
        FROM users u
        LEFT JOIN prestataire_profiles pp ON pp.user_id = u.id
        LEFT JOIN admin_presta_credentials apc ON apc.user_id = u.id
        LEFT JOIN admin_presta_import api ON api.user_id = u.id
+       LEFT JOIN (SELECT prestataire_id, COUNT(*) AS n FROM prestataire_photos GROUP BY prestataire_id) ph
+              ON ph.prestataire_id = pp.id
        WHERE u.role IN ('prestataire','boutique')
        ORDER BY (apc.user_id IS NULL), (api.source IS NOT NULL), api.source, u.id`
     );
@@ -372,6 +380,14 @@ adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // Anti-doublon : même entreprise (nom + ville) ou même téléphone qu'un
+    // compte existant → refus, avec le compte déjà présent dans le message.
+    await lockPrestaCreation(client);
+    const dup = findIn(await loadExisting(client), { business_name: bizName, city: location_city, phone });
+    if (dup) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: duplicateMessage(dup), duplicate: dup });
+    }
     const hash = await bcrypt.hash(String(mot_de_passe), SALT_ROUNDS);
     const u = await client.query(
       `INSERT INTO users (email, nom, prenom, mot_de_passe, role, phone,
@@ -423,6 +439,70 @@ adminRoutes.post('/prestataires', async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: 'Erreur' });
   } finally {
     client.release();
+  }
+});
+
+// ── POST /api/admin/prestataires/:userId/session ──────────────────────────────
+// « Ouvrir son compte » : l'admin obtient une session du prestataire pour tout
+// gérer à sa place (fiche, photos, vidéos, PDF, messages…). Réservé aux comptes
+// prestataire/boutique ; jamais un autre admin ni un client. Le mot de passe du
+// prestataire n'est ni lu ni modifié.
+adminRoutes.post('/prestataires/:userId/session', async (req: Request, res: Response) => {
+  const userId = Number(req.params.userId);
+  if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ success: false, message: 'ID invalide' });
+  try {
+    const user = await sessionRepo.findById(userId);
+    if (!user || (user.role !== 'prestataire' && user.role !== 'boutique') || isAdminEmail(user.email)) {
+      return res.status(404).json({ success: false, message: 'Compte prestataire introuvable' });
+    }
+    const { mot_de_passe: _pwd, ...safeUser } = user as typeof user & { mot_de_passe?: string };
+    const accessToken = signAccessToken(user.id, user.email, user.role as UserRole);
+    const refreshToken = generateRefreshToken();
+    // Session courte (24 h), repérable dans refresh_tokens.
+    await sessionRepo.saveRefreshToken(user.id, refreshToken, new Date(Date.now() + 24 * 3600 * 1000), `admin:${req.auth!.sub}`);
+    console.log(`[admin] session ouverte par l'admin ${req.auth!.sub} sur le compte ${user.id}`);
+    return res.json({
+      success: true,
+      data: { ...safeUser, email: visibleEmail(user.email), role: user.role, accessToken, refreshToken },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Erreur' });
+  }
+});
+
+// ── PATCH /api/admin/prestataires/:userId/email ───────────────────────────────
+// L'admin renseigne (ou change) l'email d'un prestataire. Vide = retire l'email
+// (le compte garde son identifiant de connexion).
+adminRoutes.patch('/prestataires/:userId/email', async (req: Request, res: Response) => {
+  const userId = Number(req.params.userId);
+  const typed = String(req.body?.email ?? '').trim().toLowerCase();
+  if (typed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typed)) {
+    return res.status(400).json({ success: false, message: 'Email invalide' });
+  }
+  if (typed && isAdminEmail(typed)) {
+    return res.status(400).json({ success: false, message: "Cet email est réservé à l'administrateur" });
+  }
+  try {
+    const row = (await pool.query(`SELECT id, role, username FROM users WHERE id=$1`, [userId])).rows[0];
+    if (!row || (row.role !== 'prestataire' && row.role !== 'boutique')) {
+      return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
+    }
+    if (!typed && !row.username) {
+      return res.status(400).json({ success: false, message: "Ce compte n'a pas d'identifiant : l'email est obligatoire pour se connecter" });
+    }
+    const email = typed || placeholderEmail(row.username);
+    const taken = await pool.query(`SELECT id FROM users WHERE LOWER(email)=LOWER($1) AND id<>$2`, [email, userId]);
+    if (taken.rowCount) {
+      return res.status(409).json({ success: false, message: `Doublon : cet email est déjà utilisé par le compte ID ${taken.rows[0].id}` });
+    }
+    await pool.query(`UPDATE users SET email=$1 WHERE id=$2`, [email, userId]);
+    // L'email est dans le JWT : on déconnecte les sessions pour qu'il soit repris.
+    await pool.query(`DELETE FROM refresh_tokens WHERE user_id=$1`, [userId]).catch(() => {});
+    return res.json({ success: true, data: { email: typed || null } });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Erreur' });
   }
 });
 

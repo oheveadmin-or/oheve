@@ -71,6 +71,7 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
   const [nom, setNom] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [instagram, setInstagram] = useState('');
   const [coverUri, setCoverUri] = useState<string | null>(null);
   // Après création : on reste sur la fenêtre pour montrer les identifiants.
@@ -81,7 +82,7 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
 
   const reset = () => {
     setUsername(''); setUsernameTouched(false); setPassword(generatePassword()); setBusinessName(''); setCategory('');
-    setPrenom(''); setNom(''); setCity(''); setPhone(''); setInstagram(''); setCoverUri(null);
+    setPrenom(''); setNom(''); setCity(''); setPhone(''); setEmail(''); setInstagram(''); setCoverUri(null);
     setMode('offert'); setMonths(0);
   };
 
@@ -119,6 +120,7 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
       category,
       location_city: city.trim() || undefined,
       phone: phone.trim() || undefined,
+      email: email.trim() || undefined,
       instagram_url: instagram.trim() || undefined,
       mode,
       offert_until: mode === 'offert' ? grantUntil(months) : null,
@@ -193,10 +195,19 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
         <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
           <ThemedText style={styles.section}>Identifiants de connexion</ThemedText>
           <Field
-            label="Identifiant * (le prestataire ajoutera son email à sa 1re connexion)"
+            label="Identifiant *"
             value={login}
             onChangeText={(v) => { setUsernameTouched(true); setUsername(toUsername(v)); }}
             placeholder="ex. domaine.oliviers"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Field
+            label="Email (facultatif : sinon il l'ajoutera à sa 1re connexion)"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="contact@exemple.fr"
+            keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
           />

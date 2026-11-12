@@ -26,7 +26,8 @@ export class PhotosRepository {
     url: string,
     filename: string,
     caption?: string | null,
-    mediaType: 'image' | 'video' = 'image'
+    mediaType: 'image' | 'video' = 'image',
+    contentHash: string | null = null,
   ): Promise<PhotoRow> {
     const hasCover = await pool.query(
       `SELECT 1 FROM prestataire_photos WHERE prestataire_id=$1 AND is_cover=true LIMIT 1`,
@@ -36,9 +37,9 @@ export class PhotosRepository {
     // est affichée comme image partout dans l'app).
     const isCover = hasCover.rowCount === 0 && mediaType === 'image';
     const r = await pool.query(
-      `INSERT INTO prestataire_photos (prestataire_id, url, filename, is_cover, caption, media_type)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [prestataireId, url, filename, isCover, caption?.trim() || null, mediaType]
+      `INSERT INTO prestataire_photos (prestataire_id, url, filename, is_cover, caption, media_type, content_hash)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [prestataireId, url, filename, isCover, caption?.trim() || null, mediaType, contentHash]
     );
     return r.rows[0] as PhotoRow;
   }
@@ -178,6 +179,15 @@ export class PhotosRepository {
       [photoId]
     );
     return r.rows;
+  }
+
+  /** Photo déjà présente chez ce prestataire avec la même empreinte de fichier. */
+  async findByHash(prestataireId: number, contentHash: string): Promise<PhotoRow | null> {
+    const r = await pool.query(
+      `SELECT * FROM prestataire_photos WHERE prestataire_id=$1 AND content_hash=$2 LIMIT 1`,
+      [prestataireId, contentHash]
+    );
+    return (r.rows[0] as PhotoRow) ?? null;
   }
 
   async findPrestataireIdByUserId(userId: number): Promise<number | null> {

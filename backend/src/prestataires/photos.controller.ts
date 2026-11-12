@@ -1,6 +1,7 @@
+import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { PhotosRepository } from './photos.repository';
 import { isPrestaSubActive } from '../prestataire-subscription';
 import { filterAvailable, forgetFile } from '../utils/persistent-uploads';
@@ -11,6 +12,40 @@ function buildPhotoUrl(req: Request, filename: string): string {
   const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
   const host = req.headers['x-forwarded-host'] ?? req.get('host');
   return `${protocol}://${host}/uploads/photos/${filename}`;
+}
+
+function isVideoFile(file: Express.Multer.File): boolean {
+  const ext = path.extname(file.filename || file.originalname || '').toLowerCase();
+  return file.mimetype.startsWith('video/') || ['.mp4', '.mov', '.m4v', '.webm', '.avi'].includes(ext);
+}
+
+function adminTargetUserId(req: Request): number | null {
+  const id = Number(req.params.userId);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+/**
+ * Anti-doublon (à placer juste après multer, AVANT les optimisations qui
+ * réécrivent le fichier) : empreinte SHA-256 du fichier reçu ; si ce
+ * prestataire a déjà exactement ce fichier, l'envoi est refusé (409).
+ */
+export function rejectDuplicatePhoto() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.file?.path) return next();
+    try {
+      const hash = crypto.createHash('sha256').update(await fs.promises.readFile(req.file.path)).digest('hex');
+      (req as Request & { contentHash?: string }).contentHash = hash;
+      const userId = adminTargetUserId(req);
+      const prestataireId = userId ? await repo.findPrestataireIdByUserId(userId) : null;
+      if (prestataireId !== null && await repo.findByHash(prestataireId, hash)) {
+        try { fs.unlinkSync(req.file.path); } catch { /* ignoré */ }
+        return res.status(409).json({ success: false, duplicate: true, message: 'Cette photo est déjà sur la fiche de ce prestataire.' });
+      }
+    } catch (err) {
+      console.error('rejectDuplicatePhoto:', err);
+    }
+    return next();
+  };
 }
 
 export class PhotosController {
@@ -198,7 +233,8 @@ export class PhotosController {
         fs.unlinkSync(req.file.path);
         return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
       }
-      const photo = await repo.insert(prestataireId, '', req.file.filename, '', 'image');
+      const hash = (req as Request & { contentHash?: string }).contentHash ?? null;
+      const photo = await repo.insert(prestataireId, '', req.file.filename, '', 'image', hash);
       await repo.setCover(prestataireId, photo.id);
       const url = buildPhotoUrl(req, req.file.filename);
       return res.status(201).json({ success: true, data: { ...photo, is_cover: true, url } });
@@ -206,6 +242,61 @@ export class PhotosController {
       console.error('adminUploadCover:', err);
       if (req.file) { try { fs.unlinkSync(req.file.path); } catch { /* ignoré */ } }
       return res.status(500).json({ success: false, message: 'Erreur upload' });
+    }
+  }
+
+  /** Admin : ajoute une photo ou une vidéo au portfolio du prestataire `:userId` (sans limite). */
+  async adminUploadPhoto(req: Request, res: Response) {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Aucun fichier reçu' });
+    }
+    try {
+      const userId = adminTargetUserId(req);
+      const prestataireId = userId ? await repo.findPrestataireIdByUserId(userId) : null;
+      if (prestataireId === null) {
+        try { fs.unlinkSync(req.file.path); } catch { /* ignoré */ }
+        await forgetFile(`photos/${req.file.filename}`);
+        return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
+      }
+      const caption = typeof req.body?.caption === 'string' ? req.body.caption.slice(0, 500) : '';
+      const hash = (req as Request & { contentHash?: string }).contentHash ?? null;
+      const photo = await repo.insert(prestataireId, '', req.file.filename, caption, isVideoFile(req.file) ? 'video' : 'image', hash);
+      return res.status(201).json({ success: true, data: { ...photo, url: buildPhotoUrl(req, req.file.filename) } });
+    } catch (err) {
+      console.error('adminUploadPhoto:', err);
+      if (req.file) { try { fs.unlinkSync(req.file.path); } catch { /* ignoré */ } }
+      return res.status(500).json({ success: false, message: 'Erreur upload' });
+    }
+  }
+
+  /** Admin : choisit la photo de couverture du prestataire `:userId`. */
+  async adminSetCover(req: Request, res: Response) {
+    try {
+      const userId = adminTargetUserId(req);
+      const prestataireId = userId ? await repo.findPrestataireIdByUserId(userId) : null;
+      if (prestataireId === null) return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
+      await repo.setCover(prestataireId, parseInt(req.params.photoId, 10));
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error('adminSetCover:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
+  /** Admin : retire une photo du prestataire `:userId`. */
+  async adminDeletePhoto(req: Request, res: Response) {
+    try {
+      const userId = adminTargetUserId(req);
+      const prestataireId = userId ? await repo.findPrestataireIdByUserId(userId) : null;
+      if (prestataireId === null) return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
+      const deleted = await repo.delete(prestataireId, parseInt(req.params.photoId, 10));
+      if (!deleted) return res.status(404).json({ success: false, message: 'Photo introuvable' });
+      try { fs.unlinkSync(path.join(process.cwd(), 'uploads', 'photos', deleted.filename)); } catch { /* ignoré */ }
+      await forgetFile(`photos/${deleted.filename}`);
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error('adminDeletePhoto:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
     }
   }
 

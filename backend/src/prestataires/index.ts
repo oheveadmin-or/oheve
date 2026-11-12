@@ -8,7 +8,8 @@ import { optimizeUploadedImage } from '../utils/image-optim';
 import { persistUploadedFile } from '../utils/persistent-uploads';
 import { optimizeUploadedVideo } from '../utils/video-optim';
 import { PrestatairesController } from './controller';
-import { PhotosController } from './photos.controller';
+import { myDocumentRoutes, userDocumentRoutes } from './documents';
+import { PhotosController, rejectDuplicatePhoto } from './photos.controller';
 
 export const prestatairesRoutes = Router();
 const ctrl = new PrestatairesController();
@@ -54,10 +55,18 @@ prestatairesRoutes.get('/feed/photos', optionalAuth, photos.getFeedPhotos.bind(p
 prestatairesRoutes.get('/me/photos', requireAuth, photos.getMyPhotos.bind(photos));
 prestatairesRoutes.post('/me/photos', requireAuth, upload.single('photo'), optimizeUploadedImage(), optimizeUploadedVideo(), persistUploadedFile(), photos.uploadPhoto.bind(photos));
 // Admin : photo de couverture d'un prestataire qu'il a créé.
-prestatairesRoutes.post('/:userId/cover', requireAdmin, upload.single('photo'), optimizeUploadedImage(), persistUploadedFile(), photos.adminUploadCover.bind(photos));
+prestatairesRoutes.post('/:userId/cover', requireAdmin, upload.single('photo'), rejectDuplicatePhoto(), optimizeUploadedImage(), persistUploadedFile(), photos.adminUploadCover.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/cover', requireAuth, photos.setCover.bind(photos));
 prestatairesRoutes.put('/me/photos/:photoId/caption', requireAuth, photos.updateCaption.bind(photos));
 prestatairesRoutes.delete('/me/photos/:photoId', requireAuth, photos.deletePhoto.bind(photos));
+// Documents PDF (brochure, menu, tarifs) — /me d'abord, puis /:userId (public + admin).
+prestatairesRoutes.use(myDocumentRoutes);
+prestatairesRoutes.use(userDocumentRoutes);
+// ⚠️ APRÈS les routes /me/… : sinon « me » serait pris pour un :userId (et refusé par requireAdmin).
+// Admin : portfolio d'un prestataire (ajout photo/vidéo sans limite, refus des doublons, couverture, suppression).
+prestatairesRoutes.post('/:userId/photos', requireAdmin, upload.single('photo'), rejectDuplicatePhoto(), optimizeUploadedImage(), optimizeUploadedVideo(), persistUploadedFile(), photos.adminUploadPhoto.bind(photos));
+prestatairesRoutes.put('/:userId/photos/:photoId/cover', requireAdmin, photos.adminSetCover.bind(photos));
+prestatairesRoutes.delete('/:userId/photos/:photoId', requireAdmin, photos.adminDeletePhoto.bind(photos));
 
 // ── Fiche publique d'un post (page de partage /p/:photoId du site) ───────────
 prestatairesRoutes.get('/photos/:photoId/public', photos.getPublicPhoto.bind(photos));
