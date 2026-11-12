@@ -9,7 +9,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -35,6 +35,10 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
   onClose: (changed: boolean) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { width: winW } = useWindowDimensions();
+  const [gridW, setGridW] = useState(0);
+  // 3 colonnes, 6 px d'écart ; avant la 1re mesure : largeur écran − marges.
+  const tileSize = Math.max(60, Math.floor(((gridW || winW - 32) - 12) / 3));
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [docs, setDocs] = useState<Doc[]>([]);
   const [docBusy, setDocBusy] = useState(false);
@@ -235,9 +239,9 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
           {photos.length === 0 ? (
             <ThemedText style={styles.empty}>Aucune photo pour l&apos;instant. La 1re image ajoutée devient la couverture.</ThemedText>
           ) : (
-          <View style={styles.grid}>
+          <View style={styles.grid} onLayout={(e) => setGridW(e.nativeEvent.layout.width)}>
             {photos.map((p) => (
-              <View key={p.id} style={styles.tile}>
+              <View key={p.id} style={[styles.tile, { width: tileSize, height: tileSize }]}>
                 {p.media_type === 'video' ? (
                   <View style={[StyleSheet.absoluteFill, styles.video]}>
                     <Ionicons name="play-circle" size={34} color="#fff" />
@@ -320,7 +324,9 @@ const styles = StyleSheet.create({
   docDel: { padding: 6 },
   pdfBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: '#d9ddd0', borderRadius: 14, paddingVertical: 12, backgroundColor: '#fff' },
   pdfTxt: { color: '#4a5240', fontWeight: '700', fontSize: 14 },
-  tile: { width: '32%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: '#ece8e0' },
+  // Taille en pixels (calculée) : width '32%' + aspectRatio donnait sur iPhone
+  // des cases qui prenaient la place mais restaient invisibles.
+  tile: { borderRadius: 10, overflow: 'hidden', backgroundColor: '#ece8e0' },
   video: { backgroundColor: '#343630', alignItems: 'center', justifyContent: 'center' },
   coverBadge: { position: 'absolute', left: 4, bottom: 4, backgroundColor: 'rgba(52,54,48,0.8)', borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2 },
   coverTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
