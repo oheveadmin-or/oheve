@@ -37,6 +37,7 @@ import { prestataireSubscriptionRoutes } from './prestataire-subscription';
 import { premiumRoutes } from './premium';
 import { iapRoutes } from './iap';
 import { googleIapRoutes } from './iap/google';
+import { backfillVideoPosters } from './prestataires/video-background';
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -208,6 +209,11 @@ runMigrations()
       .then(() => backfillStoredFiles())
       .catch(err => {
         logger.warn({ err }, 'Sauvegarde en base des uploads existants échouée');
+      })
+      // Aperçus des vidéos déjà publiées (+ réencodage des trop lourdes).
+      .then(() => backfillVideoPosters())
+      .catch(err => {
+        logger.warn({ err }, 'Aperçus des vidéos existantes échoués');
       });
   })
   .catch(err => {

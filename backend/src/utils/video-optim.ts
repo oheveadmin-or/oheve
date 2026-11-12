@@ -65,12 +65,13 @@ function runFfmpeg(args: string[], timeoutMs: number): Promise<void> {
 }
 
 /**
- * Codec vidéo et format de pixels du fichier (« hevc », « yuv420p10le »…),
- * lus dans la sortie de `ffmpeg -i` (ffprobe n'est pas embarqué).
+ * Codec, format de pixels, durée et dimensions du fichier, lus dans la sortie
+ * de `ffmpeg -i` (ffprobe n'est pas embarqué).
  */
-function probeVideo(filePath: string): Promise<{ codec: string | null; pixFmt: string | null }> {
+type Probe = { codec: string | null; pixFmt: string | null; durationSec: number | null; width: number | null; height: number | null };
+function probeVideo(filePath: string): Promise<Probe> {
   const bin = getFfmpeg();
-  if (!bin) return Promise.resolve({ codec: null, pixFmt: null });
+  if (!bin) return Promise.resolve({ codec: null, pixFmt: null, durationSec: null, width: null, height: null });
   return new Promise((resolve) => {
     const proc = spawn(bin, ['-hide_banner', '-i', filePath], { stdio: ['ignore', 'ignore', 'pipe'] });
     let stderr = '';
@@ -79,12 +80,54 @@ function probeVideo(filePath: string): Promise<{ codec: string | null; pixFmt: s
     const done = () => {
       clearTimeout(timer);
       const m = stderr.match(/Stream #[^\n]*Video: (\w+)[^,\n]*(?:\([^)]*\))?[^,\n]*, (\w+)/);
-      resolve({ codec: m?.[1] ?? null, pixFmt: m?.[2] ?? null });
+      const d = stderr.match(/Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/);
+      const wh = stderr.match(/Stream #[^\n]*Video:[^\n]*?, (\d{2,5})x(\d{2,5})/);
+      resolve({
+        codec: m?.[1] ?? null,
+        pixFmt: m?.[2] ?? null,
+        durationSec: d ? Number(d[1]) * 3600 + Number(d[2]) * 60 + Number(d[3]) : null,
+        width: wh ? Number(wh[1]) : null,
+        height: wh ? Number(wh[2]) : null,
+      });
     };
     proc.on('error', done);
     proc.on('close', done);
   });
 }
+
+/** Image d'aperçu d'une vidéo : « photo_x.mp4 » → « photo_x_poster.jpg » (même dossier). */
+export function posterNameFor(videoFilename: string): string {
+  return `${path.basename(videoFilename, path.extname(videoFilename))}_poster.jpg`;
+}
+
+/**
+ * Crée l'image d'aperçu (1re image, 720 px max) à côté de la vidéo : les
+ * grilles et les reels l'affichent tout de suite, sans télécharger la vidéo.
+ * Retourne son chemin, ou null en cas d'échec.
+ */
+export async function makeVideoPoster(videoPath: string): Promise<string | null> {
+  if (!getFfmpeg()) return null;
+  const out = path.join(path.dirname(videoPath), posterNameFor(path.basename(videoPath)));
+  const tmp = `${out}.tmp.jpg`;
+  try {
+    await runFfmpeg([
+      '-ss', '0.3', '-i', videoPath, '-frames:v', '1',
+      '-vf', "scale='if(gt(iw,ih),min(720,iw),-2)':'if(gt(iw,ih),-2,min(720,ih))'",
+      '-q:v', '4', '-y', tmp,
+    ], 30_000);
+    if (!(await fs.promises.stat(tmp)).size) throw new Error('aperçu vide');
+    await fs.promises.rename(tmp, out);
+    return out;
+  } catch (err) {
+    await fs.promises.unlink(tmp).catch(() => {});
+    logger.warn({ err, videoPath }, 'Aperçu vidéo non créé');
+    return null;
+  }
+}
+
+// Au-delà de ce débit, la vidéo est réencodée (lecture qui démarre vite en 4G,
+// comme Instagram ~2-3 Mb/s en 720p) même si elle pèse moins de 20 Mo.
+const MAX_BITRATE = 4_500_000;
 
 /**
  * Optimise une vidéo pour la lecture en streaming progressif.
@@ -103,7 +146,7 @@ function probeVideo(filePath: string): Promise<{ codec: string | null; pixFmt: s
  * Retourne le nouveau chemin (extension `.mp4`) ou `null` si rien n'a été fait.
  * Toute erreur laisse l'original intact : une vidéo lourde vaut mieux qu'aucune.
  */
-export async function optimizeVideoFile(filePath: string): Promise<string | null> {
+export async function optimizeVideoFile(filePath: string, opts: { skipIfFine?: boolean } = {}): Promise<string | null> {
   if (!getFfmpeg()) return null;
 
   const dir = path.dirname(filePath);
@@ -113,12 +156,17 @@ export async function optimizeVideoFile(filePath: string): Promise<string | null
 
   try {
     const original = await fs.promises.stat(filePath);
-    const { codec, pixFmt } = await probeVideo(filePath);
+    const { codec, pixFmt, durationSec, width, height } = await probeVideo(filePath);
     const incompatible =
       (codec !== null && codec !== 'h264') ||
       (pixFmt !== null && pixFmt !== 'yuv420p' && pixFmt !== 'yuvj420p');
-    const heavy = original.size > HEAVY_BYTES;
+    // Lourde = débit trop élevé (lecture lente en 4G) ou plus grande que 720p ;
+    // à défaut de durée lisible, on retombe sur le poids du fichier.
+    const bitrate = durationSec ? (original.size * 8) / durationSec : null;
+    const tooBig = width !== null && height !== null && Math.max(width, height) > 1280;
+    const heavy = bitrate !== null ? bitrate > MAX_BITRATE || tooBig : original.size > HEAVY_BYTES;
     const transcode = heavy || incompatible;
+    if (!transcode && opts.skipIfFine) return null;
 
     const args = transcode
       ? [

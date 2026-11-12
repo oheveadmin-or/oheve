@@ -17,7 +17,8 @@ export function AdminImpersonationBanner() {
   // Comptes créés par l'admin : prénom = nom = nom de l'entreprise → affiché une fois.
   const who = (user.prenom && user.prenom === user.nom ? user.prenom : [user.prenom, user.nom].filter(Boolean).join(' ')) || `compte ${user.id}`;
   return (
-    <View pointerEvents="box-none" style={[styles.wrap, { top: insets.top + 4 }]}>
+    // En bas, au-dessus de la barre d'onglets : en haut il cachait les titres et boutons des écrans.
+    <View pointerEvents="box-none" style={[styles.wrap, { bottom: insets.bottom + 92 }]}>
       <Pressable style={styles.pill} onPress={returnToAdmin} accessibilityLabel="Revenir à l'admin">
         <Ionicons name="shield-checkmark" size={14} color="#fff" />
         <ThemedText style={styles.txt} numberOfLines={1}>Admin · {who}</ThemedText>

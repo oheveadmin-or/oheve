@@ -28,7 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { FeedVideo } from '@/components/feed-video';
-import { VideoThumbnail } from '@/components/video-thumbnail';
+import { posterUrlFor, VideoThumbnail } from '@/components/video-thumbnail';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/auth-context';
 import { isTooLong, TOO_LONG_MESSAGE, VIDEO_PICK_OPTIONS } from '@/lib/video-pick';
@@ -1222,6 +1222,14 @@ export default function ExploreScreen() {
   });
 
   const openedPost = posts.find((p) => p.id === openedPostId) ?? null;
+
+  // Aperçus des vidéos téléchargés à l'avance : en reels, chaque vidéo
+  // s'affiche instantanément (image) puis démarre, comme sur Instagram.
+  const posterKey = posts.filter((p) => p.mediaType === 'video').slice(0, 40).map((p) => p.mediaUri).join('|');
+  useEffect(() => {
+    const urls = posterKey.split('|').map((u) => (u ? posterUrlFor(u) : null)).filter((u): u is string => !!u);
+    if (urls.length) Image.prefetch(urls, 'memory-disk').catch(() => {});
+  }, [posterKey]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleLike = useCallback((id: string) => {

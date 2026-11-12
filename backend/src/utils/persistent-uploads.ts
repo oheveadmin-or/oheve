@@ -134,6 +134,24 @@ async function restoreFromDb(rel: string): Promise<boolean> {
   return true;
 }
 
+/** Fichier présent sur le disque (restauré depuis la base au besoin) ? Chemin absolu ou null. */
+export async function ensureLocalFile(rel: string): Promise<string | null> {
+  const abs = path.join(UPLOADS_ROOT, rel);
+  if (fs.existsSync(abs)) return abs;
+  let job = restoring.get(rel);
+  if (!job) {
+    job = restoreFromDb(rel).finally(() => restoring.delete(rel));
+    restoring.set(rel, job);
+  }
+  return (await job.catch(() => false)) ? abs : null;
+}
+
+/** Ce chemin relatif est-il sauvegardé en base ? */
+export async function isStored(rel: string): Promise<boolean> {
+  const r = await pool.query('SELECT 1 FROM stored_files WHERE rel_path = $1', [rel]);
+  return !!r.rowCount;
+}
+
 /**
  * Middleware monté sur /uploads AVANT express.static : si le fichier demandé
  * n'est plus sur le disque, il est restauré depuis la base puis servi

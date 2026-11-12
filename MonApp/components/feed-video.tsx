@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { peekVideoThumbnail } from '@/components/video-thumbnail';
+import { peekVideoThumbnail, posterUrlFor } from '@/components/video-thumbnail';
 
 // Chargement défensif : sur un binaire construit sans le module natif
 // expo-video (ancien build simulateur/TestFlight), on affiche un placeholder
@@ -68,7 +68,8 @@ function NativeFeedVideo({
   // Fichier introuvable / format illisible sur cet appareil : message clair
   // plutôt qu'un écran noir qui fait croire à un bug de l'app.
   const [failed, setFailed] = useState(false);
-  const [poster, setPoster] = useState<string | null>(posterUri ?? null);
+  // Aperçu du serveur (instantané, souvent déjà en cache grâce à la grille).
+  const [poster, setPoster] = useState<string | null>(posterUri ?? posterUrlFor(uri));
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.muted = startMuted;
@@ -107,7 +108,7 @@ function NativeFeedVideo({
   // Miniature déjà générée par les grilles (profil, explore…) : affichage
   // instantané, aucun téléchargement supplémentaire.
   useEffect(() => {
-    if (posterUri) return;
+    if (posterUri || posterUrlFor(uri)) return;
     let alive = true;
     peekVideoThumbnail(uri).then((t) => { if (alive && t) setPoster(t); });
     return () => { alive = false; };
@@ -130,10 +131,13 @@ function NativeFeedVideo({
               source={{ uri: shownPoster }}
               style={StyleSheet.absoluteFill}
               contentFit={contentFit}
-              transition={150}
+              cachePolicy="memory-disk"
+              transition={0}
+              onError={() => setPoster(null)}
             />
           )}
-          <ActivityIndicator size="small" color="rgba(255,255,255,0.9)" />
+          {/* Avec un aperçu, pas de roue : l'image s'affiche, puis la vidéo démarre (comme Instagram). */}
+          {!shownPoster && <ActivityIndicator size="small" color="rgba(255,255,255,0.9)" />}
         </View>
       )}
       {failed && (

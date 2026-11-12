@@ -76,6 +76,17 @@ export async function peekVideoThumbnail(videoUri: string): Promise<string | nul
   return null;
 }
 
+/**
+ * Image d'aperçu créée par le serveur à côté de chaque vidéo du portfolio
+ * (« photo_x.mp4 » → « photo_x_poster.jpg »). Affichage instantané, sans
+ * télécharger la vidéo. null pour une vidéo locale ou hors /uploads/photos.
+ */
+export function posterUrlFor(videoUri: string): string | null {
+  if (!/^https?:\/\//.test(videoUri) || !videoUri.includes('/uploads/photos/')) return null;
+  const clean = videoUri.split('?')[0];
+  return /\.(mp4|mov|m4v|webm|avi)$/i.test(clean) ? clean.replace(/\.[^./]+$/, '_poster.jpg') : null;
+}
+
 type VideoThumbnailProps = {
   /** URL (distante ou locale) de la vidéo dont on affiche la première image. */
   uri: string;
@@ -89,19 +100,34 @@ type VideoThumbnailProps = {
  * portfolio…) — remplace l'écran noir par un vrai aperçu.
  */
 export function VideoThumbnail({ uri, style, iconSize = 30 }: VideoThumbnailProps) {
+  // 1er choix : l'aperçu du serveur. S'il n'existe pas (encore), on retombe
+  // sur la miniature fabriquée par le téléphone (télécharge un bout de vidéo).
+  const serverPoster = posterUrlFor(uri);
+  const [posterFailed, setPosterFailed] = useState(false);
   const [thumb, setThumb] = useState<string | null>(memoryCache.get(uri) ?? null);
+  const useLocal = !serverPoster || posterFailed;
 
   useEffect(() => {
+    if (!useLocal) return;
     let alive = true;
     getThumbnail(uri).then((t) => {
       if (alive) setThumb(t);
     });
     return () => { alive = false; };
-  }, [uri]);
+  }, [uri, useLocal]);
 
   return (
     <View style={[vtStyles.wrap, style]}>
-      {thumb && (
+      {!useLocal && serverPoster ? (
+        <Image
+          source={{ uri: serverPoster }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          onError={() => setPosterFailed(true)}
+        />
+      ) : null}
+      {useLocal && thumb && (
         <Image
           source={{ uri: thumb }}
           style={StyleSheet.absoluteFill}
