@@ -158,7 +158,9 @@ export default function PortfolioScreen() {
     setUploading(true);
     let failed = 0;
     try {
-      for (const uri of uris) {
+      // 3 envois en parallèle : bien plus rapide qu'un par un pour un lot.
+      let next = 0;
+      const worker = async () => { while (next < uris.length) { const uri = uris[next++];
         try {
           const res = await uploadFile(
             `${API_ENDPOINTS.prestataires}/me/photos`,
@@ -176,7 +178,8 @@ export default function PortfolioScreen() {
           // Une photo illisible/corrompue ne doit pas interrompre les autres
           failed += 1;
         }
-      }
+      } };
+      await Promise.all(Array.from({ length: Math.min(3, uris.length) }, worker));
     } finally {
       setUploading(false);
     }

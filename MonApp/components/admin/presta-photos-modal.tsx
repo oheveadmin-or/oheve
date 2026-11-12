@@ -134,13 +134,21 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
     const errors: string[] = [];
     const failed: Pending[] = [];
     setProgress({ done: 0, total: items.length });
-    for (const [i, it] of items.entries()) {
-      const res = await adminApi.uploadPrestatairePhoto(token, userId, it.uri, { caption: it.caption, inFeed: pendingInFeed });
-      if (res.success && res.data) { added++; setPhotos((p) => [...p, res.data as unknown as Photo]); }
-      else if ((res as { duplicate?: boolean }).duplicate) dupes++;
-      else { errors.push(res.message ?? 'Erreur'); failed.push(it); }
-      setProgress({ done: i + 1, total: items.length });
-    }
+    // 3 envois en parallèle : bien plus rapide qu'un par un pour un lot.
+    let next = 0;
+    let done = 0;
+    const worker = async () => {
+      while (next < items.length) {
+        const it = items[next++];
+        const res = await adminApi.uploadPrestatairePhoto(token, userId, it.uri, { caption: it.caption, inFeed: pendingInFeed });
+        if (res.success && res.data) { added++; setPhotos((p) => [...p, res.data as unknown as Photo]); }
+        else if ((res as { duplicate?: boolean }).duplicate) dupes++;
+        else { errors.push(res.message ?? 'Erreur'); failed.push(it); }
+        done++;
+        setProgress({ done, total: items.length });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, items.length) }, worker));
     setProgress(null);
     // Les échecs restent dans la liste pour pouvoir réessayer sans tout rechoisir.
     setPending(failed);
