@@ -582,6 +582,8 @@ export async function runMigrations(): Promise<void> {
     // Empreinte du fichier d'origine : la même photo n'est pas ajoutée 2 fois au même prestataire.
     await pool.query(`ALTER TABLE prestataire_photos ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_prestataire_photos_hash ON prestataire_photos(prestataire_id, content_hash)`);
+    // Photo visible dans les reels (feed) ou seulement sur la fiche (ex. couverture non publiée).
+    await pool.query(`ALTER TABLE prestataire_photos ADD COLUMN IF NOT EXISTS in_feed BOOLEAN NOT NULL DEFAULT true`);
     // ── Documents PDF des prestataires ──────────────────────────────────────────
     await pool.query(CREATE_PRESTATAIRE_DOCUMENTS);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_prestataire_documents_presta ON prestataire_documents(prestataire_id)`);

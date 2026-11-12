@@ -23,6 +23,7 @@ import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { VideoThumbnail } from '@/components/video-thumbnail';
 import { MyPrestaDocuments } from '@/components/presta-documents';
+import { askCoverInFeed } from '@/lib/ask-cover-in-feed';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { C } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
@@ -40,6 +41,8 @@ type Photo = {
   id: number;
   url: string;
   is_cover: boolean;
+  /** false = sur la fiche seulement, pas dans les reels. */
+  in_feed?: boolean;
   caption?: string | null;
   media_type?: 'image' | 'video';
 };
@@ -187,14 +190,29 @@ export default function PortfolioScreen() {
 
   const setCover = async (photoId: number) => {
     if (!user?.accessToken) return;
-    try {
-      await prestatairesApi.setCoverPhoto(user.accessToken, photoId);
-      setPhotos((prev) =>
-        prev.map((p) => ({ ...p, is_cover: p.id === photoId }))
-      );
-    } catch {
-      Alert.alert('Erreur', 'Impossible de définir la photo de couverture.');
+    // On demande AVANT si la couverture doit aussi apparaître dans les reels.
+    const inFeed = await askCoverInFeed();
+    if (inFeed === null) return;
+    const res = await prestatairesApi.setCoverPhoto(user.accessToken, photoId, inFeed);
+    if (!res?.success) {
+      Alert.alert('Erreur', res?.message || 'Impossible de définir la photo de couverture.');
+      return;
     }
+    setPhotos((prev) =>
+      prev.map((p) => ({ ...p, is_cover: p.id === photoId, ...(p.id === photoId ? { in_feed: inFeed } : {}) }))
+    );
+  };
+
+  /** Publier / retirer une photo des reels (elle reste dans le portfolio). */
+  const toggleInFeed = async (photo: Photo) => {
+    if (!user?.accessToken) return;
+    const next = photo.in_feed === false;
+    const res = await prestatairesApi.setPhotoInFeed(user.accessToken, photo.id, next);
+    if (!res?.success) {
+      Alert.alert('Erreur', res?.message || 'Modification impossible. Réessayez.');
+      return;
+    }
+    setPhotos((prev) => prev.map((p) => (p.id === photo.id ? { ...p, in_feed: next } : p)));
   };
 
   const deletePhoto = (photoId: number) => {
@@ -273,6 +291,18 @@ export default function PortfolioScreen() {
                   <Ionicons name="star" size={12} color="#fff" />
                   <ThemedText style={styles.coverBadgeText}>Couverture</ThemedText>
                 </View>
+                {/* Couverture dans les reels ou sur la fiche seulement — modifiable à tout moment */}
+                <Pressable
+                  style={styles.coverFeedPill}
+                  onPress={() => toggleInFeed(coverPhoto)}
+                  hitSlop={6}
+                  accessibilityLabel={coverPhoto.in_feed === false ? 'Publier dans les reels' : 'Retirer des reels'}
+                >
+                  <Ionicons name={coverPhoto.in_feed === false ? 'eye-off' : 'film-outline'} size={12} color="#fff" />
+                  <ThemedText style={styles.coverBadgeText}>
+                    {coverPhoto.in_feed === false ? 'Pas dans les reels' : 'Dans les reels'}
+                  </ThemedText>
+                </Pressable>
                 <Pressable
                   style={styles.coverDeleteBtn}
                   onPress={() => deletePhoto(coverPhoto.id)}
@@ -340,6 +370,10 @@ export default function PortfolioScreen() {
                           ? { text: 'Définir comme couverture', onPress: () => setCover(photo.id) }
                           : { text: 'Annuler', style: 'cancel' },
                         {
+                          text: photo.in_feed === false ? 'Publier dans les reels' : 'Retirer des reels',
+                          onPress: () => toggleInFeed(photo),
+                        },
+                        {
                           text: 'Supprimer',
                           style: 'destructive',
                           onPress: () => deletePhoto(photo.id),
@@ -361,6 +395,11 @@ export default function PortfolioScreen() {
                   {photo.is_cover && (
                     <View style={styles.photoCoverBadge}>
                       <Ionicons name="star" size={10} color="#fff" />
+                    </View>
+                  )}
+                  {photo.in_feed === false && (
+                    <View style={styles.notInFeedBadge} accessibilityLabel="Pas dans les reels">
+                      <Ionicons name="eye-off" size={10} color="#fff" />
                     </View>
                   )}
                   {photo.caption ? (
@@ -524,6 +563,14 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     paddingHorizontal: 10,
     paddingVertical: 5,
+  },
+  coverFeedPill: {
+    position: 'absolute', top: 48, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(52,54,48,0.7)', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  notInFeedBadge: {
+    position: 'absolute', top: 6, left: 6, width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(52,54,48,0.75)', alignItems: 'center', justifyContent: 'center',
   },
   coverBadgeText: { fontSize: 11, color: '#fff', fontWeight: '700' },
   coverDeleteBtn: {

@@ -21,6 +21,7 @@ import { useAuth, UserRole } from '@/contexts/auth-context';
 import { adminApi } from '@/services/auth/api';
 import { EVENT_TYPES, eventConfig } from '@/lib/event-type';
 import { categoryLabel } from '@/lib/presta-categories';
+import { askCoverInFeed } from '@/lib/ask-cover-in-feed';
 
 type Tab = 'dashboard' | 'evenements' | 'users' | 'prestataires' | 'identifiants' | 'boutiques' | 'contenus' | 'reservations' | 'payments' | 'communaute';
 
@@ -282,7 +283,9 @@ export default function AdminDashboard() {
       return;
     }
     if (!uri) return;
-    const res = await adminApi.uploadPrestataireCover(token, userId, uri);
+    const inFeed = await askCoverInFeed();
+    if (inFeed === null) return;
+    const res = await adminApi.uploadPrestataireCover(token, userId, uri, inFeed);
     Alert.alert(res.success ? 'Photo de couverture mise à jour' : 'Envoi impossible', res.success ? undefined : res.message ?? 'Réessayez.');
   };
 

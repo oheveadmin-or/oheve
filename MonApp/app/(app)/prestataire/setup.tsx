@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { askCoverInFeed } from '@/lib/ask-cover-in-feed';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -33,6 +34,8 @@ type SetupForm = {
   /** URI locale de la photo choisie — uploadée APRÈS la création du profil
    *  (le serveur refuse l'upload tant que la fiche n'existe pas). */
   cover_local_uri?: string;
+  /** Couverture aussi publiée dans les reels (demandé au choix de la photo). */
+  cover_in_feed?: boolean;
 };
 
 export default function PrestataireSetup() {
@@ -82,7 +85,9 @@ export default function PrestataireSetup() {
     if (result.canceled || !result.assets[0]) return;
     // Simple aperçu local — l'upload se fait à la validation, une fois la fiche créée.
     const uri = result.assets[0].uri;
-    setForm((prev) => ({ ...prev, cover_local_uri: uri }));
+    const inFeed = await askCoverInFeed();
+    if (inFeed === null) return;
+    setForm((prev) => ({ ...prev, cover_local_uri: uri, cover_in_feed: inFeed }));
   };
 
   const submit = async () => {
@@ -111,6 +116,8 @@ export default function PrestataireSetup() {
           `${API_ENDPOINTS.prestataires}/me/photos`,
           user.accessToken,
           form.cover_local_uri,
+          'photo',
+          { asCover: 'true', inFeed: String(form.cover_in_feed ?? false) },
         ).catch(() => {});
       }
       // Dernière étape de l'inscription : l'abonnement.

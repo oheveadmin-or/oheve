@@ -7,6 +7,8 @@ export interface PhotoRow {
   url: string;
   filename: string;
   is_cover: boolean;
+  /** false = sur la fiche seulement, pas dans les reels. */
+  in_feed?: boolean;
   caption?: string | null;
   media_type?: 'image' | 'video';
   created_at: string;
@@ -28,6 +30,7 @@ export class PhotosRepository {
     caption?: string | null,
     mediaType: 'image' | 'video' = 'image',
     contentHash: string | null = null,
+    inFeed = true,
   ): Promise<PhotoRow> {
     const hasCover = await pool.query(
       `SELECT 1 FROM prestataire_photos WHERE prestataire_id=$1 AND is_cover=true LIMIT 1`,
@@ -37,9 +40,9 @@ export class PhotosRepository {
     // est affichée comme image partout dans l'app).
     const isCover = hasCover.rowCount === 0 && mediaType === 'image';
     const r = await pool.query(
-      `INSERT INTO prestataire_photos (prestataire_id, url, filename, is_cover, caption, media_type, content_hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [prestataireId, url, filename, isCover, caption?.trim() || null, mediaType, contentHash]
+      `INSERT INTO prestataire_photos (prestataire_id, url, filename, is_cover, caption, media_type, content_hash, in_feed)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [prestataireId, url, filename, isCover, caption?.trim() || null, mediaType, contentHash, inFeed]
     );
     return r.rows[0] as PhotoRow;
   }
@@ -73,6 +76,15 @@ export class PhotosRepository {
       `UPDATE prestataire_photos SET is_cover=true WHERE id=$1 AND prestataire_id=$2`,
       [photoId, prestataireId]
     );
+  }
+
+  /** Publie (true) ou retire (false) une photo des reels ; elle reste sur la fiche. */
+  async setInFeed(prestataireId: number, photoId: number, inFeed: boolean): Promise<PhotoRow | null> {
+    const r = await pool.query(
+      `UPDATE prestataire_photos SET in_feed=$1 WHERE id=$2 AND prestataire_id=$3 RETURNING *`,
+      [inFeed, photoId, prestataireId]
+    );
+    return (r.rows[0] as PhotoRow) ?? null;
   }
 
   async delete(prestataireId: number, photoId: number): Promise<PhotoRow | null> {
@@ -115,6 +127,8 @@ export class PhotosRepository {
        LEFT JOIN photo_comments pc ON pc.photo_id = pp.id
        LEFT JOIN photo_likes pl2 ON pl2.photo_id = pp.id AND pl2.user_id = $3
        WHERE COALESCE(p.is_hidden, false) = false AND COALESCE(p.is_suspended, false) = false
+         -- Photo gardée sur la fiche seulement (ex. couverture non publiée) → pas dans les reels
+         AND COALESCE(pp.in_feed, true) = true
          -- Reels : un compte Bar Mitsva ne voit que les prestataires qui en font
          AND ($4::text IS NULL OR ${sqlCoversEvent('p', '$4')})
        GROUP BY pp.id, pp.caption, pp.media_type, p.id, p.business_name, p.category, p.location_city, p.rating, p.reviews_count, u.id, u.prenom, u.nom, u.avatar_url
@@ -144,6 +158,7 @@ export class PhotosRepository {
        JOIN prestataire_profiles p ON pp.prestataire_id = p.id
        JOIN users u ON p.user_id = u.id
        WHERE pp.id = $1
+         AND COALESCE(pp.in_feed, true) = true
          AND COALESCE(p.is_hidden, false) = false
          AND COALESCE(p.is_suspended, false) = false`,
       [photoId]

@@ -13,9 +13,10 @@ import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollVi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { askCoverInFeed } from '@/lib/ask-cover-in-feed';
 import { adminApi } from '@/services/auth/api';
 
-type Photo = { id: number; url: string; is_cover: boolean; media_type?: 'image' | 'video' };
+type Photo = { id: number; url: string; is_cover: boolean; in_feed?: boolean; media_type?: 'image' | 'video' };
 type Doc = { id: number; title: string; size: number | null; url: string };
 
 const sizeLabel = (n: number | null) => (!n ? '' : n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`);
@@ -170,9 +171,20 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
 
   const makeCover = async (p: Photo) => {
     if (!userId || p.is_cover || p.media_type === 'video') return;
-    const res = await adminApi.setPrestatairePhotoCover(token, userId, p.id);
+    const inFeed = await askCoverInFeed();
+    if (inFeed === null) return;
+    const res = await adminApi.setPrestatairePhotoCover(token, userId, p.id, inFeed);
     if (!res.success) { Alert.alert('Impossible', res.message ?? 'Réessayez.'); return; }
-    setPhotos((list) => list.map((x) => ({ ...x, is_cover: x.id === p.id })));
+    setPhotos((list) => list.map((x) => ({ ...x, is_cover: x.id === p.id, ...(x.id === p.id ? { in_feed: inFeed } : {}) })));
+  };
+
+  /** Publier / retirer une photo des reels (elle reste sur la fiche). */
+  const toggleFeed = async (p: Photo) => {
+    if (!userId) return;
+    const next = p.in_feed === false;
+    const res = await adminApi.setPrestatairePhotoInFeed(token, userId, p.id, next);
+    if (!res.success) { Alert.alert('Impossible', res.message ?? 'Réessayez.'); return; }
+    setPhotos((list) => list.map((x) => (x.id === p.id ? { ...x, in_feed: next } : x)));
   };
 
   const remove = (p: Photo) => {
@@ -230,7 +242,14 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
                 {p.is_cover ? (
                   <View style={styles.coverBadge}><ThemedText style={styles.coverTxt}>Couverture</ThemedText></View>
                 ) : null}
+                {p.in_feed === false ? (
+                  <View style={styles.hiddenBadge}><Ionicons name="eye-off" size={11} color="#fff" /></View>
+                ) : null}
                 <View style={styles.actions}>
+                  <Pressable style={styles.action} hitSlop={6} onPress={() => toggleFeed(p)}
+                    accessibilityLabel={p.in_feed === false ? 'Publier dans les reels' : 'Retirer des reels'}>
+                    <Ionicons name={p.in_feed === false ? 'eye-outline' : 'eye-off-outline'} size={15} color="#fff" />
+                  </Pressable>
                   {p.media_type !== 'video' && !p.is_cover ? (
                     <Pressable style={styles.action} hitSlop={6} onPress={() => makeCover(p)} accessibilityLabel="Mettre en couverture">
                       <Ionicons name="star-outline" size={15} color="#fff" />
@@ -245,7 +264,7 @@ export function PrestaPhotosModal({ token, userId, name, onClose }: {
           </View>
           )}
           <ThemedText style={styles.foot}>
-            {photos.length} photo(s)/vidéo(s) · étoile = mettre en couverture · un fichier déjà présent n&apos;est pas ajouté deux fois.
+            {photos.length} photo(s)/vidéo(s) · étoile = mettre en couverture · œil = publier/retirer des reels (barré = fiche seulement) · un fichier déjà présent n&apos;est pas ajouté deux fois.
           </ThemedText>
 
           <View style={styles.section}>
@@ -299,6 +318,7 @@ const styles = StyleSheet.create({
   video: { backgroundColor: '#343630', alignItems: 'center', justifyContent: 'center' },
   coverBadge: { position: 'absolute', left: 4, bottom: 4, backgroundColor: 'rgba(52,54,48,0.8)', borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2 },
   coverTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  hiddenBadge: { position: 'absolute', left: 4, top: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(52,54,48,0.8)', alignItems: 'center', justifyContent: 'center' },
   actions: { position: 'absolute', top: 4, right: 4, flexDirection: 'row', gap: 4 },
   action: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(52,54,48,0.65)', alignItems: 'center', justifyContent: 'center' },
   empty: { textAlign: 'center', color: '#9a9c93', marginTop: 32, fontSize: 14, paddingHorizontal: 20 },

@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { adminApi } from '@/services/auth/api';
 import { PRESTA_CATEGORIES } from '@/lib/presta-categories';
+import { askCoverInFeed } from '@/lib/ask-cover-in-feed';
 
 // Même taxonomie que prestataire/setup.tsx et profile-edit.tsx.
 const CATEGORIES = PRESTA_CATEGORIES.map((c) => ({ key: c.key, label: c.label }));
@@ -74,6 +75,8 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
   const [email, setEmail] = useState('');
   const [instagram, setInstagram] = useState('');
   const [coverUri, setCoverUri] = useState<string | null>(null);
+  // Couverture aussi publiée dans les reels ? (demandé au choix de la photo)
+  const [coverInFeed, setCoverInFeed] = useState(false);
   // Après création : on reste sur la fenêtre pour montrer les identifiants.
   const [created, setCreated] = useState<{ ids: string; info: string; coverFailed: boolean } | null>(null);
   const [mode, setMode] = useState<'offert' | 'payant'>('offert');
@@ -82,7 +85,7 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
 
   const reset = () => {
     setUsername(''); setUsernameTouched(false); setPassword(generatePassword()); setBusinessName(''); setCategory('');
-    setPrenom(''); setNom(''); setCity(''); setPhone(''); setEmail(''); setInstagram(''); setCoverUri(null);
+    setPrenom(''); setNom(''); setCity(''); setPhone(''); setEmail(''); setInstagram(''); setCoverUri(null); setCoverInFeed(false);
     setMode('offert'); setMonths(0);
   };
 
@@ -99,7 +102,12 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
     }
     try {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
-      if (!result.canceled && result.assets[0]) setCoverUri(result.assets[0].uri);
+      if (result.canceled || !result.assets[0]) return;
+      const uri = result.assets[0].uri;
+      const inFeed = await askCoverInFeed();
+      if (inFeed === null) return;
+      setCoverUri(uri);
+      setCoverInFeed(inFeed);
     } catch {
       Alert.alert('Photo illisible', "Cette photo n'a pas pu être lue. Choisissez-en une autre.");
     }
@@ -133,7 +141,7 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
     let coverFailed = false;
     const newUserId = (res.data as { id?: number } | undefined)?.id;
     if (coverUri && newUserId) {
-      const up = await adminApi.uploadPrestataireCover(token, newUserId, coverUri);
+      const up = await adminApi.uploadPrestataireCover(token, newUserId, coverUri, coverInFeed);
       coverFailed = !up.success;
     }
     setSaving(false);
@@ -239,6 +247,14 @@ export function CreatePrestataireModal({ visible, token, onClose, onCreated }: P
               </View>
             )}
           </Pressable>
+          {coverUri && (
+            <Pressable style={styles.feedRow} onPress={() => setCoverInFeed((v) => !v)} accessibilityRole="switch" accessibilityState={{ checked: coverInFeed }}>
+              <Ionicons name={coverInFeed ? 'checkbox' : 'square-outline'} size={20} color="#4a5240" />
+              <ThemedText style={styles.feedRowTxt}>
+                {coverInFeed ? 'Publiée aussi dans les reels' : 'Couverture seulement (pas dans les reels)'}
+              </ThemedText>
+            </Pressable>
+          )}
           <Field label="Nom de l'entreprise *" value={businessName} onChangeText={setBusinessName} />
           <ThemedText style={styles.label}>Catégorie *</ThemedText>
           <View style={styles.chips}>
@@ -339,6 +355,8 @@ const styles = StyleSheet.create({
   coverEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
   coverTxt: { fontSize: 13, fontWeight: '600', color: '#747e68' },
   coverEdit: { position: 'absolute', right: 10, bottom: 10, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5 },
+  feedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  feedRowTxt: { flex: 1, fontSize: 13, color: '#4a5240', fontWeight: '600' },
   coverEditTxt: { fontSize: 12, fontWeight: '600', color: '#fff' },
   doneIcon: { alignItems: 'center', marginTop: 8 },
   idsBox: { borderRadius: 14, borderWidth: 1.5, borderColor: '#929B83', backgroundColor: '#f3f5ef', padding: 16 },

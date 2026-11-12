@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { askCoverInFeed } from '@/lib/ask-cover-in-feed';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -109,6 +110,9 @@ export default function PrestataireProfileEdit() {
       return;
     }
     if (result.canceled || !result.assets[0]) return;
+    // Avant l'envoi : la couverture va-t-elle aussi dans les reels ?
+    const inFeed = await askCoverInFeed();
+    if (inFeed === null) return;
 
     setUploadingCover(true);
     try {
@@ -117,6 +121,9 @@ export default function PrestataireProfileEdit() {
         `${API_ENDPOINTS.prestataires}/me/photos`,
         user!.accessToken,
         asset.uri,
+        'photo',
+        // asCover : devient vraiment la couverture (avant, seulement s'il n'y en avait aucune)
+        { asCover: 'true', inFeed: String(inFeed) },
       );
       if (res?.success && res.data?.url) {
         setForm((prev) => ({ ...prev, cover_url: res.data!.url as string }));

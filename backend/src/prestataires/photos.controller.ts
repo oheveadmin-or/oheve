@@ -19,6 +19,17 @@ function isVideoFile(file: Express.Multer.File): boolean {
   return file.mimetype.startsWith('video/') || ['.mp4', '.mov', '.m4v', '.webm', '.avi'].includes(ext);
 }
 
+/**
+ * Champ multipart/JSON `inFeed` : publier aussi dans les reels ?
+ * Absent → `fallback` (true pour une photo de portfolio, false pour une couverture admin).
+ */
+function readInFeed(body: unknown, fallback: boolean): boolean {
+  const v = (body as { inFeed?: unknown } | undefined)?.inFeed;
+  if (v === true || v === 'true' || v === '1') return true;
+  if (v === false || v === 'false' || v === '0') return false;
+  return fallback;
+}
+
 function adminTargetUserId(req: Request): number | null {
   const id = Number(req.params.userId);
   return Number.isInteger(id) && id > 0 ? id : null;
@@ -212,9 +223,13 @@ export class PhotosController {
         req.file.mimetype.startsWith('video/') ||
         ['.mp4', '.mov', '.m4v', '.webm', '.avi'].includes(ext);
       const mediaType = isVideo ? 'video' : 'image';
-      const photo = await repo.insert(prestataireId, '', req.file.filename, caption, mediaType);
+      // `asCover` : photo choisie comme couverture (profil, inscription) ; `inFeed` :
+      // la publier aussi dans les reels (le prestataire est interrogé avant).
+      const asCover = req.body?.asCover === 'true' && mediaType === 'image';
+      const photo = await repo.insert(prestataireId, '', req.file.filename, caption, mediaType, null, readInFeed(req.body, true));
+      if (asCover) await repo.setCover(prestataireId, photo.id);
       const url = buildPhotoUrl(req, req.file.filename);
-      return res.status(201).json({ success: true, data: { ...photo, url } });
+      return res.status(201).json({ success: true, data: { ...photo, ...(asCover ? { is_cover: true } : {}), url } });
     } catch (err) {
       console.error('uploadPhoto:', err);
       if (req.file) { try { fs.unlinkSync(req.file.path); } catch { /* ignoré */ } }
@@ -234,7 +249,8 @@ export class PhotosController {
         return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
       }
       const hash = (req as Request & { contentHash?: string }).contentHash ?? null;
-      const photo = await repo.insert(prestataireId, '', req.file.filename, '', 'image', hash);
+      // Couverture : PAS dans les reels sauf si l'admin a répondu « Oui » (inFeed=true).
+      const photo = await repo.insert(prestataireId, '', req.file.filename, '', 'image', hash, readInFeed(req.body, false));
       await repo.setCover(prestataireId, photo.id);
       const url = buildPhotoUrl(req, req.file.filename);
       return res.status(201).json({ success: true, data: { ...photo, is_cover: true, url } });
@@ -260,7 +276,7 @@ export class PhotosController {
       }
       const caption = typeof req.body?.caption === 'string' ? req.body.caption.slice(0, 500) : '';
       const hash = (req as Request & { contentHash?: string }).contentHash ?? null;
-      const photo = await repo.insert(prestataireId, '', req.file.filename, caption, isVideoFile(req.file) ? 'video' : 'image', hash);
+      const photo = await repo.insert(prestataireId, '', req.file.filename, caption, isVideoFile(req.file) ? 'video' : 'image', hash, readInFeed(req.body, true));
       return res.status(201).json({ success: true, data: { ...photo, url: buildPhotoUrl(req, req.file.filename) } });
     } catch (err) {
       console.error('adminUploadPhoto:', err);
@@ -275,7 +291,9 @@ export class PhotosController {
       const userId = adminTargetUserId(req);
       const prestataireId = userId ? await repo.findPrestataireIdByUserId(userId) : null;
       if (prestataireId === null) return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
-      await repo.setCover(prestataireId, parseInt(req.params.photoId, 10));
+      const photoId = parseInt(req.params.photoId, 10);
+      await repo.setCover(prestataireId, photoId);
+      if (req.body?.inFeed !== undefined) await repo.setInFeed(prestataireId, photoId, readInFeed(req.body, true));
       return res.status(200).json({ success: true });
     } catch (err) {
       console.error('adminSetCover:', err);
@@ -308,9 +326,39 @@ export class PhotosController {
         return res.status(404).json({ success: false, message: 'Profil introuvable' });
       }
       await repo.setCover(prestataireId, photoId);
+      if (req.body?.inFeed !== undefined) await repo.setInFeed(prestataireId, photoId, readInFeed(req.body, true));
       return res.status(200).json({ success: true });
     } catch (err) {
       console.error('setCover:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
+  /** Prestataire : publier / retirer une de ses photos des reels (elle reste sur sa fiche). */
+  async setInFeed(req: Request, res: Response) {
+    try {
+      const prestataireId = await repo.findPrestataireIdByUserId(req.auth!.sub);
+      if (prestataireId === null) return res.status(404).json({ success: false, message: 'Profil introuvable' });
+      const updated = await repo.setInFeed(prestataireId, parseInt(req.params.photoId, 10), readInFeed(req.body, true));
+      if (!updated) return res.status(404).json({ success: false, message: 'Photo introuvable' });
+      return res.status(200).json({ success: true, data: { ...updated, url: buildPhotoUrl(req, updated.filename) } });
+    } catch (err) {
+      console.error('setInFeed:', err);
+      return res.status(500).json({ success: false, message: 'Erreur' });
+    }
+  }
+
+  /** Admin : publier / retirer une photo du prestataire `:userId` des reels. */
+  async adminSetInFeed(req: Request, res: Response) {
+    try {
+      const userId = adminTargetUserId(req);
+      const prestataireId = userId ? await repo.findPrestataireIdByUserId(userId) : null;
+      if (prestataireId === null) return res.status(404).json({ success: false, message: 'Prestataire introuvable' });
+      const updated = await repo.setInFeed(prestataireId, parseInt(req.params.photoId, 10), readInFeed(req.body, true));
+      if (!updated) return res.status(404).json({ success: false, message: 'Photo introuvable' });
+      return res.status(200).json({ success: true, data: { ...updated, url: buildPhotoUrl(req, updated.filename) } });
+    } catch (err) {
+      console.error('adminSetInFeed:', err);
       return res.status(500).json({ success: false, message: 'Erreur' });
     }
   }

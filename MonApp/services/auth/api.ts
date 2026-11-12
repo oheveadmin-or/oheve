@@ -317,10 +317,19 @@ export const prestatairesApi = {
       body: formData,
     }),
 
-  setCoverPhoto: (accessToken: string, photoId: number) => {
+  /** `inFeed` : publier aussi la couverture dans les reels (omis = inchangé). */
+  setCoverPhoto: (accessToken: string, photoId: number, inFeed?: boolean) => {
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
     return request(`${API_ENDPOINTS.prestataires}/me/photos/${photoId}/cover`, {
-      method: 'PUT', headers,
+      method: 'PUT', headers, body: JSON.stringify(inFeed === undefined ? {} : { inFeed }),
+    });
+  },
+
+  /** Publie (true) ou retire (false) une photo des reels — elle reste sur la fiche. */
+  setPhotoInFeed: (accessToken: string, photoId: number, inFeed: boolean) => {
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
+    return request(`${API_ENDPOINTS.prestataires}/me/photos/${photoId}/feed`, {
+      method: 'PUT', headers, body: JSON.stringify({ inFeed }),
     });
   },
 
@@ -494,8 +503,8 @@ export const adminApi = {
   }) => adminFetch(accessToken, API_ENDPOINTS.adminPrestataires, 'POST', data),
 
   /** Photo de couverture d'un prestataire (envoyée par l'admin). */
-  uploadPrestataireCover: (accessToken: string, userId: number, fileUri: string) =>
-    uploadFile(`${API_ENDPOINTS.prestataires}/${userId}/cover`, accessToken, fileUri),
+  uploadPrestataireCover: (accessToken: string, userId: number, fileUri: string, inFeed = false) =>
+    uploadFile(`${API_ENDPOINTS.prestataires}/${userId}/cover`, accessToken, fileUri, 'photo', { inFeed: String(inFeed) }),
 
   /** Portfolio d'un prestataire (photos + vidéos, couverture en premier). */
   listPrestatairePhotos: (accessToken: string, userId: number) =>
@@ -505,8 +514,12 @@ export const adminApi = {
   uploadPrestatairePhoto: (accessToken: string, userId: number, fileUri: string) =>
     uploadFile(`${API_ENDPOINTS.prestataires}/${userId}/photos`, accessToken, fileUri),
 
-  setPrestatairePhotoCover: (accessToken: string, userId: number, photoId: number) =>
-    adminFetch(accessToken, `${API_ENDPOINTS.prestataires}/${userId}/photos/${photoId}/cover`, 'PUT'),
+  setPrestatairePhotoCover: (accessToken: string, userId: number, photoId: number, inFeed?: boolean) =>
+    adminFetch(accessToken, `${API_ENDPOINTS.prestataires}/${userId}/photos/${photoId}/cover`, 'PUT', inFeed === undefined ? undefined : { inFeed }),
+
+  /** Publie (true) ou retire (false) une photo du prestataire des reels. */
+  setPrestatairePhotoInFeed: (accessToken: string, userId: number, photoId: number, inFeed: boolean) =>
+    adminFetch(accessToken, `${API_ENDPOINTS.prestataires}/${userId}/photos/${photoId}/feed`, 'PUT', { inFeed }),
 
   deletePrestatairePhoto: (accessToken: string, userId: number, photoId: number) =>
     adminFetch(accessToken, `${API_ENDPOINTS.prestataires}/${userId}/photos/${photoId}`, 'DELETE'),
