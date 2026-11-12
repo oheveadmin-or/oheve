@@ -136,19 +136,29 @@ export async function uploadFile(
     }
   }
   let result: FileSystem.FileSystemUploadResult;
-  try {
-    result = await FileSystem.uploadAsync(url, fileUri, {
-      httpMethod: 'POST',
-      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-      fieldName,
-      headers: { Authorization: `Bearer ${accessToken}` },
-      parameters: extraFields,
-    });
-  } catch {
-    return {
-      success: false,
-      message: 'Envoi impossible : vérifiez votre connexion internet, puis réessayez.',
-    };
+  // Serveur momentanément indisponible (Railway redémarre pendant un
+  // déploiement → 502 « Application failed to respond ») : on renvoie le
+  // fichier jusqu'à 2 fois après une courte pause au lieu d'échouer.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      result = await FileSystem.uploadAsync(url, fileUri, {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName,
+        headers: { Authorization: `Bearer ${accessToken}` },
+        parameters: extraFields,
+      });
+    } catch {
+      return {
+        success: false,
+        message: 'Envoi impossible : vérifiez votre connexion internet, puis réessayez.',
+      };
+    }
+    if (!isTransientStatus(result.status) || attempt >= 3) break;
+    await sleep(8000 * attempt);
+  }
+  if (isTransientStatus(result.status)) {
+    return { success: false, message: 'Le serveur redémarre (mise à jour en cours). Réessayez dans une minute.' };
   }
   try {
     const json = JSON.parse(result.body);
