@@ -504,6 +504,7 @@ const OPENING_CSS = `
 /* ── Décor papillons (Bat Mitsva) : prénom calligraphié doré ─────────── */
 .io-decor-papillons .io-names { color: var(--ia-foil); text-shadow: 0 2px 18px rgba(0,0,0,0.55); }
 .io-decor-papillons .io-kicker { font-family: 'Playfair Display', Georgia, serif; text-transform: none; letter-spacing: 0.04em; font-size: min(8cqw, 4.4cqh, 2.1rem); }
+.io-decor-papillons .io-intro { padding-inline: max(16px, calc((100cqw - min(100cqw, 71.4cqh) * 0.72) / 2)); }
 .io-decor-papillons .io-hint { color: var(--ia-ink) !important; opacity: 0.85; }
 
 /* Hébreu : la flèche suit le sens de lecture, et pas d'espacement entre les lettres */

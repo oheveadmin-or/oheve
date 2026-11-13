@@ -11,7 +11,7 @@ import { ALL_STYLE_PRESETS, FONT_OPTIONS, STYLE_PRESETS, type ThemePreset } from
 import { defaultInvitationTexts, invitationTextFields, withInvitationTexts, type InvitationTextKey } from '../data/invitationTexts';
 import { applyColorCombination, COLOR_COMBINATIONS, type ColorCombination } from '../data/colorCombinations';
 import { musicSuggestionsFor, DEEZER_SCHEME, musicLabelForUrl, deezerTrackId, isYouTubeUrl } from '../data/musicSuggestions';
-import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, getWeddingSiteBySlug, uploadGalleryPhoto, uploadWeddingMusic, adaptPhotoToTheme } from '../services/weddingSiteService';
+import { createWeddingSite, updateWeddingSite, setAuthToken, hasAuthToken, onAuthLost, getWeddingSiteBySlug, uploadGalleryPhoto, uploadWeddingMusic, adaptPhotoToTheme } from '../services/weddingSiteService';
 import type {
   AccommodationItem,
   CardStyle,
@@ -53,6 +53,7 @@ import { invitationEffects, isAnimatedInvitation } from '../themes/InvitationThe
 import { WeddingSitePreview } from './WeddingSitePreview';
 import { GuestEnvelopeLinks } from './GuestEnvelopeLinks';
 import { ThemePicker } from './ThemePicker';
+import { BuilderLogin } from './BuilderLogin';
 
 // ─── Design Studio options ────────────────────────────────────────────────────
 
@@ -247,6 +248,9 @@ export function WeddingSiteBuilder() {
   // mais la publication est réservée aux comptes Oheve (le serveur la refuse
   // de toute façon : autant l'afficher clairement).
   const [hasToken, setHasToken] = useState<boolean>(() => hasAuthToken());
+  // Session refusée par le serveur en cours d'édition → bandeau de reconnexion
+  const [sessionExpired, setSessionExpired] = useState(false);
+  useEffect(() => onAuthLost(() => { setHasToken(false); setSessionExpired(true); }), []);
   const [slugCustom, setSlugCustom] = useState('');
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
 
@@ -1076,6 +1080,19 @@ export function WeddingSiteBuilder() {
             )}
           </div>
         </header>
+
+        {!hasToken && !import.meta.env.DEV && (
+          <BuilderLogin
+            key={sessionExpired ? 'expired' : 'absent'}
+            expired={sessionExpired}
+            onLoggedIn={() => {
+              setHasToken(true);
+              setSessionExpired(false);
+              setGalleryError(null);
+              setMusicError(null);
+            }}
+          />
+        )}
 
         {loadError && (
           <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.88rem', color: '#991b1b', lineHeight: 1.5 }}>
@@ -2814,8 +2831,9 @@ export function WeddingSiteBuilder() {
               }}
             >
               🔒 <strong>Mode découverte</strong> — composez librement votre site, mais la
-              publication et le lien invités sont réservés aux comptes Oheve. Ouvrez le
-              créateur de site depuis l'application Oheve pour publier.
+              publication et le lien invités sont réservés aux comptes Oheve. Connectez-vous
+              avec le bandeau « Se connecter » en haut de la page (ou ouvrez le créateur
+              depuis l'application Oheve) pour publier.
             </div>
           ) : (
             <button type="submit" style={submitBtn} disabled={saving}>

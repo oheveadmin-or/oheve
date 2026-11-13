@@ -905,6 +905,12 @@ const INVITATION_CSS = `
 
 /* ── Décor papillons (Bat Mitsva) : cadre d'or fixe, prénom doré ─────── */
 .ia-pp { width: 100%; height: 100%; }
+/* Le texte reste dans le rond : ~72 % de la largeur du cadre (lui-même
+   min(100 %, 71,4 % de la hauteur d'écran), cf. PapillonsArt) */
+.ia-decor-papillons .ia-page { width: min(560px, 72%, calc(0.714 * 0.72 * var(--ia-vh, 100svh))); }
+.ia-decor-papillons .ia-page-body { padding-inline: 4px; }
+.ia-decor-papillons .ia-title { letter-spacing: 0.1em; padding-inline-start: 0.1em; }
+.ia-decor-papillons .ia-band, .ia-decor-papillons .ia-contacts { border-radius: 10px; padding-inline: 10px; }
 .ia-decor-papillons .ia-names { color: var(--ia-foil) !important; text-shadow: 0 2px 18px rgba(0,0,0,0.55); }
 
 @media (prefers-reduced-motion: reduce) {

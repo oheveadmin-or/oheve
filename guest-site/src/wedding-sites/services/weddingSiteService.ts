@@ -42,6 +42,64 @@ export function hasAuthToken(): boolean {
   return !!_authToken;
 }
 
+/** Abonnés prévenus quand la session est perdue (absente, expirée, révoquée) :
+ *  le builder réaffiche alors son bandeau de connexion. */
+const authLostListeners = new Set<() => void>();
+export function onAuthLost(cb: () => void): () => void {
+  authLostListeners.add(cb);
+  return () => { authLostListeners.delete(cb); };
+}
+/** Session refusée par le serveur (401/403) : on oublie le jeton et on prévient le builder. */
+function authLost() {
+  setAuthToken(null);
+  authLostListeners.forEach((cb) => cb());
+}
+
+export type BuilderLoginResult = { ok: true } | { ok: false; message: string };
+
+/**
+ * Connexion directe dans le builder web (ouvert sur ordinateur, hors de l'app).
+ * Même parcours que l'app : /api/auth/connexion, puis échange de l'access
+ * token (1 h) contre le jeton builder 30 j, gardé en sessionStorage comme le
+ * ?token= de l'app. Le mot de passe n'est ni stocké ni journalisé ; le refresh
+ * token renvoyé par le serveur n'est pas conservé.
+ * Message identique pour e-mail inconnu / mauvais mot de passe (pas
+ * d'énumération des comptes).
+ */
+export async function loginForBuilder(login: string, password: string): Promise<BuilderLoginResult> {
+  const loginUrl = apiUrl('/api/auth/connexion');
+  const tokenUrl = apiUrl('/api/wedding-sites/builder-token');
+  if (loginUrl === null || tokenUrl === null) return { ok: false, message: 'Connexion indisponible dans cet environnement.' };
+  const generic = 'E-mail (ou identifiant) ou mot de passe incorrect. Si vous vous êtes inscrit avec Google ou Apple, ouvrez le créateur depuis l\'application Oheve.';
+  let res: Response;
+  try {
+    res = await fetch(loginUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: login.trim(), mot_de_passe: password }),
+    });
+  } catch {
+    return { ok: false, message: 'Connexion au serveur impossible — vérifiez votre réseau et réessayez.' };
+  }
+  if (res.status === 429) return { ok: false, message: 'Trop de tentatives — patientez quelques minutes puis réessayez.' };
+  if (res.status === 400 || res.status === 401) return { ok: false, message: generic };
+  if (!res.ok) return { ok: false, message: `Erreur serveur (${res.status}) — réessayez dans un instant.` };
+  const json = (await res.json().catch(() => null)) as { data?: { accessToken?: string } } | null;
+  const access = json?.data?.accessToken;
+  if (!access) return { ok: false, message: 'Réponse du serveur inattendue — réessayez.' };
+  // Jeton longue durée pour la session du builder ; repli sur l'access token
+  let token = access;
+  try {
+    const t = await fetch(tokenUrl, { headers: { Authorization: `Bearer ${access}` } });
+    if (t.ok) {
+      const tj = (await t.json()) as { token?: string };
+      if (tj.token) token = tj.token;
+    }
+  } catch { /* garde l'access token */ }
+  setAuthToken(token);
+  return { ok: true };
+}
+
 // ─── Clé d'accès du site (?k= dans le lien partagé aux invités) ───────────────
 // Les pages publiques sont privées : le backend exige la clé du site (ou un
 // token d'invitation) pour renvoyer les données. On la capte depuis l'URL et on
@@ -75,14 +133,14 @@ export function getSiteAccessKey(): string | null {
  *  que soit la lisibilité du corps de la réponse (le body peut être masqué par
  *  CORS → readApiError retombe alors sur un « Erreur serveur (401) » cryptique). */
 const AUTH_REQUIRED_MSG =
-  'Session expirée ou non connectée — rouvre le site depuis l\'application Oheve pour envoyer des photos.';
+  'Vous n\'êtes pas connecté — connectez-vous avec le bandeau « Se connecter » en haut du créateur, puis réessayez.';
 
 /** Même cause pour tout enregistrement (couleurs, textes, réglages…) : un 401/403
  *  signifie que la session a expiré. Rouvrir le site depuis l'app régénère un
  *  jeton frais (longue durée). Message actionnable plutôt que le « reconnecte-toi »
  *  brut du serveur, inutilisable dans la WebView. */
 const SESSION_EXPIRED_SAVE_MSG =
-  'Session expirée — rouvre le site de mariage depuis l\'application Oheve pour continuer à enregistrer tes modifications (couleurs, textes, photos).';
+  'Session expirée — reconnectez-vous avec le bandeau « Se connecter » en haut du créateur : vos modifications sont conservées, il suffira de réenregistrer.';
 
 // ─── Helpers API ─────────────────────────────────────────────────────────────
 
@@ -231,7 +289,8 @@ export async function createWeddingSite(data: CreateWeddingSiteInput): Promise<W
         const json = (await res.json()) as { success: boolean; data?: WeddingSite };
         if (json.success && json.data) return json.data;
       }
-      if (res.status === 401 || res.status === 403) throw new Error(SESSION_EXPIRED_SAVE_MSG);
+      if (res.status === 401) { authLost(); throw new Error(SESSION_EXPIRED_SAVE_MSG); }
+      if (res.status === 403) throw new Error(await readApiError(res));
       lastError = await readApiError(res);
       if (res.status !== 409) break;
     }
@@ -286,7 +345,8 @@ export async function updateWeddingSite(id: string, data: Partial<WeddingSite>):
       if (json.success && json.data) return json.data;
     }
     if (res.status === 404) return null;
-    if (res.status === 401 || res.status === 403) throw new Error(SESSION_EXPIRED_SAVE_MSG);
+    if (res.status === 401) { authLost(); throw new Error(SESSION_EXPIRED_SAVE_MSG); }
+    if (res.status === 403) throw new Error(await readApiError(res));
     throw new Error(await readApiError(res));
   }
 
@@ -377,7 +437,8 @@ export async function uploadGalleryPhoto(file: File): Promise<string> {
     }
     // En dev le proxy peut être présent sans backend → on tente le fallback local
     if (!import.meta.env.DEV) {
-      if (res && (res.status === 401 || res.status === 403)) throw new Error(AUTH_REQUIRED_MSG);
+      if (res && res.status === 401) { authLost(); throw new Error(AUTH_REQUIRED_MSG); }
+      if (res && res.status === 403) throw new Error(await readApiError(res));
       throw new Error(res ? await readApiError(res) : 'Connexion au serveur impossible');
     }
   }
@@ -401,7 +462,8 @@ export async function uploadWeddingMusic(file: File): Promise<string> {
     const json = (await res.json()) as { success: boolean; data?: { url: string } };
     if (json.success && json.data?.url) return json.data.url;
   }
-  if (res && (res.status === 401 || res.status === 403)) throw new Error(AUTH_REQUIRED_MSG);
+  if (res && res.status === 401) { authLost(); throw new Error(AUTH_REQUIRED_MSG); }
+  if (res && res.status === 403) throw new Error(await readApiError(res));
   throw new Error(res ? await readApiError(res) : 'Connexion au serveur impossible');
 }
 
@@ -438,7 +500,8 @@ export async function adaptPhotoToTheme(
     const json = (await res.json()) as { success: boolean; data?: { url: string } };
     if (json.success && json.data?.url) return json.data.url;
   }
-  if (res && (res.status === 401 || res.status === 403)) throw new Error(AUTH_REQUIRED_MSG);
+  if (res && res.status === 401) { authLost(); throw new Error(AUTH_REQUIRED_MSG); }
+  if (res && res.status === 403) throw new Error(await readApiError(res));
   throw new Error(res ? await readApiError(res) : 'Connexion au serveur impossible');
 }
 
