@@ -27,7 +27,7 @@ import {
   INVITATION_PARTS_CSS,
   IvoryBloom,
   prefersReducedMotion,
-  PapillonsArt,
+  FrameArt,
   TefillinArt,
 } from '../templates/invitationParts';
 
@@ -216,8 +216,8 @@ export function InvitationOpening({ site, contained = false, guestName, onDone }
       }}
     >
       <style>{OPENING_CSS + INVITATION_PARTS_CSS}</style>
-      {tk.decor === 'papillons' ? (
-        <PapillonsArt className="io-art" />
+      {tk.decor === 'papillons' || tk.decor === 'eucalyptus' ? (
+        <FrameArt set={tk.decor} className="io-art" />
       ) : tk.dark ? (
         <TefillinArt uid="opening" className={`io-art${showIntro ? ' is-intro' : ''}`} />
       ) : (
@@ -291,7 +291,7 @@ export function InvitationOpening({ site, contained = false, guestName, onDone }
       {/* 3. Écran d'accueil */}
       {showIntro ? (
         <div className="io-intro">
-          {tk.dark ? null : <GoldMonogram site={site} tk={tk} size="min(19cqw, 10cqh, 120px)" className="io-in" style={enter()} />}
+          {tk.ruleMark ? null : <GoldMonogram site={site} tk={tk} size="min(19cqw, 10cqh, 120px)" className="io-in" style={enter()} />}
           <p className="io-in io-kicker" style={enter()}>
             {S.wedding}
           </p>
@@ -505,6 +505,14 @@ const OPENING_CSS = `
 .io-decor-papillons .io-names { color: var(--ia-foil); text-shadow: 0 2px 18px rgba(0,0,0,0.55); }
 .io-decor-papillons .io-kicker { font-family: 'Playfair Display', Georgia, serif; text-transform: none; letter-spacing: 0.04em; font-size: min(8cqw, 4.4cqh, 2.1rem); }
 .io-decor-papillons .io-intro { padding-inline: max(16px, calc((100cqw - min(100cqw, 71.4cqh) * 0.72) / 2)); }
+
+/* ── Décor eucalyptus (Brit Mila) : titre et prénom dorés, dans l'arche ── */
+.io-decor-eucalyptus .io-intro { padding-inline: max(16px, calc((100cqw - min(100cqw, 71.4cqh) * 0.66) / 2)); text-shadow: 0 0 12px var(--ia-paper), 0 0 4px var(--ia-paper); }
+.io-decor-eucalyptus .io-kicker { font-family: 'Playfair Display', Georgia, serif; text-transform: none; letter-spacing: 0.03em; color: var(--ia-foil); font-size: min(8.4cqw, 4.6cqh, 2.2rem); }
+.io-decor-eucalyptus .io-names { color: var(--ia-foil); }
+.io-decor-eucalyptus .io-hint { color: var(--ia-ink) !important; opacity: 0.8; }
+/* Phrase « Touchez… » : sur deux lignes au besoin, sans déborder sur le décor */
+.io-decor-eucalyptus .io-hint, .io-decor-papillons .io-hint { letter-spacing: 0.18em; max-width: 72cqw; margin-inline: auto; text-align: center; line-height: 1.7; }
 .io-decor-papillons .io-hint { color: var(--ia-ink) !important; opacity: 0.85; }
 
 /* Hébreu : la flèche suit le sens de lecture, et pas d'espacement entre les lettres */

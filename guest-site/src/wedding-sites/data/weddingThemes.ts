@@ -129,6 +129,25 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
     },
   },
   {
+    id: 'invitation-eucalyptus',
+    label: '✦ Invitation animée · Brit Mila',
+    description: 'Le même déroulé que l’Invitation animée, sur un papier ivoire avec une arche dorée, l’étoile de David et de l’eucalyptus',
+    theme: {
+      style: 'invitation-eucalyptus',
+      backgroundColor: '#F6F1E6',
+      textColor: '#6A5536',
+      primaryColor: '#B38B3E',
+      secondaryColor: '#93A88C',
+      mutedTextColor: '#8A7656',
+      fontFamily: "'Cormorant Garamond', Georgia, serif",
+      titleFontFamily: "'Playfair Display', 'Bodoni Moda', Georgia, serif",
+      scriptFontFamily: "'Pinyon Script', 'Great Vibes', cursive",
+      cardStyle: 'shadow',
+      layout: 'centered',
+      borderRadius: 4,
+    },
+  },
+  {
     id: 'provence',
     label: 'Provence',
     description: 'Beige, ocre, vert olivier, serif doux',
@@ -664,6 +683,8 @@ const VISIBLE_STYLE_IDS: ThemeStyle[] = [
   'invitation-tefillin',
   // Décor Bat Mitsva : proposé seulement aux sites de Bat Mitsva (cf. ThemePicker)
   'invitation-papillons',
+  // Décor Brit Mila : proposé seulement aux sites de Brit Mila (cf. ThemePicker)
+  'invitation-eucalyptus',
 ];
 
 export const STYLE_PRESETS: ThemePreset[] = VISIBLE_STYLE_IDS

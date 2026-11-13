@@ -282,9 +282,9 @@ function AnimatedInvitationCard({ preset, selected, onClick }: { preset: ThemePr
           <span style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
             <TefillinArt uid="picker" top style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />
           </span>
-        ) : preset.id === 'invitation-papillons' ? (
-          <span style={{ position: 'relative', flex: 1, overflow: 'hidden', background: '#230E2F' }}>
-            <img src="/invitation-papillons/top.jpg" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', display: 'block' }} />
+        ) : preset.id === 'invitation-papillons' || preset.id === 'invitation-eucalyptus' ? (
+          <span style={{ position: 'relative', flex: 1, overflow: 'hidden', background: preset.id === 'invitation-papillons' ? '#230E2F' : '#F3EEE2' }}>
+            <img src={`/${preset.id}/top.jpg`} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', display: 'block' }} />
           </span>
         ) : (
           <ThemeCardSwatch bg={bg} primary={primary} secondary={secondary} />
@@ -299,6 +299,8 @@ function AnimatedInvitationCard({ preset, selected, onClick }: { preset: ThemePr
             ? "Le même déroulé que l'Invitation animée, sur un fond bordeaux avec des tefillin et leurs lanières."
             : preset.id === 'invitation-papillons'
             ? "Le même déroulé que l'Invitation animée, sur un fond violet encadré de paillettes d'or et de papillons."
+            : preset.id === 'invitation-eucalyptus'
+            ? "Le même déroulé que l'Invitation animée, sur un papier ivoire avec une arche dorée, l'étoile de David et de l'eucalyptus."
             : "Carte au nom de l'invité qui s'ouvre en enveloppe, une page par événement et la réponse intégrée."}
         </span>
         <span style={{ fontSize: '0.68rem', color: '#9a8f83', lineHeight: 1.4 }}>
@@ -328,6 +330,8 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false, even
   const showPapillons = eventType === 'bat_mitsva' || currentStyleId === 'invitation-papillons';
   const animatedList = (showTefillin ? ['invitation-tefillin', 'invitation-animee'] : ['invitation-animee'])
     .concat(showPapillons ? ['invitation-papillons'] : [])
+    // Décor eucalyptus : pour une Brit Mila, juste en dessous de l'Invitation animée
+    .concat(eventType === 'brit_mila' || currentStyleId === 'invitation-eucalyptus' ? ['invitation-eucalyptus'] : [])
     .map((id) => STYLE_PRESETS.find((p) => p.id === id))
     .filter((p): p is ThemePreset => Boolean(p));
   const animated = animatedList[0];

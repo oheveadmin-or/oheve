@@ -42,20 +42,36 @@ export function shade(hex: string, k: number): string {
 /**
  * Les deux décors du modèle « Invitation animée » : ivoire (fleur, mariage) et
  * tefillin (Bar Mitsva : fond bordeaux, boîtiers et lanières de cuir) et
- * papillons (Bat Mitsva : fond violet, cadre de paillettes d'or et papillons).
+ * papillons (Bat Mitsva : fond violet, cadre de paillettes d'or et papillons) et
+ * eucalyptus (Brit Mila : papier ivoire, arche dorée, étoile de David, feuillage).
  * Même déroulé, mêmes composants ; seuls le fond et les couleurs changent.
  */
 export function isAnimatedInvitation(style?: ThemeStyle | string | null): boolean {
-  return style === 'invitation-animee' || style === 'invitation-tefillin' || style === 'invitation-papillons';
+  return style === 'invitation-animee' || style === 'invitation-tefillin' || style === 'invitation-papillons' || style === 'invitation-eucalyptus';
 }
 
-export type InvitationDecor = 'ivoire' | 'tefillin' | 'papillons';
+export type InvitationDecor = 'ivoire' | 'tefillin' | 'papillons' | 'eucalyptus';
 
 export function invitationDecor(theme: WeddingTheme): InvitationDecor {
   if (theme.style === 'invitation-tefillin') return 'tefillin';
   if (theme.style === 'invitation-papillons') return 'papillons';
+  if (theme.style === 'invitation-eucalyptus') return 'eucalyptus';
   return 'ivoire';
 }
+
+/** Décor Brit Mila : papier ivoire, or et vert eucalyptus (faire-part à l'arche) */
+const EUCALYPTUS = {
+  paper: '#F6F1E6',
+  ink: '#6A5536',
+  foil: '#B38B3E',
+  soft: '#93A88C',
+  fonts: {
+    script: "'Pinyon Script', 'Great Vibes', cursive",
+    body: "'Cormorant Garamond', Georgia, serif",
+    label: "'Montserrat', 'DM Sans', sans-serif",
+    monogram: "'Playfair Display', 'Bodoni Moda', Georgia, serif",
+  },
+};
 
 /** Décor Bat Mitsva : violet profond, or, prénom calligraphié (faire-part papillons) */
 const PAPILLONS = {
@@ -100,8 +116,8 @@ export function invitationEffects(theme: WeddingTheme): Required<InvitationEffec
 
 export function invitationTokens(theme: WeddingTheme) {
   const decor = invitationDecor(theme);
-  const dark = decor !== 'ivoire';
-  const D = decor === 'papillons' ? PAPILLONS : dark ? TEFILLIN : DEFAULTS;
+  const dark = decor === 'tefillin' || decor === 'papillons';
+  const D = decor === 'papillons' ? PAPILLONS : decor === 'eucalyptus' ? EUCALYPTUS : dark ? TEFILLIN : DEFAULTS;
   const ink = theme.textColor || D.ink;
   const foil = theme.primaryColor || D.foil;
   const paper = theme.backgroundColor || D.paper;
@@ -139,6 +155,10 @@ export function invitationTokens(theme: WeddingTheme) {
     },
     decor,
     dark,
+    /** Décor à image (papillons, eucalyptus) : cf. FrameArt */
+    framed: decor === 'papillons' || decor === 'eucalyptus',
+    /** Filet losangé à la place du monogramme (le décor porte déjà son motif) */
+    ruleMark: decor !== 'ivoire',
     fonts: {
       script: theme.scriptFontFamily || D.fonts.script,
       body: theme.fontFamily || D.fonts.body,

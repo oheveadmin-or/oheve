@@ -46,7 +46,9 @@ export type ThemeStyle =
   /** Invitation animée, décor Bar Mitsva : fond bordeaux, tefillin et lanières */
   | 'invitation-tefillin'
   /** Invitation animée, décor Bat Mitsva : fond violet, cadre de paillettes d'or et papillons */
-  | 'invitation-papillons';
+  | 'invitation-papillons'
+  /** Invitation animée, décor Brit Mila : papier ivoire, arche dorée, étoile de David et eucalyptus */
+  | 'invitation-eucalyptus';
 
 export type TitleSize = 'small' | 'medium' | 'large' | 'huge';
 

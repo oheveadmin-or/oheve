@@ -2,8 +2,8 @@
  * Briques du modèle « Invitation animée », partagées entre l'ouverture
  * (carte → enveloppe → écran d'accueil) et la page de l'invitation.
  *
- * Tout est dessiné ici (SVG / CSS), sauf le décor papillons (Bat Mitsva) qui
- * s'appuie sur trois images de public/invitation-papillons/.
+ * Tout est dessiné ici (SVG / CSS), sauf les décors papillons (Bat Mitsva) et
+ * eucalyptus (Brit Mila), qui s'appuient sur des images de public/ (FrameArt).
  */
 import { initialOfName } from '../utils/eventType';
 import type { CSSProperties } from 'react';
@@ -298,23 +298,46 @@ export function TefillinArt({ uid, className, style, top = false }: { uid: strin
   );
 }
 
-/* ── Décor Bat Mitsva : cadre de paillettes d'or et papillons (images) ──── */
+/* ── Décors à image : papillons (Bat Mitsva), eucalyptus (Brit Mila) ───── */
+
+export type FrameArtSet = 'papillons' | 'eucalyptus';
 
 /**
- * Fond du décor papillons. L'illustration (portrait ≈ 5:7) est découpée en
- * trois : le haut et le bas restent entiers (papillons jamais rognés ni
- * déformés) ; entre les deux, une bande de paillettes se répète pour
- * s'adapter aux écrans très hauts. Les raccords sont fondus (mask-image).
- * Sur un écran large, le cadre garde ses proportions et se centre.
+ * Fond des décors à image. L'illustration (portrait ≈ 5:7) est découpée en
+ * trois (public/invitation-<set>/) : le haut et le bas restent entiers (rien
+ * n'est rogné ni déformé) ; entre les deux, une bande se répète pour
+ * s'adapter aux écrans très hauts. Sur un écran large, le cadre garde ses
+ * proportions et se centre.
+ *  - papillons : bande de paillettes en miroir, raccords fondus (mask-image)
+ *  - eucalyptus : filets de l'arche et tiges prolongés tout droits, raccord net
  */
-export function PapillonsArt({ className, style }: { className?: string; style?: CSSProperties }) {
+export function FrameArt({ set, className, style }: { set: FrameArtSet; className?: string; style?: CSSProperties }) {
+  const dir = `/invitation-${set}`;
   return (
-    <div aria-hidden className={`pp-art ${className ?? ''}`} style={style}>
+    <div aria-hidden className={`pp-art pp-${set} ${className ?? ''}`} style={style}>
       <div className="pp-frame">
-        <img className="pp-top" src="/invitation-papillons/top.jpg" alt="" decoding="async" />
-        <div className="pp-mid" />
-        <img className="pp-bottom" src="/invitation-papillons/bottom.jpg" alt="" decoding="async" />
+        <img className="pp-top" src={`${dir}/top.jpg`} alt="" decoding="async" />
+        <div className="pp-mid" style={{ backgroundImage: `url('${dir}/middle.jpg')` }} />
+        <img className="pp-bottom" src={`${dir}/bottom.jpg`} alt="" decoding="async" />
       </div>
+      {set === 'eucalyptus' ? <GoldDust /> : null}
+    </div>
+  );
+}
+
+/** Paillettes d'or qui montent et scintillent doucement (décor eucalyptus) */
+const DUST: [number, number, number, number][] = [
+  // [left %, taille px, durée s, délai s]
+  [12, 3, 13, 0], [22, 2, 16, -6], [31, 4, 14, -3], [44, 2, 18, -9], [53, 3, 15, -1],
+  [61, 2, 17, -12], [70, 4, 13, -7], [79, 2, 19, -4], [87, 3, 15, -10], [38, 2, 20, -15],
+  [66, 3, 16, -2], [17, 2, 18, -13],
+];
+function GoldDust() {
+  return (
+    <div className="pp-dust">
+      {DUST.map(([left, size, dur, delay], k) => (
+        <span key={k} style={{ left: `${left}%`, width: size, height: size, animationDuration: `${dur}s`, animationDelay: `${delay}s` }} />
+      ))}
     </div>
   );
 }
@@ -376,18 +399,35 @@ export const INVITATION_PARTS_CSS = `
 .tf-drift { animation: tf-drift 9s ease-in-out infinite alternate; transform-box: view-box; }
 .tf-drift-b { animation-duration: 11s; animation-delay: -4s; }
 @keyframes tf-drift { from { transform: translateY(-4px); } to { transform: translateY(5px); } }
-/* Décor papillons : cadre-image, cf. PapillonsArt */
+/* Décors à image : cf. FrameArt */
 /* isolation : le z-index des images reste dans le cadre (sinon elles couvrent le texte) */
 .pp-art { isolation: isolate; container-type: size; display: flex; justify-content: center; overflow: hidden; pointer-events: none; background: #230E2F; }
+.pp-art.pp-eucalyptus { background: #F3EEE2; }
 .pp-frame { width: min(100cqw, 71.4cqh); height: 100%; display: flex; flex-direction: column;
   /* Bords fondus dans le fond uni : invisible sur un écran large où le cadre est centré */
   -webkit-mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent); mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent); }
 .pp-top, .pp-bottom { display: block; width: 100%; height: auto; flex: none; position: relative; z-index: 1; user-select: none; -webkit-user-drag: none; }
-.pp-top { margin-bottom: -6%; -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent); mask-image: linear-gradient(to bottom, #000 90%, transparent); }
-.pp-bottom { margin-top: -6%; -webkit-mask-image: linear-gradient(to top, #000 90%, transparent); mask-image: linear-gradient(to top, #000 90%, transparent); }
-.pp-mid { flex: 1 1 auto; min-height: 0; background: url('/invitation-papillons/middle.jpg') center top / 100% auto; background-repeat: no-repeat round; }
+.pp-papillons .pp-top { margin-bottom: -6%; -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent); mask-image: linear-gradient(to bottom, #000 90%, transparent); }
+.pp-papillons .pp-bottom { margin-top: -6%; -webkit-mask-image: linear-gradient(to top, #000 90%, transparent); mask-image: linear-gradient(to top, #000 90%, transparent); }
+.pp-mid { flex: 1 1 auto; min-height: 0; background-position: center top; background-size: 100% auto; background-repeat: no-repeat round; }
+.pp-eucalyptus .pp-frame { -webkit-mask-image: none; mask-image: none; }
+.pp-dust { position: absolute; inset: 0; overflow: hidden; z-index: 2; }
+.pp-dust > span {
+  position: absolute; bottom: -8px; border-radius: 50%;
+  background: radial-gradient(circle, #FFF3C8 0%, #D9B45E 55%, rgba(201,160,70,0) 75%);
+  box-shadow: 0 0 6px rgba(217,180,94,0.65);
+  animation-name: pp-rise; animation-timing-function: linear; animation-iteration-count: infinite;
+}
+@keyframes pp-rise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: 0.9; }
+  50% { transform: translate(14px, -50cqh); opacity: 0.35; }
+  70% { opacity: 0.85; }
+  100% { transform: translate(-6px, -104cqh); opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .ia-gold { animation: none; background-position: 50% center; }
   .tf-drift { animation: none; }
+  .pp-dust { display: none; }
 }
 `;

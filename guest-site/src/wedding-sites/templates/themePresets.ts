@@ -406,6 +406,15 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cornerDecor: false,
     fontFamily: "'Cormorant Garamond', Georgia, serif",
   },
+  // Même modèle, décor Brit Mila (arche dorée et eucalyptus sur papier ivoire)
+  'invitation-eucalyptus': {
+    heroStyle: 'faire-part',
+    patternId: 'none',
+    separatorStyle: 'none',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+  },
   // Même modèle, décor Bat Mitsva (papillons d'or sur fond violet)
   'invitation-papillons': {
     heroStyle: 'faire-part',

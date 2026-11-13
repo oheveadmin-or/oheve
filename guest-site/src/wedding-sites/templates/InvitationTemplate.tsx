@@ -41,7 +41,7 @@ import {
   renderOptionalSections,
 } from './templateParts';
 import type { InvitationStyle } from './templateParts';
-import { coupleNames, GoldMonogram, INVITATION_PARTS_CSS, IvoryBloom, PapillonsArt, prefersReducedMotion, TefillinArt } from './invitationParts';
+import { coupleNames, GoldMonogram, INVITATION_PARTS_CSS, FrameArt, IvoryBloom, prefersReducedMotion, TefillinArt } from './invitationParts';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Textes de l'interface                                                      */
@@ -359,7 +359,7 @@ function EventPage({ page, site, tk, S }: { page: Page; site: WeddingSite; tk: I
       band={<DirectionsBand place={target.query} label={fr ? frenchAt(target.name) : target.name} googleMapsUrl={ev.googleMapsUrl} wazeUrl={ev.wazeUrl} S={S} />}
     >
       <Bsd tk={tk} S={S} />
-      {tk.dark ? <span className="ia-tf-rule" aria-hidden /> : <GoldMonogram site={site} tk={tk} size="min(16cqw, 84px)" />}
+      {tk.ruleMark ? <span className="ia-tf-rule" aria-hidden /> : <GoldMonogram site={site} tk={tk} size="min(16cqw, 84px)" />}
       <h2 className="ia-title" style={{ fontSize: tk.sizes.title }}>
         {ev.label}
       </h2>
@@ -430,7 +430,7 @@ function MainPage({ site, tk, S }: { site: WeddingSite; tk: InvitationTokens; S:
           />
         </div>
       ) : null}
-      {tk.dark ? <span className="ia-tf-rule" aria-hidden /> : <GoldMonogram site={site} tk={tk} size="min(20cqw, 104px)" />}
+      {tk.ruleMark ? <span className="ia-tf-rule" aria-hidden /> : <GoldMonogram site={site} tk={tk} size="min(20cqw, 104px)" />}
       {columns.length ? (
         <div className="ia-families">
           <FamilyColumnsRow columns={columns} accent={tk.colors.foil} textColor={tk.colors.ink} titleFontFamily={tk.fonts.script} bodyFontFamily={tk.fonts.body} titleVariant="script" lineSize="0.98rem" hideTitles />
@@ -660,8 +660,8 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
 
       {/* Fleur ivoire immobile derrière toutes les pages */}
       <div className="ia-bloom-layer" aria-hidden>
-        {tk.decor === 'papillons' ? (
-          <PapillonsArt className="ia-pp" />
+        {tk.decor === 'papillons' || tk.decor === 'eucalyptus' ? (
+          <FrameArt set={tk.decor} className="ia-pp" />
         ) : tk.dark ? (
           <TefillinArt uid="page" className="ia-art" />
         ) : (
@@ -906,10 +906,19 @@ const INVITATION_CSS = `
 /* ── Décor papillons (Bat Mitsva) : cadre d'or fixe, prénom doré ─────── */
 .ia-pp { width: 100%; height: 100%; }
 /* Le texte reste dans le rond : ~72 % de la largeur du cadre (lui-même
-   min(100 %, 71,4 % de la hauteur d'écran), cf. PapillonsArt) */
+   min(100 %, 71,4 % de la hauteur d'écran), cf. FrameArt) */
 .ia-decor-papillons .ia-page { width: min(560px, 72%, calc(0.714 * 0.72 * var(--ia-vh, 100svh))); }
 .ia-decor-papillons .ia-page-body { padding-inline: 4px; }
 .ia-decor-papillons .ia-title { letter-spacing: 0.1em; padding-inline-start: 0.1em; }
+
+/* ── Décor eucalyptus (Brit Mila) : le texte reste dans l'arche (~66 % du cadre) ── */
+.ia-decor-eucalyptus .ia-page { width: min(560px, 66%, calc(0.714 * 0.66 * var(--ia-vh, 100svh))); }
+.ia-decor-eucalyptus .ia-page-body { padding-inline: 4px; }
+/* 1re page : le prénom commence sous l'étoile de David du fond (≈ 27 % de la largeur du cadre) */
+.ia-decor-eucalyptus .ia-page:first-child { padding-top: max(3.2rem, min(27%, calc(0.714 * 0.27 * var(--ia-vh, 100svh)))); }
+.ia-decor-eucalyptus .ia-title { letter-spacing: 0.1em; padding-inline-start: 0.1em; color: var(--ia-foil); }
+.ia-decor-eucalyptus .ia-names { color: var(--ia-foil) !important; }
+.ia-decor-eucalyptus .ia-band, .ia-decor-eucalyptus .ia-contacts { border-radius: 10px; padding-inline: 10px; }
 .ia-decor-papillons .ia-band, .ia-decor-papillons .ia-contacts { border-radius: 10px; padding-inline: 10px; }
 .ia-decor-papillons .ia-names { color: var(--ia-foil) !important; text-shadow: 0 2px 18px rgba(0,0,0,0.55); }
 
