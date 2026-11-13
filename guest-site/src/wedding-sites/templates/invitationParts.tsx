@@ -2,7 +2,8 @@
  * Briques du modèle « Invitation animée », partagées entre l'ouverture
  * (carte → enveloppe → écran d'accueil) et la page de l'invitation.
  *
- * Tout est dessiné ici (SVG / CSS) : aucune image externe.
+ * Tout est dessiné ici (SVG / CSS), sauf le décor papillons (Bat Mitsva) qui
+ * s'appuie sur trois images de public/invitation-papillons/.
  */
 import { initialOfName } from '../utils/eventType';
 import type { CSSProperties } from 'react';
@@ -297,6 +298,27 @@ export function TefillinArt({ uid, className, style, top = false }: { uid: strin
   );
 }
 
+/* ── Décor Bat Mitsva : cadre de paillettes d'or et papillons (images) ──── */
+
+/**
+ * Fond du décor papillons. L'illustration (portrait ≈ 5:7) est découpée en
+ * trois : le haut et le bas restent entiers (papillons jamais rognés ni
+ * déformés) ; entre les deux, une bande de paillettes se répète pour
+ * s'adapter aux écrans très hauts. Les raccords sont fondus (mask-image).
+ * Sur un écran large, le cadre garde ses proportions et se centre.
+ */
+export function PapillonsArt({ className, style }: { className?: string; style?: CSSProperties }) {
+  return (
+    <div aria-hidden className={`pp-art ${className ?? ''}`} style={style}>
+      <div className="pp-frame">
+        <img className="pp-top" src="/invitation-papillons/top.jpg" alt="" decoding="async" />
+        <div className="pp-mid" />
+        <img className="pp-bottom" src="/invitation-papillons/bottom.jpg" alt="" decoding="async" />
+      </div>
+    </div>
+  );
+}
+
 /* ── Monogramme doré ─────────────────────────────────────────────────────── */
 
 /**
@@ -354,6 +376,16 @@ export const INVITATION_PARTS_CSS = `
 .tf-drift { animation: tf-drift 9s ease-in-out infinite alternate; transform-box: view-box; }
 .tf-drift-b { animation-duration: 11s; animation-delay: -4s; }
 @keyframes tf-drift { from { transform: translateY(-4px); } to { transform: translateY(5px); } }
+/* Décor papillons : cadre-image, cf. PapillonsArt */
+/* isolation : le z-index des images reste dans le cadre (sinon elles couvrent le texte) */
+.pp-art { isolation: isolate; container-type: size; display: flex; justify-content: center; overflow: hidden; pointer-events: none; background: #230E2F; }
+.pp-frame { width: min(100cqw, 71.4cqh); height: 100%; display: flex; flex-direction: column;
+  /* Bords fondus dans le fond uni : invisible sur un écran large où le cadre est centré */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent); mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent); }
+.pp-top, .pp-bottom { display: block; width: 100%; height: auto; flex: none; position: relative; z-index: 1; user-select: none; -webkit-user-drag: none; }
+.pp-top { margin-bottom: -6%; -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent); mask-image: linear-gradient(to bottom, #000 90%, transparent); }
+.pp-bottom { margin-top: -6%; -webkit-mask-image: linear-gradient(to top, #000 90%, transparent); mask-image: linear-gradient(to top, #000 90%, transparent); }
+.pp-mid { flex: 1 1 auto; min-height: 0; background: url('/invitation-papillons/middle.jpg') center top / 100% auto; background-repeat: no-repeat round; }
 @media (prefers-reduced-motion: reduce) {
   .ia-gold { animation: none; background-position: 50% center; }
   .tf-drift { animation: none; }

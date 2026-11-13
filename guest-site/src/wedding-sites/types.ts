@@ -44,7 +44,9 @@ export type ThemeStyle =
   | 'voile-ivoire'
   | 'invitation-animee'
   /** Invitation animée, décor Bar Mitsva : fond bordeaux, tefillin et lanières */
-  | 'invitation-tefillin';
+  | 'invitation-tefillin'
+  /** Invitation animée, décor Bat Mitsva : fond violet, cadre de paillettes d'or et papillons */
+  | 'invitation-papillons';
 
 export type TitleSize = 'small' | 'medium' | 'large' | 'huge';
 

@@ -27,6 +27,7 @@ import {
   INVITATION_PARTS_CSS,
   IvoryBloom,
   prefersReducedMotion,
+  PapillonsArt,
   TefillinArt,
 } from '../templates/invitationParts';
 
@@ -215,7 +216,9 @@ export function InvitationOpening({ site, contained = false, guestName, onDone }
       }}
     >
       <style>{OPENING_CSS + INVITATION_PARTS_CSS}</style>
-      {tk.dark ? (
+      {tk.decor === 'papillons' ? (
+        <PapillonsArt className="io-art" />
+      ) : tk.dark ? (
         <TefillinArt uid="opening" className={`io-art${showIntro ? ' is-intro' : ''}`} />
       ) : (
         <IvoryBloom tint={shade(tk.colors.paper, -0.07)} uid="opening" className={`io-bloom${showIntro ? ' is-intro' : ''}`} />
@@ -497,6 +500,11 @@ const OPENING_CSS = `
 }
 .io-decor-tefillin .io-see:hover { background: rgba(255,255,255,0.06); }
 .io-decor-tefillin .io-hint { color: var(--ia-ink) !important; opacity: 0.85; }
+
+/* ── Décor papillons (Bat Mitsva) : prénom calligraphié doré ─────────── */
+.io-decor-papillons .io-names { color: var(--ia-foil); text-shadow: 0 2px 18px rgba(0,0,0,0.55); }
+.io-decor-papillons .io-kicker { font-family: 'Playfair Display', Georgia, serif; text-transform: none; letter-spacing: 0.04em; font-size: min(8cqw, 4.4cqh, 2.1rem); }
+.io-decor-papillons .io-hint { color: var(--ia-ink) !important; opacity: 0.85; }
 
 /* Hébreu : la flèche suit le sens de lecture, et pas d'espacement entre les lettres */
 .io-root[dir="rtl"] .io-see svg { transform: scaleX(-1); }

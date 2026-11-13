@@ -406,6 +406,15 @@ const PRESETS: Record<ThemeStyle, PresetOverride> = {
     cornerDecor: false,
     fontFamily: "'Cormorant Garamond', Georgia, serif",
   },
+  // Même modèle, décor Bat Mitsva (papillons d'or sur fond violet)
+  'invitation-papillons': {
+    heroStyle: 'faire-part',
+    patternId: 'none',
+    separatorStyle: 'none',
+    cardStyle: 'shadow',
+    cornerDecor: false,
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+  },
 };
 
 /** Merge preset overrides into the theme, preserving explicit user values */

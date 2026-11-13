@@ -209,7 +209,7 @@ function wizardStep(idx: number, eventType: SiteEventType) {
 
 /** Couleurs de l'événement (Bar Mitsva bleu nuit, Bat Mitsva pêche, Brit Mila bleu ciel) */
 function withEventPalette(theme: WeddingTheme, ev: SiteEventType): WeddingTheme {
-  if (theme.style === 'invitation-tefillin') return theme;
+  if (theme.style === 'invitation-tefillin' || theme.style === 'invitation-papillons') return theme;
   const name = eventDefaultPaletteName(ev);
   const combo = name ? COLOR_COMBINATIONS.find((c) => c.name === name) : undefined;
   return combo ? applyColorCombination(theme, combo) : theme;
@@ -2132,7 +2132,7 @@ export function WeddingSiteBuilder() {
           )}
 
           {wiz === 'invitation' && (() => {
-            const invitationPreset = STYLE_PRESETS.find((p) => p.id === (eventType === 'bar_mitsva' ? 'invitation-tefillin' : 'invitation-animee'));
+            const invitationPreset = STYLE_PRESETS.find((p) => p.id === (eventType === 'bar_mitsva' ? 'invitation-tefillin' : eventType === 'bat_mitsva' ? 'invitation-papillons' : 'invitation-animee'));
             const isInvitation = isAnimatedInvitation(theme.style);
             const fx = invitationEffects(theme);
             const setFx = (key: keyof InvitationEffects, on: boolean) =>
@@ -2174,8 +2174,9 @@ export function WeddingSiteBuilder() {
                   ) : (
                     <div>
                       <p style={{ margin: '0 0 0.85rem', fontSize: '0.86rem', color: '#555', lineHeight: 1.55 }}>
-                        Une carte au nom de votre invité qui se retourne en enveloppe cachetée, une grande fleur ivoire,
-                        votre monogramme doré, puis une page par événement avec son itinéraire et la réponse intégrée.
+                        {eventType === 'bat_mitsva'
+                          ? "Une carte au nom de votre invité qui se retourne en enveloppe cachetée, un fond violet encadré de paillettes d'or et de papillons, puis une page par événement avec son itinéraire et la réponse intégrée."
+                          : 'Une carte au nom de votre invité qui se retourne en enveloppe cachetée, une grande fleur ivoire, votre monogramme doré, puis une page par événement avec son itinéraire et la réponse intégrée.'}
                       </p>
                       <p style={{ margin: '0 0 0.85rem', fontSize: '0.78rem', color: '#7e8178', lineHeight: 1.5 }}>
                         Vos textes, photos, familles et réponses sont conservés : seule la présentation change.

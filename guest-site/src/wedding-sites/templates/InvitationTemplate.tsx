@@ -41,7 +41,7 @@ import {
   renderOptionalSections,
 } from './templateParts';
 import type { InvitationStyle } from './templateParts';
-import { coupleNames, GoldMonogram, INVITATION_PARTS_CSS, IvoryBloom, prefersReducedMotion, TefillinArt } from './invitationParts';
+import { coupleNames, GoldMonogram, INVITATION_PARTS_CSS, IvoryBloom, PapillonsArt, prefersReducedMotion, TefillinArt } from './invitationParts';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Textes de l'interface                                                      */
@@ -660,7 +660,9 @@ export function InvitationTemplate({ site }: WeddingTemplateProps) {
 
       {/* Fleur ivoire immobile derrière toutes les pages */}
       <div className="ia-bloom-layer" aria-hidden>
-        {tk.dark ? (
+        {tk.decor === 'papillons' ? (
+          <PapillonsArt className="ia-pp" />
+        ) : tk.dark ? (
           <TefillinArt uid="page" className="ia-art" />
         ) : (
           <IvoryBloom tint={shade(tk.colors.paper, -0.07)} uid="page" className="ia-bloom" />
@@ -895,8 +897,15 @@ const INVITATION_CSS = `
 .ia-tf-rule::after { content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; border: 1px solid var(--ia-foil); transform: translate(-50%, -50%) rotate(45deg); }
 .ia-decor-tefillin .ia-names { text-transform: uppercase; letter-spacing: 0.06em; text-shadow: 0 2px 20px rgba(0,0,0,0.6); }
 .ia-decor-tefillin .ia-rsvp input:not([type="checkbox"]):not([type="radio"]),
-.ia-decor-tefillin .ia-rsvp textarea, .ia-decor-tefillin .ia-rsvp select { color: var(--ia-ink) !important; border-color: var(--ia-hair) !important; }
-.ia-decor-tefillin .ia-rsvp label, .ia-decor-tefillin .ia-rsvp p, .ia-decor-tefillin .ia-rsvp span { color: var(--ia-ink); }
+.ia-decor-tefillin .ia-rsvp textarea, .ia-decor-tefillin .ia-rsvp select,
+.ia-decor-papillons .ia-rsvp input:not([type="checkbox"]):not([type="radio"]),
+.ia-decor-papillons .ia-rsvp textarea, .ia-decor-papillons .ia-rsvp select { color: var(--ia-ink) !important; border-color: var(--ia-hair) !important; }
+.ia-decor-tefillin .ia-rsvp label, .ia-decor-tefillin .ia-rsvp p, .ia-decor-tefillin .ia-rsvp span,
+.ia-decor-papillons .ia-rsvp label, .ia-decor-papillons .ia-rsvp p, .ia-decor-papillons .ia-rsvp span { color: var(--ia-ink); }
+
+/* ── Décor papillons (Bat Mitsva) : cadre d'or fixe, prénom doré ─────── */
+.ia-pp { width: 100%; height: 100%; }
+.ia-decor-papillons .ia-names { color: var(--ia-foil) !important; text-shadow: 0 2px 18px rgba(0,0,0,0.55); }
 
 @media (prefers-reduced-motion: reduce) {
   .ia-photo img { animation: none; }

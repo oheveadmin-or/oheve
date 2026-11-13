@@ -110,6 +110,25 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
     },
   },
   {
+    id: 'invitation-papillons',
+    label: '✦ Invitation animée · Bat Mitsva',
+    description: 'Le même déroulé que l’Invitation animée, sur un fond violet encadré de paillettes d’or et de papillons',
+    theme: {
+      style: 'invitation-papillons',
+      backgroundColor: '#2A1236',
+      textColor: '#F7EEF6',
+      primaryColor: '#E0B66A',
+      secondaryColor: '#B78FD0',
+      mutedTextColor: '#D9C6DE',
+      fontFamily: "'Cormorant Garamond', Georgia, serif",
+      titleFontFamily: "'Playfair Display', 'Bodoni Moda', Georgia, serif",
+      scriptFontFamily: "'Pinyon Script', 'Great Vibes', cursive",
+      cardStyle: 'shadow',
+      layout: 'centered',
+      borderRadius: 4,
+    },
+  },
+  {
     id: 'provence',
     label: 'Provence',
     description: 'Beige, ocre, vert olivier, serif doux',
@@ -643,6 +662,8 @@ const VISIBLE_STYLE_IDS: ThemeStyle[] = [
   'invitation-animee',
   // Décor Bar Mitsva : proposé seulement aux sites de Bar Mitsva (cf. ThemePicker)
   'invitation-tefillin',
+  // Décor Bat Mitsva : proposé seulement aux sites de Bat Mitsva (cf. ThemePicker)
+  'invitation-papillons',
 ];
 
 export const STYLE_PRESETS: ThemePreset[] = VISIBLE_STYLE_IDS

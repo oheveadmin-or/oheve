@@ -41,18 +41,35 @@ export function shade(hex: string, k: number): string {
 
 /**
  * Les deux décors du modèle « Invitation animée » : ivoire (fleur, mariage) et
- * tefillin (Bar Mitsva : fond bordeaux, boîtiers et lanières de cuir).
+ * tefillin (Bar Mitsva : fond bordeaux, boîtiers et lanières de cuir) et
+ * papillons (Bat Mitsva : fond violet, cadre de paillettes d'or et papillons).
  * Même déroulé, mêmes composants ; seuls le fond et les couleurs changent.
  */
 export function isAnimatedInvitation(style?: ThemeStyle | string | null): boolean {
-  return style === 'invitation-animee' || style === 'invitation-tefillin';
+  return style === 'invitation-animee' || style === 'invitation-tefillin' || style === 'invitation-papillons';
 }
 
-export type InvitationDecor = 'ivoire' | 'tefillin';
+export type InvitationDecor = 'ivoire' | 'tefillin' | 'papillons';
 
 export function invitationDecor(theme: WeddingTheme): InvitationDecor {
-  return theme.style === 'invitation-tefillin' ? 'tefillin' : 'ivoire';
+  if (theme.style === 'invitation-tefillin') return 'tefillin';
+  if (theme.style === 'invitation-papillons') return 'papillons';
+  return 'ivoire';
 }
+
+/** Décor Bat Mitsva : violet profond, or, prénom calligraphié (faire-part papillons) */
+const PAPILLONS = {
+  paper: '#2A1236',
+  ink: '#F7EEF6',
+  foil: '#E0B66A',
+  soft: '#B78FD0',
+  fonts: {
+    script: "'Pinyon Script', 'Great Vibes', cursive",
+    body: "'Cormorant Garamond', Georgia, serif",
+    label: "'Montserrat', 'DM Sans', sans-serif",
+    monogram: "'Playfair Display', 'Bodoni Moda', Georgia, serif",
+  },
+};
 
 const TEFILLIN = {
   paper: '#2A0B12',
@@ -83,8 +100,8 @@ export function invitationEffects(theme: WeddingTheme): Required<InvitationEffec
 
 export function invitationTokens(theme: WeddingTheme) {
   const decor = invitationDecor(theme);
-  const dark = decor === 'tefillin';
-  const D = dark ? TEFILLIN : DEFAULTS;
+  const dark = decor !== 'ivoire';
+  const D = decor === 'papillons' ? PAPILLONS : dark ? TEFILLIN : DEFAULTS;
   const ink = theme.textColor || D.ink;
   const foil = theme.primaryColor || D.foil;
   const paper = theme.backgroundColor || D.paper;
