@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { ActivityIndicator, Animated, AppState, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { peekVideoThumbnail, posterUrlFor } from '@/components/video-thumbnail';
@@ -16,6 +16,20 @@ try {
   videoSdk = null;
 }
 
+// Son partagé entre tous les reels (comme Instagram) : couper le son sur un
+// reel le coupe aussi sur les suivants, au lieu de repartir à chaque vidéo.
+let reelsMuted = false;
+const muteListeners = new Set<() => void>();
+function setReelsMuted(v: boolean) {
+  reelsMuted = v;
+  muteListeners.forEach((l) => l());
+}
+function subscribeMute(l: () => void) {
+  muteListeners.add(l);
+  return () => { muteListeners.delete(l); };
+}
+const getReelsMuted = () => reelsMuted;
+
 type FeedVideoProps = {
   uri: string;
   isActive?: boolean;
@@ -26,6 +40,10 @@ type FeedVideoProps = {
   contentFit?: 'cover' | 'contain';
   /** Image affichée pendant le chargement (évite l'écran noir des reels). */
   posterUri?: string;
+  /** Reels : son commun à toutes les vidéos + toucher la vidéo = couper/remettre le son. */
+  sharedSound?: boolean;
+  /** Position verticale du bouton son (sous l'encoche / les boutons de l'écran). */
+  soundToggleTop?: number;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -58,10 +76,33 @@ function NativeFeedVideo({
   startMuted = true,
   contentFit = 'cover',
   posterUri,
+  sharedSound = false,
+  soundToggleTop = 12,
   style,
 }: FeedVideoProps) {
   const { useVideoPlayer, VideoView } = videoSdk!;
-  const [muted, setMuted] = useState(startMuted);
+  const [localMuted, setLocalMuted] = useState(startMuted);
+  const sharedMuted = useSyncExternalStore(subscribeMute, getReelsMuted, getReelsMuted);
+  const muted = sharedSound ? sharedMuted : localMuted;
+  const toggleMute = () => {
+    if (sharedSound) setReelsMuted(!sharedMuted);
+    else setLocalMuted((m) => !m);
+  };
+  // Appli en arrière-plan → pause (sinon le son continue sur Android).
+  // Seulement le vrai arrière-plan : « inactive » (alerte système, centre de
+  // contrôle) ne doit pas couper la vidéo.
+  const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => setAppActive(s !== 'background'));
+    return () => sub.remove();
+  }, []);
+  const shouldPlay = isActive && appActive;
+  // Cache disque des vidéos distantes : revoir un reel (ou rouvrir les reels)
+  // ne retélécharge plus rien, la lecture repart instantanément.
+  const source = useMemo(
+    () => (/^https?:\/\//.test(uri) ? { uri, useCaching: true } : uri),
+    [uri],
+  );
   // Tant que la vidéo n'a pas assez de données, on ne montre pas un écran noir
   // vide : miniature (si déjà en cache) + indicateur de chargement.
   const [ready, setReady] = useState(false);
@@ -70,26 +111,41 @@ function NativeFeedVideo({
   const [failed, setFailed] = useState(false);
   // Aperçu du serveur (instantané, souvent déjà en cache grâce à la grille).
   const [poster, setPoster] = useState<string | null>(posterUri ?? posterUrlFor(uri));
-  const player = useVideoPlayer(uri, (p) => {
+  const player = useVideoPlayer(source, (p) => {
     p.loop = true;
-    p.muted = startMuted;
-    // Démarrer dès qu'il y a de quoi jouer, sans attendre un gros tampon :
-    // c'est ce qui faisait patienter plusieurs secondes sur un écran noir.
-    p.bufferOptions = {
-      preferredForwardBufferDuration: 3,
-      waitsToMinimizeStalling: false,
-      minBufferForPlayback: 0.5,
-    };
+    p.muted = muted;
+    p.bufferOptions = bufferFor(shouldPlay);
   });
 
   useEffect(() => {
     player.muted = muted;
   }, [muted, player]);
 
+  // Vidéo visible : tampon confortable (plus de coupures en cours de lecture).
+  // Vidéo voisine en attente : juste le début, pour démarrer tout de suite
+  // quand on y arrive sans voler la bande passante de la vidéo visible.
+  const wasPlaying = useRef(false);
   useEffect(() => {
-    if (isActive) player.play();
-    else player.pause();
-  }, [isActive, player]);
+    try { player.bufferOptions = bufferFor(shouldPlay); } catch { /* lecteur libéré */ }
+    if (shouldPlay) {
+      player.play();
+      wasPlaying.current = true;
+    } else {
+      player.pause();
+      // Comme Instagram : un reel quitté repart du début quand on y revient.
+      if (wasPlaying.current && !isActive) {
+        try { player.currentTime = 0; } catch { /* lecteur libéré */ }
+      }
+    }
+  }, [shouldPlay, isActive, player]);
+
+  // Retour visuel quand on touche la vidéo pour couper/remettre le son.
+  const [flash] = useState(() => new Animated.Value(0));
+  const onTapVideo = () => {
+    toggleMute();
+    flash.setValue(1);
+    Animated.timing(flash, { toValue: 0, duration: 700, delay: 250, useNativeDriver: true }).start();
+  };
 
   // Statut du lecteur → masque l'écran d'attente dès la première image.
   useEffect(() => {
@@ -146,13 +202,26 @@ function NativeFeedVideo({
           <ThemedText style={fvStyles.fallbackTxt}>Vidéo indisponible</ThemedText>
         </View>
       )}
+      {sharedSound && !failed && (
+        <Pressable style={StyleSheet.absoluteFill} onPress={onTapVideo} accessibilityLabel={muted ? 'Remettre le son' : 'Couper le son'}>
+          <Animated.View style={[fvStyles.flash, { opacity: flash }]} pointerEvents="none">
+            <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={34} color="#fff" />
+          </Animated.View>
+        </Pressable>
+      )}
       {showSoundToggle && !failed && (
-        <Pressable style={fvStyles.soundBtn} onPress={() => setMuted((m) => !m)} hitSlop={10}>
-          <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={17} color="#fff" />
+        <Pressable style={[fvStyles.soundBtn, { top: soundToggleTop }]} onPress={toggleMute} hitSlop={12}>
+          <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#fff" />
         </Pressable>
       )}
     </View>
   );
+}
+
+function bufferFor(playing: boolean) {
+  return playing
+    ? { preferredForwardBufferDuration: 12, waitsToMinimizeStalling: false, minBufferForPlayback: 0.5 }
+    : { preferredForwardBufferDuration: 2, waitsToMinimizeStalling: false, minBufferForPlayback: 0.5 };
 }
 
 /** Petite pastille ▶ posée sur les tuiles vidéo des grilles (profil, portfolio…). */
@@ -183,9 +252,15 @@ const fvStyles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  flash: {
+    position: 'absolute', alignSelf: 'center', top: '45%',
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   soundBtn: {
-    position: 'absolute', top: 12, right: 12,
-    width: 34, height: 34, borderRadius: 17,
+    position: 'absolute', right: 14,
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center', justifyContent: 'center',
   },

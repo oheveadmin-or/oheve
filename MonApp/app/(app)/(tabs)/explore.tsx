@@ -516,8 +516,13 @@ function ReelCardBase({
           uri={post.mediaUri}
           isActive={isActive}
           showSoundToggle
+          sharedSound
+          // Sous le bouton de fermeture (lui-même sous l'encoche) : avant, le
+          // bouton son était caché derrière et impossible à toucher.
+          soundToggleTop={insets.top + 64}
           startMuted={false}
           contentFit="contain"
+          posterUri={posterUrlFor(post.mediaUri) ?? undefined}
           style={StyleSheet.absoluteFill}
         />
       ) : post.mediaUri ? (
@@ -527,7 +532,7 @@ function ReelCardBase({
           <Ionicons name={catDef(post.category).icon} size={80} color="#929B83" />
         </View>
       )}
-      <View style={reelStyles.gradient} />
+      <View style={reelStyles.gradient} pointerEvents="none" />
 
       {/* Category badge */}
       <View style={[reelStyles.catBadge, { top: insets.top + 16, backgroundColor: catColor }]}>
@@ -1039,6 +1044,12 @@ export default function ExploreScreen() {
   const viewRef = useRef<FlatList>(null);
   // Reel actuellement visible : seule sa vidéo joue (les autres sont en pause).
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
+  // Onglet quitté (Accueil, Profil…) : la vidéo et son son s'arrêtent.
+  const [isFocused, setIsFocused] = useState(true);
+  useFocusEffect(useCallback(() => {
+    setIsFocused(true);
+    return () => setIsFocused(false);
+  }, []));
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 });
   const onViewableItemsChanged = useRef((info: { viewableItems: ViewToken[] }) => {
     const first = info.viewableItems[0]?.item as Post | undefined;
@@ -1458,14 +1469,14 @@ export default function ExploreScreen() {
       <ReelCard
         post={item}
         reelH={reelH}
-        isActive={item.id === activeReelId}
+        isActive={isFocused && item.id === activeReelId}
         onLike={handleLike}
         onComment={handleOpenComment}
         onShare={handleShare}
         onOpenProvider={handleOpenProvider}
       />
     ),
-    [reelH, activeReelId, handleLike, handleOpenComment, handleShare, handleOpenProvider],
+    [reelH, activeReelId, isFocused, handleLike, handleOpenComment, handleShare, handleOpenProvider],
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1625,6 +1636,9 @@ export default function ExploreScreen() {
             initialNumToRender={2}
             maxToRenderPerBatch={2}
             windowSize={3}
+            // Android : ne pas détacher les vidéos voisines (sinon elles
+            // repartent de zéro → écran noir en arrivant dessus).
+            removeClippedSubviews={false}
             getItemLayout={(_, index) => ({ length: reelH, offset: reelH * index, index })}
             viewabilityConfig={viewabilityConfig.current}
             onViewableItemsChanged={onViewableItemsChanged.current}
