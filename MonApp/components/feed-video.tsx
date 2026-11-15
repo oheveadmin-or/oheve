@@ -36,8 +36,11 @@ type FeedVideoProps = {
   showSoundToggle?: boolean;
   nativeControls?: boolean;
   startMuted?: boolean;
-  /** 'contain' pour les reels : la vidéo s'adapte sans être rognée. */
-  contentFit?: 'cover' | 'contain';
+  /**
+   * 'auto' (reels) : une vidéo verticale remplit tout l'écran comme sur
+   * Instagram, une vidéo horizontale est montrée entière (bandes noires).
+   */
+  contentFit?: 'cover' | 'contain' | 'auto';
   /** Image affichée pendant le chargement (évite l'écran noir des reels). */
   posterUri?: string;
   /** Reels : son commun à toutes les vidéos + toucher la vidéo = couper/remettre le son. */
@@ -111,6 +114,9 @@ function NativeFeedVideo({
   const [failed, setFailed] = useState(false);
   // Aperçu du serveur (instantané, souvent déjà en cache grâce à la grille).
   const [poster, setPoster] = useState<string | null>(posterUri ?? posterUrlFor(uri));
+  // Format de la vidéo, connu dès que ses métadonnées arrivent (mode 'auto').
+  const [isPortrait, setIsPortrait] = useState(true);
+  const fit: 'cover' | 'contain' = contentFit === 'auto' ? (isPortrait ? 'cover' : 'contain') : contentFit;
   const player = useVideoPlayer(source, (p) => {
     p.loop = true;
     p.muted = muted;
@@ -147,18 +153,32 @@ function NativeFeedVideo({
     Animated.timing(flash, { toValue: 0, duration: 700, delay: 250, useNativeDriver: true }).start();
   };
 
-  // Statut du lecteur → masque l'écran d'attente dès la première image.
+  // L'aperçu reste affiché jusqu'à la PREMIÈRE IMAGE réellement peinte
+  // (onFirstFrameRender) : avant, on le retirait dès « readyToPlay », ce qui
+  // laissait un flash noir sur Android entre les deux. Filet de sécurité :
+  // si l'événement n'arrive pas, on bascule 700 ms après « readyToPlay ».
   useEffect(() => {
-    const sub = player.addListener('statusChange', ({ status }) => {
-      setReady(status === 'readyToPlay' || status === 'error');
-      setFailed(status === 'error');
+    let fallback: ReturnType<typeof setTimeout> | undefined;
+    const onStatus = (status: string) => {
+      if (status === 'error') { setFailed(true); setReady(true); return; }
+      setFailed(false);
+      if (status === 'readyToPlay') {
+        clearTimeout(fallback);
+        fallback = setTimeout(() => setReady(true), 700);
+      }
+    };
+    const sub = player.addListener('statusChange', ({ status }) => onStatus(status));
+    const trackSub = player.addListener('videoTrackChange', ({ videoTrack }) => {
+      const sz = videoTrack?.size;
+      if (sz && sz.width > 0 && sz.height > 0) setIsPortrait(sz.height >= sz.width * 0.9);
     });
     // Le lecteur peut déjà être prêt avant l'abonnement (vidéo en cache).
     const t = setTimeout(() => {
-      setReady(player.status === 'readyToPlay' || player.status === 'error');
-      setFailed(player.status === 'error');
+      onStatus(player.status);
+      const sz = player.videoTrack?.size;
+      if (sz && sz.width > 0 && sz.height > 0) setIsPortrait(sz.height >= sz.width * 0.9);
     }, 0);
-    return () => { clearTimeout(t); sub.remove(); };
+    return () => { clearTimeout(t); clearTimeout(fallback); sub.remove(); trackSub.remove(); };
   }, [player]);
 
   // Miniature déjà générée par les grilles (profil, explore…) : affichage
@@ -177,8 +197,14 @@ function NativeFeedVideo({
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill}
-        contentFit={contentFit}
+        contentFit={fit}
         nativeControls={nativeControls}
+        onFirstFrameRender={() => setReady(true)}
+        // Android : TextureView se déplace avec la liste pendant le défilement.
+        // La SurfaceView par défaut est une fenêtre à part → vidéo qui « traîne »
+        // ou déborde sur le reel voisin, bords noirs qui clignotent.
+        surfaceType={sharedSound ? 'textureView' : undefined}
+        useExoShutter={false}
       />
       {!ready && (
         <View style={[StyleSheet.absoluteFill, fvStyles.loading]} pointerEvents="none">
@@ -186,7 +212,7 @@ function NativeFeedVideo({
             <Image
               source={{ uri: shownPoster }}
               style={StyleSheet.absoluteFill}
-              contentFit={contentFit}
+              contentFit={fit}
               cachePolicy="memory-disk"
               transition={0}
               onError={() => setPoster(null)}

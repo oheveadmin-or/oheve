@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
   Alert,
@@ -521,7 +522,7 @@ function ReelCardBase({
           // bouton son était caché derrière et impossible à toucher.
           soundToggleTop={insets.top + 64}
           startMuted={false}
-          contentFit="contain"
+          contentFit="auto"
           posterUri={posterUrlFor(post.mediaUri) ?? undefined}
           style={StyleSheet.absoluteFill}
         />
@@ -532,7 +533,26 @@ function ReelCardBase({
           <Ionicons name={catDef(post.category).icon} size={80} color="#929B83" />
         </View>
       )}
-      <View style={reelStyles.gradient} pointerEvents="none" />
+      {/* Dégradés haut et bas (comme Instagram) : le texte reste lisible sans
+          assombrir toute la vidéo (avant : voile noir uniforme à 22 %). */}
+      <Svg style={reelStyles.shadeTop} width="100%" height="100%" preserveAspectRatio="none" pointerEvents="none">
+        <Defs>
+          <SvgLinearGradient id="reelTop" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#000" stopOpacity="0.5" />
+            <Stop offset="1" stopColor="#000" stopOpacity="0" />
+          </SvgLinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#reelTop)" />
+      </Svg>
+      <Svg style={reelStyles.shadeBottom} width="100%" height="100%" preserveAspectRatio="none" pointerEvents="none">
+        <Defs>
+          <SvgLinearGradient id="reelBot" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#000" stopOpacity="0" />
+            <Stop offset="1" stopColor="#000" stopOpacity="0.68" />
+          </SvgLinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#reelBot)" />
+      </Svg>
 
       {/* Category badge */}
       <View style={[reelStyles.catBadge, { top: insets.top + 16, backgroundColor: catColor }]}>
@@ -540,26 +560,26 @@ function ReelCardBase({
       </View>
 
       {/* Right actions */}
-      <View style={[reelStyles.rightCol, { bottom: insets.bottom + 90 }]}>
+      <View style={[reelStyles.rightCol, { bottom: REEL_BOTTOM }]}>
         <Pressable style={reelStyles.actionBtn} onPress={() => onLike(post.id)} hitSlop={12}>
-          <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={30} color={post.isLiked ? '#f43f5e' : '#fff'} />
+          <Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={31} color={post.isLiked ? '#f43f5e' : '#fff'} style={reelStyles.iconShadow} />
           <ThemedText style={reelStyles.actionCount}>{post.likes}</ThemedText>
         </Pressable>
         <Pressable style={reelStyles.actionBtn} onPress={() => onComment(post)} hitSlop={12}>
-          <Ionicons name="chatbubble-outline" size={26} color="#fff" />
+          <Ionicons name="chatbubble-outline" size={27} color="#fff" style={reelStyles.iconShadow} />
           <ThemedText style={reelStyles.actionCount}>
             {(post.commentCount ?? post.comments.length) || 'Commenter'}
           </ThemedText>
         </Pressable>
         <Pressable style={reelStyles.actionBtn} onPress={() => onShare(post)} hitSlop={12}>
-          <Ionicons name="share-social-outline" size={26} color="#fff" />
+          <Ionicons name="paper-plane-outline" size={27} color="#fff" style={reelStyles.iconShadow} />
           <ThemedText style={reelStyles.actionCount}>Partager</ThemedText>
         </Pressable>
       </View>
 
       {/* Bottom info — author + caption, tappable to open provider */}
       <Pressable
-        style={[reelStyles.bottomInfo, { bottom: insets.bottom + 90 }]}
+        style={[reelStyles.bottomInfo, { bottom: REEL_BOTTOM }]}
         onPress={() => {
           if (post.userId) router.push(`/(app)/providers/${post.userId}` as never);
           else if (post.providerId) onOpenProvider(post.providerId);
@@ -574,7 +594,7 @@ function ReelCardBase({
               <ThemedText style={reelStyles.avatarTxt}>{post.author[0]}</ThemedText>
             )}
           </View>
-          <ThemedText style={reelStyles.author}>{post.author}</ThemedText>
+          <ThemedText style={reelStyles.author} numberOfLines={1}>{post.businessName || post.author}</ThemedText>
           {post.providerId && (
             <View style={reelStyles.verifiedBadge}>
               <Ionicons name="checkmark-circle" size={14} color="#929B83" />
@@ -603,10 +623,21 @@ const ReelCard = memo(ReelCardBase, (a, b) =>
   (a.post.commentCount ?? a.post.comments.length) === (b.post.commentCount ?? b.post.comments.length),
 );
 
+// Ombre portée du texte/icônes posés sur la vidéo (lisible sur fond clair,
+// identique iOS/Android).
+const TXT_SHADOW = {
+  textShadowColor: 'rgba(0,0,0,0.55)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 4,
+} as const;
+const REEL_BOTTOM = 22;
+
 const reelStyles = StyleSheet.create({
   card: { position: 'relative', backgroundColor: '#000', overflow: 'hidden' },
   bigEmoji: { fontSize: 96 },
-  gradient: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.22)' },
+  shadeTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 170, width: '100%' },
+  shadeBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 300, width: '100%' },
+  iconShadow: TXT_SHADOW,
   catBadge: {
     position: 'absolute', left: 16,
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99,
@@ -615,15 +646,15 @@ const reelStyles = StyleSheet.create({
   videoBg: { backgroundColor: '#1f2937', alignItems: 'center', justifyContent: 'center' },
   rightCol: { position: 'absolute', right: 16, alignItems: 'center', gap: 20 },
   actionBtn: { alignItems: 'center', gap: 4 },
-  actionCount: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  bottomInfo: { position: 'absolute', left: 16, right: 80, gap: 8 },
+  actionCount: { color: '#fff', fontSize: 12, fontWeight: '600', ...TXT_SHADOW },
+  bottomInfo: { position: 'absolute', left: 16, right: 84, gap: 8 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff', overflow: 'hidden' },
   avatarImg: { width: '100%', height: '100%' },
   avatarTxt: { color: CAT_BEIGE_TEXT, fontWeight: '700', fontSize: 14 },
-  author: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  author: { color: '#fff', fontWeight: '700', fontSize: 15, flexShrink: 1, ...TXT_SHADOW },
   verifiedBadge: { backgroundColor: '#fff', borderRadius: 10, padding: 1 },
-  caption: { color: '#fff', fontSize: 14, lineHeight: 20, fontWeight: '500' },
+  caption: { color: '#fff', fontSize: 14, lineHeight: 20, fontWeight: '500', ...TXT_SHADOW },
 });
 
 // ── Grid Card ────────────────────────────────────────────────────────────────
@@ -1043,7 +1074,9 @@ export default function ExploreScreen() {
 
   const viewRef = useRef<FlatList>(null);
   // Reel actuellement visible : seule sa vidéo joue (les autres sont en pause).
-  const [activeReelId, setActiveReelId] = useState<string | null>(null);
+  // Mémorisé avec les filtres du moment : s'ils changent, la liste repart du
+  // premier reel (voir activeReelId plus bas).
+  const [activeReel, setActiveReel] = useState<{ key: string; id: string } | null>(null);
   // Onglet quitté (Accueil, Profil…) : la vidéo et son son s'arrêtent.
   const [isFocused, setIsFocused] = useState(true);
   useFocusEffect(useCallback(() => {
@@ -1052,8 +1085,9 @@ export default function ExploreScreen() {
   }, []));
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 });
   const onViewableItemsChanged = useRef((info: { viewableItems: ViewToken[] }) => {
-    const first = info.viewableItems[0]?.item as Post | undefined;
-    setActiveReelId(first?.id ?? null);
+    // Le reel actif est calculé au défilement (onReelsScroll), pas ici : la
+    // visibilité n'est connue qu'en fin d'animation et passe parfois par une
+    // liste vide, ce qui relançait brièvement le 1er reel.
     info.viewableItems.forEach(({ item }) => {
       const post = item as Post;
       if (post?.id?.startsWith('boutique-')) {
@@ -1220,6 +1254,7 @@ export default function ExploreScreen() {
   const norm = (v?: string) => (v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const query = norm(search.trim());
 
+  const filteredRef = useRef<Post[]>([]);
   const filtered = posts.filter((p) => {
     if (category !== 'tout') {
       if (p.category !== category) return false;
@@ -1232,6 +1267,12 @@ export default function ExploreScreen() {
     return true;
   });
 
+  const filterKey = `${category}|${subCategory ?? ''}|${search}`;
+  const activeReelId = activeReel && activeReel.key === filterKey ? activeReel.id : filtered[0]?.id ?? null;
+  // Lu par le gestionnaire de défilement (stable, hors rendu).
+  useEffect(() => {
+    filteredRef.current = filtered;
+  });
   const openedPost = posts.find((p) => p.id === openedPostId) ?? null;
 
   // Aperçus des vidéos téléchargés à l'avance : en reels, chaque vidéo
@@ -1460,8 +1501,23 @@ export default function ExploreScreen() {
     setSubCategory(null);
   };
 
-  // ── Reels height (full screen minus safe areas) ───────────────────────────
-  const reelH = H;
+  // ── Hauteur d'un reel = hauteur RÉELLE de la zone des reels ───────────────
+  // Avant : hauteur de la fenêtre (H), alors que la zone est plus courte (barre
+  // d'onglets en dessous, barre système Android). Sur Android, le défilement
+  // page par page avance d'une hauteur de zone → chaque reel se décalait un peu
+  // plus que le précédent (bout du reel suivant visible, texte coupé en bas).
+  const [reelH, setReelH] = useState(0);
+  const reelsOpen = mode === 'reels';
+  // Index du reel affiché, calculé PENDANT le glissement (dès qu'il est à
+  // moitié à l'écran) : la vidéo démarre sans attendre la fin de l'animation.
+  const onReelsScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    if (!reelH) return;
+    const idx = Math.max(0, Math.round(e.nativeEvent.contentOffset.y / reelH));
+    const p = filteredRef.current[idx];
+    if (!p) return;
+    setActiveReel((cur) => (cur && cur.key === filterKey && cur.id === p.id ? cur : { key: filterKey, id: p.id }));
+  }, [reelH, filterKey]);
+  const onReelsMomentumEnd = onReelsScroll;
 
   // renderItem stable : recréé à chaque rendu, il annulait le mémo des cartes.
   const renderReel = useCallback(
@@ -1469,14 +1525,14 @@ export default function ExploreScreen() {
       <ReelCard
         post={item}
         reelH={reelH}
-        isActive={isFocused && item.id === activeReelId}
+        isActive={reelsOpen && isFocused && item.id === activeReelId}
         onLike={handleLike}
         onComment={handleOpenComment}
         onShare={handleShare}
         onOpenProvider={handleOpenProvider}
       />
     ),
-    [reelH, activeReelId, isFocused, handleLike, handleOpenComment, handleShare, handleOpenProvider],
+    [reelH, reelsOpen, activeReelId, isFocused, handleLike, handleOpenComment, handleShare, handleOpenProvider],
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1617,35 +1673,51 @@ export default function ExploreScreen() {
         </ScrollView>
       )}
 
-      {/* Reels mode — full screen overlay */}
-      {mode === 'reels' && (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 10 }]}>
+      {/* Reels — monté dès l'ouverture d'Explore mais invisible tant qu'on est
+          sur la grille : les premières vidéos sont déjà chargées (début mis en
+          tampon + cache disque) quand on touche « Reels » → démarrage instantané. */}
+      {reelsOpen && <StatusBar style="light" />}
+      <View
+        style={[StyleSheet.absoluteFill, reelsOpen ? styles.reelsLayerOn : styles.reelsLayerOff]}
+        pointerEvents={reelsOpen ? 'auto' : 'none'}
+        importantForAccessibility={reelsOpen ? 'auto' : 'no-hide-descendants'}
+        accessibilityElementsHidden={!reelsOpen}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && Math.abs(h - reelH) > 0.5) setReelH(h);
+        }}
+      >
+        {reelH > 0 && (
           <FlatList
+            // Filtres changés (catégorie, recherche) : liste neuve, repart du début.
+            key={filterKey}
             ref={viewRef}
             data={filtered}
             keyExtractor={(p) => p.id}
             renderItem={renderReel}
             pagingEnabled
-            snapToInterval={reelH}
+            // iOS : snapToInterval = même hauteur que la zone, cohérent avec pagingEnabled.
+            // Android : pagingEnabled seul (les deux ensemble se contredisent).
+            snapToInterval={Platform.OS === 'ios' ? reelH : undefined}
             snapToAlignment="start"
             decelerationRate="fast"
+            disableIntervalMomentum
             showsVerticalScrollIndicator={false}
-            // Fenêtre courte : seules la vidéo visible et ses voisines immédiates
-            // sont montées. Avant, une dizaine de lecteurs se partageaient la
-            // bande passante → plusieurs secondes d'écran noir sur le reel actif.
-            initialNumToRender={2}
+            onScroll={onReelsScroll}
+            onMomentumScrollEnd={onReelsMomentumEnd}
+            scrollEventThrottle={32}
+            // Le reel visible + 2 avant/après sont montés : les 2 suivants ont
+            // déjà leur début de vidéo en tampon quand on y arrive. Les voisins
+            // ne gardent que 2 s de tampon pour ne pas voler la bande passante.
+            initialNumToRender={3}
             maxToRenderPerBatch={2}
-            windowSize={3}
+            windowSize={5}
             // Android : ne pas détacher les vidéos voisines (sinon elles
             // repartent de zéro → écran noir en arrivant dessus).
             removeClippedSubviews={false}
             getItemLayout={(_, index) => ({ length: reelH, offset: reelH * index, index })}
             viewabilityConfig={viewabilityConfig.current}
             onViewableItemsChanged={onViewableItemsChanged.current}
-            ListHeaderComponent={
-              /* Invisible header so reels start below status bar */
-              <View style={{ width: W, height: 0 }} />
-            }
             ListEmptyComponent={
               <View style={[styles.emptyWrap, { height: reelH, backgroundColor: '#111' }]}>
                 <Ionicons name="sparkles-outline" size={44} color="#fff" />
@@ -1663,16 +1735,17 @@ export default function ExploreScreen() {
               </View>
             }
           />
-          {/* Close reels overlay button */}
-          <Pressable
-            style={[styles.reelsCloseBtn, { top: insets.top + 12 }]}
-            onPress={() => setMode('grid')}
-            hitSlop={12}
-          >
-            <Ionicons name="chevron-down" size={22} color="#fff" />
-          </Pressable>
-        </View>
-      )}
+        )}
+        {/* Close reels overlay button */}
+        <Pressable
+          style={[styles.reelsCloseBtn, { top: insets.top + 12 }]}
+          onPress={() => setMode('grid')}
+          hitSlop={12}
+          accessibilityLabel="Fermer les reels"
+        >
+          <Ionicons name="chevron-down" size={22} color="#fff" />
+        </Pressable>
+      </View>
 
       {/* Modals */}
       <PostDetailModal
@@ -1774,6 +1847,9 @@ const styles = StyleSheet.create({
   emptyBtn: { marginTop: 8, backgroundColor: '#929B83', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
   emptyBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
+  reelsLayerOn: { zIndex: 10, opacity: 1, backgroundColor: '#000' },
+  // Hors écran plutôt que démonté : les lecteurs restent prêts.
+  reelsLayerOff: { zIndex: -1, opacity: 0, transform: [{ translateX: 10000 }] },
   reelsCloseBtn: {
     position: 'absolute', right: 16,
     backgroundColor: 'rgba(0,0,0,0.45)',
