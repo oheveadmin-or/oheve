@@ -735,6 +735,12 @@ function ClientProfile() {
           </Pressable>
         )}
 
+        <Pressable style={styles.itemCard} onPress={() => router.push((role === 'prestataire' ? '/(app)/prestataire/demandes' : '/(app)/demandes') as never)}>
+          <Ionicons name="mail-unread-outline" size={18} color={C.moka} />
+          <ThemedText style={styles.itemText}>Mes demandes</ThemedText>
+          <Ionicons name="chevron-forward" size={16} color={C.textLight} />
+        </Pressable>
+
         <ThemedText style={styles.sectionLabel}>Mon compte</ThemedText>
         <Pressable style={styles.itemCard} onPress={() => router.push('/(app)/personal-info' as never)}>
           <Ionicons name="person-outline" size={18} color={C.moka} />

@@ -26,6 +26,9 @@ type Conversation = {
   last_message?: string;
   last_message_at?: string;
   unread_count: number;
+  /** Demande verrouillée (côté prestataire) : ouvrir l'écran de la demande, pas le chat. */
+  demande_id?: number | null;
+  demande_verrouillee?: boolean;
 };
 
 type Prestataire = {
@@ -35,6 +38,7 @@ type Prestataire = {
   location_city?: string;
   nom?: string;
   prenom?: string;
+  is_partner?: boolean;
 };
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -209,7 +213,9 @@ export default function MessagesScreen() {
           renderItem={({ item: c }) => (
             <Pressable
               style={({ pressed }) => [styles.convRow, pressed && { opacity: 0.85 }]}
-              onPress={() => router.push(`/(app)/messages/${c.id}` as never)}
+              onPress={() => router.push((c.demande_verrouillee && c.demande_id
+                ? `/(app)/prestataire/demandes/${c.demande_id}`
+                : `/(app)/messages/${c.id}`) as never)}
             >
               <View style={[styles.avatar, { backgroundColor: c.unread_count > 0 ? '#929B83' : '#ece8e0' }]}>
                 <ThemedText style={[styles.avatarTxt, { color: c.unread_count > 0 ? '#fff' : '#5c5f57' }]}>
@@ -279,7 +285,14 @@ export default function MessagesScreen() {
                     </ThemedText>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <ThemedText style={styles.prestName} numberOfLines={1}>{p.business_name}</ThemedText>
+                    <View style={styles.prestNameRow}>
+                      <ThemedText style={[styles.prestName, { flexShrink: 1 }]} numberOfLines={1}>{p.business_name}</ThemedText>
+                      {p.is_partner && (
+                        <View style={styles.partnerChip}>
+                          <ThemedText style={styles.partnerChipTxt}>Partenaire</ThemedText>
+                        </View>
+                      )}
+                    </View>
                     <ThemedText style={styles.prestSub} numberOfLines={1}>
                       {categoryLabel(p.category)}{p.location_city ? ` · ${p.location_city}` : ''}
                     </ThemedText>
@@ -342,5 +355,8 @@ const styles = StyleSheet.create({
   prestAvatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#f3f0ff', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   prestAvatarTxt: { fontSize: 22 },
   prestName: { fontSize: 15, fontWeight: '700', color: '#343630' },
+  prestNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  partnerChip: { backgroundColor: '#929B83', borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2, flexShrink: 0 },
+  partnerChipTxt: { fontSize: 10, fontWeight: '700', color: '#fff' },
   prestSub: { fontSize: 12, color: '#9A9C93', marginTop: 2 },
 });

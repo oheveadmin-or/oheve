@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { optionalAuth, requireAuth } from '../middleware/requireAuth';
+import { promouvoirDemandesVerrouillees } from '../demandes/service';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2026-05-27.dahlia' as any });
 
@@ -53,6 +54,35 @@ export const ADMIN_GRANT_SUB_ID = 'admin:grant';
 export function isAdminGrant(subId?: string | null): boolean {
   return subId === ADMIN_GRANT_SUB_ID;
 }
+
+// ── Prestataire PARTENAIRE ──────────────────────────────────────────────────
+// Partenaire = abonnement en cours (essai ou payant, Stripe / store / offert
+// par l'admin). Seul un partenaire reçoit la prise de rendez-vous et le
+// paiement dans l'app. Un non-partenaire reste visible dans l'annuaire (après
+// les partenaires) et joignable par message — via les « demandes » (4
+// offertes puis verrouillées, voir src/demandes). Même règle que SQL_ABONNE_ACTIF.
+// Les abonnements store / admin ont une date de fin locale qui fait foi
+// (pas de webhook pour les repasser en 'canceled' à l'heure exacte).
+export function sqlIsPartner(u = 'u'): string {
+  return `(COALESCE(${u}.presta_sub_status,'') IN ('trialing','active')
+    AND (COALESCE(${u}.presta_sub_id,'') NOT LIKE 'apple:%'
+         AND COALESCE(${u}.presta_sub_id,'') NOT LIKE 'google:%'
+         AND COALESCE(${u}.presta_sub_id,'') <> '${ADMIN_GRANT_SUB_ID}'
+         OR ${u}.presta_current_period_end IS NULL
+         OR ${u}.presta_current_period_end > NOW()))`;
+}
+
+/** Vrai si ce compte prestataire est partenaire (abonnement actif). */
+export async function isPartnerPresta(userId: number): Promise<boolean> {
+  const r = await pool.query(
+    `SELECT ${sqlIsPartner('u')} AS partner FROM users u WHERE u.id=$1`,
+    [userId],
+  );
+  return r.rows[0]?.partner === true;
+}
+
+export const NOT_PARTNER_MESSAGE =
+  "Ce prestataire n'est pas encore partenaire Oheve : la prise de rendez-vous et le paiement dans l'app ne sont pas disponibles. Vous pouvez lui écrire par message.";
 
 // ── Offre de lancement : attribution des 200 places ─────────────────────────
 
@@ -119,7 +149,7 @@ export async function claimFounderRank(userId: number): Promise<number | null> {
  * validée via /confirm, ou achat Apple vérifié) : sinon un prestataire qui
  * ouvre l'écran d'abonnement puis abandonne brûlerait une des 200 places.
  */
-async function trialDaysFor(userId: number): Promise<number> {
+export async function trialDaysFor(userId: number): Promise<number> {
   const row = (await pool.query(
     `SELECT presta_founder_rank FROM users WHERE id=$1`, [userId]
   )).rows[0];
@@ -167,7 +197,7 @@ prestataireSubscriptionRoutes.get('/offer', optionalAuth, async (req: Request, r
 
 // ── Prix récurrent : réutilisé ou créé à la volée (aucune config dashboard) ──
 let _cachedPriceId: string | null = null;
-async function getPriceId(): Promise<string> {
+export async function getPriceId(): Promise<string> {
   if (process.env.STRIPE_PRESTA_PRICE_ID) return process.env.STRIPE_PRESTA_PRICE_ID;
   if (_cachedPriceId) return _cachedPriceId;
 
@@ -198,7 +228,7 @@ async function getPriceId(): Promise<string> {
 }
 
 // ── Client Stripe du user (créé/mémorisé) ──────────────────────────────────
-async function ensureCustomer(userId: number): Promise<string> {
+export async function ensureCustomer(userId: number): Promise<string> {
   const u = (await pool.query(
     `SELECT stripe_customer_id, email, nom, prenom FROM users WHERE id=$1`, [userId]
   )).rows[0];
@@ -238,17 +268,28 @@ export async function syncPrestaSubscription(sub: StripeSub): Promise<number | n
     !hasPaymentMethod && isPrestaSubActive(sub.status) ? 'incomplete' : sub.status;
 
   // Retrouver le user par metadata OU par l'id d'abonnement déjà stocké.
+  // Garde-fou : un événement d'un AUTRE abonnement que celui en cours (ex.
+  // l'ancien abonnement « incomplete » remplacé par un abonnement pris via
+  // Stripe Checkout depuis un e-mail) ne doit pas écraser l'abonnement en
+  // cours — sauf s'il est lui-même actif.
   const result = await pool.query(
     `UPDATE users SET
         presta_sub_id = $1,
         presta_sub_status = $2,
         presta_trial_end = $3,
         presta_current_period_end = $4
-      WHERE ($5::int IS NOT NULL AND id = $5) OR presta_sub_id = $1
+      WHERE (($5::int IS NOT NULL AND id = $5) OR presta_sub_id = $1)
+        AND (presta_sub_id IS NULL OR presta_sub_id = $1 OR $2 IN ('trialing','active'))
       RETURNING id`,
     [sub.id, effectiveStatus, trialEnd, periodEnd, userId]
   );
-  return result.rows[0]?.id ?? null;
+  const updatedId: number | null = result.rows[0]?.id ?? null;
+  // Abonné : toutes ses demandes verrouillées deviennent lisibles.
+  if (updatedId && isPrestaSubActive(effectiveStatus)) {
+    await promouvoirDemandesVerrouillees(updatedId).catch((e) =>
+      console.error('promouvoirDemandesVerrouillees:', (e as Error).message));
+  }
+  return updatedId;
 }
 
 /** Suppression de compte (Guideline 5.1.1) : résilie immédiatement l'abonnement

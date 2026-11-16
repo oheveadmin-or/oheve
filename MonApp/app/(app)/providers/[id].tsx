@@ -3,12 +3,11 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
-  KeyboardAvoidingView,
   Linking,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,11 +22,12 @@ import { FeedVideo } from '@/components/feed-video';
 import { PrestaDocumentsList } from '@/components/presta-documents';
 import { ThemedText } from '@/components/themed-text';
 import { VideoThumbnail } from '@/components/video-thumbnail';
-import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
+import { PayProviderModal } from '@/components/pay-provider-modal';
 import { ThemedView } from '@/components/themed-view';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
-import { calendarApi, prestatairesApi } from '@/services/auth/api';
+import { messagingApi, prestatairesApi } from '@/services/auth/api';
+import { ContactPrestataireModal } from '@/components/demandes/contact-modal';
 import {
   addProviderToHome,
   getProviderContact,
@@ -75,6 +75,14 @@ export default function ProviderDetailScreen() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   // Paiement in-app possible seulement si le prestataire a activé Stripe Connect
   const [paymentsEnabled, setPaymentsEnabled] = useState(false);
+  // Partenaire = abonné Oheve : seul un partenaire reçoit message direct,
+  // rendez-vous et paiement dans l'app. null = pas encore chargé.
+  const [isPartner, setIsPartner] = useState<boolean | null>(null);
+  const [contactModal, setContactModal] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
+  // Actions directes réservées aux comptes mariés (et admin) — pas à un
+  // prestataire qui regarde la fiche d'un confrère.
+  const isClientViewer = user?.role === 'client' || user?.role === 'admin';
 
   useEffect(() => {
     if (!id) { setLoadingProfile(false); return; }
@@ -103,11 +111,12 @@ export default function ProviderDetailScreen() {
           location_city?: string; price_min?: number; price_max?: number;
           price_range?: string; phone?: string; website_url?: string;
           email?: string; instagram_url?: string; avatar_url?: string;
-          cover_url?: string | null; payments_enabled?: boolean;
+          cover_url?: string | null; payments_enabled?: boolean; is_partner?: boolean;
         } }) => {
           if (res?.success && res.data) {
             const p = res.data;
             setPaymentsEnabled(!!p.payments_enabled);
+            setIsPartner(!!p.is_partner);
             if (p.cover_url) setApiCoverUrl(p.cover_url);
             if (p.avatar_url) setAvatarUrl(p.avatar_url);
             if (hasLocalContact) return;
@@ -218,6 +227,52 @@ export default function ProviderDetailScreen() {
     );
   };
 
+  const handleMessage = async () => {
+    if (!id || startingChat) return;
+    if (!user?.accessToken) {
+      // Non connecté → connexion, puis retour sur la fiche.
+      router.push('/(auth)/login' as never);
+      return;
+    }
+    // 1er contact = formulaire « Contacter ce prestataire » (consentement
+    // obligatoire, voir backend/src/demandes). Une fois la demande envoyée,
+    // la conversation existe et le bouton ouvre directement la messagerie.
+    const existante = (await messagingApi.listConversations(user.accessToken))?.data
+      ?.find?.((c: { prestataire_id: number }) => c.prestataire_id === parseInt(id, 10));
+    if (!existante) {
+      setContactModal(true);
+      return;
+    }
+    setStartingChat(true);
+    try {
+      const json = await messagingApi.startConversation(user.accessToken, parseInt(id, 10));
+      if (json?.success && json.data?.id) {
+        router.push(`/(app)/messages/${json.data.id}` as never);
+      } else {
+        Alert.alert('Message impossible', json?.message ?? 'Vérifiez votre connexion et réessayez.');
+      }
+    } catch {
+      Alert.alert('Message impossible', 'Vérifiez votre connexion et réessayez.');
+    }
+    setStartingChat(false);
+  };
+
+  const handlePay = () => {
+    if (!paymentsEnabled) {
+      Alert.alert(
+        'Paiement bientôt disponible',
+        `${display?.nom ?? 'Ce prestataire'} n'a pas encore activé l'encaissement dans l'app. Envoyez-lui un message pour convenir du paiement.`,
+      );
+      return;
+    }
+    setPaymentModal(true);
+  };
+
+  const telUrl = (raw: string) => {
+    const t = raw.replace(/[^\d+]/g, '');
+    return t ? `tel:${t}` : null;
+  };
+
   const instagramUrl = (handle: string) => {
     const h = handle.trim().replace(/^@/, '');
     return h ? `https://instagram.com/${h}` : null;
@@ -291,7 +346,13 @@ export default function ProviderDetailScreen() {
               {profilePhoto && (
                 <Image source={{ uri: profilePhoto }} style={styles.heroAvatar} contentFit="cover" />
               )}
-              <ThemedText style={styles.heroTitle}>{display?.nom ?? '…'}</ThemedText>
+              <ThemedText style={styles.heroTitle} numberOfLines={2}>{display?.nom ?? '…'}</ThemedText>
+              {isPartner && (
+                <View style={styles.partnerBadge}>
+                  <Ionicons name="checkmark-circle" size={13} color="#fff" />
+                  <ThemedText style={styles.partnerBadgeText}>Partenaire Oheve</ThemedText>
+                </View>
+              )}
               {display?.adresse && display.adresse !== '-' && (
                 <View style={styles.heroLocation}>
                   <Ionicons name="location-outline" size={13} color="#ffffffcc" />
@@ -309,11 +370,86 @@ export default function ProviderDetailScreen() {
         ) : (
           <View style={styles.heroPlaceholder}>
             <Ionicons name="business-outline" size={48} color={C.sauge} />
-            <ThemedText style={styles.heroTitleDark}>{display?.nom ?? '…'}</ThemedText>
+            <ThemedText style={styles.heroTitleDark} numberOfLines={2}>{display?.nom ?? '…'}</ThemedText>
+            {isPartner && (
+              <View style={[styles.partnerBadge, { alignSelf: 'center' }]}>
+                <Ionicons name="checkmark-circle" size={13} color="#fff" />
+                <ThemedText style={styles.partnerBadgeText}>Partenaire Oheve</ThemedText>
+              </View>
+            )}
           </View>
         )}
 
         <View style={styles.content}>
+          {/* ── CTAs ──────────────────────────────────────────────── */}
+          {display && (
+            <AnimatedView entering={FadeInDown.delay(40).springify()} style={{ gap: 10 }}>
+              {/* Message : ouvert à tous les prestataires (un non-partenaire
+                  reçoit une « demande », voir backend/src/demandes). */}
+              {(isClientViewer || !user) && (
+                <Pressable
+                  style={[styles.messageBtn, startingChat && { opacity: 0.6 }]}
+                  onPress={handleMessage}
+                  disabled={startingChat}
+                >
+                  {startingChat
+                    ? <ActivityIndicator color="#fff" />
+                    : <Ionicons name="chatbubble-ellipses-outline" size={22} color="#fff" />}
+                  <ThemedText style={styles.payBtnText}>Contacter ce prestataire</ThemedText>
+                </Pressable>
+              )}
+
+              {/* Partenaire : rendez-vous et paiement directement dans l'app */}
+              {isClientViewer && isPartner === true && (
+                <View style={styles.ctaRow}>
+                  <Pressable style={[styles.bookingBtn, { flex: 1 }]} onPress={() => setBookingModal(true)}>
+                    <Ionicons name="calendar-outline" size={20} color={C.saugeDark} />
+                    <ThemedText style={styles.bookingBtnText} numberOfLines={1}>Rendez-vous</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.bookingBtn, { flex: 1 }, !paymentsEnabled && styles.ctaSoon]}
+                    onPress={handlePay}
+                  >
+                    <Ionicons name="card-outline" size={20} color={C.saugeDark} />
+                    <ThemedText style={styles.bookingBtnText} numberOfLines={1}>Payer</ThemedText>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* Non partenaire : ni rendez-vous ni paiement dans l'app */}
+              {isClientViewer && isPartner === false && (
+                <View style={styles.notPartnerCard}>
+                  <View style={styles.notPartnerHead}>
+                    <Ionicons name="information-circle-outline" size={18} color={C.textMid} />
+                    <ThemedText style={styles.notPartnerTitle}>Prestataire non partenaire</ThemedText>
+                  </View>
+                  <ThemedText style={styles.notPartnerText}>
+                    Ce prestataire n'est pas encore partenaire Oheve : vous pouvez lui écrire, mais la prise
+                    de rendez-vous et le paiement dans l'app ne sont pas disponibles.
+                  </ThemedText>
+                  {display.tel && display.tel !== '-' && telUrl(display.tel) ? (
+                    <Pressable
+                      style={styles.callBtn}
+                      onPress={() => Linking.openURL(telUrl(display.tel)!).catch(() => {})}
+                    >
+                      <Ionicons name="call-outline" size={18} color={C.saugeDark} />
+                      <ThemedText style={styles.bookingBtnText}>Appeler</ThemedText>
+                    </Pressable>
+                  ) : null}
+                </View>
+              )}
+
+              <Pressable
+                style={[styles.addBtn, added && styles.addBtnDone]}
+                onPress={added ? handleRemoveFromHome : handleAddToHome}
+              >
+                <Ionicons name={added ? 'remove-circle-outline' : 'add-circle'} size={22} color="#fff" />
+                <ThemedText style={styles.addBtnText}>
+                  {added ? 'Retirer de mes prestataires' : 'Ajouter à mes prestataires'}
+                </ThemedText>
+              </Pressable>
+            </AnimatedView>
+          )}
           {/* ── Galerie photos ─────────────────────────────────────── */}
           {photos.length > 0 && (
             <AnimatedView entering={FadeInDown.delay(60).springify()}>
@@ -355,9 +491,9 @@ export default function ProviderDetailScreen() {
                 </View>
               )}
               {[
-                { icon: 'call-outline', value: display.tel, label: 'Téléphone' },
-                { icon: 'mail-outline', value: display.email, label: 'Email' },
-                { icon: 'location-outline', value: `${display.adresse}${display.ville !== display.adresse ? ', ' + display.ville : ''}`, label: 'Adresse' },
+                { icon: 'call-outline', value: display.tel, label: 'Téléphone', url: telUrl(display.tel) },
+                { icon: 'mail-outline', value: display.email, label: 'Email', url: `mailto:${display.email}` },
+                { icon: 'location-outline', value: `${display.adresse}${display.ville !== display.adresse ? ', ' + display.ville : ''}`, label: 'Adresse', url: null },
               ].filter((row) => row.value && row.value !== '-').map((row) => (
                 <View key={row.label} style={styles.infoRow}>
                   <View style={styles.infoIconWrap}>
@@ -365,7 +501,13 @@ export default function ProviderDetailScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <ThemedText style={styles.infoLabel}>{row.label}</ThemedText>
-                    <ThemedText style={styles.infoText}>{row.value}</ThemedText>
+                    {row.url ? (
+                      <Pressable onPress={() => Linking.openURL(row.url!).catch(() => {})}>
+                        <ThemedText style={styles.infoLink} numberOfLines={2}>{row.value}</ThemedText>
+                      </Pressable>
+                    ) : (
+                      <ThemedText style={styles.infoText}>{row.value}</ThemedText>
+                    )}
                   </View>
                 </View>
               ))}
@@ -433,37 +575,10 @@ export default function ProviderDetailScreen() {
             />
           </AnimatedView>
 
-          {/* ── CTAs ──────────────────────────────────────────────── */}
-          {display && (
-            <AnimatedView entering={FadeInDown.delay(260).springify()} style={{ gap: 10 }}>
-              <Pressable style={styles.bookingBtn} onPress={() => setBookingModal(true)}>
-                <Ionicons name="calendar-outline" size={22} color={C.saugeDark} />
-                <ThemedText style={styles.bookingBtnText}>Voir les disponibilités</ThemedText>
-              </Pressable>
-
-              {/* Contribution sécurisée — seulement si le prestataire a activé Stripe */}
-              {paymentsEnabled && (
-                <Pressable style={styles.payBtn} onPress={() => setPaymentModal(true)}>
-                  <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
-                  <ThemedText style={styles.payBtnText}>Contribution sécurisée</ThemedText>
-                </Pressable>
-              )}
-
-              <Pressable
-                style={[styles.addBtn, added && styles.addBtnDone]}
-                onPress={added ? handleRemoveFromHome : handleAddToHome}
-              >
-                <Ionicons name={added ? 'remove-circle-outline' : 'add-circle'} size={22} color="#fff" />
-                <ThemedText style={styles.addBtnText}>
-                  {added ? 'Retirer de mes prestataires' : 'Ajouter à mes prestataires'}
-                </ThemedText>
-              </Pressable>
-            </AnimatedView>
-          )}
         </View>
       </ScrollView>
       {/* ── Modal contribution mariage sécurisée ──────────────── */}
-      <PaymentModal
+      <PayProviderModal
         visible={paymentModal}
         onClose={() => setPaymentModal(false)}
         providerId={id ?? ''}
@@ -471,8 +586,17 @@ export default function ProviderDetailScreen() {
         providerCategory={apiRow?.categorie}
         defaultPrice={display?.prix}
       />
+      {user?.accessToken && id ? (
+        <ContactPrestataireModal
+          visible={contactModal}
+          onClose={() => setContactModal(false)}
+          prestataireId={parseInt(id, 10)}
+          prestataireNom={display?.nom ?? 'ce prestataire'}
+          accessToken={user.accessToken}
+        />
+      ) : null}
       <BookingModal
-        visible={bookingModal}
+        visible={bookingModal && isPartner === true}
         onClose={() => setBookingModal(false)}
         prestataireId={parseInt(id ?? '0', 10)}
         prestataireName={display?.nom ?? ''}
@@ -481,106 +605,6 @@ export default function ProviderDetailScreen() {
     </ThemedView>
   );
 }
-
-// ── Modal saisie montant → redirige vers écran Stripe ────────────────────────
-function PaymentModal({
-  visible,
-  onClose,
-  providerId,
-  providerName,
-  providerCategory,
-  defaultPrice,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  providerId: string;
-  providerName: string;
-  providerCategory?: string;
-  defaultPrice?: string;
-}) {
-  const [amount, setAmount] = useState('');
-
-  const handleContinue = () => {
-    const euros = parseFloat(amount.replace(',', '.'));
-    if (!euros || euros < 1) {
-      Alert.alert('Montant invalide', 'Veuillez saisir un montant d\'au moins 1 €.');
-      return;
-    }
-    onClose();
-    router.push({
-      pathname: '/(app)/payment',
-      params: {
-        prestataire_id: providerId,
-        prestataire_nom: providerName,
-        prestataire_categorie: providerCategory ?? '',
-        amount_cents: String(Math.round(euros * 100)),
-        currency: 'eur',
-        description: `Paiement à ${providerName}`,
-      },
-    });
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1, justifyContent: 'flex-end' }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <Pressable style={pmStyles.overlay} onPress={onClose} />
-        <View style={pmStyles.sheet}>
-          <View style={pmStyles.handle} />
-          <ThemedText style={pmStyles.headerTitle}>{providerName}</ThemedText>
-          <ThemedText style={pmStyles.headerSub}>Entrez le montant à payer</ThemedText>
-          <View style={pmStyles.amountRow}>
-            <TextInput
-              style={pmStyles.amountInput}
-              value={amount}
-              onChangeText={setAmount}
-              placeholder={defaultPrice && defaultPrice !== '—' ? defaultPrice.replace(/[^\d,.-]/g, '') : '500'}
-              placeholderTextColor="#9A9C93"
-              keyboardType="decimal-pad"
-              {...keyboardDoneProps}
-              autoFocus
-            />
-            <ThemedText style={pmStyles.currencySymbol}>€</ThemedText>
-          </View>
-          <Pressable style={pmStyles.payBtn} onPress={handleContinue}>
-            <Ionicons name="card-outline" size={18} color="#fff" />
-            <ThemedText style={pmStyles.payBtnTxt}>
-              Contribution sécurisée {amount ? `· ${amount} €` : ''}
-            </ThemedText>
-          </Pressable>
-          <View style={pmStyles.secureRow}>
-            <Ionicons name="shield-checkmark-outline" size={13} color="#9A9C93" />
-            <ThemedText style={pmStyles.secureTxt}>Paiement sécurisé par Stripe · SSL 256 bits</ThemedText>
-          </View>
-          <View style={{ height: 32 }} />
-        </View>
-      </KeyboardAvoidingView>
-      <KeyboardDoneBar />
-    </Modal>
-  );
-}
-
-const pmStyles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.3)' },
-  sheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 20, paddingTop: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 10,
-  },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#ece8e0', alignSelf: 'center', marginBottom: 16 },
-  headerTitle: { fontSize: 20, fontFamily: 'OheveSerif-Medium', color: '#231b45', marginBottom: 4 },
-  headerSub: { fontSize: 13, color: '#9A9C93', marginBottom: 16 },
-  amountRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderColor: C.sauge, borderRadius: 14, paddingHorizontal: 14, marginBottom: 20 },
-  amountInput: { flex: 1, height: 56, fontSize: 26, fontFamily: 'OheveSerif-Medium', color: '#231b45' },
-  currencySymbol: { fontSize: 26, fontFamily: 'OheveSerif-Medium', color: C.sauge },
-  payBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.sauge, borderRadius: 16, paddingVertical: 16 },
-  payBtnTxt: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 12 },
-  secureTxt: { fontSize: 11, color: '#9A9C93' },
-});
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.ivoire },
@@ -753,6 +777,31 @@ const styles = StyleSheet.create({
   },
 
   // CTA
+  partnerBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    marginTop: 6, paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 99, backgroundColor: C.sauge,
+  },
+  partnerBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  messageBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: C.sauge, padding: 16, borderRadius: RADIUS.lg,
+    shadowColor: C.sauge, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5,
+  },
+  ctaRow: { flexDirection: 'row', gap: 10 },
+  ctaSoon: { opacity: 0.55 },
+  notPartnerCard: {
+    backgroundColor: C.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: C.border,
+    padding: 16, gap: 8,
+  },
+  notPartnerHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  notPartnerTitle: { fontSize: 14, fontWeight: '700', color: C.textDark, flex: 1 },
+  notPartnerText: { fontSize: 13, color: C.textMid, lineHeight: 19 },
+  callBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 4, paddingVertical: 12, borderRadius: RADIUS.md,
+    borderWidth: 1.5, borderColor: C.sauge, backgroundColor: C.saugePale,
+  },
   bookingBtn: {
     flexDirection: 'row',
     alignItems: 'center',

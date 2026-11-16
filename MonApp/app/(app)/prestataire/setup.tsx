@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ClaimSheet, type ClaimMatch } from '@/components/prestataire/claim-sheet';
 import { EventTypesPicker } from '@/components/prestataire/event-types-picker';
 import { ThemedText } from '@/components/themed-text';
 import type { EventType } from '@/lib/event-type';
@@ -40,7 +41,7 @@ type SetupForm = {
 
 export default function PrestataireSetup() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const offer = usePrestaOffer();
 
   const [form, setForm] = useState<SetupForm>({
@@ -90,7 +91,27 @@ export default function PrestataireSetup() {
     setForm((prev) => ({ ...prev, cover_local_uri: uri, cover_in_feed: inFeed }));
   };
 
+  // Fiche déjà créée par l'équipe qui lui ressemble (cf. ClaimSheet).
+  const [claim, setClaim] = useState<ClaimMatch | null>(null);
+  const [claimChecked, setClaimChecked] = useState(false);
+
   const submit = async () => {
+    if (!canSubmit || !user?.accessToken) return;
+    if (!claimChecked) {
+      setLoading(true);
+      const res = await prestatairesApi.claimCheck(user.accessToken, {
+        business_name: form.business_name.trim(),
+        city: form.city.trim(),
+        phone: form.phone.trim() || undefined,
+      }).catch(() => null);
+      setLoading(false);
+      // Vérification impossible (réseau…) : on n'empêche pas l'inscription.
+      if (res?.success && res.data?.match) { setClaim(res.data.match); return; }
+    }
+    await saveProfile();
+  };
+
+  const saveProfile = async () => {
     if (!canSubmit || !user?.accessToken) return;
     setLoading(true);
     try {
@@ -130,6 +151,22 @@ export default function PrestataireSetup() {
   };
 
   return (
+    <>
+    {claim && user?.accessToken ? (
+      <ClaimSheet
+        match={claim}
+        accessToken={user.accessToken}
+        myEmail={user.email}
+        typed={{ business_name: form.business_name.trim(), city: form.city.trim(), phone: form.phone.trim() || undefined }}
+        onNotMe={() => { setClaim(null); setClaimChecked(true); saveProfile(); }}
+        onDone={async () => {
+          setClaim(null);
+          // Son compte vide a été supprimé côté serveur : on efface la session.
+          await signOut();
+          router.replace('/(auth)/login');
+        }}
+      />
+    ) : null}
     <KeyboardAvoidingView
       style={[styles.root, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -286,6 +323,7 @@ export default function PrestataireSetup() {
         </ThemedText>
       </ScrollView>
     </KeyboardAvoidingView>
+    </>
   );
 }
 

@@ -1,6 +1,7 @@
 import { CREATE_USER_AVATARS, migrateDiskAvatarsToDb } from '../avatars/avatarStore';
 import { CREATE_STORED_FILES } from '../utils/persistent-uploads';
 import { ensureCommunitySchema } from '../community/repository';
+import { ensureDemandesSchema } from '../demandes/schema';
 import { pool } from '../config/database';
 import { ensureProspectSchema } from '../admin/importProspects';
 import { CREATE_PRESTATAIRE_DOCUMENTS } from '../prestataires/documents';
@@ -615,6 +616,9 @@ export async function runMigrations(): Promise<void> {
 
     // ── Communauté Oheve (salon commun des mariés) ─────────────────────────────
     await ensureCommunitySchema().catch((err) => console.error('❌ Communauté:', (err as Error).message));
+
+    // ── Demandes aux prestataires (4 offertes puis abonnement / déblocage) ─────
+    await ensureDemandesSchema(pool).catch((err) => console.error('❌ Demandes:', (err as Error).message));
 
     // ── Filet de sécurité RLS : TOUTE table du schéma public doit avoir le RLS
     // activé. Le backend (rôle postgres, bypass RLS) n'est pas impacté ; sans

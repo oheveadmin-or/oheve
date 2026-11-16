@@ -13,6 +13,10 @@ import PostSharePage from '@guest/share/PostSharePage';
 import { EVENT_PATH_PREFIXES } from '@guest/wedding-sites/utils/eventRoutes';
 
 const PresentationPage = lazy(() => import('@guest/presentation/PresentationPage'));
+const DemandePage = lazy(() => import('@guest/demandes/DemandePage'));
+const DesabonnementPage = lazy(() => import('@guest/demandes/DesabonnementPage'));
+const FichePrestatairePage = lazy(() => import('@guest/demandes/FichePrestatairePage'));
+const pageFallback = <div style={{ minHeight: '100vh', background: '#F6F2EA' }} />;
 
 /** Nouvelle page = haut de page (sinon /presentation s'ouvre au niveau où l'on était sur l'accueil) */
 function ScrollToTopOnNavigate() {
@@ -47,6 +51,10 @@ export default function App() {
         <Route path="/presentation" element={<Suspense fallback={<div style={{ minHeight: '100vh', background: '#ece8e0' }} />}><PresentationPage /></Suspense>} />
         {/* Page publique d'un post partagé depuis l'app (avant le catch-all /:slug) */}
         <Route path="/p/:photoId" element={<PostSharePage />} />
+        {/* Demandes aux prestataires : liens des e-mails (avant le catch-all /:slug) */}
+        <Route path="/demande/:id" element={<Suspense fallback={pageFallback}><DemandePage /></Suspense>} />
+        <Route path="/se-desabonner" element={<Suspense fallback={pageFallback}><DesabonnementPage /></Suspense>} />
+        <Route path="/prestataire/:id" element={<Suspense fallback={pageFallback}><FichePrestatairePage /></Suspense>} />
         {/* Une route par événement : /wedding (mariage), /bar-mitsva, /bat-mitsva,
             /brit-mila — mêmes pages, le préfixe suit le type du site
             (cf. wedding-sites/utils/eventRoutes.ts). */}

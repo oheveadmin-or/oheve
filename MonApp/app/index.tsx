@@ -1,6 +1,7 @@
 import { Redirect } from 'expo-router';
 
 import { useAuth } from '@/contexts/auth-context';
+import { mustPayBeforeAccess } from '@/lib/presta-paywall';
 
 /** Point d'entrée "/" : redirige vers la bonne zone selon le rôle */
 export default function IndexRedirect() {
@@ -15,7 +16,9 @@ export default function IndexRedirect() {
 
   // Prestataire : accès direct — l'abonnement n'est proposé qu'à l'inscription
   // (et via un rappel non-bloquant sur l'accueil s'il n'est pas actif).
+  // Exception : compte créé par l'équipe en mode payant → abonnement d'abord.
   if (user.role === 'prestataire') {
+    if (mustPayBeforeAccess(user)) return <Redirect href="/(app)/prestataire/subscribe" />;
     return <Redirect href="/(app)/(tabs)" />;
   }
 

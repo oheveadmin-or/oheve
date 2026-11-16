@@ -1,5 +1,6 @@
 import { pool } from '../config/database';
 import { sqlVisibleEmail } from '../auth/username';
+import { sqlIsPartner } from '../prestataire-subscription';
 
 export interface PrestaProfileRow {
   id: number;
@@ -104,7 +105,8 @@ export class PrestatairesRepository {
       `SELECT p.*,${sqlVisibleEmail('u.email')} AS email,u.nom,u.prenom,u.avatar_url,
               ph.url AS cover_url, ph.filename AS cover_filename,
               -- Le client ne peut payer que si le prestataire a activé Stripe Connect
-              COALESCE(sca.charges_enabled, false) AS payments_enabled
+              COALESCE(sca.charges_enabled, false) AS payments_enabled,
+              ${sqlIsPartner('u')} AS is_partner
        FROM prestataire_profiles p
        JOIN users u ON u.id=p.user_id
        LEFT JOIN stripe_connect_accounts sca ON sca.user_id=p.user_id
@@ -144,6 +146,7 @@ export class PrestatairesRepository {
     const r = await pool.query(
       `SELECT p.*,${sqlVisibleEmail('u.email')} AS email,u.nom,u.prenom,u.avatar_url,
               u.role AS user_role,u.subscription_plan,u.subscription_status,
+              ${sqlIsPartner('u')} AS is_partner,
               ph.url AS cover_url, ph.filename AS cover_filename
        FROM prestataire_profiles p
        JOIN users u ON u.id=p.user_id
@@ -156,15 +159,15 @@ export class PrestatairesRepository {
        ) ph ON true
        ${where}
        ORDER BY
-         CASE WHEN u.subscription_plan='plus' AND u.subscription_status='active' THEN 0
-              WHEN u.subscription_plan='basic' AND u.subscription_status='active' THEN 1
-              ELSE 2 END,
+         -- Partenaires (abonnement actif) toujours en tête de l'annuaire :
+         -- un non-partenaire a moins de visibilité.
+         CASE WHEN ${sqlIsPartner('u')} THEN 0 ELSE 1 END,
          p.rating DESC,
          p.created_at DESC
        LIMIT $${i++} OFFSET $${i}`,
       vals
     );
-    return r.rows as (PrestaProfileRow & { user_role?: string; subscription_plan?: string; subscription_status?: string })[];
+    return r.rows as (PrestaProfileRow & { user_role?: string; subscription_plan?: string; subscription_status?: string; is_partner?: boolean })[];
   }
 
   async setVerified(userId: number, verified: boolean) {

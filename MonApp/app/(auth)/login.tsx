@@ -15,6 +15,7 @@ import {
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
+import { mustPayBeforeAccess } from '@/lib/presta-paywall';
 import { useAuth } from '@/contexts/auth-context';
 import { useSocialAuth } from '@/hooks/use-social-auth';
 import { useAppleAuthAvailable } from '@/hooks/use-apple-auth-available';
@@ -101,6 +102,10 @@ export default function LoginScreen() {
 
       // Compte créé par l'admin : on propose tout de suite de choisir son mot
       // de passe et d'ajouter son email.
+      // Compte créé par l'équipe en mode payant : abonnement AVANT tout accès
+      // (le choix du mot de passe vient juste après le paiement).
+      if (mustPayBeforeAccess(data)) { router.replace('/(app)/prestataire/subscribe'); return; }
+
       if (data.must_change_password) { router.replace('/(app)/first-login' as never); return; }
 
       if (data.role === 'admin') { router.replace('/(app)/(tabs)'); return; }

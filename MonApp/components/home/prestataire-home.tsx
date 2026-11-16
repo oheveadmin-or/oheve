@@ -439,6 +439,13 @@ export function PrestataireHome() {
               color: C.warning,
             },
             {
+              icon: 'mail-unread-outline',
+              label: 'Mes demandes',
+              sub: 'Demandes de contact reçues des mariés',
+              route: '/(app)/prestataire/demandes',
+              color: C.saugeDark,
+            },
+            {
               icon: 'chatbubble-outline',
               label: 'Tous les messages',
               sub: conversations.length > 0

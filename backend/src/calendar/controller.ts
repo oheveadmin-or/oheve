@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { sendPushToUser } from '../utils/push';
 import { CalendarRepository } from './repository';
+import { isPartnerPresta, NOT_PARTNER_MESSAGE } from '../prestataire-subscription';
 import { parseEventDate, parseEventTime } from './validate';
 
 const repo = new CalendarRepository();
@@ -222,6 +223,11 @@ export class CalendarController {
         }
         clientId = req.auth!.sub;
         prestataireId = parseInt(prestataire_id, 10);
+
+        // RDV direct = réservé aux prestataires PARTENAIRES (abonnés).
+        if (role === 'client' && !(await isPartnerPresta(prestataireId))) {
+          return res.status(403).json({ success: false, code: 'NOT_PARTNER', message: NOT_PARTNER_MESSAGE });
+        }
 
         // Le client réserve uniquement dans les créneaux ouverts par le prestataire.
         const slots = await repo.computeAvailableSlots(prestataireId, requested_date, requested_date);

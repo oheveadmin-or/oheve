@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookingModal, ProposeAppointmentModal } from '@/components/booking-modal';
 import { ThemedText } from '@/components/themed-text';
+import { PayProviderModal } from '@/components/pay-provider-modal';
 import { KeyboardDoneBar, keyboardDoneProps } from '@/components/ui/keyboard-done-bar';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { API_ENDPOINTS } from '@/constants/config';
@@ -655,7 +656,16 @@ export default function ChatScreen() {
   // Prise de RDV depuis la discussion : besoin des deux participants de la
   // conversation (client_id / prestataire_id) récupérés via la liste.
   const [rdvModal, setRdvModal] = useState(false);
-  const [conv, setConv] = useState<{ client_id: number; prestataire_id: number } | null>(null);
+  const [conv, setConv] = useState<{
+    client_id: number;
+    prestataire_id: number;
+    // Partenaire = abonné : RDV et paiement possibles depuis la discussion.
+    presta_is_partner: boolean;
+    presta_payments_enabled: boolean;
+    business_name?: string | null;
+    presta_category?: string | null;
+  } | null>(null);
+  const [payModal, setPayModal] = useState(false);
   const flatRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -668,7 +678,14 @@ export default function ChatScreen() {
         if (res?.success && Array.isArray(res.data)) {
           const c = res.data.find((x: { id: number }) => x.id === convId);
           if (c) {
-            setConv({ client_id: c.client_id, prestataire_id: c.prestataire_id });
+            setConv({
+              client_id: c.client_id,
+              prestataire_id: c.prestataire_id,
+              presta_is_partner: c.presta_is_partner === true,
+              presta_payments_enabled: c.presta_payments_enabled === true,
+              business_name: c.business_name,
+              presta_category: c.presta_category,
+            });
             if (c.other_prenom) setOtherName(`${c.other_prenom} ${c.other_nom ?? ''}`.trim());
           }
         }
@@ -680,6 +697,12 @@ export default function ChatScreen() {
     if (!user?.accessToken) return;
     try {
       const json = await messagingApi.getMessages(user.accessToken, convId);
+      // Demande verrouillée (prestataire) : l'écran de la demande propose l'abonnement.
+      if (json?.code === 'DEMANDE_VERROUILLEE' && json.demande_id) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        router.replace(`/(app)/prestataire/demandes/${json.demande_id}` as never);
+        return;
+      }
       if (json.success) {
         setMessages(json.data);
         if (!silent) setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 50);
@@ -773,6 +796,20 @@ export default function ChatScreen() {
   };
 
   const isPrestataire = user?.role === 'prestataire';
+  // Côté marié : RDV + paiement seulement si le prestataire est partenaire.
+  const clientDirectActions = !isPrestataire && !!conv?.presta_is_partner;
+  const providerLabel = conv?.business_name?.trim() || otherName;
+
+  const openPay = () => {
+    if (!conv?.presta_payments_enabled) {
+      Alert.alert(
+        'Paiement bientôt disponible',
+        `${providerLabel} n'a pas encore activé l'encaissement dans l'app. Convenez du paiement ensemble par message.`,
+      );
+      return;
+    }
+    setPayModal(true);
+  };
 
   // Message récap envoyé dans la conversation après la prise d'un RDV,
   // pour que les deux parties gardent une trace écrite du créneau.
@@ -855,6 +892,16 @@ export default function ChatScreen() {
           onBooked={sendRdvRecap}
         />
       ))}
+      {conv && clientDirectActions && (
+        <PayProviderModal
+          visible={payModal}
+          onClose={() => setPayModal(false)}
+          providerId={conv.prestataire_id}
+          providerName={providerLabel}
+          providerCategory={conv.presta_category ?? undefined}
+          conversationId={convId}
+        />
+      )}
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -867,13 +914,27 @@ export default function ChatScreen() {
           <ThemedText style={styles.headerTitle} numberOfLines={1}>{otherName}</ThemedText>
         </View>
         {/* Prendre / fixer un rendez-vous directement depuis la discussion */}
-        {conv && (
+        {conv && (isPrestataire || clientDirectActions) && (
           <Pressable style={styles.rdvBtn} onPress={() => setRdvModal(true)} hitSlop={8}>
             <Ionicons name="calendar-outline" size={16} color={C.saugeDark} />
             <ThemedText style={styles.rdvBtnTxt}>RDV</ThemedText>
           </Pressable>
         )}
+        {conv && clientDirectActions && (
+          <Pressable style={styles.payBtn} onPress={openPay} hitSlop={8}>
+            <Ionicons name="card-outline" size={16} color="#fff" />
+            <ThemedText style={styles.payBtnTxt}>Payer</ThemedText>
+          </Pressable>
+        )}
       </View>
+      {conv && !isPrestataire && !conv.presta_is_partner && (
+        <View style={styles.notPartnerBar}>
+          <Ionicons name="information-circle-outline" size={14} color={C.textMid} />
+          <ThemedText style={styles.notPartnerTxt}>
+            Prestataire non partenaire : rendez-vous et paiement indisponibles dans l'app.
+          </ThemedText>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color="#929B83" size="large" /></View>
@@ -994,6 +1055,17 @@ const styles = StyleSheet.create({
     borderRadius: 99, backgroundColor: '#EDF0E5', flexShrink: 0,
   },
   rdvBtnTxt: { fontSize: 12, fontWeight: '700', color: C.saugeDark },
+  payBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 99, backgroundColor: C.sauge, flexShrink: 0,
+  },
+  payBtnTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  notPartnerBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#f5f2ed',
+  },
+  notPartnerTxt: { flex: 1, fontSize: 12, color: C.textMid },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#343630', flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyTxt: { color: '#9a9c93', fontSize: 14, textAlign: 'center' },

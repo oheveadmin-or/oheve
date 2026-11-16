@@ -1,10 +1,11 @@
 import * as Notifications from 'expo-notifications';
-import { router, Stack } from 'expo-router';
+import { router, Stack, usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { AdminImpersonationBanner } from '@/components/admin/admin-impersonation-banner';
 import { useAuth } from '@/contexts/auth-context';
+import { mustPayBeforeAccess } from '@/lib/presta-paywall';
 import { messagingApi } from '@/services/auth/api';
 import { loadPersistedBudget, syncBudgetTotal, BudgetProvider } from '@/lib/budget-store';
 import { configureGuestsSync, loadGuests } from '@/lib/guests-store';
@@ -41,6 +42,20 @@ async function registerForPushNotifications(): Promise<string | null> {
 
 export default function AppLayout() {
   const { user } = useAuth();
+  const pathname = usePathname();
+  const locked = mustPayBeforeAccess(user);
+
+  // Compte créé par l'équipe en mode payant : aucun écran de l'espace avant
+  // l'abonnement (lien profond, notification, retour arrière…).
+  useEffect(() => {
+    // CGU / confidentialité restent lisibles : Apple exige que les liens de
+    // l'écran d'achat fonctionnent.
+    const allowed = ['/prestataire/subscribe', '/cgu', '/privacy-policy'];
+    if (locked && !allowed.some((p) => pathname.startsWith(p))) {
+      router.replace('/(app)/prestataire/subscribe');
+    }
+  }, [locked, pathname]);
+
   const responseListenerRef = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
 
   // ⚠️ Déclaré AVANT les effets de chargement : les effets s'exécutent dans

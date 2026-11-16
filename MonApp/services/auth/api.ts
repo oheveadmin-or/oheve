@@ -314,6 +314,24 @@ export const prestatairesApi = {
     });
   },
 
+  /** Fiche déjà créée par l'équipe qui ressemble à ce que le prestataire saisit ? */
+  claimCheck: (accessToken: string, data: { business_name: string; city: string; phone?: string }) =>
+    request(`${API_ENDPOINTS.prestataires}/claim/check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    }),
+
+  /** « C'est ma fiche » : identifiants renvoyés à l'email connu (ou demande à l'équipe). */
+  claimSend: (accessToken: string, data: {
+    target_id: number; email_confirmed: boolean; business_name: string; city: string; phone?: string;
+  }) =>
+    request(`${API_ENDPOINTS.prestataires}/claim/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    }),
+
   getPhotos: (accessToken: string | undefined, userId?: number) => {
     // Portfolio d'un prestataire = public (jeton facultatif) ; /me = privé.
     if (userId) return getPublic(`${API_ENDPOINTS.prestataires}/${userId}/photos`, accessToken);
@@ -786,4 +804,25 @@ export const subscriptionApi = {
 
   cancel: (accessToken: string) =>
     del(API_ENDPOINTS.subscriptionMe, accessToken),
+};
+
+// ── Demandes aux prestataires (« Contacter ce prestataire ») ─────────────────
+const DEMANDES_URL = `${API_ENDPOINTS.prestataires.replace(/\/prestataires$/, '')}/demandes`;
+
+export const demandesApi = {
+  /** Envoi depuis la fiche : 10 à 2000 caractères + consentement obligatoire. */
+  envoyer: (accessToken: string, prestataireId: number, contenu: string) =>
+    post(`${API_ENDPOINTS.prestataires}/${prestataireId}/demande`, { contenu, consentement_contact: true }, accessToken),
+
+  liste: (accessToken: string) => get(DEMANDES_URL, accessToken),
+
+  detail: (accessToken: string, demandeId: number) => get(`${DEMANDES_URL}/${demandeId}`, accessToken),
+
+  repondre: (accessToken: string, demandeId: number, contenu: string) =>
+    post(`${DEMANDES_URL}/${demandeId}/messages`, { contenu }, accessToken),
+
+  similaires: (accessToken: string, demandeId: number) => get(`${DEMANDES_URL}/${demandeId}/similaires`, accessToken),
+
+  checkout: (accessToken: string, demandeId: number, type: 'deblocage' | 'abonnement') =>
+    post(`${DEMANDES_URL}/${demandeId}/checkout`, { type }, accessToken),
 };

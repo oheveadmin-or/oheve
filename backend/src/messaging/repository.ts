@@ -1,3 +1,4 @@
+import { sqlIsPartner } from '../prestataire-subscription';
 import { pool } from '../config/database';
 
 export interface ConversationRow {
@@ -13,7 +14,10 @@ export interface ConversationRow {
   other_role?: string;
   business_name?: string;
   last_message?: string;
+  first_client_message?: string | null;
   unread_count?: number;
+  demande_id?: number | null;
+  demande_statut?: string | null;
 }
 
 export interface MessageRow {
@@ -62,12 +66,21 @@ export class MessagingRepository {
          CASE WHEN c.client_id=$1 THEN pu.avatar_url ELSE cu.avatar_url END AS other_avatar,
          CASE WHEN c.client_id=$1 THEN pu.role ELSE cu.role END AS other_role,
          pp.business_name,
+         -- Le prestataire est-il partenaire ? (RDV / paiement dans la discussion)
+         ${sqlIsPartner('pu')} AS presta_is_partner,
+         COALESCE(sca.charges_enabled, false) AS presta_payments_enabled,
+         pp.category AS presta_category,
+         dm.id AS demande_id,
+         dm.statut AS demande_statut,
+         (SELECT content FROM messages WHERE conversation_id=c.id AND sender_id=c.client_id ORDER BY created_at ASC, id ASC LIMIT 1) AS first_client_message,
          (SELECT content FROM messages WHERE conversation_id=c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
          (SELECT COUNT(*) FROM messages WHERE conversation_id=c.id AND sender_id!=$1 AND is_read=false)::int AS unread_count
        FROM conversations c
        JOIN users cu ON cu.id=c.client_id
        JOIN users pu ON pu.id=c.prestataire_id
        LEFT JOIN prestataire_profiles pp ON pp.user_id=c.prestataire_id
+       LEFT JOIN stripe_connect_accounts sca ON sca.user_id=c.prestataire_id
+       LEFT JOIN demandes dm ON dm.conversation_id=c.id
        WHERE c.client_id=$1 OR c.prestataire_id=$1
        ORDER BY COALESCE(c.last_message_at,c.created_at) DESC`,
       [userId]

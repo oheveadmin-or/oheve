@@ -59,6 +59,7 @@ type Provider = {
   description?: string;
   cover_url?: string;
   avatar_url?: string;
+  is_partner?: boolean;
 };
 
 export default function CategoryProvidersScreen() {
@@ -128,6 +129,9 @@ export default function CategoryProvidersScreen() {
     if (sortKey === 'prix_asc') list.sort((a, b) => (a.price_min ?? 0) - (b.price_min ?? 0));
     else if (sortKey === 'prix_desc') list.sort((a, b) => (b.price_min ?? 0) - (a.price_min ?? 0));
     else if (sortKey === 'note_desc') list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    // Moins de visibilité pour les non-partenaires : quel que soit le tri,
+    // les partenaires passent devant (sort est stable, l'ordre choisi est gardé).
+    list.sort((a, b) => Number(!!b.is_partner) - Number(!!a.is_partner));
     return list;
   }, [allProviders, search, sortKey, cityFilter]);
 
@@ -302,7 +306,15 @@ export default function CategoryProvidersScreen() {
                   </View>
                 )}
                 <View style={styles.cardBody}>
-                  <ThemedText style={styles.cardTitle}>{p.business_name}</ThemedText>
+                  <View style={styles.cardTitleRow}>
+                    <ThemedText style={[styles.cardTitle, { flexShrink: 1 }]} numberOfLines={2}>{p.business_name}</ThemedText>
+                    {p.is_partner && (
+                      <View style={styles.partnerChip}>
+                        <Ionicons name="checkmark-circle" size={10} color="#fff" />
+                        <ThemedText style={styles.partnerChipTxt}>Partenaire</ThemedText>
+                      </View>
+                    )}
+                  </View>
                   <ThemedText style={styles.cardCateg}>
                     {categoryLabel(p.category)}{p.location_city ? ` · ${p.location_city}` : ''}
                   </ThemedText>
@@ -393,6 +405,12 @@ const styles = StyleSheet.create({
   },
   cardBody: { flex: 1, gap: 2 },
   cardTitle: { fontSize: 15, fontWeight: '700', color: C.textDark },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  partnerChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 0,
+    backgroundColor: C.sauge, borderRadius: RADIUS.pill, paddingHorizontal: 7, paddingVertical: 2,
+  },
+  partnerChipTxt: { fontSize: 10, fontWeight: '700', color: '#fff' },
   cardCateg: { fontSize: 12, color: C.textLight },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   ratingText: { fontSize: 11, color: C.textMid },

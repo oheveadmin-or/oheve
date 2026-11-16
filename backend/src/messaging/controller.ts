@@ -4,8 +4,15 @@ import { Request, Response } from 'express';
 
 import { sendNewMessageEmail } from '../utils/mailer';
 import { MessagingRepository } from './repository';
+import { etatConversation, LOCKED_MESSAGE, masquerListe } from '../demandes/messaging-gate';
+import { DemandeError, envoyerMessageClient, envoyerMessagePresta, notifierMessage } from '../demandes/service';
 
 const repo = new MessagingRepository();
+
+/** 402 + identifiant de la demande : l'app ouvre l'écran de la demande verrouillée. */
+function lockedResponse(res: Response, demandeId: number) {
+  return res.status(402).json({ success: false, code: 'DEMANDE_VERROUILLEE', demande_id: demandeId, message: LOCKED_MESSAGE });
+}
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -63,7 +70,8 @@ export class MessagingController {
 
   async listConversations(req: Request, res: Response) {
     try {
-      const conversations = await repo.listForUser(req.auth!.sub);
+      const userId = req.auth!.sub;
+      const conversations = await masquerListe(userId, await repo.listForUser(userId), () => repo.listForUser(userId));
       return res.status(200).json({ success: true, data: conversations });
     } catch (err) {
       console.error(err);
@@ -94,6 +102,8 @@ export class MessagingController {
     try {
       const conv = await repo.getConversation(convId, req.auth!.sub);
       if (!conv) return res.status(404).json({ success: false, message: 'Conversation introuvable' });
+      const etat = await etatConversation(conv, req.auth!.sub);
+      if (etat.verrouilleePourMoi) return lockedResponse(res, etat.demande!.id);
       const messages = await repo.getMessages(convId, 50, before);
       await repo.markRead(convId, req.auth!.sub);
       return res.status(200).json({ success: true, data: messages });
@@ -112,11 +122,38 @@ export class MessagingController {
     try {
       const conv = await repo.getConversation(convId, req.auth!.sub);
       if (!conv) return res.status(404).json({ success: false, message: 'Conversation introuvable' });
+      const etat = await etatConversation(conv, req.auth!.sub);
+
+      // Client : le message passe par les demandes (1er message = nouvelle
+      // demande, crédit offert ou verrouillage ; ensuite simple ajout).
+      if (etat.estClient) {
+        const r = await envoyerMessageClient({
+          clientId: conv.client_id,
+          prestataireId: conv.prestataire_id,
+          contenu: content,
+          consentement: false,
+          origine: 'chat',
+          minLength: 1,
+        });
+        notifierMessage(r.demandeId, r.message, r.nouvelle).catch(() => {});
+        return res.status(201).json({ success: true, data: r.message });
+      }
+      // Prestataire : refusé tant que la demande est verrouillée.
+      if (etat.demande) {
+        if (etat.verrouilleePourMoi) return lockedResponse(res, etat.demande.id);
+        const message = await envoyerMessagePresta(etat.demande.id, req.auth!.sub, content);
+        notifierMessage(etat.demande.id, message, false).catch(() => {});
+        return res.status(201).json({ success: true, data: message });
+      }
+
       const message = await repo.sendMessage(convId, req.auth!.sub, content);
       // Fire-and-forget : notifications ne bloquent pas la réponse
       notifyRecipient(convId, req.auth!.sub, content.trim()).catch(() => {});
       return res.status(201).json({ success: true, data: message });
     } catch (err) {
+      if (err instanceof DemandeError) {
+        return res.status(err.status).json({ success: false, message: err.message });
+      }
       console.error(err);
       return res.status(500).json({ success: false, message: 'Erreur' });
     }
@@ -132,6 +169,15 @@ export class MessagingController {
       if (!conv) {
         fs.unlinkSync(req.file.path);
         return res.status(404).json({ success: false, message: 'Conversation introuvable' });
+      }
+      const etat = await etatConversation(conv, req.auth!.sub);
+      if (etat.verrouilleePourMoi) {
+        fs.unlinkSync(req.file.path);
+        return lockedResponse(res, etat.demande!.id);
+      }
+      if (etat.estClient && !etat.demande) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ success: false, message: 'Écrivez d\'abord votre message au prestataire, puis ajoutez votre fichier.' });
       }
       const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;
       const host = req.headers['x-forwarded-host'] ?? req.get('host');
@@ -202,6 +248,8 @@ export class MessagingController {
     try {
       const conv = await repo.getConversation(convId, req.auth!.sub);
       if (!conv) return res.status(404).json({ success: false, message: 'Conversation introuvable' });
+      const etat = await etatConversation(conv, req.auth!.sub);
+      if (etat.verrouilleePourMoi) return lockedResponse(res, etat.demande!.id);
 
       const montant_ht = services.reduce(
         (sum: number, s: any) => sum + (Number(s.prix_unitaire) * Number(s.quantite || 1)), 0

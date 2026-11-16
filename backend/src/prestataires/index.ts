@@ -7,6 +7,7 @@ import { optionalAuth, requireAuth } from '../middleware/requireAuth';
 import { optimizeUploadedImage } from '../utils/image-optim';
 import { persistUploadedFile } from '../utils/persistent-uploads';
 import { PrestatairesController } from './controller';
+import { claimRoutes } from './claim';
 import { myDocumentRoutes, userDocumentRoutes } from './documents';
 import { PhotosController, rejectDuplicatePhoto } from './photos.controller';
 import { persistOrDeferVideo } from './video-background';
@@ -43,6 +44,9 @@ const upload = multer({
     else cb(new Error('Seules les images et les vidéos sont acceptées'));
   },
 });
+
+// Fiche créée par l'équipe retrouvée à l'inscription (avant /:userId).
+prestatairesRoutes.use('/claim', claimRoutes);
 
 // ── Profil ────────────────────────────────────────────────────────────────────
 prestatairesRoutes.get('/', optionalAuth, ctrl.list.bind(ctrl));

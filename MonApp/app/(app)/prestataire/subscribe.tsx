@@ -20,6 +20,7 @@ import {
 import {
   trialLabel, trialLabelLong, usePrestaOffer, type PrestaOffer,
 } from '@/lib/presta-offer';
+import { mustPayBeforeAccess, routeAfterSubscribe } from '@/lib/presta-paywall';
 import { iapApi, prestataireSubApi } from '@/services/auth/api';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
@@ -117,6 +118,20 @@ function SubscribeLegal({ priceLabel, offer }: { priceLabel: string; offer: Pres
  * pas bloquant : l'accueil prestataire affiche une bannière de relance.
  */
 function SkipLater() {
+  const { user, signOut } = useAuth();
+  // Compte créé par l'équipe en mode payant : pas d'accès sans abonnement,
+  // la seule sortie est la déconnexion.
+  if (mustPayBeforeAccess(user)) {
+    return (
+      <Pressable
+        style={styles.skipBtn}
+        hitSlop={8}
+        onPress={async () => { await signOut(); router.replace('/(auth)'); }}
+      >
+        <ThemedText style={styles.skipTxt}>Se déconnecter</ThemedText>
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       style={styles.skipBtn}
@@ -170,7 +185,7 @@ function SubscribeIos() {
           Alert.alert(
             '🎉 Bienvenue !',
             `Vos ${offer.trialMonths} premiers mois sont offerts. Le renouvellement est géré par ${STORE_NAME} — annulable à tout moment dans ${STORE_SUBSCRIPTIONS_PATH}.`,
-            [{ text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') }],
+            [{ text: 'Commencer', onPress: () => router.replace(routeAfterSubscribe(user)) }],
           );
         }
       } finally {
@@ -251,7 +266,7 @@ function SubscribeIos() {
       if (granted) {
         await finishTransaction({ purchase: subPurchase, isConsumable: false });
         Alert.alert('✅ Abonnement restauré', 'Votre espace prestataire est de nouveau actif.', [
-          { text: 'Continuer', onPress: () => router.replace('/(app)/(tabs)') },
+          { text: 'Continuer', onPress: () => router.replace(routeAfterSubscribe(user)) },
         ]);
       }
     } catch {
@@ -364,7 +379,7 @@ function SubscribeForm() {
       const res = await prestataireSubApi.start(user.accessToken);
       if (res?.data?.already_active) {
         await updateUser({ presta_sub_status: res.data.status ?? 'active' });
-        router.replace('/(app)/(tabs)');
+        router.replace(routeAfterSubscribe(user));
         return;
       }
       if (!res?.success || !res.data?.setup_client_secret) {
@@ -415,7 +430,7 @@ function SubscribeForm() {
       Alert.alert(
         '🎉 Bienvenue !',
         `Vos ${offer.trialMonths} premiers mois sont offerts. Vous ne serez prélevé de 39,99 €/mois qu'à la fin de l'essai — annulable à tout moment.`,
-        [{ text: 'Commencer', onPress: () => router.replace('/(app)/(tabs)') }],
+        [{ text: 'Commencer', onPress: () => router.replace(routeAfterSubscribe(user)) }],
       );
     } catch {
       Alert.alert('Erreur', 'Une erreur réseau est survenue.');
@@ -455,6 +470,8 @@ function SubscribeForm() {
               <Ionicons name="refresh" size={16} color="#fff" />
               <ThemedText style={styles.retryTxt}>Réessayer</ThemedText>
             </Pressable>
+            {/* Toujours une sortie, même pour un compte bloqué tant qu'il n'a pas payé. */}
+            <SkipLater />
           </View>
         ) : (
           <>

@@ -39,9 +39,9 @@ export type DuplicateHit = {
   reason: 'nom' | 'telephone';
 };
 
-type Candidate = { business_name: string; city?: string | null; phone?: string | null };
+export type Candidate = { business_name: string; city?: string | null; phone?: string | null };
 
-function matches(c: Candidate, row: { business_name: string | null; city: string | null; phone: string | null }): DuplicateHit['reason'] | null {
+export function matches(c: Candidate, row: { business_name: string | null; city: string | null; phone: string | null }): DuplicateHit['reason'] | null {
   const n = normName(c.business_name);
   const city = normName(c.city);
   const rowCity = normName(row.city);

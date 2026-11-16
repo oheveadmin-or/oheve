@@ -230,3 +230,81 @@ Vous pouvez également confirmer votre présence depuis ce lien.
 Besoin d'aide ? ${SUPPORT}`,
   });
 }
+
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
+/**
+ * Un prestataire dont l'équipe avait déjà créé la fiche s'est réinscrit sans le
+ * savoir : on lui renvoie ses identifiants (à l'email déjà connu pour la fiche).
+ */
+export async function sendClaimCredentialsEmail(opts: {
+  to: string;
+  businessName: string;
+  username: string;
+  tempPassword: string;
+}): Promise<void> {
+  const { to, businessName, username, tempPassword } = opts;
+  await send({
+    to,
+    subject: 'Vos identifiants Oheve',
+    html: emailWrapper(`
+      <h2 style="color:#7C8C6E;margin-bottom:8px;">Votre fiche vous attend</h2>
+      <p style="color:#4b5563;font-size:15px;line-height:1.6;">
+        Bonjour,<br/>
+        La fiche <strong>${esc(businessName)}</strong> a déjà été créée pour vous sur <strong>Oheve</strong>.
+        Connectez-vous avec ces identifiants dans l'application :
+      </p>
+      <div style="background:#fff;border:2px solid #7C8C6E;border-radius:12px;padding:18px 20px;margin:20px 0;font-size:15px;color:#111827;line-height:1.9;">
+        Identifiant : <strong>${esc(username)}</strong><br/>
+        Mot de passe provisoire : <strong style="letter-spacing:1px;">${esc(tempPassword)}</strong>
+      </div>
+      <p style="color:#9ca3af;font-size:13px;">À la première connexion, vous choisirez votre propre mot de passe.</p>
+    `),
+    text:
+`Vos identifiants Oheve
+
+Bonjour,
+La fiche « ${businessName} » a déjà été créée pour vous sur Oheve.
+Connectez-vous avec ces identifiants dans l'application :
+
+Identifiant : ${username}
+Mot de passe provisoire : ${tempPassword}
+
+À la première connexion, vous choisirez votre propre mot de passe.
+Si vous n'avez pas fait cette demande, ignorez cet email.
+
+Besoin d'aide ? ${SUPPORT}`,
+  });
+}
+
+/** Demande de rattachement à vérifier à la main (fiche sans email connu). */
+export async function sendClaimReviewEmail(opts: {
+  requesterEmail: string;
+  requesterPhone: string;
+  typedName: string;
+  typedCity: string;
+  targetId: number;
+  targetName: string;
+  targetUsername: string;
+  reason: string;
+}): Promise<void> {
+  const o = opts;
+  const lines = [
+    `Un prestataire pense que la fiche suivante est la sienne :`,
+    ``,
+    `Fiche existante : « ${o.targetName} » — ID ${o.targetId}, identifiant ${o.targetUsername}`,
+    `Saisi à l'inscription : « ${o.typedName} » (${o.typedCity || 'ville vide'})${o.requesterPhone ? `, tél. ${o.requesterPhone}` : ''}`,
+    `Son email (vérifié par code) : ${o.requesterEmail}`,
+    `Motif : ${o.reason}`,
+    ``,
+    `À faire : vérifier que c'est bien lui (appel, Instagram…), puis Admin → Identifiants → mettre son email sur la fiche et lui envoyer ses identifiants.`,
+  ];
+  await send({
+    to: REPLY_TO,
+    subject: `Rattachement de fiche à vérifier : ${o.targetName}`,
+    html: `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#111827;">${lines.map((l) => esc(l) || '&nbsp;').join('<br/>')}</div>`,
+    text: lines.join('\n'),
+  });
+}

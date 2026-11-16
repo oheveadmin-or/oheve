@@ -1,7 +1,8 @@
 import Stripe from 'stripe';
 import type { Request, Response } from 'express';
 import { pool } from '../config/database';
-import { syncPrestaSubscription } from '../prestataire-subscription';
+import { isPartnerPresta, NOT_PARTNER_MESSAGE, syncPrestaSubscription } from '../prestataire-subscription';
+import { traiterEvenementStripe } from '../demandes';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
 // Stripe signe avec un secret différent par destination : celle du compte
@@ -33,6 +34,11 @@ export class PaymentsController {
 
       if (!prestataire_id || !amount_cents || amount_cents < 50) {
         return res.status(400).json({ success: false, message: 'prestataire_id et amount_cents (≥ 50 centimes) requis' });
+      }
+
+      // Paiement direct = réservé aux prestataires PARTENAIRES (abonnés).
+      if (!(await isPartnerPresta(parseInt(String(prestataire_id), 10)))) {
+        return res.status(403).json({ success: false, code: 'NOT_PARTNER', message: NOT_PARTNER_MESSAGE });
       }
 
       // Récupérer le compte Stripe Connect du prestataire
@@ -246,6 +252,15 @@ export class PaymentsController {
       }
     }
     if (!event) return res.status(400).json({ error: `Webhook error: ${lastErr}` });
+
+    // Demandes aux prestataires : déblocage payé / abonnement pris via Checkout.
+    // Une erreur → 500 : Stripe renverra l'événement (le traitement est idempotent).
+    try {
+      if (await traiterEvenementStripe(event)) return res.json({ received: true });
+    } catch (err: any) {
+      console.error('Webhook demandes:', err.message);
+      return res.status(500).json({ error: 'Traitement de l\'événement impossible' });
+    }
 
     if (event.type === 'payment_intent.succeeded') {
       const pi = event.data.object;

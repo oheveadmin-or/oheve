@@ -14,6 +14,7 @@ initSentry();
 import { adminRoutes } from './admin';
 import { calendarRoutes } from './calendar';
 import { communityRoutes } from './community';
+import { demandePrestataireRoutes, demandesRoutes, startRelancesScheduler } from './demandes';
 import { startReminderScheduler } from './calendar/reminder';
 import { connexionInscriptionRoutes } from './connexion-inscription';
 import { guestsRoutes } from './guests';
@@ -130,7 +131,9 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', connexionInscriptionRoutes);
 app.use('/api/public-sites', publicSitesRoutes);
 app.use('/api/wedding-sites', weddingSitesRoutes);
+app.use('/api/prestataires', demandePrestataireRoutes);
 app.use('/api/prestataires', prestatairesRoutes);
+app.use('/api/demandes', demandesRoutes);
 app.use('/api/conversations', messagingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
@@ -192,6 +195,7 @@ process.on('SIGINT', shutdown);
 runMigrations()
   .then(() => {
     startReminderScheduler();
+    startRelancesScheduler();
     // Recompression des images uploadées avant l'ajout de l'optimisation à
     // l'upload — en tâche de fond, sans bloquer le service.
     optimizeExistingUploads().catch(err => {
