@@ -230,7 +230,11 @@ export async function getPriceId(): Promise<string> {
 // ── Client Stripe du user (créé/mémorisé) ──────────────────────────────────
 export async function ensureCustomer(userId: number): Promise<string> {
   const u = (await pool.query(
-    `SELECT stripe_customer_id, email, nom, prenom FROM users WHERE id=$1`, [userId]
+    // Établissement d'un groupe : e-mail technique → reçus Stripe envoyés au compte principal.
+    `SELECT u.stripe_customer_id, u.nom, u.prenom,
+            CASE WHEN u.email ILIKE '%@identifiant.oheve' AND ow.email IS NOT NULL THEN ow.email ELSE u.email END AS email
+       FROM users u LEFT JOIN users ow ON ow.id = u.presta_owner_id
+      WHERE u.id=$1`, [userId]
   )).rows[0];
   if (!u) throw new Error('Utilisateur introuvable');
   if (u.stripe_customer_id) return u.stripe_customer_id;

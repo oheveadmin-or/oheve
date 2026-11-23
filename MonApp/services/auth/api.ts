@@ -314,6 +314,23 @@ export const prestatairesApi = {
     });
   },
 
+  /** Plusieurs établissements sous un même compte : liste du groupe. */
+  listEstablishments: (accessToken: string) =>
+    get(`${API_ENDPOINTS.prestataires}/establishments`, accessToken),
+  /** Ajoute un établissement (nouvelle fiche rattachée au compte principal). */
+  createEstablishment: (accessToken: string, data: { business_name: string; category: string; location_city: string }) =>
+    request(`${API_ENDPOINTS.prestataires}/establishments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    }),
+  /** Session sur un autre établissement du groupe (bascule). */
+  establishmentSession: (accessToken: string, id: number) =>
+    request(`${API_ENDPOINTS.prestataires}/establishments/${id}/session`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }),
+
   /** Fiche déjà créée par l'équipe qui ressemble à ce que le prestataire saisit ? */
   claimCheck: (accessToken: string, data: { business_name: string; city: string; phone?: string }) =>
     request(`${API_ENDPOINTS.prestataires}/claim/check`, {

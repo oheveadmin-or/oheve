@@ -59,11 +59,13 @@ async function envoyer(demandeId: number, etape: '24h' | '72h'): Promise<boolean
               COALESCE(NULLIF(TRIM(c.prenom),''), 'Un client') AS client_prenom,
               COALESCE(NULLIF(TRIM(p.business_name),''), TRIM(u.prenom || ' ' || u.nom)) AS business_name,
               NULLIF(TRIM(u.prenom),'') AS presta_prenom,
-              COALESCE(${sqlVisibleEmail('u.email')}, ${hasImport ? `NULLIF(TRIM(api.contact_email),'')` : 'NULL'}) AS email
+              COALESCE(${sqlVisibleEmail('u.email')}, ${hasImport ? `NULLIF(TRIM(api.contact_email),'')` : 'NULL'},
+                       ${sqlVisibleEmail('ow.email')}) AS email
        FROM demandes d
        JOIN users u ON u.id=d.prestataire_id
        JOIN users c ON c.id=d.client_id
        LEFT JOIN prestataire_profiles p ON p.user_id=d.prestataire_id
+       LEFT JOIN users ow ON ow.id=u.presta_owner_id
        ${hasImport ? 'LEFT JOIN admin_presta_import api ON api.user_id=u.id' : ''}
        WHERE d.id=$1`,
       [demandeId],

@@ -307,10 +307,13 @@ async function chargerPersonnes(d: DemandeRow): Promise<Personnes> {
   const withImport = await hasImportTable();
   const presta = (await pool.query(
     `SELECT u.id, u.prenom, u.notifications_email,
-            COALESCE(${sqlVisibleEmail('u.email')}, ${withImport ? 'NULLIF(TRIM(api.contact_email), \'\')' : 'NULL'}) AS email,
+            COALESCE(${sqlVisibleEmail('u.email')}, ${withImport ? 'NULLIF(TRIM(api.contact_email), \'\')' : 'NULL'},
+                     ${sqlVisibleEmail('ow.email')}) AS email,
             COALESCE(NULLIF(TRIM(p.business_name), ''), TRIM(u.prenom || ' ' || u.nom)) AS business_name
      FROM users u
      LEFT JOIN prestataire_profiles p ON p.user_id = u.id
+     -- Établissement d'un groupe : il n'a pas d'e-mail réel → celui du compte principal.
+     LEFT JOIN users ow ON ow.id = u.presta_owner_id
      ${withImport ? 'LEFT JOIN admin_presta_import api ON api.user_id = u.id' : ''}
      WHERE u.id = $1`,
     [d.prestataire_id],

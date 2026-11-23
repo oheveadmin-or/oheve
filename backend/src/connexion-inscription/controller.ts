@@ -788,6 +788,14 @@ export class ConnexionInscriptionController {
       // dépendance circulaire au chargement des modules. Les abonnements Apple
       // se résilient uniquement depuis les Réglages iOS (message côté app).
       const { cancelStripeSubOnAccountDeletion } = await import('../prestataire-subscription');
+      // Compte principal d'un groupe : ses établissements sont supprimés avec lui
+      // (abonnements Stripe résiliés), sinon leurs fiches resteraient orphelines.
+      const { establishmentsOf } = await import('../prestataires/establishments');
+      for (const etabId of await establishmentsOf(userId).catch(() => [] as number[])) {
+        await cancelStripeSubOnAccountDeletion(etabId).catch((e) => console.error('résiliation établissement', etabId, e));
+        await repo.deleteAllRefreshTokens(etabId);
+        await repo.deleteAccount(etabId);
+      }
       await cancelStripeSubOnAccountDeletion(userId);
       await repo.deleteAllRefreshTokens(userId);
       await repo.deleteAccount(userId);

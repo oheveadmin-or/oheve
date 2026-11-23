@@ -133,11 +133,21 @@ iapRoutes.post('/verify', requireAuth, async (req: Request, res: Response) => {
   try {
     // Anti-doublon : un même achat Apple ne débloque qu'un seul compte Oheve.
     const claimed = await pool.query(
-      `SELECT id FROM users
-        WHERE (premium_apple_transaction_id = $1 OR presta_sub_id = $2) AND id <> $3
+      `SELECT u.id, p.business_name,
+              (COALESCE(u.presta_owner_id, u.id) = (SELECT COALESCE(presta_owner_id, id) FROM users WHERE id = $3)) AS same_group
+         FROM users u LEFT JOIN prestataire_profiles p ON p.user_id = u.id
+        WHERE (u.premium_apple_transaction_id = $1 OR u.presta_sub_id = $2) AND u.id <> $3
         LIMIT 1`,
       [originalTxId, `apple:${originalTxId}`, userId]
     );
+    if (claimed.rows[0]?.same_group) {
+      // Plusieurs établissements, un seul identifiant Apple : Apple ne permet
+      // qu'un abonnement actif par identifiant → il couvre déjà l'autre fiche.
+      return res.status(409).json({
+        success: false,
+        message: `Votre abonnement Apple est déjà rattaché à votre établissement « ${claimed.rows[0].business_name ?? 'principal'} ». Un identifiant Apple ne peut porter qu'un seul abonnement : contactez support@ohevewedding.com pour abonner vos autres établissements.`,
+      });
+    }
     if (claimed.rows[0]) {
       return res.status(409).json({
         success: false,

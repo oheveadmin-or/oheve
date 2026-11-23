@@ -25,6 +25,7 @@ import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { VideoThumbnail } from '@/components/video-thumbnail';
 import { ErrorBanner } from '@/components/ui/error-banner';
+import { EstablishmentSwitcher } from '@/components/prestataire/establishment-switcher';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { isTooLong, TOO_LONG_MESSAGE, VIDEO_PICK_OPTIONS } from '@/lib/video-pick';
@@ -132,6 +133,8 @@ function PrestataireInstaProfile() {
   const [avatarBroken, setAvatarBroken] = useState<string | null>(null);
   const [msgCount, setMsgCount] = useState(0);
   const [settingsModal, setSettingsModal] = useState(false);
+  // Plusieurs établissements sous un même compte (groupe hôtelier…).
+  const [etabModal, setEtabModal] = useState(false);
 
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -298,7 +301,11 @@ function PrestataireInstaProfile() {
     <View style={{ flex: 1, backgroundColor: '#fff', paddingTop: insets.top }}>
       {/* Header bar */}
       <View style={instaStyles.headerBar}>
-        <ThemedText style={instaStyles.headerName} numberOfLines={1}>{businessName}</ThemedText>
+        {/* Comme le changement de compte Instagram : appui = mes établissements. */}
+        <Pressable style={instaStyles.headerNameBtn} onPress={() => setEtabModal(true)} accessibilityLabel="Mes établissements" hitSlop={6}>
+          <ThemedText style={instaStyles.headerNameTxt} numberOfLines={1}>{businessName}</ThemedText>
+          <Ionicons name="chevron-down" size={16} color={C.textDark} />
+        </Pressable>
         <View style={instaStyles.headerRight}>
           <Pressable hitSlop={12} onPress={() => router.push('/(app)/(tabs)/messages' as never)}>
             <Ionicons name="chatbubble-outline" size={22} color={C.textDark} />
@@ -558,6 +565,8 @@ function PrestataireInstaProfile() {
         </KeyboardAvoidingView>
       </Modal>
 
+      <EstablishmentSwitcher visible={etabModal} onClose={() => setEtabModal(false)} />
+
       {/* Settings modal */}
       <Modal visible={settingsModal} transparent animationType="slide" onRequestClose={() => setSettingsModal(false)}>
         <Pressable style={instaStyles.modalOverlay} onPress={() => setSettingsModal(false)}>
@@ -566,6 +575,7 @@ function PrestataireInstaProfile() {
             <ThemedText style={instaStyles.modalTitle}>Paramètres</ThemedText>
 
             {[
+              { icon: 'business-outline', label: 'Mes établissements', route: null },
               { icon: 'person-outline', label: 'Informations personnelles', route: '/(app)/personal-info' },
               { icon: 'star-outline', label: 'Mon abonnement Oheve', route: '/(app)/prestataire/manage-subscription' },
               { icon: 'shield-outline', label: 'Sécurité & mot de passe', route: '/(app)/security' },
@@ -578,7 +588,7 @@ function PrestataireInstaProfile() {
               <Pressable
                 key={item.label}
                 style={instaStyles.modalItem}
-                onPress={() => { setSettingsModal(false); if (item.route) router.push(item.route as never); }}
+                onPress={() => { setSettingsModal(false); if (item.route) router.push(item.route as never); else setTimeout(() => setEtabModal(true), 400); /* iOS : une modale à la fois */ }}
               >
                 <Ionicons name={item.icon as 'home'} size={20} color={C.moka} />
                 <ThemedText style={instaStyles.modalItemTxt}>{item.label}</ThemedText>
@@ -792,6 +802,8 @@ const instaStyles = StyleSheet.create({
     borderBottomWidth: 0.5, borderBottomColor: C.border,
   },
   headerName: { flex: 1, marginRight: 12, fontSize: 18, fontWeight: '800', color: C.textDark },
+  headerNameBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 12, minWidth: 0 },
+  headerNameTxt: { flexShrink: 1, fontSize: 18, fontWeight: '800', color: C.textDark },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   msgBadge: {
     position: 'absolute', top: -4, right: -4,

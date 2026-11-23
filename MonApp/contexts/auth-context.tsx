@@ -108,6 +108,11 @@ interface AuthContextValue {
   openAsAdmin: (prestaUser: AuthUser) => Promise<void>;
   /** Quitte le compte prestataire ouvert par l'admin et restaure la session admin. */
   returnToAdmin: () => Promise<void>;
+  /**
+   * Plusieurs établissements sous un même compte : bascule vers un autre
+   * établissement du groupe (session fournie par /prestataires/establishments/:id/session).
+   */
+  switchEstablishment: (session: AuthUser) => Promise<void>;
   updateUser: (updates: Partial<AuthUser>) => Promise<void>;
   refreshAccessToken: () => Promise<string | null>;
   /** Rafraîchit le statut d'abonnement prestataire depuis le serveur. */
@@ -349,6 +354,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.replace('/(app)/admin' as never);
   }, [user]);
 
+  const switchEstablishment = useCallback(async (session: AuthUser) => {
+    const current = userRef.current ?? user;
+    if (!current) return;
+    // Admin entré dans le compte : on garde son retour vers l'admin.
+    const normalized = normalizeUser({ ...session, adminReturn: current.adminReturn });
+    // La session de l'établissement quitté n'a plus d'usage sur ce téléphone.
+    if (current.refreshToken && current.refreshToken !== session.refreshToken) {
+      fetch(API_ENDPOINTS.logout, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current.accessToken}` },
+        body: JSON.stringify({ refreshToken: current.refreshToken, allDevices: false }),
+      }).catch(() => {});
+    }
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    userRef.current = normalized;
+    lastRefreshRef.current = Date.now();
+    setUser(normalized);
+    router.replace('/(app)/(tabs)' as never);
+  }, [user]);
+
   const signOut = useCallback(async (allDevices = false) => {
     // Compte prestataire ouvert par l'admin : « Se déconnecter » ramène à l'admin.
     if (user?.adminReturn) { await returnToAdmin(); return; }
@@ -389,7 +414,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, openAsAdmin, returnToAdmin, updateUser, refreshAccessToken, refreshPrestaSub, onboardingComplete }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, openAsAdmin, returnToAdmin, switchEstablishment, updateUser, refreshAccessToken, refreshPrestaSub, onboardingComplete }}>
       {children}
     </AuthContext.Provider>
   );

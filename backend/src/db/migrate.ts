@@ -5,6 +5,7 @@ import { ensureDemandesSchema } from '../demandes/schema';
 import { pool } from '../config/database';
 import { ensureProspectSchema } from '../admin/importProspects';
 import { CREATE_PRESTATAIRE_DOCUMENTS } from '../prestataires/documents';
+import { ensureEstablishmentsSchema } from '../prestataires/establishments';
 
 // ── users ────────────────────────────────────────────────────────────────────
 const CREATE_USERS = `
@@ -619,6 +620,9 @@ export async function runMigrations(): Promise<void> {
 
     // ── Demandes aux prestataires (4 offertes puis abonnement / déblocage) ─────
     await ensureDemandesSchema(pool).catch((err) => console.error('❌ Demandes:', (err as Error).message));
+
+    // ── Plusieurs établissements sous un même compte prestataire ──────────────
+    await ensureEstablishmentsSchema().catch((err) => console.error('❌ Établissements:', (err as Error).message));
 
     // ── Filet de sécurité RLS : TOUTE table du schéma public doit avoir le RLS
     // activé. Le backend (rôle postgres, bypass RLS) n'est pas impacté ; sans

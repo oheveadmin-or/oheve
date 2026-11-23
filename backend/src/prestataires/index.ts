@@ -8,6 +8,7 @@ import { optimizeUploadedImage } from '../utils/image-optim';
 import { persistUploadedFile } from '../utils/persistent-uploads';
 import { PrestatairesController } from './controller';
 import { claimRoutes } from './claim';
+import { establishmentRoutes } from './establishments';
 import { myDocumentRoutes, userDocumentRoutes } from './documents';
 import { PhotosController, rejectDuplicatePhoto } from './photos.controller';
 import { persistOrDeferVideo } from './video-background';
@@ -47,6 +48,8 @@ const upload = multer({
 
 // Fiche créée par l'équipe retrouvée à l'inscription (avant /:userId).
 prestatairesRoutes.use('/claim', claimRoutes);
+// Plusieurs établissements sous un même compte (avant /:userId).
+prestatairesRoutes.use('/establishments', establishmentRoutes);
 
 // ── Profil ────────────────────────────────────────────────────────────────────
 prestatairesRoutes.get('/', optionalAuth, ctrl.list.bind(ctrl));
