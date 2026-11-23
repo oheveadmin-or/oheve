@@ -141,8 +141,8 @@ export default function PrestataireSetup() {
           { asCover: 'true', inFeed: String(form.cover_in_feed ?? false) },
         ).catch(() => {});
       }
-      // Dernière étape de l'inscription : l'abonnement.
-      router.replace('/(app)/prestataire/subscribe');
+      // Étape suivante : « Avez-vous plusieurs établissements ? », puis l'abonnement.
+      router.replace('/(app)/prestataire/establishments-setup' as never);
     } catch {
       Alert.alert('Erreur', 'Une erreur est survenue');
     } finally {
@@ -172,7 +172,7 @@ export default function PrestataireSetup() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
-        <ThemedText style={styles.stepBadge}>Étape 1 sur 2</ThemedText>
+        <ThemedText style={styles.stepBadge}>Étape 1 sur 3</ThemedText>
         <ThemedText style={styles.title}>Votre profil prestataire</ThemedText>
         <ThemedText style={styles.sub}>Ces informations seront visibles par vos futurs clients</ThemedText>
       </View>
@@ -319,7 +319,7 @@ export default function PrestataireSetup() {
           )}
         </Pressable>
         <ThemedText style={styles.nextStepHint}>
-          Étape suivante : activation de votre espace ({trialLabel(offer)})
+          Étapes suivantes : vos autres établissements (si vous en avez), puis activation de votre espace ({trialLabel(offer)})
         </ThemedText>
       </ScrollView>
     </KeyboardAvoidingView>

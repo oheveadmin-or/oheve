@@ -10,14 +10,15 @@ import { Image } from 'expo-image';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable,
-  ScrollView, StyleSheet, TextInput, View,
+  ScrollView, StyleSheet, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddEstablishmentForm } from '@/components/prestataire/add-establishment-form';
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
 import { isPrestaSubActive, useAuth, type AuthUser } from '@/contexts/auth-context';
-import { categoryLabel, PRESTA_CATEGORIES } from '@/lib/presta-categories';
+import { categoryLabel } from '@/lib/presta-categories';
 import { prestatairesApi } from '@/services/auth/api';
 
 export type Establishment = {
@@ -42,8 +43,6 @@ export function EstablishmentSwitcher({ visible, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ business_name: '', category: '', location_city: '' });
-  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!user?.accessToken) return;
@@ -70,26 +69,6 @@ export function EstablishmentSwitcher({ visible, onClose }: Props) {
     if (!res.success || !res.data) { Alert.alert('Changement impossible', res.message ?? 'Réessayez.'); return; }
     onClose();
     await switchEstablishment(res.data as AuthUser);
-  };
-
-  const canSave = form.business_name.trim() && form.category && form.location_city.trim();
-
-  const create = async () => {
-    if (!user?.accessToken || !canSave || saving) return;
-    setSaving(true);
-    const res = await prestatairesApi.createEstablishment(user.accessToken, {
-      business_name: form.business_name.trim(),
-      category: form.category,
-      location_city: form.location_city.trim(),
-    });
-    setSaving(false);
-    if (!res.success || !res.data) { Alert.alert('Établissement non ajouté', res.message ?? 'Réessayez.'); return; }
-    const newId = (res.data as { id: number }).id;
-    setForm({ business_name: '', category: '', location_city: '' });
-    setAdding(false);
-    await load();
-    // On ouvre directement la nouvelle fiche pour la compléter (photos, description…).
-    goTo(newId);
   };
 
   return (
@@ -176,39 +155,19 @@ export function EstablishmentSwitcher({ visible, onClose }: Props) {
                   Une nouvelle fiche, visible dans l&apos;annuaire, que vous gérez depuis ce même compte. Vous pourrez ensuite ajouter photos, description et tarifs.
                 </ThemedText>
 
-                <ThemedText style={styles.label}>Nom de l&apos;établissement</ThemedText>
-                <TextInput
-                  style={styles.input}
-                  value={form.business_name}
-                  onChangeText={(t) => setForm((f) => ({ ...f, business_name: t }))}
-                  placeholder="Ex. Hôtel Les Jardins — Nice"
-                  placeholderTextColor={C.textLight}
-                  maxLength={200}
-                />
-                <ThemedText style={styles.label}>Ville</ThemedText>
-                <TextInput
-                  style={styles.input}
-                  value={form.location_city}
-                  onChangeText={(t) => setForm((f) => ({ ...f, location_city: t }))}
-                  placeholder="Ex. Nice"
-                  placeholderTextColor={C.textLight}
-                  maxLength={120}
-                />
-                <ThemedText style={styles.label}>Catégorie</ThemedText>
-                <View style={styles.cats}>
-                  {PRESTA_CATEGORIES.map((c) => {
-                    const on = form.category === c.key;
-                    return (
-                      <Pressable key={c.key} style={[styles.cat, on && styles.catOn]} onPress={() => setForm((f) => ({ ...f, category: c.key }))}>
-                        <ThemedText style={[styles.catTxt, on && styles.catTxtOn]} numberOfLines={1}>{c.emoji} {c.label}</ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                <Pressable style={[styles.saveBtn, (!canSave || saving) && { opacity: 0.5 }]} onPress={create} disabled={!canSave || saving}>
-                  {saving ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.saveTxt}>Créer et ouvrir cette fiche</ThemedText>}
-                </Pressable>
+                {user?.accessToken ? (
+                  <AddEstablishmentForm
+                    accessToken={user.accessToken}
+                    defaultCategory={items.find((i) => i.is_current)?.category ?? ''}
+                    submitLabel="Créer et ouvrir cette fiche"
+                    onCreated={async ({ id }) => {
+                      setAdding(false);
+                      await load();
+                      // On ouvre directement la nouvelle fiche pour la compléter (photos, description…).
+                      goTo(id);
+                    }}
+                  />
+                ) : null}
               </ScrollView>
             )}
           </Pressable>
@@ -241,13 +200,4 @@ const styles = StyleSheet.create({
   addTxt: { fontSize: 15, fontWeight: '700', color: C.saugeDark },
   back: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 8 },
   backTxt: { fontSize: 14, fontWeight: '600', color: C.saugeDark },
-  label: { fontSize: 13, fontWeight: '700', color: C.textDark, marginTop: 10, marginBottom: 6 },
-  input: { borderRadius: RADIUS.sm, backgroundColor: C.cardAlt, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.textDark },
-  cats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  cat: { maxWidth: '100%', paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.pill, backgroundColor: C.cardAlt },
-  catOn: { backgroundColor: C.saugeDark },
-  catTxt: { fontSize: 13, color: C.textDark },
-  catTxtOn: { color: '#fff', fontWeight: '700' },
-  saveBtn: { marginTop: 20, marginBottom: 6, paddingVertical: 15, borderRadius: RADIUS.pill, backgroundColor: C.saugeDark, alignItems: 'center' },
-  saveTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
