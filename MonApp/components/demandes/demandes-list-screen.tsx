@@ -74,7 +74,7 @@ export function DemandesListScreen({ detailPath }: { detailPath: string }) {
         {data?.stats && (
           <View style={styles.stat}>
             <ThemedText style={styles.statTxt}>
-              Vous avez reçu <ThemedText style={styles.bold}>{data.stats.total_recues} demande{data.stats.total_recues > 1 ? 's' : ''}</ThemedText> sur Ohevé.
+              Vous avez reçu <ThemedText style={styles.bold}>{data.stats.total_recues} demande{data.stats.total_recues > 1 ? 's' : ''}</ThemedText> sur Oheve.
             </ThemedText>
             {!data.stats.abonne && (
               <ThemedText style={styles.statSub}>

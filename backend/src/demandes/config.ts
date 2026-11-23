@@ -19,7 +19,7 @@ export const demandesConfig = {
   /** Anti-spam : nouvelles demandes max par client sur 24 h glissantes. */
   get maxNewPerClientPerDay() { return intEnv('DEMANDES_MAX_PER_CLIENT_24H', 5); },
 
-  get fromName() { return process.env.EMAIL_FROM_NAME?.trim() || 'Ohevé'; },
+  get fromName() { return process.env.EMAIL_FROM_NAME?.trim() || 'Oheve'; },
   get fromAddress() { return process.env.EMAIL_FROM_ADDRESS?.trim() || 'noreply@ohevewedding.com'; },
   get logoUrl() { return process.env.LOGO_URL?.trim() || ''; },
   /** Site public (pages /demande/:id, /prestataire/:id, /se-desabonner). */
@@ -27,7 +27,7 @@ export const demandesConfig = {
   /** URL publique de l'API (désinscription en un clic depuis le client mail). */
   get apiPublicUrl() { return trimSlash(process.env.API_PUBLIC_URL?.trim() || 'https://oheve-production.up.railway.app'); },
 
-  /** Fiche App Store de l'app Ohevé (lien « Télécharger l'application » des e-mails). */
+  /** Fiche App Store de l'app Oheve (lien « Télécharger l'application » des e-mails). */
   get appStoreUrl() { return process.env.APP_STORE_URL?.trim() || 'https://apps.apple.com/fr/app/oheve/id6785535857'; },
 
   /** Prix Stripe du déblocage à l'unité (paiement unique). */

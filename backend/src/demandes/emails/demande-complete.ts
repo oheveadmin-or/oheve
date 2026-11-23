@@ -19,16 +19,16 @@ export function renderDemandeComplete(ctx: PrestaEmailContext & {
   suite?: boolean;
 }): RenderedEmail {
   const subject = ctx.suite
-    ? `Nouveau message de ${ctx.clientPrenom} via Ohevé`
+    ? `Nouveau message de ${ctx.clientPrenom} via Oheve`
     : ctx.debloquee
-      ? `Demande débloquée : ${ctx.clientPrenom} vous attend sur Ohevé`
-      : `${ctx.clientPrenom} vous a envoyé une demande via Ohevé`;
+      ? `Demande débloquée : ${ctx.clientPrenom} vous attend sur Oheve`
+      : `${ctx.clientPrenom} vous a envoyé une demande via Oheve`;
 
   const intro = ctx.suite
     ? `<strong>${escapeHtml(ctx.clientPrenom)}</strong> vous a écrit un nouveau message à propos de votre fiche ${link(ctx.ficheNom, ctx.ficheUrl)}.`
     : ctx.debloquee
       ? `Merci, la demande de <strong>${escapeHtml(ctx.clientPrenom)}</strong> est débloquée. Voici son message complet et ses coordonnées.`
-      : `<strong>${escapeHtml(ctx.clientPrenom)}</strong> a trouvé votre fiche ${link(ctx.ficheNom, ctx.ficheUrl)} sur Ohevé et vous a envoyé une demande.`;
+      : `<strong>${escapeHtml(ctx.clientPrenom)}</strong> a trouvé votre fiche ${link(ctx.ficheNom, ctx.ficheUrl)} sur Oheve et vous a envoyé une demande.`;
 
   const coords: Array<[string, string]> = [];
   if (ctx.clientEmail) coords.push(['E-mail', link(ctx.clientEmail, `mailto:${ctx.clientEmail}`)]);
@@ -42,7 +42,7 @@ export function renderDemandeComplete(ctx: PrestaEmailContext & {
   ];
 
   const offerte = ctx.numeroGratuit
-    ? `<p style="margin:18px 0 0;font-size:12px;color:${COLORS.gris};text-align:center;">Demande offerte par Ohevé (${ctx.numeroGratuit}/${ctx.freeLimit})</p>`
+    ? `<p style="margin:18px 0 0;font-size:12px;color:${COLORS.gris};text-align:center;">Demande offerte par Oheve (${ctx.numeroGratuit}/${ctx.freeLimit})</p>`
     : '';
 
   const replyHint = ctx.clientEmail
@@ -51,12 +51,12 @@ export function renderDemandeComplete(ctx: PrestaEmailContext & {
 
   const html = layout({
     prenom: ctx.prestaPrenom,
-    preheader: `${ctx.clientPrenom} vous a écrit sur Ohevé`,
+    preheader: `${ctx.clientPrenom} vous a écrit sur Oheve`,
     bodyHtml: `
       <p style="margin:0 0 4px;">${intro}</p>
       ${quote(textToHtml(ctx.message))}
       ${detailsTable(details)}
-      ${button('Répondre sur Ohevé', ctx.demandeUrl)}
+      ${button('Répondre sur Oheve', ctx.demandeUrl)}
       ${replyHint}
       ${offerte}
       ${appBlock()}`,
@@ -68,7 +68,7 @@ export function renderDemandeComplete(ctx: PrestaEmailContext & {
     ? `${ctx.clientPrenom} vous a écrit un nouveau message à propos de votre fiche « ${ctx.ficheNom} ».`
     : ctx.debloquee
       ? `Merci, la demande de ${ctx.clientPrenom} est débloquée. Voici son message complet et ses coordonnées.`
-      : `${ctx.clientPrenom} a trouvé votre fiche « ${ctx.ficheNom} » sur Ohevé et vous a envoyé une demande.`;
+      : `${ctx.clientPrenom} a trouvé votre fiche « ${ctx.ficheNom} » sur Oheve et vous a envoyé une demande.`;
 
   const text = `Bonjour ${ctx.prestaPrenom},
 
@@ -80,7 +80,7 @@ Client : ${ctx.clientPrenom}
 Votre fiche : ${ctx.ficheNom} — ${ctx.ficheUrl}
 Date de la demande : ${formatDateFr(ctx.dateDemande)}${ctx.clientEmail ? `\nE-mail : ${ctx.clientEmail}` : ''}${ctx.clientPhone ? `\nTéléphone : ${ctx.clientPhone}` : ''}
 
-Répondre sur Ohevé : ${ctx.demandeUrl}${ctx.clientEmail ? `\nVous pouvez aussi répondre directement à cet e-mail.` : ''}${ctx.numeroGratuit ? `\n\nDemande offerte par Ohevé (${ctx.numeroGratuit}/${ctx.freeLimit})` : ''}
+Répondre sur Oheve : ${ctx.demandeUrl}${ctx.clientEmail ? `\nVous pouvez aussi répondre directement à cet e-mail.` : ''}${ctx.numeroGratuit ? `\n\nDemande offerte par Oheve (${ctx.numeroGratuit}/${ctx.freeLimit})` : ''}
 
 ${appText()}
 ${textFooter({ unsubscribeUrl: ctx.unsubscribeUrl, ...PRESTA_FOOTER })}`;

@@ -16,7 +16,7 @@ export function renderRelance(ctx: PrestaEmailContext & { etape: '24h' | '72h' }
   const corps = ctx.etape === '24h'
     ? `${ctx.clientPrenom} vous a envoyé une demande le ${date} depuis votre fiche « ${ctx.ficheNom} ». Elle n'a pas encore été lue.`
     : `La demande que ${ctx.clientPrenom} vous a envoyée le ${date} n'a toujours pas été lue. C'est notre dernier rappel pour cette demande : nous ne vous écrirons plus à son sujet.`;
-  const action = 'Activez votre abonnement ou débloquez cette demande pour la lire et répondre.';
+  const action = "Débloquez cette demande pour la lire et répondre, ou abonnez-vous dans l'application Oheve.";
 
   const html = layout({
     prenom: ctx.prestaPrenom,

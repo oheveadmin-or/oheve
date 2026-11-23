@@ -1,4 +1,4 @@
-/** Styles des pages « demande » — charte Ohevé (ivoire, sauge, olive, anthracite, Fraunces). */
+/** Styles des pages « demande » — charte Oheve (ivoire, sauge, olive, anthracite, Fraunces). */
 export const DEMANDES_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
 .dm-root { min-height: 100vh; background: #F6F2EA; color: #343630; font-family: 'Inter', system-ui, sans-serif;

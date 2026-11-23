@@ -66,7 +66,7 @@ export async function creerCheckout(opts: {
       line_items: [{ price: demandesConfig.stripePriceDeblocage, quantity: 1 }],
       client_reference_id: `demande:${d.id}`,
       metadata: meta,
-      payment_intent_data: { metadata: meta, description: `Déblocage de la demande n°${d.id} — Ohevé` },
+      payment_intent_data: { metadata: meta, description: `Déblocage de la demande n°${d.id} — Oheve` },
       success_url: success,
       cancel_url: cancel,
       locale: 'fr',

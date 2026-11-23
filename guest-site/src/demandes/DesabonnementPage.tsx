@@ -25,7 +25,7 @@ export default function DesabonnementPage() {
   return (
     <div className="dm-root">
       <style>{DEMANDES_CSS}</style>
-      <a className="dm-logo" href="/">Ohevé</a>
+      <a className="dm-logo" href="/">Oheve</a>
       <div className="dm-wrap">
         <div className="dm-card">
           <h1 className="dm-h1">Ne plus recevoir d'e-mails</h1>
@@ -34,7 +34,7 @@ export default function DesabonnementPage() {
           ) : (
             <>
               <p className="dm-sub" style={{ marginBottom: 16 }}>
-                Vous ne recevrez plus d'e-mails d'Ohevé au sujet des demandes. Vous pourrez toujours les consulter dans l'application.
+                Vous ne recevrez plus d'e-mails d'Oheve au sujet des demandes. Vous pourrez toujours les consulter dans l'application.
               </p>
               {etat === 'erreur' && <div className="dm-alert dm-alert-err" style={{ marginBottom: 12 }}>{message}</div>}
               <button className="dm-btn dm-btn-primary" disabled={!token || etat === 'envoi'} onClick={confirmer}>

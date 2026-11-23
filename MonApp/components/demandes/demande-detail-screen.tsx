@@ -111,7 +111,7 @@ export function DemandeDetailScreen() {
           <>
             <View style={styles.stat}>
               <ThemedText style={styles.statTxt}>
-                Vous avez reçu <ThemedText style={styles.bold}>{vue.total_demandes_recues} demande{vue.total_demandes_recues > 1 ? 's' : ''}</ThemedText> sur Ohevé.
+                Vous avez reçu <ThemedText style={styles.bold}>{vue.total_demandes_recues} demande{vue.total_demandes_recues > 1 ? 's' : ''}</ThemedText> sur Oheve.
               </ThemedText>
             </View>
             <View style={styles.card}>
@@ -153,7 +153,7 @@ export function DemandeDetailScreen() {
                     </Pressable>
                   ) : null}
                   {vue.statut === 'gratuite' && vue.numero_gratuit ? (
-                    <ThemedText style={[styles.muted, { fontSize: 12, marginTop: 8 }]}>Demande offerte par Ohevé ({vue.numero_gratuit}/{vue.free_limit})</ThemedText>
+                    <ThemedText style={[styles.muted, { fontSize: 12, marginTop: 8 }]}>Demande offerte par Oheve ({vue.numero_gratuit}/{vue.free_limit})</ThemedText>
                   ) : null}
                 </>
               )}

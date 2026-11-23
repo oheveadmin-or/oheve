@@ -100,7 +100,7 @@ function viewer(req: Request, res: Response, next: NextFunction) {
   }
   res.status(401).json({
     success: false,
-    message: link ? 'Ce lien a expiré. Connectez-vous à Ohevé pour voir la demande.' : 'Connectez-vous pour voir cette demande.',
+    message: link ? 'Ce lien a expiré. Connectez-vous à Oheve pour voir la demande.' : 'Connectez-vous pour voir cette demande.',
   });
 }
 
@@ -118,7 +118,7 @@ demandesRoutes.post('/unsubscribe', async (req: Request, res: Response) => {
   if (!userId) return res.status(400).json({ success: false, message: 'Lien de désinscription invalide.' });
   try {
     await desactiverEmails(userId);
-    return res.json({ success: true, message: 'C\'est noté : vous ne recevrez plus d\'e-mails de demandes d\'Ohevé.' });
+    return res.json({ success: true, message: 'C\'est noté : vous ne recevrez plus d\'e-mails de demandes d\'Oheve.' });
   } catch (err) {
     return fail(res, err);
   }
@@ -188,9 +188,14 @@ demandesRoutes.get('/:id/similaires', viewer, async (_req: Request, res: Respons
 });
 
 demandesRoutes.post('/:id/checkout', viewer, async (req: Request, res: Response) => {
+  // Seul le déblocage à l'unité se paie sur le web : l'abonnement se prend
+  // uniquement dans l'application (achat intégré App Store / Play).
   const type = req.body?.type;
-  if (type !== 'deblocage' && type !== 'abonnement') {
-    return res.status(400).json({ success: false, message: 'type doit valoir « deblocage » ou « abonnement ».' });
+  if (type === 'abonnement') {
+    return res.status(400).json({ success: false, message: "L'abonnement se prend dans l'application Oheve." });
+  }
+  if (type !== 'deblocage') {
+    return res.status(400).json({ success: false, message: 'type doit valoir « deblocage ».' });
   }
   try {
     const r = await creerCheckout({ demandeId: res.locals.demandeId, prestataireId: res.locals.userId, type });

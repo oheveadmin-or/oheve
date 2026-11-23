@@ -49,7 +49,7 @@ export function unsubscribeLinks(userId: number): { page: string; oneClick: stri
   };
 }
 
-/** Envoi d'un e-mail « au nom d'Ohevé ». Ne lève jamais : renvoie le résultat. */
+/** Envoi d'un e-mail « au nom d'Oheve ». Ne lève jamais : renvoie le résultat. */
 export async function sendDemandeEmail(mail: OutgoingEmail): Promise<MailResult> {
   if (!mail.to || isPlaceholderEmail(mail.to)) return { ok: false, error: 'Aucune adresse e-mail réelle' };
   const { oneClick } = unsubscribeLinks(mail.recipientUserId);

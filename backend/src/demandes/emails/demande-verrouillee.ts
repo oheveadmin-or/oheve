@@ -10,12 +10,12 @@ export function renderDemandeVerrouillee(ctx: PrestaEmailContext & {
   apercu: string;
   freeLimit: number;
 }): RenderedEmail {
-  const subject = `Nouvelle demande de ${ctx.clientPrenom} sur Ohevé`;
-  const limite = `Vous avez utilisé vos ${ctx.freeLimit} demandes offertes. Activez votre abonnement pour lire cette demande et contacter ${ctx.clientPrenom}.`;
+  const subject = `Nouvelle demande de ${ctx.clientPrenom} sur Oheve`;
+  const limite = `Vous avez utilisé vos ${ctx.freeLimit} demandes offertes. Débloquez cette demande pour la lire et contacter ${ctx.clientPrenom}, ou abonnez-vous dans l'application Oheve pour recevoir toutes vos demandes.`;
 
   const html = layout({
     prenom: ctx.prestaPrenom,
-    preheader: `${ctx.clientPrenom} vous a envoyé une demande sur Ohevé`,
+    preheader: `${ctx.clientPrenom} vous a envoyé une demande sur Oheve`,
     bodyHtml: `
       <p style="margin:0 0 4px;"><strong>${escapeHtml(ctx.clientPrenom)}</strong> vous a envoyé une nouvelle demande depuis votre fiche ${link(ctx.ficheNom, ctx.ficheUrl)}.</p>
       ${quote(`${escapeHtml(ctx.apercu)}`)}

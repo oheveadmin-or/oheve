@@ -394,7 +394,7 @@ export async function notifierMessage(demandeId: number, message: MessageRow, no
       const ouverte = estOuverte(d.statut);
       await push(d.prestataire_id,
         nouvelle ? `Nouvelle demande de ${p.client.prenom}` : `Nouveau message de ${p.client.prenom}`,
-        ouverte ? extrait(message.content, 100) : 'Ouvrez Ohevé pour voir la demande.',
+        ouverte ? extrait(message.content, 100) : 'Ouvrez Oheve pour voir la demande.',
         { type: 'demande', demandeId: d.id });
 
       if (!p.presta.notifications_email) return;
@@ -454,7 +454,7 @@ export async function notifierMessage(demandeId: number, message: MessageRow, no
         unsubscribeUrl: l.unsubscribeUrl,
       }),
       to: p.client.email,
-      // Le client répond sur Ohevé : pas d'adresse du prestataire en Reply-To.
+      // Le client répond sur Oheve : pas d'adresse du prestataire en Reply-To.
       replyTo: null,
       recipientUserId: d.client_id,
     });

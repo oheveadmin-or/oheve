@@ -69,7 +69,7 @@ export default function DemandePage() {
   return (
     <div className="dm-root">
       <style>{DEMANDES_CSS}</style>
-      <a className="dm-logo" href="/">Ohevé</a>
+      <a className="dm-logo" href="/">Oheve</a>
       <div className="dm-wrap">
         {!vue && !erreur && <div className="dm-card"><p className="dm-sub">Chargement de la demande…</p></div>}
         {erreur && !vue && <ErreurCard status={erreur.status} message={erreur.message} />}
@@ -81,7 +81,7 @@ export default function DemandePage() {
         )}
         {vue?.role === 'prestataire' && <VuePrestataire vue={vue} token={token} recharger={charger} />}
         {vue?.role === 'client' && <VueDuClient vue={vue} token={token} recharger={charger} />}
-        <p className="dm-foot">Ohevé · <a href="/">ohevewedding.com</a></p>
+        <p className="dm-foot">Oheve · <a href="/">ohevewedding.com</a></p>
       </div>
     </div>
   );
@@ -92,7 +92,7 @@ function ErreurCard({ status, message }: { status: number; message: string }) {
     <div className="dm-card">
       <h1 className="dm-h1">{status === 401 ? 'Lien expiré' : 'Demande indisponible'}</h1>
       <p className="dm-sub" style={{ marginBottom: 14 }}>{message}</p>
-      <p className="dm-sub">Ouvrez l'application Ohevé et connectez-vous : vos demandes s'y trouvent dans « Mes demandes ».</p>
+      <p className="dm-sub">Ouvrez l'application Oheve et connectez-vous : vos demandes s'y trouvent dans « Mes demandes ».</p>
     </div>
   );
 }
@@ -100,15 +100,17 @@ function ErreurCard({ status, message }: { status: number; message: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function VuePrestataire({ vue, token, recharger }: { vue: VuePresta; token: string | null; recharger: () => Promise<unknown> }) {
-  const [paiementEnCours, setPaiementEnCours] = useState<null | 'abonnement' | 'deblocage'>(null);
+  const [paiementEnCours, setPaiementEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  async function payer(type: 'abonnement' | 'deblocage') {
+  // Sur le web : déblocage à l'unité seulement. L'abonnement se prend
+  // uniquement dans l'application (achat intégré App Store / Play).
+  async function debloquer() {
     setErreur(null);
-    setPaiementEnCours(type);
-    const r = await api<{ url: string }>(`/api/demandes/${vue.id}/checkout`, { method: 'POST', body: { type }, linkToken: token });
+    setPaiementEnCours(true);
+    const r = await api<{ url: string }>(`/api/demandes/${vue.id}/checkout`, { method: 'POST', body: { type: 'deblocage' }, linkToken: token });
     if (r.ok && r.data?.url) { window.location.href = r.data.url; return; }
-    setPaiementEnCours(null);
+    setPaiementEnCours(false);
     if (r.status === 409) { await recharger(); }
     setErreur(r.message ?? 'Le paiement n\'a pas pu démarrer. Réessayez.');
   }
@@ -116,7 +118,7 @@ function VuePrestataire({ vue, token, recharger }: { vue: VuePresta; token: stri
   return (
     <>
       <div className="dm-stat">
-        Vous avez reçu <strong>{vue.total_demandes_recues} demande{vue.total_demandes_recues > 1 ? 's' : ''}</strong> sur Ohevé
+        Vous avez reçu <strong>{vue.total_demandes_recues} demande{vue.total_demandes_recues > 1 ? 's' : ''}</strong> sur Oheve
         {vue.fiche.business_name ? <> pour <strong>{vue.fiche.business_name}</strong></> : null}.
       </div>
 
@@ -135,30 +137,29 @@ function VuePrestataire({ vue, token, recharger }: { vue: VuePresta; token: stri
               <div className="dm-row"><span>E-mail</span><span className="dm-masked">••••••••@••••.••</span></div>
               <div className="dm-row"><span>Téléphone</span><span className="dm-masked">•• •• •• •• ••</span></div>
             </div>
-            <p className="dm-lockline">🔒 Vous avez utilisé vos {vue.free_limit} demandes offertes. Activez votre abonnement pour lire cette demande et contacter {vue.client.prenom}.</p>
+            <p className="dm-lockline">🔒 Vous avez utilisé vos {vue.free_limit} demandes offertes. Débloquez cette demande pour la lire et contacter {vue.client.prenom}, ou abonnez-vous dans l'application Oheve pour recevoir toutes vos demandes.</p>
             {erreur && <div className="dm-alert dm-alert-err" style={{ marginTop: 12 }}>{erreur}</div>}
-            <div className="dm-btns">
-              <button className="dm-btn dm-btn-primary" disabled={!!paiementEnCours} onClick={() => payer('abonnement')}>
-                {paiementEnCours === 'abonnement' ? 'Redirection vers le paiement…' : 'S\'abonner'}
-              </button>
-              {vue.deblocage_unite_disponible && (
-                <button className="dm-btn dm-btn-ghost" disabled={!!paiementEnCours} onClick={() => payer('deblocage')}>
-                  {paiementEnCours === 'deblocage' ? 'Redirection vers le paiement…' : 'Débloquer cette demande'}
+            {vue.deblocage_unite_disponible && (
+              <div className="dm-btns">
+                <button className="dm-btn dm-btn-primary" disabled={paiementEnCours} onClick={debloquer}>
+                  {paiementEnCours ? 'Redirection vers le paiement…' : 'Débloquer cette demande'}
                 </button>
-              )}
-            </div>
-            <p className="dm-sub" style={{ marginTop: 10, fontSize: 12, textAlign: 'center' }}>Paiement sécurisé par Stripe.</p>
+              </div>
+            )}
+            {vue.deblocage_unite_disponible && (
+              <p className="dm-sub" style={{ marginTop: 10, fontSize: 12, textAlign: 'center' }}>Paiement sécurisé par Stripe.</p>
+            )}
           </>
         ) : (
           <>
             <div style={{ marginTop: 14 }}>
               {vue.client.email
                 ? <div className="dm-row"><span>E-mail</span><a href={`mailto:${vue.client.email}`}>{vue.client.email}</a></div>
-                : <div className="dm-row"><span>E-mail</span><span className="dm-sub">Non transmis — répondez sur Ohevé</span></div>}
+                : <div className="dm-row"><span>E-mail</span><span className="dm-sub">Non transmis — répondez sur Oheve</span></div>}
               {vue.client.phone && <div className="dm-row"><span>Téléphone</span><a href={`tel:${vue.client.phone.replace(/\s+/g, '')}`}>{vue.client.phone}</a></div>}
             </div>
             {vue.statut === 'gratuite' && vue.numero_gratuit && (
-              <p className="dm-sub" style={{ marginTop: 8, fontSize: 12 }}>Demande offerte par Ohevé ({vue.numero_gratuit}/{vue.free_limit})</p>
+              <p className="dm-sub" style={{ marginTop: 8, fontSize: 12 }}>Demande offerte par Oheve ({vue.numero_gratuit}/{vue.free_limit})</p>
             )}
           </>
         )}
@@ -175,14 +176,14 @@ function VuePrestataire({ vue, token, recharger }: { vue: VuePresta; token: stri
 
 const APP_STORE_URL = 'https://apps.apple.com/fr/app/oheve/id6785535857';
 
-/** Encadré « application Ohevé » : le prestataire est invité à passer dans l'app. */
+/** Encadré « application Oheve » : le prestataire est invité à passer dans l'app. */
 function AppBanner({ demandeId }: { demandeId: number }) {
   return (
     <div className="dm-card dm-app">
-      <p className="dm-app-title">Gérez vos demandes dans l'application Ohevé</p>
+      <p className="dm-app-title">Gérez vos demandes dans l'application Oheve</p>
       <p className="dm-sub">Toutes vos demandes au même endroit, une notification à chaque nouveau message, et votre fiche à jour en quelques secondes.</p>
       <div className="dm-btns">
-        <a className="dm-btn dm-btn-dark" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Télécharger l'app Ohevé</a>
+        <a className="dm-btn dm-btn-dark" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Télécharger l'app Oheve</a>
         <a className="dm-app-open" href={`monapp://prestataire/demandes/${demandeId}`}>J'ai déjà l'application : l'ouvrir</a>
       </div>
       <p className="dm-sub" style={{ fontSize: 12, marginTop: 8 }}>Disponible sur l'App Store (iPhone)</p>

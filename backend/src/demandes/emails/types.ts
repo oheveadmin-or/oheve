@@ -11,6 +11,6 @@ export interface PrestaEmailContext {
 }
 
 export const PRESTA_FOOTER = {
-  footerReason: 'Vous recevez ce mail car votre activité est référencée sur Ohevé.',
+  footerReason: 'Vous recevez ce mail car votre activité est référencée sur Oheve.',
   unsubscribeLabel: 'Ne plus recevoir de demandes',
 };

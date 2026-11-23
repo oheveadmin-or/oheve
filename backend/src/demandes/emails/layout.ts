@@ -1,7 +1,7 @@
 import { demandesConfig } from '../config';
 import { escapeHtml } from '../sanitize';
 
-/** Charte Ohevé : ivoire / sauge / olive / anthracite. */
+/** Charte Oheve : ivoire / sauge / olive / anthracite. */
 export const COLORS = {
   ivoire: '#F6F2EA',
   carte: '#FFFFFF',
@@ -76,15 +76,15 @@ export function layout(opts: {
 }): string {
   const { logoUrl, siteUrl } = demandesConfig;
   const logo = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="Ohevé" width="120" style="display:block;margin:0 auto;max-width:120px;height:auto;border:0;"/>`
-    : `<span style="font-family:Georgia,'Times New Roman',serif;font-size:28px;letter-spacing:2px;color:${COLORS.olive};">Ohevé</span>`;
+    ? `<img src="${escapeHtml(logoUrl)}" alt="Oheve" width="120" style="display:block;margin:0 auto;max-width:120px;height:auto;border:0;"/>`
+    : `<span style="font-family:Georgia,'Times New Roman',serif;font-size:28px;letter-spacing:2px;color:${COLORS.olive};">Oheve</span>`;
   return `<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="color-scheme" content="light only"/>
-<title>Ohevé</title>
+<title>Oheve</title>
 <style>
   @media only screen and (max-width:600px) {
     .card { padding:24px 18px !important; }
@@ -106,7 +106,7 @@ export function layout(opts: {
           ${opts.bodyHtml}
         </div>
         <p style="margin:28px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:${COLORS.anthracite};">
-          L'équipe Ohevé<br/>
+          L'équipe Oheve<br/>
           ${link(siteUrl.replace(/^https?:\/\//, ''), siteUrl)}
         </p>
       </td></tr>
@@ -122,7 +122,7 @@ export function layout(opts: {
 }
 
 /**
- * Encadré « application Ohevé » des e-mails prestataire : le prestataire
+ * Encadré « application Oheve » des e-mails prestataire : le prestataire
  * retrouve toutes ses demandes et répond plus vite depuis l'app.
  */
 export function appBlock(): string {
@@ -131,13 +131,13 @@ export function appBlock(): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
          style="margin:26px 0 0;border:1px solid ${COLORS.filet};border-radius:12px;background:${COLORS.ivoire};">
     <tr><td align="center" style="padding:20px 18px;font-family:Arial,Helvetica,sans-serif;">
-      <p style="margin:0 0 6px;font-size:16px;font-weight:bold;color:${COLORS.anthracite};">Gérez vos demandes dans l'application Ohevé</p>
+      <p style="margin:0 0 6px;font-size:16px;font-weight:bold;color:${COLORS.anthracite};">Gérez vos demandes dans l'application Oheve</p>
       <p style="margin:0 0 14px;font-size:14px;line-height:1.5;color:${COLORS.gris};">Toutes vos demandes au même endroit, une notification à chaque nouveau message, et votre fiche à jour en quelques secondes.</p>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
         <tr><td align="center" bgcolor="${COLORS.anthracite}" style="border-radius:10px;">
           <a href="${escapeHtml(url)}" target="_blank"
              style="display:inline-block;padding:12px 26px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:10px;">
-            Télécharger l'app Ohevé
+            Télécharger l'app Oheve
           </a>
         </td></tr>
       </table>
@@ -147,13 +147,13 @@ export function appBlock(): string {
 }
 
 export function appText(): string {
-  return `Gérez vos demandes dans l'application Ohevé : ${demandesConfig.appStoreUrl}`;
+  return `Gérez vos demandes dans l'application Oheve : ${demandesConfig.appStoreUrl}`;
 }
 
 /** Version texte commune (signature + pied de page). */
 export function textFooter(opts: { footerReason: string; unsubscribeUrl: string; unsubscribeLabel: string }): string {
   return `
-L'équipe Ohevé
+L'équipe Oheve
 ${demandesConfig.siteUrl}
 
 --
