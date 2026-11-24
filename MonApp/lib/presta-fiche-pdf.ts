@@ -1,9 +1,10 @@
 /**
- * Export PDF de la fiche prestataire depuis son propre compte : une vraie
- * brochure (couverture, présentation, tout le portfolio, contact + QR code).
+ * Export PDF du profil prestataire depuis son propre compte : le profil tel
+ * qu'il apparaît dans l'app (bannière, photo, bio, coordonnées) + la grille
+ * complète du portfolio + page contact avec QR code.
  * Mise en page : presta-brochure-html.ts. Ici : on rassemble les données et on
  * intègre images, miniatures vidéo et polices en data URI (expo-print
- * n'attend pas toujours les ressources distantes), puis on partage le PDF.
+ * n'attend pas les ressources distantes), puis on partage le PDF.
  */
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -38,8 +39,10 @@ export type FicheProfile = {
 export type FichePhoto = { url: string; is_cover?: boolean; media_type?: 'image' | 'video'; caption?: string | null };
 
 const A4_PAGE = { width: 595, height: 842, margins: { left: 0, top: 0, right: 0, bottom: 0 } };
-/** Au-delà, le PDF devient lourd à générer et à envoyer par WhatsApp. */
-const MAX_MEDIA = 30;
+/** Au-delà, le PDF devient lourd à générer et à envoyer (≈ 300 Ko par photo). */
+const MAX_MEDIA = 60;
+/** iOS (WebKit) met en page à 1,25 × la largeur puis réduit ; Android compte 96 px / 72 pt. */
+const PRINT_ZOOM = Platform.OS === 'ios' ? 1.25 : Platform.OS === 'android' ? 96 / 72 : 1;
 const PUBLIC_PROFILE = 'https://ohevewedding.com/prestataire/';
 
 const clean = (s: unknown) => (typeof s === 'string' ? s.trim() : s == null ? '' : String(s).trim());
@@ -63,14 +66,32 @@ function blobToDataUri(blob: Blob): Promise<string> {
   });
 }
 
-/** Image distante → data URI (null si indisponible : elle est simplement omise). */
+let dlCounter = 0;
+/**
+ * Image distante → data URI (null si indisponible : elle est simplement omise).
+ * Téléchargée sur le disque puis relue en base64 : c'est le chemin qui marche
+ * sur iPhone (fetch + FileReader y renvoyait des images vides).
+ */
 async function remoteToDataUri(url: string): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    try {
+      const r = await fetch(url);
+      return r.ok ? await blobToDataUri(await r.blob()) : null;
+    } catch {
+      return null;
+    }
+  }
+  const ext = (url.split('?')[0].match(/\.(jpe?g|png|webp|gif|heic)$/i)?.[1] ?? 'jpg').toLowerCase();
+  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+  const dest = `${FileSystem.cacheDirectory}brochure-${Date.now()}-${dlCounter++}.${ext}`;
   try {
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    return await blobToDataUri(await r.blob());
+    const res = await FileSystem.downloadAsync(url, dest);
+    if (res.status < 200 || res.status >= 300) return null;
+    return await localToDataUri(res.uri, res.headers?.['Content-Type'] || res.headers?.['content-type'] || mime);
   } catch {
     return null;
+  } finally {
+    FileSystem.deleteAsync(dest, { idempotent: true }).catch(() => {});
   }
 }
 
@@ -129,7 +150,8 @@ export async function prepareFicheHtml(opts: {
   const images = photos.filter((ph) => ph.url && (ph.media_type ?? 'image') === 'image');
   const coverUrl = images.find((ph) => ph.is_cover)?.url || clean(p.cover_url) || images[0]?.url || '';
   const avatarUrl = clean(p.avatar_url) || coverUrl;
-  const portfolio = photos.filter((ph) => ph.url && ph.url !== coverUrl).slice(0, MAX_MEDIA);
+  // Tout le portfolio, dans l'ordre de la grille du profil (couverture comprise).
+  const portfolio = photos.filter((ph) => ph.url).slice(0, MAX_MEDIA);
 
   const [cover, avatar, media, docsRes, regular, semibold] = await Promise.all([
     coverUrl ? remoteToDataUri(coverUrl) : Promise.resolve(null),
@@ -137,7 +159,8 @@ export async function prepareFicheHtml(opts: {
     mapLimit(portfolio, 4, async (ph): Promise<BrochureMedia | null> => {
       const video = ph.media_type === 'video';
       const src = video ? await videoThumb(ph.url) : await remoteToDataUri(ph.url);
-      return src ? { src, caption: ph.caption, video } : null;
+      // Une vidéo sans miniature reste dans la grille (tuile sombre ▶).
+      return src || video ? { src, caption: ph.caption, video } : null;
     }),
     prestatairesApi.listDocuments(userId, accessToken ?? undefined).catch(() => null),
     fontDataUri(require('@/assets/fonts/Fraunces-Regular.ttf')),
@@ -165,6 +188,7 @@ export async function prepareFicheHtml(opts: {
     documents: docs,
     publicUrl: `${PUBLIC_PROFILE}${userId}`,
     fonts: { regular, semibold },
+    printZoom: PRINT_ZOOM,
   });
 }
 

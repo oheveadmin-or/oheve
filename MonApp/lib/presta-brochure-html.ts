@@ -1,18 +1,23 @@
 /**
- * Brochure PDF du prestataire (mise en page pure, sans React Native : testable
- * hors app). Pages A4 595×842 :
- *   1. Couverture plein cadre (photo de couverture, nom, catégorie, ville)
- *   2. Présentation (photo de profil, « À propos », « En bref », aperçu photos)
- *   3+ Portfolio (toutes les photos et vidéos, mises en page alternées + légendes)
- *   n. Contact (coordonnées, QR code vers le profil public, documents)
- * Toutes les images arrivent déjà en data URI (voir presta-fiche-pdf.ts).
+ * Brochure PDF du prestataire = son PROFIL tel qu'on le voit dans l'app, en
+ * pages A4 (mise en page pure, sans React Native : testable hors app) :
+ *   1. Profil : bannière (photo de couverture), photo de profil ronde, nom,
+ *      chiffres, bio, coordonnées, puis début de la grille du portfolio
+ *   (2. À propos complet, seulement si la bio est trop longue pour la page 1)
+ *   3+ Suite de la grille : TOUTES les photos et vidéos, 3 colonnes carrées
+ *   n. Contact : bandeau photo, coordonnées, documents, QR code du profil
+ * Les images arrivent déjà en data URI (voir presta-fiche-pdf.ts).
+ *
+ * Impression : le moteur WebKit d'iOS met en page sur 1,25 × la largeur du
+ * papier puis réduit (×0,8) ; Chromium/Android compte 96 px pour 72 pt (×0,75).
+ * `printZoom` compense pour que la page 595 × 842 remplisse exactement l'A4.
  */
 import qrcode from 'qrcode-generator';
 
 import { eventConfig } from '@/lib/event-type';
 import { categoryLabel } from '@/lib/presta-categories';
 
-export type BrochureMedia = { src: string; caption?: string | null; video?: boolean };
+export type BrochureMedia = { src?: string | null; caption?: string | null; video?: boolean };
 
 export type BrochureData = {
   name: string;
@@ -28,15 +33,18 @@ export type BrochureData = {
   isPartner?: boolean;
   cover?: string | null;
   avatar?: string | null;
-  /** Portfolio, couverture exclue. */
+  /** Tout le portfolio, dans l'ordre de la grille du profil. */
   media: BrochureMedia[];
   documents?: string[];
   publicUrl?: string | null;
   fonts?: { regular?: string | null; semibold?: string | null };
+  /** Facteur d'impression (iOS 1,25 ; Android 4/3). 1 = aperçu écran. */
+  printZoom?: number;
 };
 
 const W = 595;
-const H = 842;
+// Un poil sous 842 : l'arrondi du zoom ne doit jamais créer de page blanche.
+const H = 841.5;
 
 export const esc = (s: unknown) =>
   String(s ?? '')
@@ -143,308 +151,293 @@ export function coverImg(src: string, box: { w: number; h: number }, cls = ''): 
   return `<img class="cimg ${cls}" src="${src}" style="${style}" alt="">`;
 }
 
-// Géométrie (px) des cases : doit suivre le CSS ci-dessous.
-const CW = 507;          // largeur utile (595 − 2 × 44)
-const LH = 660;          // hauteur d'une page portfolio
-const GAP = 8;
-const half = (CW - GAP) / 2;
-const BOXES: Record<string, { w: number; h: number }[]> = {
-  'l-hero': [{ w: CW, h: (LH - GAP) * 0.6 }, { w: half, h: (LH - GAP) * 0.4 }, { w: half, h: (LH - GAP) * 0.4 }],
-  'l-grid': Array.from({ length: 4 }, () => ({ w: half, h: (LH - GAP) / 2 })),
-  'l-side': [{ w: (CW - GAP) * 0.6, h: LH }, { w: (CW - GAP) * 0.4, h: (LH - GAP) / 2 }, { w: (CW - GAP) * 0.4, h: (LH - GAP) / 2 }],
-  'l-two': [{ w: CW, h: (LH - GAP) / 2 }, { w: CW, h: (LH - GAP) / 2 }],
-  'l-one': [{ w: CW, h: LH }],
+// ── Géométrie (px, repère 595 × 842) : doit suivre le CSS plus bas ─────────
+const MX = 44;                 // marge latérale
+const CW = W - 2 * MX;         // 507
+const GAP = 3;                 // espace entre les carrés (façon Instagram)
+const SQ = (CW - 2 * GAP) / 3; // côté d'un carré ≈ 167
+const FOOT_TOP = 778;          // tout contenu doit finir au-dessus du pied
+const CONT_GRID_TOP = 96;      // pages « suite » : début de la grille
+const CONT_ROWS = Math.floor((FOOT_TOP - CONT_GRID_TOP + GAP) / (SQ + GAP)); // 4
+
+const EXTRA_ICON: Record<string, string> = {
+  grid: '<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16"/>',
+  check: '<path d="m5 12.5 4.2 4L19 7"/>',
 };
+Object.assign(ICON, EXTRA_ICON);
 
-/** Une tuile photo/vidéo, légende en surimpression. */
-function tile(m: BrochureMedia, box: { w: number; h: number }, cls = ''): string {
-  const cap = t(m.caption);
-  return `<figure class="tile ${cls}">
-    ${coverImg(m.src, box)}
-    ${m.video ? '<span class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="#fff"/></svg></span>' : ''}
-    ${cap ? `<figcaption>${esc(cap)}</figcaption>` : ''}
-  </figure>`;
+/** Texte saisi lettre par lettre (« A V E N U E ») : on recolle les lettres. */
+export function unspace(s: string): string {
+  const v = s.trim();
+  return /^(\S ){4,}\S$/.test(v) ? v.replace(/ /g, '') : v;
 }
 
-type Layout = { cls: string; take: number };
-const CYCLE: Layout[] = [
-  { cls: 'l-hero', take: 3 },
-  { cls: 'l-grid', take: 4 },
-  { cls: 'l-side', take: 3 },
-];
-
-/** Découpe le portfolio en pages ; la dernière page s'adapte au reste. */
-export function paginateMedia(media: BrochureMedia[]): { cls: string; items: BrochureMedia[] }[] {
-  const pages: { cls: string; items: BrochureMedia[] }[] = [];
-  let i = 0;
-  let k = 0;
-  while (i < media.length) {
-    const left = media.length - i;
-    let layout = CYCLE[k % CYCLE.length];
-    if (left < layout.take) layout = left === 1 ? { cls: 'l-one', take: 1 } : left === 2 ? { cls: 'l-two', take: 2 } : { cls: 'l-hero', take: 3 };
-    pages.push({ cls: layout.cls, items: media.slice(i, i + layout.take) });
-    i += layout.take;
-    k++;
-  }
-  return pages;
+function square(m: BrochureMedia): string {
+  return `<div class="sq${m.src ? '' : ' sq-empty'}">
+    ${m.src ? coverImg(m.src, { w: SQ, h: SQ }) : ''}
+    ${m.video ? '<span class="reel"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="#fff"/></svg></span>' : ''}
+  </div>`;
 }
+
+const gridHtml = (items: BrochureMedia[]) => `<div class="grid">${items.map(square).join('')}</div>`;
 
 export function buildBrochureHtml(d: BrochureData): string {
   const name = t(d.name) || 'Mon entreprise';
   const cat = d.category ? categoryLabel(d.category) : '';
-  const city = t(d.city);
+  const city = unspace(t(d.city));
   const desc = t(d.description);
   const insta = instaHandle(d.instagram);
   const website = t(d.website).replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const phone = t(d.phone) === '-' ? '' : t(d.phone);
+  const email = t(d.email) === '-' ? '' : t(d.email);
   const events = (d.eventTypes ?? []).filter(Boolean).map((e) => eventConfig(e).label);
   const initial = esc(name.charAt(0).toUpperCase());
+  const media = d.media;
+  const nVideos = media.filter((m) => m.video).length;
+  const nPhotos = media.length - nVideos;
 
-  const images = d.media;
+  // ── Page 1 : hauteur du haut de profil (estimation prudente) ────────────
+  const nameLines = name.length > 30 ? 2 : 1;
+  const descLines = desc ? desc.split(/\n/).reduce((n, p) => n + Math.max(1, Math.ceil(p.length / 84)), 0) : 1;
+  const BIO_MAX = 6;
+  const bioLines = Math.min(descLines, BIO_MAX);
+  const longBio = descLines > BIO_MAX;
+  const contacts = [
+    phone && ['phone', phone],
+    email && ['mail', email],
+    website && website !== '-' && ['globe', website],
+    insta && ['insta', `@${insta}`],
+    t(d.price) && ['tag', t(d.price)],
+  ].filter(Boolean) as [string, string][];
+  const contactRows = Math.ceil(contacts.length / 2);
+  const BANNER = 190;
+  const headerH0 =
+    BANNER + 64 /* rangée photo + chiffres */ + 12 +
+    nameLines * 34 + 20 /* catégorie · ville */ + (d.isPartner ? 30 : 0) + 12 +
+    bioLines * 18.5 + (longBio ? 18 : 0) + 12 +
+    (events.length ? 30 : 0) +
+    contactRows * 36 + 10 +
+    40 /* onglet Portfolio */;
+  const rows1 = Math.max(0, Math.floor((FOOT_TOP - Math.ceil(headerH0) + GAP) / (SQ + GAP)));
+  // La place qui reste sous la dernière rangée agrandit la bannière (pas de
+  // grand blanc en bas de page 1).
+  const slack = FOOT_TOP - 10 - Math.ceil(headerH0) - (rows1 ? rows1 * (SQ + GAP) - GAP : 30);
+  const bannerH = BANNER + Math.max(0, Math.min(slack, 150));
+  const gridTop1 = Math.ceil(headerH0) + (bannerH - BANNER);
+  const first = media.slice(0, rows1 * 3);
+  const restMedia = media.slice(first.length);
+  const contPages: BrochureMedia[][] = [];
+  for (let i = 0; i < restMedia.length; i += CONT_ROWS * 3) contPages.push(restMedia.slice(i, i + CONT_ROWS * 3));
 
-  // Page 2 : hauteur du texte estimée (≈ 52 caractères par ligne de 20 px dans
-  // la colonne) → la place restante accueille 0, 3 ou 6 photos d'aperçu.
-  // Chaque photo n'apparaît qu'une fois dans la brochure.
-  const descLines = (desc || 'x').split(/\n/).reduce((n, para) => n + Math.max(1, Math.ceil(para.length / 52)), 0);
-  const textH = 44 + descLines * 20;
-  const briefH = 60 + 4 * 46 + (events.length ? 30 + Math.ceil(events.length / 2) * 26 : 0);
-  const AREA = 574; // de la fin de l'en-tête (204 px) au-dessus du pied (778 px)
-  let bodyH = Math.min(AREA, Math.max(textH, briefH, 220));
-  let previewH = AREA - bodyH - 24;
-  let previewRows = previewH >= 300 ? 2 : previewH >= 130 ? 1 : 0;
-  while (previewRows > 0 && images.length < previewRows * 3 + 2) previewRows--;
-  if (previewRows === 0) { bodyH = AREA; previewH = 0; }
-  else if (previewRows === 1) previewH = Math.min(previewH, 230);
-  bodyH = previewRows ? AREA - previewH - 24 : AREA;
-  const preview = images.slice(0, previewRows * 3);
-  const previewBox = { w: (CW - 2 * GAP) / 3, h: previewRows ? (previewH - (previewRows - 1) * GAP) / previewRows : 1 };
-  const rest = images.slice(preview.length);
-  const portfolioPages = paginateMedia(rest);
-  const totalPages = 2 + portfolioPages.length + 1;
+  const total = 1 + (longBio ? 1 : 0) + contPages.length + 1;
+  let pageNo = 0;
+  const footer = () => {
+    pageNo++;
+    return `<div class="foot"><span class="brand">OHEVE</span><span class="fname">${esc(name)}</span><span class="pnum">${pad2(pageNo)} / ${pad2(total)}</span></div>`;
+  };
+  const tabBar = (label: string) => `<div class="tabs"><span class="tab on">${icon('grid')}<b>${label}</b></span></div>`;
+
+  // ── Page 1 : le profil ──────────────────────────────────────────────────
+  const profilePage = `<section class="page profile">
+    <div class="banner${d.cover ? '' : ' banner-ph'}" style="height:${bannerH.toFixed(1)}px">
+      ${d.cover ? coverImg(d.cover, { w: W, h: bannerH }) : ''}
+      <div class="banner-shade"></div>
+      <div class="banner-top"><span class="wm">OHEVE</span><span>Profil prestataire</span></div>
+    </div>
+    <div class="idrow">
+      <div class="avatar">${d.avatar ? coverImg(d.avatar, { w: 104, h: 104 }) : `<span>${initial}</span>`}</div>
+      <div class="stats">
+        <div class="stat"><b>${media.length}</b><span>publication${media.length > 1 ? 's' : ''}</span></div>
+        <div class="stat"><b>${nPhotos}</b><span>photo${nPhotos > 1 ? 's' : ''}</span></div>
+        ${nVideos || !events.length
+          ? `<div class="stat"><b>${nVideos}</b><span>vidéo${nVideos > 1 ? 's' : ''}</span></div>`
+          : `<div class="stat"><b>${events.length}</b><span>type${events.length > 1 ? 's' : ''} d'événement</span></div>`}
+      </div>
+    </div>
+    <div class="who">
+      <h1>${esc(name)}</h1>
+      <div class="sub">${esc([cat, city].filter(Boolean).join(' · ') || 'Prestataire')}</div>
+      ${d.isPartner ? `<div class="badge">${icon('check')}Partenaire Oheve</div>` : ''}
+    </div>
+    <div class="bio${desc ? '' : ' empty'}" style="-webkit-line-clamp:${BIO_MAX}">${desc ? esc(desc) : 'Description à venir.'}</div>
+    ${longBio ? '<div class="more">Suite de la présentation page 02</div>' : ''}
+    ${events.length ? `<div class="chips">${events.map((e) => `<span class="chip">${esc(e)}</span>`).join('')}</div>` : ''}
+    ${contacts.length ? `<div class="contacts">${contacts.map(([k, v]) => `<div class="cbtn">${icon(k)}<span>${esc(v)}</span></div>`).join('')}</div>` : ''}
+    ${first.length || !media.length ? `<div class="grid-wrap" style="top:${gridTop1 - 40}px">
+      ${tabBar('Portfolio')}
+      ${first.length ? gridHtml(first) : '<div class="nogrid">Aucune publication pour le moment.</div>'}
+    </div>` : ''}
+    ${footer()}
+  </section>`;
+
+  // ── Page 2 (si besoin) : présentation complète ─────────────────────────
+  const aboutPage = longBio ? `<section class="page about">
+    <div class="eyebrow">Présentation</div>
+    <h2>À propos de ${esc(name)}</h2>
+    <div class="about-text">${esc(desc)}</div>
+    ${footer()}
+  </section>` : '';
+
+  // ── Pages suivantes : la grille continue ───────────────────────────────
+  const grids = contPages.map((items, i) => `<section class="page cont">
+    <div class="cont-head">
+      <div class="mini-avatar">${d.avatar ? coverImg(d.avatar, { w: 34, h: 34 }) : `<span>${initial}</span>`}</div>
+      <div class="cont-id"><b>${esc(name)}</b><span>Portfolio · suite ${i + 1}/${contPages.length}</span></div>
+    </div>
+    <div class="grid-wrap" style="top:${CONT_GRID_TOP - 40}px">${tabBar('Portfolio')}${gridHtml(items)}</div>
+    ${footer()}
+  </section>`).join('');
+
+  // ── Dernière page : contact ────────────────────────────────────────────
+  const rows = [
+    phone && ['phone', 'Téléphone', phone],
+    email && ['mail', 'Email', email],
+    website && website !== '-' && ['globe', 'Site web', website],
+    insta && ['insta', 'Instagram', `@${insta}`],
+    city && ['pin', 'Adresse', city],
+  ].filter(Boolean) as [string, string, string][];
+  const qr = d.publicUrl ? qrSvg(d.publicUrl) : '';
+  const bandSrc = [...media].reverse().find((m) => m.src && !m.video)?.src ?? d.cover;
+  const listRoom = bandSrc ? 330 : 460;
+  const docs = (d.documents ?? []).slice(0, Math.max(0, Math.floor((listRoom - rows.length * (bandSrc ? 48 : 52) - 34) / 26)));
+
+  const contactPage = `<section class="page contact${bandSrc ? ' with-band' : ''}">
+    ${bandSrc ? `<div class="band">${coverImg(bandSrc, { w: W, h: 230 })}</div>` : ''}
+    <div class="eyebrow">Contact</div>
+    <h2 class="big">Parlons de votre événement</h2>
+    <p class="lead">Nous serions ravis d'échanger avec vous sur votre projet et de vous proposer une offre sur mesure.</p>
+    <div class="contact-body">
+      <div class="clist">
+        ${rows.length ? rows.map(([k, l, v]) => `<div class="crow">${icon(k)}<div><div class="lbl">${esc(l)}</div><div class="val">${esc(v)}</div></div></div>`).join('') : '<div class="bio empty">Coordonnées à venir.</div>'}
+        ${docs.length ? `<div class="docs"><div class="lbl">Documents disponibles sur mon profil</div>${docs.map((x) => `<div class="doc">${icon('doc')}<span>${esc(x)}</span></div>`).join('')}</div>` : ''}
+      </div>
+      ${qr ? `<div class="qr-card"><div class="qr">${qr}</div><div class="qr-t">Mon profil sur Oheve</div><div class="qr-s">Scannez pour voir toutes mes réalisations et me contacter</div></div>` : ''}
+    </div>
+    <div class="contact-end"><div class="brand big-brand">OHEVE</div><div class="tagline">L'application des fêtes juives · ohevewedding.com</div></div>
+  </section>`;
+  pageNo++;
 
   const fontFace = [
     d.fonts?.regular && `@font-face{font-family:'OheveSerif';font-weight:400;src:url(${d.fonts.regular}) format('truetype');}`,
     d.fonts?.semibold && `@font-face{font-family:'OheveSerif';font-weight:600;src:url(${d.fonts.semibold}) format('truetype');}`,
   ].filter(Boolean).join('\n');
-
-  const footer = (n: number) => `<div class="foot"><span class="brand">OHEVE</span><span class="fname">${esc(name)}</span><span class="pnum">${pad2(n)} / ${pad2(totalPages)}</span></div>`;
-
-  // ── Page 1 : couverture ───────────────────────────────────────────────
-  const coverPage = `<section class="page cover${d.cover ? '' : ' nophoto'}">
-    ${d.cover ? `${coverImg(d.cover, { w: W, h: H })}<div class="cover-shade"></div>` : `<div class="cover-frame"></div><div class="cover-initial">${initial}</div>`}
-    <div class="cover-top"><span>OHEVE</span><span>Fiche prestataire</span></div>
-    <div class="cover-text">
-      ${cat || city ? `<div class="eyebrow">${esc([cat, city].filter(Boolean).join(' · '))}</div>` : ''}
-      <h1>${esc(name)}</h1>
-      ${d.isPartner ? '<div class="pill">✓ Partenaire Oheve</div>' : ''}
-    </div>
-  </section>`;
-
-  // ── Page 2 : présentation ─────────────────────────────────────────────
-  const facts: string[] = [];
-  if (t(d.price)) facts.push(`<div class="fact">${icon('tag')}<div><div class="lbl">Tarifs</div><div class="val">${esc(d.price)}</div></div></div>`);
-  if (city) facts.push(`<div class="fact">${icon('pin')}<div><div class="lbl">Ville</div><div class="val">${esc(city)}</div></div></div>`);
-  if (images.length) facts.push(`<div class="fact">${icon('globe')}<div><div class="lbl">Portfolio</div><div class="val">${images.length + (d.cover ? 1 : 0)} réalisation${images.length + (d.cover ? 1 : 0) > 1 ? 's' : ''}</div></div></div>`);
-  if (d.documents?.length) facts.push(`<div class="fact">${icon('doc')}<div><div class="lbl">Documents</div><div class="val">${d.documents.length} PDF à consulter</div></div></div>`);
-
-  const aboutPage = `<section class="page about">
-    <div class="about-head">
-      ${d.avatar ? `<div class="avatar">${coverImg(d.avatar, { w: 84, h: 84 })}</div>` : `<div class="avatar avatar-ph">${initial}</div>`}
-      <div class="about-id">
-        <div class="eyebrow dark">${esc(cat || 'Prestataire')}</div>
-        <div class="about-name">${esc(name)}</div>
-      </div>
-    </div>
-    <div class="rule"></div>
-    <div class="about-body" style="height:${bodyH.toFixed(1)}px">
-      <div class="about-text">
-        <h2>À propos</h2>
-        <div class="desc${desc ? '' : ' empty'}">${desc ? esc(desc) : 'Description à venir.'}</div>
-      </div>
-      ${facts.length || events.length ? `<aside class="brief">
-        <h3>En bref</h3>
-        ${facts.join('')}
-        ${events.length ? `<div class="lbl ev-lbl">Événements</div><div class="chips">${events.map((e) => `<span class="chip">${esc(e)}</span>`).join('')}</div>` : ''}
-      </aside>` : ''}
-    </div>
-    ${preview.length ? `<div class="preview" style="height:${previewH.toFixed(1)}px;grid-template-rows:repeat(${previewRows},minmax(0,1fr))">${preview.map((m) => tile(m, previewBox)).join('')}</div>` : ''}
-    ${footer(2)}
-  </section>`;
-
-  // ── Pages 3+ : portfolio ──────────────────────────────────────────────
-  const portfolio = portfolioPages.map((p, idx) => `<section class="page port">
-    <div class="port-head">
-      <h2>Portfolio</h2>
-      ${portfolioPages.length > 1 ? `<span class="port-count">${idx + 1} / ${portfolioPages.length}</span>` : ''}
-    </div>
-    <div class="layout ${p.cls}">${p.items.map((m, j) => tile(m, BOXES[p.cls][j], `t${j}`)).join('')}</div>
-    ${footer(3 + idx)}
-  </section>`).join('');
-
-  // ── Dernière page : contact ───────────────────────────────────────────
-  const contacts = [
-    t(d.phone) && t(d.phone) !== '-' && ['phone', 'Téléphone', t(d.phone)],
-    t(d.email) && t(d.email) !== '-' && ['mail', 'Email', t(d.email)],
-    website && website !== '-' && ['globe', 'Site web', website],
-    insta && ['insta', 'Instagram', `@${insta}`],
-    city && ['pin', 'Ville', city],
-  ].filter(Boolean) as [string, string, string][];
-  const qr = d.publicUrl ? qrSvg(d.publicUrl) : '';
-  const bandSrc = images.length ? images[images.length - 1].src : d.cover;
-  const BAND_H = 230;
-  // Place verticale de la colonne coordonnées (au-dessus du logo final) :
-  // ~48 px (avec bandeau) / 52 px par ligne de contact, 34 px d'en-tête + 26 px par document.
-  const listRoom = bandSrc ? 330 : 460;
-  const maxDocs = Math.max(0, Math.floor((listRoom - contacts.length * (bandSrc ? 48 : 52) - 34) / 26));
-  const docs = (d.documents ?? []).slice(0, maxDocs);
-
-  const contactPage = `<section class="page contact${bandSrc ? ' with-band' : ''}">
-    ${bandSrc ? `<div class="band">${coverImg(bandSrc, { w: W, h: BAND_H })}</div>` : ''}
-    <div class="contact-top">
-      <div class="eyebrow dark">Contact</div>
-      <h2 class="big">Parlons de votre événement</h2>
-      <p class="lead">Nous serions ravis d'échanger avec vous sur votre projet et de vous proposer une offre sur mesure.</p>
-    </div>
-    <div class="contact-body">
-      <div class="clist">
-        ${contacts.length ? contacts.map(([k, l, v]) => `<div class="crow">${icon(k)}<div><div class="lbl">${esc(l)}</div><div class="val">${esc(v)}</div></div></div>`).join('') : '<div class="desc empty">Coordonnées à venir.</div>'}
-        ${docs.length ? `<div class="docs"><div class="lbl">Documents disponibles sur mon profil</div>${docs.map((x) => `<div class="doc">${icon('doc')}<span>${esc(x)}</span></div>`).join('')}</div>` : ''}
-      </div>
-      ${qr ? `<div class="qr-card"><div class="qr">${qr}</div><div class="qr-t">Mon profil sur Oheve</div><div class="qr-s">Scannez pour voir toutes mes réalisations et me contacter</div></div>` : ''}
-    </div>
-    <div class="contact-end">
-      <div class="brand big-brand">OHEVE</div>
-      <div class="tagline">L'application des fêtes juives · ohevewedding.com</div>
-    </div>
-  </section>`;
+  const zoom = d.printZoom && d.printZoom !== 1 ? `html { zoom: ${d.printZoom}; }` : '';
 
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
-<meta name="viewport" content="width=${W}">
 <style>
 ${fontFace}
 @page { size: A4; margin: 0; }
+${zoom}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { width: ${W}px; background: #FAF7F0; color: #343630;
+html, body { background: #FAF7F0; color: #343630;
   font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
   -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.serif, h1, h2, h3, .about-name, .brand { font-family: 'OheveSerif', Georgia, 'Times New Roman', serif; }
+body { width: ${W}px; }
+h1, h2, .brand, .serif { font-family: 'OheveSerif', Georgia, 'Times New Roman', serif; font-weight: 400; }
 .page { position: relative; width: ${W}px; height: ${H}px; overflow: hidden; background: #FAF7F0;
   page-break-after: always; break-after: page; }
 .page:last-child { page-break-after: auto; break-after: auto; }
-.clamp { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; }
+.cimg { position: absolute; display: block; max-width: none; }
+.ic { width: 15px; height: 15px; color: #929B83; flex-shrink: 0; }
 .lbl { font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; color: #8E9085; }
-.val { font-size: 11px; color: #343630; margin-top: 2px; overflow-wrap: anywhere; word-break: break-word;
+.val { font-size: 12px; color: #343630; margin-top: 2px; overflow-wrap: anywhere; word-break: break-word;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.eyebrow { font-size: 9.5px; letter-spacing: 2.4px; text-transform: uppercase; color: rgba(255,255,255,.88);
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.eyebrow.dark { color: #747E68; }
-.ic { width: 16px; height: 16px; color: #929B83; flex-shrink: 0; margin-top: 1px; }
-.rule { height: 1px; background: #DEDACD; }
+.eyebrow { font-size: 9.5px; letter-spacing: 2.4px; text-transform: uppercase; color: #747E68; }
 
-/* Pied de page */
-.foot { position: absolute; left: 44px; right: 44px; bottom: 22px; display: flex; align-items: center; gap: 12px;
-  font-size: 8.5px; letter-spacing: .8px; color: #9A9A90; border-top: 1px solid #E4E0D4; padding-top: 10px; }
+.foot { position: absolute; left: ${MX}px; right: ${MX}px; bottom: 22px; display: flex; align-items: center; gap: 12px;
+  font-size: 8.5px; letter-spacing: .8px; color: #9A9A90; border-top: 1px solid #E4E0D4; padding-top: 10px; background: #FAF7F0; }
 .foot .brand { font-size: 11px; letter-spacing: 3px; color: #747E68; }
 .foot .fname { flex: 1; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* 1. Couverture */
-.cover { background: #343630; }
-/* Photos recadrées par calcul (voir coverImg) : jamais d'object-fit. */
-.cimg { position: absolute; display: block; max-width: none; }
-.cover-shade { position: absolute; inset: 0; background:
-  linear-gradient(to bottom, rgba(20,20,18,.45) 0%, rgba(20,20,18,0) 22%, rgba(20,20,18,0) 45%, rgba(20,20,18,.82) 100%); }
-.cover.nophoto { background: #929B83; }
-.cover-frame { position: absolute; inset: 26px; border: 1px solid rgba(255,255,255,.55); }
-.cover-frame::after { content: ''; position: absolute; inset: 6px; border: 1px solid rgba(255,255,255,.3); }
-.cover-initial { position: absolute; left: 0; right: 0; top: 230px; text-align: center; font-family: 'OheveSerif', Georgia, serif;
-  font-size: 170px; line-height: 1; color: rgba(255,255,255,.35); }
-.cover-top { position: absolute; top: 40px; left: 48px; right: 48px; display: flex; justify-content: space-between;
-  font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.9); }
-.cover-top span:first-child { font-family: 'OheveSerif', Georgia, serif; font-size: 14px; letter-spacing: 5px; }
-.cover-text { position: absolute; left: 48px; right: 48px; bottom: 58px; color: #fff; }
-.cover h1 { font-weight: 400; font-size: 46px; line-height: 1.08; margin-top: 12px; overflow-wrap: anywhere; word-break: break-word;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.pill { display: inline-block; margin-top: 16px; font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase;
-  padding: 6px 12px; border: 1px solid rgba(255,255,255,.7); border-radius: 30px; }
-
-/* 2. Présentation */
-.about { padding: 48px 44px 0; }
-.about-head { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; }
-.avatar { position: relative; overflow: hidden; width: 84px; height: 84px; border-radius: 50%; flex-shrink: 0;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 4px #DEDACD; }
-.avatar-ph { display: flex; align-items: center; justify-content: center; background: #929B83; color: #fff;
-  font-family: 'OheveSerif', Georgia, serif; font-size: 36px; }
-.about-id { min-width: 0; flex: 1; }
-.about-name { font-size: 28px; line-height: 1.15; margin-top: 6px; overflow-wrap: anywhere; word-break: break-word;
+/* Page 1 — profil */
+.banner { position: relative; height: 190px; overflow: hidden; background: #343630; }
+.banner-ph { background: #929B83; }
+.banner-shade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(20,20,18,.5), rgba(20,20,18,0) 45%); }
+.banner-top { position: absolute; top: 24px; left: ${MX}px; right: ${MX}px; display: flex; justify-content: space-between; align-items: center;
+  font-size: 8.5px; letter-spacing: 2.6px; text-transform: uppercase; color: rgba(255,255,255,.92); }
+.banner-top .wm { font-family: 'OheveSerif', Georgia, serif; font-size: 14px; letter-spacing: 5px; }
+.idrow { position: relative; height: 64px; padding: 0 ${MX}px; display: flex; align-items: flex-end; gap: 26px; }
+.avatar { position: absolute; left: ${MX - 4}px; top: -52px; width: 112px; height: 112px; border-radius: 50%; overflow: hidden;
+  background: #929B83; border: 4px solid #FAF7F0; display: flex; align-items: center; justify-content: center; }
+.avatar span { font-family: 'OheveSerif', Georgia, serif; font-size: 46px; color: #fff; }
+.stats { margin-left: 136px; flex: 1; display: flex; justify-content: space-around; padding-bottom: 6px; }
+.stat { text-align: center; }
+.stat b { display: block; font-size: 19px; font-weight: 600; color: #343630; }
+.stat span { font-size: 10px; color: #7A7C72; }
+.who { padding: 12px ${MX}px 0; }
+.who h1 { font-size: 28px; line-height: 1.2; font-weight: 600; overflow-wrap: anywhere; word-break: break-word;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.about-body { display: flex; gap: 26px; margin-top: 22px; }
-.about-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.about h2 { font-weight: 400; font-size: 22px; color: #343630; margin-bottom: 12px; }
-.desc { position: relative; flex: 1; min-height: 0; overflow: hidden; font-size: 11.5px; line-height: 1.75; color: #4A4C44;
-  white-space: pre-line; overflow-wrap: anywhere; word-break: break-word; }
-.desc.empty { color: #9A9A90; font-style: italic; }
-.brief { width: 178px; flex-shrink: 0; background: #F1EEE5; border-radius: 6px; padding: 18px 16px; overflow: hidden; }
-.brief h3 { font-weight: 400; font-size: 16px; margin-bottom: 12px; color: #343630; }
-.fact { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #E2DED2; }
-.fact > div { min-width: 0; }
-.ev-lbl { margin-top: 14px; }
-.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
-.chip { font-size: 9.5px; color: #5A6250; background: #fff; border: 1px solid #D3D6C8; border-radius: 20px; padding: 3px 9px; }
-.preview { position: absolute; left: 44px; right: 44px; bottom: 64px; display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sub { font-size: 11.5px; color: #747E68; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: #fff; background: #747E68; border-radius: 20px; padding: 4px 10px 4px 7px; }
+.badge .ic { width: 12px; height: 12px; color: #fff; }
+.bio { margin: 12px ${MX}px 0; font-size: 11.5px; line-height: 1.6; color: #4A4C44; white-space: pre-line;
+  overflow-wrap: anywhere; word-break: break-word; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.bio.empty { color: #9A9A90; font-style: italic; }
+.more { margin: 4px ${MX}px 0; font-size: 9.5px; color: #747E68; font-style: italic; }
+.chips { margin: 10px ${MX}px 0; display: flex; flex-wrap: nowrap; gap: 5px; overflow: hidden; height: 20px; }
+.chip { font-size: 9.5px; color: #5A6250; background: #fff; border: 1px solid #D3D6C8; border-radius: 20px; padding: 3px 9px; white-space: nowrap; }
+.contacts { margin: 12px ${MX}px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.cbtn { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #fff; border: 1px solid #E2DED2; border-radius: 8px;
+  font-size: 10.5px; color: #343630; min-width: 0; }
+.cbtn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.grid-wrap { position: absolute; left: ${MX}px; right: ${MX}px; }
+.tabs { height: 40px; display: flex; justify-content: center; border-top: 1px solid #E2DED2; }
+.tab { display: flex; align-items: center; gap: 7px; padding: 0 18px; margin-top: -1px; border-top: 1.5px solid #343630;
+  font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase; color: #343630; }
+.tab b { font-weight: 600; }
+.tab .ic { color: #343630; width: 13px; height: 13px; }
+.grid { display: grid; grid-template-columns: repeat(3, ${SQ.toFixed(3)}px); grid-auto-rows: ${SQ.toFixed(3)}px; gap: ${GAP}px; }
+.sq { position: relative; overflow: hidden; background: #E8E4D8; }
+.sq-empty { background: #343630; }
+.reel { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center; }
+.sq-empty .reel { top: 50%; left: 50%; right: auto; width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+.reel svg { width: 12px; height: 12px; margin-left: 1px; }
+.sq-empty .reel svg { width: 18px; height: 18px; }
+.nogrid { padding: 30px 0; text-align: center; font-size: 11px; color: #9A9A90; font-style: italic; }
 
-/* Tuiles photo */
-.tile { position: relative; overflow: hidden; border-radius: 4px; background: #E8E4D8; min-height: 0; min-width: 0; }
-.tile figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 10px 8px; color: #fff; font-size: 9.5px; line-height: 1.4;
-  background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,.62)); overflow-wrap: anywhere; word-break: break-word;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.play { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%;
-  background: rgba(0,0,0,.45); border: 1.5px solid rgba(255,255,255,.85); display: flex; align-items: center; justify-content: center; }
-.play svg { width: 18px; height: 18px; margin-left: 2px; }
+/* Page À propos */
+.about { padding: 56px ${MX}px 0; }
+.about h2 { font-size: 30px; line-height: 1.2; margin: 10px 0 22px; overflow-wrap: anywhere; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.about-text { font-size: 12px; line-height: 1.75; color: #4A4C44; white-space: pre-line; overflow-wrap: anywhere; word-break: break-word;
+  max-height: 560px; overflow: hidden; }
 
-/* 3+. Portfolio */
-.port { padding: 40px 44px 0; }
-.port-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
-.port h2 { font-weight: 400; font-size: 24px; }
-.port-count { font-size: 9px; letter-spacing: 1.6px; color: #8E9085; }
-.layout { height: 660px; display: grid; gap: 8px; }
-.l-hero { grid-template-columns: 1fr 1fr; grid-template-rows: 3fr 2fr; }
-.l-hero .t0 { grid-column: 1 / 3; }
-.l-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.l-side { grid-template-columns: 3fr 2fr; grid-template-rows: 1fr 1fr; }
-.l-side .t0 { grid-row: 1 / 3; }
-.l-two { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-.l-one { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+/* Pages suite */
+.cont-head { position: absolute; top: 30px; left: ${MX}px; right: ${MX}px; display: flex; align-items: center; gap: 10px; }
+.mini-avatar { position: relative; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; background: #929B83; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; }
+.mini-avatar span { color: #fff; font-family: 'OheveSerif', Georgia, serif; font-size: 16px; }
+.cont-id { min-width: 0; }
+.cont-id b { display: block; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cont-id span { font-size: 9.5px; color: #8E9085; }
 
-/* Dernière page : contact */
+/* Contact */
 .contact { padding: 64px 52px 0; }
 .contact.with-band { padding-top: 0; }
-.band { position: relative; overflow: hidden; height: 230px; margin: 0 -52px 34px; }
-.with-band .big { font-size: 30px; }
-.with-band .contact-body { margin-top: 26px; }
-.with-band .crow { padding: 9px 0; }
-.with-band .qr svg { width: 120px; height: 120px; }
-.big { font-weight: 400; font-size: 34px; line-height: 1.15; margin-top: 10px; max-width: 420px; }
-.lead { font-size: 12px; line-height: 1.7; color: #5C5E55; margin-top: 14px; max-width: 400px; }
-.contact-body { display: flex; gap: 30px; margin-top: 40px; align-items: flex-start; }
+.band { position: relative; overflow: hidden; height: 230px; margin: 0 -52px 30px; }
+.big { font-size: 32px; line-height: 1.15; margin-top: 10px; }
+.lead { font-size: 12px; line-height: 1.7; color: #5C5E55; margin-top: 12px; max-width: 400px; }
+.contact-body { display: flex; gap: 30px; margin-top: 28px; align-items: flex-start; }
 .clist { flex: 1; min-width: 0; max-height: 460px; overflow: hidden; }
 .with-band .clist { max-height: 330px; }
-.crow { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E4E0D4; }
+.crow { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #E4E0D4; }
 .crow > div { min-width: 0; flex: 1; }
-.crow .val { font-size: 12.5px; }
-.docs { margin-top: 22px; }
+.docs { margin-top: 18px; }
 .doc { display: flex; gap: 8px; align-items: center; font-size: 11px; color: #4A4C44; margin-top: 8px; min-width: 0; }
 .doc span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .qr-card { width: 170px; flex-shrink: 0; background: #fff; border: 1px solid #E4E0D4; border-radius: 8px; padding: 16px; text-align: center; }
-.qr svg { width: 138px; height: 138px; display: block; margin: 0 auto; }
+.qr svg { width: 124px; height: 124px; display: block; margin: 0 auto; }
 .qr-t { font-family: 'OheveSerif', Georgia, serif; font-size: 14px; margin-top: 10px; }
 .qr-s { font-size: 9px; line-height: 1.45; color: #8E9085; margin-top: 4px; }
-.contact-end { position: absolute; left: 0; right: 0; bottom: 48px; text-align: center; }
+.contact-end { position: absolute; left: 0; right: 0; bottom: 44px; text-align: center; }
 .big-brand { font-size: 22px; letter-spacing: 8px; color: #747E68; }
 .tagline { font-size: 9px; letter-spacing: 1.4px; color: #9A9A90; margin-top: 6px; }
 </style></head><body>
-${coverPage}
+${profilePage}
 ${aboutPage}
-${portfolio}
+${grids}
 ${contactPage}
 </body></html>`;
 }
