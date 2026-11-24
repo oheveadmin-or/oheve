@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   FlatList,
@@ -35,6 +36,7 @@ import { getCoupleDisplayName, getCoupleInitials } from '@/lib/couple-utils';
 import { isWedding } from '@/lib/event-type';
 import { usePremiumPrice } from '@/lib/iap';
 import { categoryLabel } from '@/lib/presta-categories';
+import { exportFichePdf, type FicheProfile } from '@/lib/presta-fiche-pdf';
 
 const { width: W } = Dimensions.get('window');
 const PHOTO_SIZE = (W - 3) / 3;
@@ -293,6 +295,20 @@ function PrestataireInstaProfile() {
     );
   };
 
+  // Export PDF de la fiche (à envoyer à un client ou imprimer).
+  const [exportingFiche, setExportingFiche] = useState(false);
+  const exportFiche = async () => {
+    if (exportingFiche) return;
+    if (!profile) { Alert.alert('Fiche indisponible', 'Votre profil n\'est pas encore chargé. Réessayez dans un instant.'); return; }
+    setExportingFiche(true);
+    try {
+      await exportFichePdf({ ...(profile as FicheProfile), avatar_url: user?.avatar_url ?? null }, photos);
+    } catch {
+      Alert.alert('Export impossible', 'Le PDF de votre fiche n\'a pas pu être créé. Réessayez.');
+    }
+    setExportingFiche(false);
+  };
+
   const businessName = profile?.business_name ?? `${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim();
   const coverPhoto = photos.find((p) => p.is_cover);
   const avatarLetter = (user?.prenom?.[0] ?? '?').toUpperCase();
@@ -394,6 +410,11 @@ function PrestataireInstaProfile() {
           </Pressable>
           <Pressable style={instaStyles.editBtn} onPress={() => router.push(`/(app)/providers/${user?.id}` as never)}>
             <ThemedText style={instaStyles.editBtnTxt}>Voir mon profil</ThemedText>
+          </Pressable>
+          <Pressable style={instaStyles.addBtn} onPress={exportFiche} disabled={exportingFiche} accessibilityLabel="Exporter ma fiche en PDF">
+            {exportingFiche
+              ? <ActivityIndicator size="small" color={C.textDark} />
+              : <Ionicons name="share-outline" size={18} color={C.textDark} />}
           </Pressable>
           <Pressable style={instaStyles.addBtn} onPress={() => router.push('/(app)/(tabs)/explore' as never)}>
             <Ionicons name="add" size={18} color={C.textDark} />
@@ -576,6 +597,7 @@ function PrestataireInstaProfile() {
 
             {[
               { icon: 'business-outline', label: 'Mes établissements', route: null },
+              { icon: 'document-outline', label: 'Exporter ma fiche (PDF)', route: 'export-fiche' },
               { icon: 'person-outline', label: 'Informations personnelles', route: '/(app)/personal-info' },
               { icon: 'star-outline', label: 'Mon abonnement Oheve', route: '/(app)/prestataire/manage-subscription' },
               { icon: 'shield-outline', label: 'Sécurité & mot de passe', route: '/(app)/security' },
@@ -588,7 +610,7 @@ function PrestataireInstaProfile() {
               <Pressable
                 key={item.label}
                 style={instaStyles.modalItem}
-                onPress={() => { setSettingsModal(false); if (item.route) router.push(item.route as never); else setTimeout(() => setEtabModal(true), 400); /* iOS : une modale à la fois */ }}
+                onPress={() => { setSettingsModal(false); if (item.route === 'export-fiche') setTimeout(exportFiche, 400); else if (item.route) router.push(item.route as never); else setTimeout(() => setEtabModal(true), 400); /* iOS : une modale à la fois */ }}
               >
                 <Ionicons name={item.icon as 'home'} size={20} color={C.moka} />
                 <ThemedText style={instaStyles.modalItemTxt}>{item.label}</ThemedText>
