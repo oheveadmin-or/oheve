@@ -1,9 +1,10 @@
 /**
- * « Mes établissements » : un même compte prestataire peut gérer plusieurs
- * fiches (ex. un groupe hôtelier avec plusieurs hôtels), comme le changement de
- * compte d'Instagram. Chaque établissement a sa fiche, ses photos, ses messages,
- * ses demandes et son abonnement ; on passe de l'un à l'autre en un appui.
- * Ouvert à tous les prestataires, abonnés ou non.
+ * « Mes profils » (côté serveur : « établissements ») : un même compte
+ * prestataire peut gérer plusieurs fiches (ex. un groupe hôtelier avec
+ * plusieurs hôtels), comme le changement de compte d'Instagram. Chaque profil a
+ * sa fiche, ses photos, ses messages et ses demandes ; on passe de l'un à
+ * l'autre en un appui. Un SEUL abonnement (payé une fois) couvre tous les
+ * profils du compte. Ouvert à tous les prestataires, abonnés ou non.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -30,11 +31,18 @@ export type Establishment = {
   location_city: string | null;
   cover_url: string | null;
   sub_status: string | null;
+  /** Partenaire grâce à son abonnement OU à celui du compte (calculé serveur). */
+  partner?: boolean;
 };
 
-type Props = { visible: boolean; onClose: () => void };
+type Props = {
+  visible: boolean;
+  onClose: () => void;
+  /** Ouvre directement le formulaire « Nouveau profil » (bouton + du profil). */
+  startAdding?: boolean;
+};
 
-export function EstablishmentSwitcher({ visible, onClose }: Props) {
+export function EstablishmentSwitcher({ visible, onClose, startAdding = false }: Props) {
   const { user, switchEstablishment } = useAuth();
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<Establishment[]>([]);
@@ -43,6 +51,7 @@ export function EstablishmentSwitcher({ visible, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  const [groupPartner, setGroupPartner] = useState(false);
 
   const load = useCallback(async () => {
     if (!user?.accessToken) return;
@@ -50,15 +59,16 @@ export function EstablishmentSwitcher({ visible, onClose }: Props) {
     const res = await prestatairesApi.listEstablishments(user.accessToken);
     setLoading(false);
     if (!res.success) { setError(res.message ?? 'Chargement impossible'); return; }
-    const data = res.data as { items: Establishment[]; max: number };
+    const data = res.data as { items: Establishment[]; max: number; group_partner?: boolean };
     setItems(data.items ?? []);
     setMax(data.max ?? 30);
+    setGroupPartner(data.group_partner === true);
     setError(null);
   }, [user?.accessToken]);
 
   useEffect(() => {
-    if (visible) { setAdding(false); load(); }
-  }, [visible, load]);
+    if (visible) { setAdding(startAdding); load(); }
+  }, [visible, load, startAdding]);
 
   const goTo = async (id: number) => {
     if (!user?.accessToken || switching) return;
@@ -80,10 +90,18 @@ export function EstablishmentSwitcher({ visible, onClose }: Props) {
 
             {!adding ? (
               <>
-                <ThemedText style={styles.title}>Mes établissements</ThemedText>
+                <ThemedText style={styles.title}>Mes profils</ThemedText>
                 <ThemedText style={styles.hint}>
-                  Chaque établissement a sa propre fiche, ses photos, ses messages et son abonnement. Appuyez pour passer de l&apos;un à l&apos;autre.
+                  Chaque profil a sa propre fiche, ses photos et ses messages. Appuyez pour passer de l&apos;un à l&apos;autre.
                 </ThemedText>
+                <View style={styles.oneSub}>
+                  <Ionicons name="pricetag-outline" size={16} color={C.saugeDark} />
+                  <ThemedText style={styles.oneSubTxt}>
+                    {groupPartner
+                      ? 'Votre abonnement couvre tous vos profils : rien à payer pour en ajouter.'
+                      : 'Un seul abonnement pour tous vos profils : vous ne payez qu\'une fois.'}
+                  </ThemedText>
+                </View>
 
                 {loading && items.length === 0 ? (
                   <ActivityIndicator color={C.saugeDark} style={{ marginVertical: 24 }} />
@@ -94,9 +112,9 @@ export function EstablishmentSwitcher({ visible, onClose }: Props) {
                 ) : (
                   <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 8 }}>
                     {items.map((e) => {
-                      const name = e.business_name?.trim() || 'Établissement sans nom';
+                      const name = e.business_name?.trim() || 'Profil sans nom';
                       const sub = [e.category ? categoryLabel(e.category) : null, e.location_city].filter(Boolean).join(' · ');
-                      const partner = isPrestaSubActive(e.sub_status);
+                      const partner = e.partner ?? isPrestaSubActive(e.sub_status);
                       return (
                         <Pressable
                           key={e.id}
@@ -116,7 +134,7 @@ export function EstablishmentSwitcher({ visible, onClose }: Props) {
                             <ThemedText style={styles.name} numberOfLines={1}>{name}</ThemedText>
                             {!!sub && <ThemedText style={styles.sub} numberOfLines={1}>{sub}</ThemedText>}
                             <View style={styles.tags}>
-                              {e.is_owner && <ThemedText style={styles.tag}>Compte principal</ThemedText>}
+                              {e.is_owner && <ThemedText style={styles.tag}>Profil principal</ThemedText>}
                               <ThemedText style={[styles.tag, partner ? styles.tagPartner : styles.tagFree]}>
                                 {partner ? 'Partenaire' : 'Sans abonnement'}
                               </ThemedText>
@@ -138,22 +156,30 @@ export function EstablishmentSwitcher({ visible, onClose }: Props) {
                 {items.length < max ? (
                   <Pressable style={styles.addBtn} onPress={() => setAdding(true)} disabled={loading}>
                     <Ionicons name="add-circle-outline" size={20} color={C.saugeDark} />
-                    <ThemedText style={styles.addTxt}>Ajouter un établissement</ThemedText>
+                    <ThemedText style={styles.addTxt}>Ajouter un profil</ThemedText>
                   </Pressable>
                 ) : (
-                  <ThemedText style={styles.hint}>Limite de {max} établissements atteinte. Contactez-nous pour en ajouter.</ThemedText>
+                  <ThemedText style={styles.hint}>Limite de {max} profils atteinte. Contactez-nous pour en ajouter.</ThemedText>
                 )}
               </>
             ) : (
               <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 520 }}>
                 <Pressable style={styles.back} onPress={() => setAdding(false)} hitSlop={8}>
                   <Ionicons name="chevron-back" size={18} color={C.saugeDark} />
-                  <ThemedText style={styles.backTxt}>Mes établissements</ThemedText>
+                  <ThemedText style={styles.backTxt}>Mes profils</ThemedText>
                 </Pressable>
-                <ThemedText style={styles.title}>Nouvel établissement</ThemedText>
+                <ThemedText style={styles.title}>Nouveau profil</ThemedText>
                 <ThemedText style={styles.hint}>
                   Une nouvelle fiche, visible dans l&apos;annuaire, que vous gérez depuis ce même compte. Vous pourrez ensuite ajouter photos, description et tarifs.
                 </ThemedText>
+                <View style={styles.oneSub}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color={C.saugeDark} />
+                  <ThemedText style={styles.oneSubTxt}>
+                    {groupPartner
+                      ? 'Inclus dans votre abonnement : ce profil sera partenaire sans payer de nouveau.'
+                      : 'Aucun paiement en plus : votre abonnement, payé une seule fois, couvrira tous vos profils.'}
+                  </ThemedText>
+                </View>
 
                 {user?.accessToken ? (
                   <AddEstablishmentForm
@@ -196,6 +222,8 @@ const styles = StyleSheet.create({
   tagFree: { color: C.textMid, backgroundColor: C.taupe },
   errorBox: { padding: 14, borderRadius: RADIUS.md, backgroundColor: C.errorPale, marginBottom: 8 },
   errorTxt: { color: C.error, fontWeight: '600' },
+  oneSub: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10, borderRadius: RADIUS.md, backgroundColor: C.sauge + '18', marginBottom: 14 },
+  oneSubTxt: { flex: 1, fontSize: 13, color: C.saugeDark, fontWeight: '600' },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 14, borderRadius: RADIUS.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.sauge },
   addTxt: { fontSize: 15, fontWeight: '700', color: C.saugeDark },
   back: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 8 },

@@ -11,6 +11,7 @@ import {
   trialDaysFor,
 } from '../prestataire-subscription';
 import { demandesConfig } from './config';
+import { sqlIsPartner } from '../prestataire-subscription/partner-sql';
 import { DemandeError, enregistrerDeblocage, notifierDeblocage, prestaAbonneActif } from './service';
 import { signDemandeLink } from './tokens';
 
@@ -46,7 +47,8 @@ export async function creerCheckout(opts: {
   const d = (await pool.query(`SELECT * FROM demandes WHERE id=$1 AND prestataire_id=$2`, [opts.demandeId, opts.prestataireId])).rows[0];
   if (!d) throw new DemandeError(404, 'Demande introuvable.');
   const user = (await pool.query(
-    `SELECT presta_sub_status, presta_sub_id, presta_current_period_end FROM users WHERE id=$1`,
+    `SELECT u.presta_sub_status, u.presta_sub_id, u.presta_current_period_end,
+            ${sqlIsPartner('u')} AS abonne_groupe FROM users u WHERE u.id=$1`,
     [opts.prestataireId],
   )).rows[0];
 

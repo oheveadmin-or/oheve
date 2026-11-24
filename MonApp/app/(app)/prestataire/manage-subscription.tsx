@@ -16,7 +16,10 @@ import { prestataireSubApi } from '@/services/auth/api';
 
 type SubStatus = {
   /** 'apple' = souscrit via In-App Purchase iOS (résiliation gérée par Apple). */
-  provider?: 'apple' | 'stripe' | 'admin';
+  /** 'group' = ce profil n'a pas d'abonnement à lui : il est couvert par celui
+   *  d'un autre profil du même compte (on ne paie qu'une fois). */
+  provider?: 'apple' | 'stripe' | 'admin' | 'group';
+  covered_by?: { id: number; business_name: string | null };
   status: string | null;
   active: boolean;
   trial_end: string | null;
@@ -116,6 +119,8 @@ export default function ManageSubscriptionScreen() {
   const periodEnd = sub?.current_period_end ?? user?.presta_current_period_end;
   // Gratuité accordée par l'admin : ni prix, ni résiliation, ni prélèvement.
   const isGrant = sub?.provider === 'admin' && active;
+  // Profil couvert par l'abonnement d'un autre profil du compte.
+  const isGroup = sub?.provider === 'group' && active;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -134,7 +139,17 @@ export default function ManageSubscriptionScreen() {
           <>
             <ErrorBanner message={loadError} onRetry={load} />
 
-            {isGrant ? (
+            {isGroup ? (
+              <View style={styles.statusCard}>
+                <View style={[styles.statusIcon, { backgroundColor: C.sauge + '20' }]}>
+                  <Ionicons name="people" size={36} color={C.sauge} />
+                </View>
+                <ThemedText style={styles.statusTitle}>Inclus dans votre abonnement</ThemedText>
+                <ThemedText style={styles.statusSub}>
+                  {`Ce profil est couvert par l'abonnement de votre profil « ${sub?.covered_by?.business_name?.trim() || 'principal'} ». Un seul abonnement pour tous vos profils : rien à payer en plus.`}
+                </ThemedText>
+              </View>
+            ) : isGrant ? (
               <View style={styles.statusCard}>
                 <View style={[styles.statusIcon, { backgroundColor: C.sauge + '20' }]}>
                   <Ionicons name="gift" size={36} color={C.sauge} />

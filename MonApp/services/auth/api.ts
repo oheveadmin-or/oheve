@@ -296,10 +296,13 @@ export const prestatairesApi = {
   deleteMyDocument: (accessToken: string, docId: number) =>
     request(`${API_ENDPOINTS.prestataires}/me/documents/${docId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }),
 
-  list: (accessToken?: string, params?: { category?: string; city?: string }) => {
+  list: (accessToken?: string, params?: { category?: string; city?: string; limit?: number }) => {
     const q = new URLSearchParams();
     if (params?.category) q.set('category', params.category);
     if (params?.city) q.set('city', params.city);
+    // Le serveur renvoie 50 fiches par défaut : l'annuaire en compte bien plus
+    // (726 en 2026-11), d'où une liste quasi « que Paris » sans limite explicite.
+    if (params?.limit) q.set('limit', String(params.limit));
     const url = `${API_ENDPOINTS.prestataires}?${q.toString()}`;
     return getPublic(url, accessToken);
   },

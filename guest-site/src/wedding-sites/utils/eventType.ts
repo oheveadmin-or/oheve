@@ -206,7 +206,6 @@ const CONFIG: Record<SiteEventType, EventSiteConfig> = {
     },
     mainEvent: { fr: 'Soirée de Bat Mitsva', he: 'מסיבת בת המצווה', en: 'Bat Mitzvah party' },
     program: [
-      { type: 'montee-torah', label: 'Cérémonie de Bat Mitsva', emoji: '📜' },
       { type: 'chabbat', label: 'Chabbat Bat Mitsva', emoji: '🕯️', optional: true },
       { type: 'houppa', label: 'Soirée de Bat Mitsva', emoji: '🎉' },
       { type: 'brunch', label: 'Brunch', emoji: '☕', optional: true },

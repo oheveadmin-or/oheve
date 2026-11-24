@@ -311,6 +311,24 @@ export type FrameArtSet = 'papillons' | 'eucalyptus';
  *  - papillons : bande de paillettes en miroir, raccords fondus (mask-image)
  *  - eucalyptus : filets de l'arche et tiges prolongés tout droits, raccord net
  */
+/**
+ * Longueur (en caractères) du plus long morceau de prénom qui ne peut pas être
+ * coupé : le navigateur ne passe à la ligne qu'aux espaces et après un trait
+ * d'union. Sert à réduire la police des prénoms pour qu'aucun mot ne déborde
+ * (cf. --io-len / --ia-len). `glue` : texte collé au début du premier morceau
+ * (« & » insécable devant le 2e prénom).
+ */
+export function longestNameUnit(parts: { text: string; glue?: string }[]): number {
+  let max = 1;
+  for (const { text, glue } of parts) {
+    const units = text.trim().replace(/-/g, '- ').split(/\s+/).filter(Boolean);
+    units.forEach((u, i) => {
+      max = Math.max(max, (i === 0 && glue ? glue.length : 0) + u.length);
+    });
+  }
+  return max;
+}
+
 export function FrameArt({ set, className, style }: { set: FrameArtSet; className?: string; style?: CSSProperties }) {
   const dir = `/invitation-${set}`;
   return (

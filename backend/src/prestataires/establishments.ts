@@ -9,8 +9,10 @@
  * se connecte). Les établissements ajoutés n'ont ni mot de passe ni email réel :
  * on y entre uniquement en basculant depuis un compte du même groupe.
  *
- * Ouvert à TOUS les prestataires, abonnés ou non. L'abonnement (et donc le
- * badge partenaire) reste par établissement.
+ * Ouvert à TOUS les prestataires, abonnés ou non. Dans l'app on les appelle
+ * des « profils ». On ne paie qu'UNE fois : l'abonnement du profil principal
+ * (ou de n'importe quel profil du groupe) rend partenaires tous les profils
+ * (voir prestataire-subscription/partner-sql.ts).
  */
 import crypto from 'crypto';
 import { Router, Request, Response } from 'express';
@@ -20,6 +22,8 @@ import { UserRole, generateRefreshToken, refreshTokenExpiresAt, signAccessToken 
 import { pool } from '../config/database';
 import { requireAuth } from '../middleware/requireAuth';
 import { findIn, loadExisting, lockPrestaCreation } from '../admin/duplicates';
+import { sqlIsPartner } from '../prestataire-subscription/partner-sql';
+import { groupSubscriptionFor } from '../prestataire-subscription';
 
 /** Garde-fou : nombre maximal d'établissements dans un groupe (compte principal inclus). */
 export const MAX_ESTABLISHMENTS = 30;
@@ -49,11 +53,12 @@ type EstablishmentRow = {
   location_city: string | null;
   cover_filename: string | null;
   presta_sub_status: string | null;
+  partner: boolean;
 };
 
 async function listGroup(ownerId: number): Promise<EstablishmentRow[]> {
   const r = await pool.query(
-    `SELECT u.id, (u.id = $1) AS is_owner, u.presta_sub_status,
+    `SELECT u.id, (u.id = $1) AS is_owner, u.presta_sub_status, ${sqlIsPartner('u')} AS partner,
             p.business_name, p.category, p.location_city, ph.filename AS cover_filename
        FROM users u
        LEFT JOIN prestataire_profiles p ON p.user_id = u.id
@@ -110,7 +115,10 @@ establishmentRoutes.get('/', async (req: Request, res: Response) => {
           location_city: r.location_city,
           cover_url: coverUrl(req, r.cover_filename),
           sub_status: r.presta_sub_status,
+          // Partenaire grâce à son abonnement OU à celui du compte (un seul paiement).
+          partner: r.partner === true,
         })),
+        group_partner: rows.some((r) => r.partner === true),
       },
     });
   } catch (err) {
@@ -128,7 +136,7 @@ establishmentRoutes.post('/', async (req: Request, res: Response) => {
   const category = String(req.body?.category ?? '').trim();
   const city = String(req.body?.location_city ?? '').trim();
   if (!bizName || !category) {
-    return res.status(400).json({ success: false, message: "Nom de l'établissement et catégorie requis" });
+    return res.status(400).json({ success: false, message: 'Nom du profil et catégorie requis' });
   }
   if (bizName.length > 200 || category.length > 100 || city.length > 120) {
     return res.status(400).json({ success: false, message: 'Un des champs est trop long' });
@@ -150,7 +158,7 @@ establishmentRoutes.post('/', async (req: Request, res: Response) => {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: `Vous avez atteint ${MAX_ESTABLISHMENTS} établissements. Contactez-nous pour en ajouter davantage.`,
+        message: `Vous avez atteint ${MAX_ESTABLISHMENTS} profils. Contactez-nous pour en ajouter davantage.`,
       });
     }
 
@@ -167,8 +175,8 @@ establishmentRoutes.post('/', async (req: Request, res: Response) => {
       return res.status(409).json({
         success: false,
         message: inGroup
-          ? `« ${hit.business_name} »${hit.city ? ` (${hit.city})` : ''} fait déjà partie de vos établissements.`
-          : `Un établissement « ${hit.business_name} »${hit.city ? ` (${hit.city})` : ''} existe déjà sur Oheve. Si c'est le vôtre, contactez-nous pour le rattacher à votre compte.`,
+          ? `« ${hit.business_name} »${hit.city ? ` (${hit.city})` : ''} fait déjà partie de vos profils.`
+          : `Un profil « ${hit.business_name} »${hit.city ? ` (${hit.city})` : ''} existe déjà sur Oheve. Si c'est le vôtre, contactez-nous pour le rattacher à votre compte.`,
       });
     }
 
@@ -218,9 +226,19 @@ establishmentRoutes.post('/:id/session', async (req: Request, res: Response) => 
       [targetId, ownerId]
     )).rows[0];
     if (!ownerId || !target) {
-      return res.status(404).json({ success: false, message: 'Établissement introuvable dans votre compte' });
+      return res.status(404).json({ success: false, message: 'Profil introuvable dans votre compte' });
     }
     const { mot_de_passe: _pwd, ...safeUser } = target;
+    // Profil couvert par l'abonnement du compte : l'app le voit abonné (jamais
+    // de second paiement demandé).
+    if (!['trialing', 'active'].includes(safeUser.presta_sub_status ?? '')) {
+      const cover = await groupSubscriptionFor(target.id).catch(() => null);
+      if (cover) {
+        safeUser.presta_sub_status = cover.presta_sub_status;
+        safeUser.presta_trial_end = cover.presta_trial_end;
+        safeUser.presta_current_period_end = cover.presta_current_period_end;
+      }
+    }
     const accessToken = signAccessToken(target.id, target.email, target.role as UserRole);
     const refreshToken = generateRefreshToken();
     await pool.query(

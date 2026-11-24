@@ -145,7 +145,7 @@ iapRoutes.post('/verify', requireAuth, async (req: Request, res: Response) => {
       // qu'un abonnement actif par identifiant → il couvre déjà l'autre fiche.
       return res.status(409).json({
         success: false,
-        message: `Votre abonnement Apple est déjà rattaché à votre établissement « ${claimed.rows[0].business_name ?? 'principal'} ». Un identifiant Apple ne peut porter qu'un seul abonnement : contactez support@ohevewedding.com pour abonner vos autres établissements.`,
+        message: `Votre abonnement est déjà actif sur votre profil « ${claimed.rows[0].business_name ?? 'principal'} » : il couvre tous les profils de votre compte, vous n'avez rien à payer de plus.`,
       });
     }
     if (claimed.rows[0]) {

@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { optionalAuth, requireAuth } from '../middleware/requireAuth';
 import { promouvoirDemandesVerrouillees } from '../demandes/service';
+import { sqlIsPartner, sqlOwnSubActive } from './partner-sql';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2026-05-27.dahlia' as any });
 
@@ -63,14 +64,9 @@ export function isAdminGrant(subId?: string | null): boolean {
 // offertes puis verrouillées, voir src/demandes). Même règle que SQL_ABONNE_ACTIF.
 // Les abonnements store / admin ont une date de fin locale qui fait foi
 // (pas de webhook pour les repasser en 'canceled' à l'heure exacte).
-export function sqlIsPartner(u = 'u'): string {
-  return `(COALESCE(${u}.presta_sub_status,'') IN ('trialing','active')
-    AND (COALESCE(${u}.presta_sub_id,'') NOT LIKE 'apple:%'
-         AND COALESCE(${u}.presta_sub_id,'') NOT LIKE 'google:%'
-         AND COALESCE(${u}.presta_sub_id,'') <> '${ADMIN_GRANT_SUB_ID}'
-         OR ${u}.presta_current_period_end IS NULL
-         OR ${u}.presta_current_period_end > NOW()))`;
-}
+// Un seul abonnement par compte : il couvre tous les profils du groupe
+// (voir partner-sql.ts).
+export { sqlIsPartner, sqlOwnSubActive } from './partner-sql';
 
 /** Vrai si ce compte prestataire est partenaire (abonnement actif). */
 export async function isPartnerPresta(userId: number): Promise<boolean> {
@@ -79,6 +75,38 @@ export async function isPartnerPresta(userId: number): Promise<boolean> {
     [userId],
   );
   return r.rows[0]?.partner === true;
+}
+
+export type GroupSub = {
+  /** Profil qui porte l'abonnement (≠ userId quand l'abonnement vient du groupe). */
+  holder_id: number;
+  holder_name: string | null;
+  presta_sub_id: string | null;
+  presta_sub_status: string | null;
+  presta_trial_end: Date | null;
+  presta_current_period_end: Date | null;
+};
+
+/**
+ * Abonnement actif qui couvre `userId` grâce à UN AUTRE profil de son groupe
+ * (le compte principal en priorité), ou null. Ne regarde jamais le profil
+ * lui-même : son propre abonnement passe par la logique habituelle.
+ */
+export async function groupSubscriptionFor(userId: number): Promise<GroupSub | null> {
+  const r = await pool.query(
+    `SELECT g.id AS holder_id, p.business_name AS holder_name,
+            g.presta_sub_id, g.presta_sub_status, g.presta_trial_end, g.presta_current_period_end
+       FROM users me
+       JOIN users g ON g.role = 'prestataire' AND g.id <> me.id
+                   AND (g.id = COALESCE(me.presta_owner_id, me.id)
+                        OR g.presta_owner_id = COALESCE(me.presta_owner_id, me.id))
+       LEFT JOIN prestataire_profiles p ON p.user_id = g.id
+      WHERE me.id = $1 AND ${sqlOwnSubActive('g')}
+      ORDER BY (g.id = COALESCE(me.presta_owner_id, me.id)) DESC, g.id ASC
+      LIMIT 1`,
+    [userId],
+  );
+  return (r.rows[0] as GroupSub) ?? null;
 }
 
 export const NOT_PARTNER_MESSAGE =
@@ -334,6 +362,12 @@ prestataireSubscriptionRoutes.post('/start', requireAuth, async (req: Request, r
     if (isPrestaSubActive(current?.presta_sub_status)) {
       return res.json({ success: true, data: { already_active: true, status: current.presta_sub_status } });
     }
+    // Profil couvert par l'abonnement d'un autre profil du compte : on ne fait
+    // jamais payer deux fois.
+    const cover = await groupSubscriptionFor(userId).catch(() => null);
+    if (cover) {
+      return res.json({ success: true, data: { already_active: true, status: cover.presta_sub_status, covered_by_group: true } });
+    }
 
     const customerId = await ensureCustomer(userId);
     const priceId = await getPriceId();
@@ -458,6 +492,26 @@ prestataireSubscriptionRoutes.post('/confirm', requireAuth, async (req: Request,
   }
 });
 
+/**
+ * Profil sans abonnement à lui mais couvert par l'abonnement d'un autre profil
+ * du même compte : on renvoie le statut de cet abonnement (provider 'group'),
+ * pour que l'app ne lui demande jamais de payer une seconde fois.
+ */
+async function withGroupCover<T extends { active: boolean }>(userId: number, own: T): Promise<T | Record<string, unknown>> {
+  if (own.active) return own;
+  const g = await groupSubscriptionFor(userId).catch(() => null);
+  if (!g) return own;
+  return {
+    provider: 'group',
+    status: g.presta_sub_status,
+    active: true,
+    trial_end: g.presta_trial_end,
+    current_period_end: g.presta_current_period_end,
+    cancel_at_period_end: false,
+    covered_by: { id: g.holder_id, business_name: g.holder_name },
+  };
+}
+
 // ── GET /status ─────────────────────────────────────────────────────────────
 // Statut courant, réconcilié depuis Stripe (filet si un webhook a été manqué).
 prestataireSubscriptionRoutes.get('/status', requireAuth, async (req: Request, res: Response) => {
@@ -482,14 +536,14 @@ prestataireSubscriptionRoutes.get('/status', requireAuth, async (req: Request, r
       }
       return res.json({
         success: true,
-        data: {
+        data: await withGroupCover(userId, {
           provider: isAdminGrant(row?.presta_sub_id) ? 'admin' : 'apple',
           status: row?.presta_sub_status ?? null,
           active: isPrestaSubActive(row?.presta_sub_status),
           trial_end: row?.presta_trial_end ?? null,
           current_period_end: row?.presta_current_period_end ?? null,
           cancel_at_period_end: false,
-        },
+        }),
       });
     }
 
@@ -510,14 +564,14 @@ prestataireSubscriptionRoutes.get('/status', requireAuth, async (req: Request, r
 
     return res.json({
       success: true,
-      data: {
+      data: await withGroupCover(userId, {
         provider: 'stripe',
         status: row?.presta_sub_status ?? null,
         active: isPrestaSubActive(row?.presta_sub_status),
         trial_end: row?.presta_trial_end ?? null,
         current_period_end: row?.presta_current_period_end ?? null,
         cancel_at_period_end: cancelAtPeriodEnd,
-      },
+      }),
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });

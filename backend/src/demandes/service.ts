@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 
 import { pool } from '../config/database';
 import { sqlVisibleEmail } from '../auth/username';
+import { sqlIsPartner } from '../prestataire-subscription/partner-sql';
 import { CONTENU_MAX, CONTENU_MIN, demandesConfig, DemandeStatut, STATUTS_OUVERTS } from './config';
 import { renderDemandeComplete } from './emails/demande-complete';
 import { renderDemandeVerrouillee } from './emails/demande-verrouillee';
@@ -59,7 +60,10 @@ export function prestaAbonneActif(row: {
   presta_sub_status?: string | null;
   presta_sub_id?: string | null;
   presta_current_period_end?: Date | string | null;
+  /** Calculé en SQL (sqlIsPartner) : abonnement actif sur ce profil OU un autre profil du compte. */
+  abonne_groupe?: boolean | null;
 }): boolean {
+  if (row.abonne_groupe === true) return true;
   if (!row.presta_sub_status || !SUB_ACTIVE.includes(row.presta_sub_status)) return false;
   // Abonnement store (Apple/Google) ou offert par l'admin : la date de fin
   // stockée fait foi (pas de webhook Stripe pour le repasser à « canceled »).
@@ -72,12 +76,9 @@ export function prestaAbonneActif(row: {
 }
 
 /** Même règle, en SQL (alias de la table users = u). */
-export const SQL_ABONNE_ACTIF = `(
-  u.presta_sub_status IN ('trialing','active')
-  AND NOT (COALESCE(u.presta_sub_id,'') ~ '^(apple:|google:|admin:grant)'
-           AND u.presta_current_period_end IS NOT NULL
-           AND u.presta_current_period_end < NOW())
-)`;
+// Group-aware : un seul abonnement couvre tous les profils d'un même compte
+// (voir prestataire-subscription/partner-sql.ts).
+export const SQL_ABONNE_ACTIF = sqlIsPartner('u');
 
 const CLIENT_LOCK_KEY = 815301; // verrou consultatif : nouvelles demandes d'un même client
 
@@ -136,8 +137,9 @@ export async function envoyerMessageClient(input: {
     // Ligne du prestataire verrouillée jusqu'au COMMIT.
     const presta = (await db.query(
       `SELECT u.id, u.role, u.is_active, u.presta_sub_status, u.presta_sub_id,
-              u.presta_current_period_end, u.demandes_gratuites_utilisees
-       FROM users u WHERE u.id = $1 FOR UPDATE`,
+              u.presta_current_period_end, u.demandes_gratuites_utilisees,
+              ${SQL_ABONNE_ACTIF} AS abonne_groupe
+       FROM users u WHERE u.id = $1 FOR UPDATE OF u`,
       [input.prestataireId],
     )).rows[0];
     if (!presta || presta.role !== 'prestataire' || !presta.is_active) {
@@ -257,7 +259,12 @@ export async function promouvoirSiAbonne(prestataireId: number): Promise<number>
 /** Appelé quand un abonnement devient actif (webhook Stripe). */
 export async function promouvoirDemandesVerrouillees(prestataireId: number): Promise<number> {
   const r = await pool.query(
-    `UPDATE demandes SET statut='abonnement' WHERE prestataire_id=$1 AND statut='verrouillee'`,
+    // Tous les profils du même compte : l'abonnement les couvre tous.
+    `UPDATE demandes SET statut='abonnement'
+      WHERE statut='verrouillee' AND prestataire_id IN (
+        SELECT m.id FROM users me JOIN users m
+          ON m.id = COALESCE(me.presta_owner_id, me.id) OR m.presta_owner_id = COALESCE(me.presta_owner_id, me.id)
+         WHERE me.id = $1 AND m.role = 'prestataire')`,
     [prestataireId],
   );
   return r.rowCount ?? 0;
@@ -570,7 +577,8 @@ export async function vueDemande(demandeId: number, userId: number) {
     const p = await chargerPersonnes(d);
     const total = await totalRecues(d.prestataire_id);
     const presta = (await pool.query(
-      `SELECT u.presta_sub_status, u.presta_sub_id, u.presta_current_period_end, u.demandes_gratuites_utilisees FROM users u WHERE id=$1`,
+      `SELECT u.presta_sub_status, u.presta_sub_id, u.presta_current_period_end, u.demandes_gratuites_utilisees,
+              ${SQL_ABONNE_ACTIF} AS abonne_groupe FROM users u WHERE u.id=$1`,
       [userId],
     )).rows[0];
     const base = {
@@ -670,7 +678,8 @@ export async function listeDemandes(userId: number) {
   );
 
   const presta = (await pool.query(
-    `SELECT presta_sub_status, presta_sub_id, presta_current_period_end, demandes_gratuites_utilisees, role FROM users WHERE id=$1`,
+    `SELECT u.presta_sub_status, u.presta_sub_id, u.presta_current_period_end, u.demandes_gratuites_utilisees, u.role,
+            ${SQL_ABONNE_ACTIF} AS abonne_groupe FROM users u WHERE u.id=$1`,
     [userId],
   )).rows[0] ?? {};
 

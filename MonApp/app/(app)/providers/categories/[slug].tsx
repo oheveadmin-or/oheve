@@ -4,7 +4,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
+  Switch,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -18,6 +22,10 @@ import { C, RADIUS } from '@/constants/OheveTheme';
 import { useAuth } from '@/contexts/auth-context';
 import { MADRICHIM_HATAN, MADRICHOT_KALA, MIKVES } from '@/data/officiants';
 import { categoryDef, categoryLabel, normalizeCategory, prestaPhoto } from '@/lib/presta-categories';
+import {
+  activeFilterCount, applyPrestaFilters, cityCounts, EMPTY_FILTERS,
+  normalizeCity, SORT_OPTIONS, startingPrice, type PrestaFilters,
+} from '@/lib/presta-filters';
 import { prestatairesApi } from '@/services/auth/api';
 
 // Mariage juif : l'essentiel de la catégorie, ce sont les guides et services
@@ -34,19 +42,10 @@ const JEWISH_GUIDES = [
 // (traiteur casher, pâtissier sous surveillance…).
 const KOSHER_WORDS = ['casher', 'cacher', 'kasher', 'kosher', 'beth din', 'beit din', 'loubavitch', 'glatt'];
 
-type SortKey = 'none' | 'prix_asc' | 'prix_desc' | 'note_desc';
+/** Villes proposées en raccourci sous la recherche (les plus fournies). */
+const QUICK_CITIES = 6;
 
-const SORT_OPTIONS_ALL: { key: SortKey; label: string }[] = [
-  { key: 'none',      label: 'Pertinence' },
-  { key: 'prix_asc',  label: 'Prix ↑' },
-  { key: 'prix_desc', label: 'Prix ↓' },
-  { key: 'note_desc', label: 'Mieux notés' },
-];
-
-const SORT_OPTIONS_JUIF: { key: SortKey; label: string }[] = [
-  { key: 'none',      label: 'Pertinence' },
-  { key: 'note_desc', label: 'Mieux notés' },
-];
+const fmtPrice = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`;
 
 type Provider = {
   user_id: number;
@@ -56,6 +55,7 @@ type Provider = {
   rating?: number;
   price_min?: number;
   price_max?: number;
+  price_range?: string;
   description?: string;
   cover_url?: string;
   avatar_url?: string;
@@ -73,21 +73,20 @@ export default function CategoryProvidersScreen() {
 
   const [allProviders, setAllProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>('none');
-  const [search, setSearch] = useState('');
-  const [cityFilter, setCityFilter] = useState('');
-
-  const sortOptions = slug === 'juif' ? SORT_OPTIONS_JUIF : SORT_OPTIONS_ALL;
+  const [filters, setFilters] = useState<PrestaFilters>(EMPTY_FILTERS);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const patch = (p: Partial<PrestaFilters>) => setFilters((f) => ({ ...f, ...p }));
+  const toggleCity = (key: string) =>
+    setFilters((f) => ({ ...f, cities: f.cities.includes(key) ? f.cities.filter((c) => c !== key) : [...f.cities, key] }));
 
   useEffect(() => {
-    setSortKey('none');
-    setCityFilter('');
+    setFilters(EMPTY_FILTERS);
   }, [slug]);
 
   useEffect(() => {
     setLoading(true);
     prestatairesApi
-      .list(user?.accessToken)
+      .list(user?.accessToken, { limit: 2000 })
       .then((res) => {
         if (!res?.success || !Array.isArray(res.data)) return;
         // Chaque prestataire est rangé dans UNE catégorie officielle
@@ -105,35 +104,18 @@ export default function CategoryProvidersScreen() {
       .finally(() => setLoading(false));
   }, [user?.accessToken, slug]);
 
-  const availableCities = useMemo(() => {
-    const cities = new Set<string>();
-    allProviders.forEach((p) => {
-      const city = p.location_city?.trim();
-      if (city) cities.add(city);
-    });
-    return Array.from(cities).sort((a, b) => a.localeCompare(b, 'fr'));
-  }, [allProviders]);
+  const cities = useMemo(() => cityCounts(allProviders.map((p) => p.location_city)), [allProviders]);
 
-  const filtered = useMemo(() => {
-    let list = [...allProviders];
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter((p) =>
-        p.business_name?.toLowerCase().includes(q) ||
-        p.location_city?.toLowerCase().includes(q)
-      );
-    }
-    if (cityFilter) {
-      list = list.filter((p) => p.location_city?.trim() === cityFilter);
-    }
-    if (sortKey === 'prix_asc') list.sort((a, b) => (a.price_min ?? 0) - (b.price_min ?? 0));
-    else if (sortKey === 'prix_desc') list.sort((a, b) => (b.price_min ?? 0) - (a.price_min ?? 0));
-    else if (sortKey === 'note_desc') list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-    // Moins de visibilité pour les non-partenaires : quel que soit le tri,
-    // les partenaires passent devant (sort est stable, l'ordre choisi est gardé).
-    list.sort((a, b) => Number(!!b.is_partner) - Number(!!a.is_partner));
-    return list;
-  }, [allProviders, search, sortKey, cityFilter]);
+  // Raccourcis : les villes les plus fournies + celles déjà cochées dans le panneau.
+  const quickCities = useMemo(() => {
+    const top = cities.slice(0, QUICK_CITIES);
+    const extra = cities.filter((c) => filters.cities.includes(c.key) && !top.includes(c));
+    return [...extra, ...top];
+  }, [cities, filters.cities]);
+
+  const filtered = useMemo(() => applyPrestaFilters(allProviders, filters), [allProviders, filters]);
+  const nbFilters = activeFilterCount(filters);
+  const sortLabel = SORT_OPTIONS.find((o) => o.key === filters.sort)?.label ?? 'Pertinence';
 
   const label = categoryDef(slug).title;
   const isJuif = slug === 'juif';
@@ -168,37 +150,19 @@ export default function CategoryProvidersScreen() {
           <Ionicons name="search" size={16} color={C.textLight} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder={isJuif ? 'Rechercher un prestataire casher...' : `Rechercher un·e ${label.toLowerCase()}...`}
+            placeholder={isJuif ? 'Rechercher un prestataire casher…' : 'Rechercher par nom ou ville…'}
             placeholderTextColor={C.textLight}
-            value={search}
-            onChangeText={setSearch}
+            value={filters.search}
+            onChangeText={(t) => patch({ search: t })}
           />
-          {search.length > 0 && (
-            <Pressable onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          {filters.search.length > 0 && (
+            <Pressable onPress={() => patch({ search: '' })} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={16} color={C.textLight} />
             </Pressable>
           )}
         </View>
 
-        {/* Tri */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.subFilterList}
-          style={styles.subFilterScroll}
-        >
-          {sortOptions.map((opt) => (
-            <Pressable
-              key={opt.key}
-              style={[styles.chip, sortKey === opt.key && styles.chipActive]}
-              onPress={() => setSortKey(opt.key)}
-            >
-              <ThemedText style={[styles.chipText, sortKey === opt.key && styles.chipTextActive]}>{opt.label}</ThemedText>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        {/* Filtre ville */}
+        {/* Filtres + tri */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -206,23 +170,89 @@ export default function CategoryProvidersScreen() {
           style={styles.subFilterScroll}
         >
           <Pressable
-            style={[styles.chip, styles.cityChip, !cityFilter && styles.chipActive]}
-            onPress={() => setCityFilter('')}
+            style={[styles.chip, styles.cityChip, nbFilters > 0 && styles.chipActive]}
+            onPress={() => setSheetOpen(true)}
           >
-            <Ionicons name="location-outline" size={13} color={!cityFilter ? '#fff' : C.sauge} />
-            <ThemedText style={[styles.chipText, !cityFilter && styles.chipTextActive]}>Toutes les villes</ThemedText>
+            <Ionicons name="options-outline" size={14} color={nbFilters > 0 ? '#fff' : C.saugeDark} />
+            <ThemedText style={[styles.chipText, nbFilters > 0 && styles.chipTextActive]}>
+              Filtres{nbFilters > 0 ? ` (${nbFilters})` : ''}
+            </ThemedText>
           </Pressable>
-          {availableCities.map((city) => (
-            <Pressable
-              key={city}
-              style={[styles.chip, styles.cityChip, cityFilter === city && styles.chipActive]}
-              onPress={() => setCityFilter(cityFilter === city ? '' : city)}
-            >
-              <Ionicons name="location-outline" size={13} color={cityFilter === city ? '#fff' : C.sauge} />
-              <ThemedText style={[styles.chipText, cityFilter === city && styles.chipTextActive]}>{city}</ThemedText>
+          {(filters.sort === 'note_desc' || filters.sort === 'nom_asc') && (
+            <Pressable style={[styles.chip, styles.cityChip, styles.chipActive]} onPress={() => patch({ sort: 'none' })}>
+              <ThemedText style={[styles.chipText, styles.chipTextActive]}>{sortLabel}</ThemedText>
+              <Ionicons name="close" size={13} color="#fff" />
             </Pressable>
-          ))}
+          )}
+          {!isJuif && (
+            <>
+              <Pressable
+                style={[styles.chip, filters.sort === 'prix_asc' && styles.chipActive]}
+                onPress={() => patch({ sort: filters.sort === 'prix_asc' ? 'none' : 'prix_asc' })}
+              >
+                <ThemedText style={[styles.chipText, filters.sort === 'prix_asc' && styles.chipTextActive]}>Prix ↑</ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.chip, filters.sort === 'prix_desc' && styles.chipActive]}
+                onPress={() => patch({ sort: filters.sort === 'prix_desc' ? 'none' : 'prix_desc' })}
+              >
+                <ThemedText style={[styles.chipText, filters.sort === 'prix_desc' && styles.chipTextActive]}>Prix ↓</ThemedText>
+              </Pressable>
+            </>
+          )}
+          <Pressable
+            style={[styles.chip, filters.partnersOnly && styles.chipActive]}
+            onPress={() => patch({ partnersOnly: !filters.partnersOnly })}
+          >
+            <ThemedText style={[styles.chipText, filters.partnersOnly && styles.chipTextActive]}>Partenaires</ThemedText>
+          </Pressable>
         </ScrollView>
+
+        {/* Villes (plusieurs possibles) */}
+        {cities.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.subFilterList}
+            style={styles.subFilterScroll}
+          >
+            <Pressable
+              style={[styles.chip, styles.cityChip, filters.cities.length === 0 && styles.chipActive]}
+              onPress={() => patch({ cities: [] })}
+            >
+              <Ionicons name="location-outline" size={13} color={filters.cities.length === 0 ? '#fff' : C.sauge} />
+              <ThemedText style={[styles.chipText, filters.cities.length === 0 && styles.chipTextActive]}>Toutes les villes</ThemedText>
+            </Pressable>
+            {quickCities.map((c) => {
+              const on = filters.cities.includes(c.key);
+              return (
+                <Pressable key={c.key} style={[styles.chip, styles.cityChip, on && styles.chipActive]} onPress={() => toggleCity(c.key)}>
+                  {on && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  <ThemedText style={[styles.chipText, styles.cityChipText, on && styles.chipTextActive]} numberOfLines={1}>{c.city}</ThemedText>
+                  <ThemedText style={[styles.chipCount, on && styles.chipTextActive]}>{c.count}</ThemedText>
+                </Pressable>
+              );
+            })}
+            {cities.length > quickCities.length && (
+              <Pressable style={[styles.chip, styles.cityChip]} onPress={() => setSheetOpen(true)}>
+                <Ionicons name="add" size={14} color={C.saugeDark} />
+                <ThemedText style={styles.chipText}>{cities.length - quickCities.length} autres villes</ThemedText>
+              </Pressable>
+            )}
+          </ScrollView>
+        )}
+
+        <FilterSheet
+          visible={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          filters={filters}
+          onChange={setFilters}
+          cities={cities}
+          resultCount={filtered.length}
+          allowPrice={!isJuif}
+          hasRatings={allProviders.some((p) => Number(p.rating ?? 0) > 0)}
+          bottomInset={insets.bottom}
+        />
 
         {/* Liste */}
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
@@ -274,7 +304,7 @@ export default function CategoryProvidersScreen() {
             isJuif ? (
               <View style={styles.juifEmpty}>
                 <ThemedText style={styles.emptyText}>
-                  {search.trim() || cityFilter
+                  {filters.search.trim() || nbFilters > 0
                     ? 'Aucun prestataire casher ne correspond à ta recherche.'
                     : 'Les traiteurs, DJ et photographes casher arrivent bientôt. En attendant, retrouve tous les prestataires dans l’onglet Prestataires.'}
                 </ThemedText>
@@ -286,9 +316,15 @@ export default function CategoryProvidersScreen() {
               <View style={styles.emptyBox}>
                 <Ionicons name="search-outline" size={32} color={C.textLight} />
                 <ThemedText style={styles.emptyText}>Aucun prestataire trouvé</ThemedText>
-                <ThemedText style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>
-                  Soyez le premier à vous inscrire dans cette catégorie
-                </ThemedText>
+                {filters.search.trim() || nbFilters > 0 ? (
+                  <Pressable style={styles.juifEmptyBtn} onPress={() => setFilters(EMPTY_FILTERS)}>
+                    <ThemedText style={styles.juifEmptyBtnText}>Effacer les filtres</ThemedText>
+                  </Pressable>
+                ) : (
+                  <ThemedText style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>
+                    Soyez le premier à vous inscrire dans cette catégorie
+                  </ThemedText>
+                )}
               </View>
             )
           ) : (
@@ -315,16 +351,16 @@ export default function CategoryProvidersScreen() {
                       </View>
                     )}
                   </View>
-                  <ThemedText style={styles.cardCateg}>
-                    {categoryLabel(p.category)}{p.location_city ? ` · ${p.location_city}` : ''}
+                  <ThemedText style={styles.cardCateg} numberOfLines={1}>
+                    {categoryLabel(p.category)}{normalizeCity(p.location_city) ? ` · ${p.location_city!.trim()}` : ''}
                   </ThemedText>
                   <View style={styles.ratingRow}>
                     <Ionicons name="star" size={11} color="#F5A623" />
                     <ThemedText style={styles.ratingText}>{Number(p.rating ?? 0).toFixed(1)}</ThemedText>
-                    {p.price_min != null && (
+                    {startingPrice(p) != null && (
                       <>
                         <ThemedText style={styles.dot}>·</ThemedText>
-                        <ThemedText style={styles.ratingText}>À partir de {p.price_min} €</ThemedText>
+                        <ThemedText style={styles.ratingText}>À partir de {fmtPrice(startingPrice(p)!)}</ThemedText>
                       </>
                     )}
                   </View>
@@ -338,6 +374,166 @@ export default function CategoryProvidersScreen() {
     </ScreenLayout>
   );
 }
+
+// ─── Panneau Filtres ─────────────────────────────────────────────────────────
+function FilterSheet({
+  visible, onClose, filters, onChange, cities, resultCount, allowPrice, hasRatings, bottomInset,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  filters: PrestaFilters;
+  onChange: (f: PrestaFilters) => void;
+  cities: { city: string; key: string; count: number }[];
+  resultCount: number;
+  allowPrice: boolean;
+  /** Aucune fiche notée → pas de filtre « note minimale » (il viderait la liste). */
+  hasRatings: boolean;
+  bottomInset: number;
+}) {
+  const [cityQuery, setCityQuery] = useState('');
+  const set = (p: Partial<PrestaFilters>) => onChange({ ...filters, ...p });
+  const q = cityQuery.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const shownCities = q ? cities.filter((c) => c.key.includes(q)) : cities;
+  const toggle = (key: string) =>
+    set({ cities: filters.cities.includes(key) ? filters.cities.filter((c) => c !== key) : [...filters.cities, key] });
+  const sorts = allowPrice ? SORT_OPTIONS : SORT_OPTIONS.filter((o) => !o.key.startsWith('prix'));
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={sheetStyles.backdrop} onPress={onClose} />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={sheetStyles.kav} pointerEvents="box-none">
+      <View style={[sheetStyles.sheet, { paddingBottom: Math.max(bottomInset, 12) }]}>
+        <View style={sheetStyles.handle} />
+        <View style={sheetStyles.head}>
+          <ThemedText style={sheetStyles.title}>Filtres</ThemedText>
+          <Pressable onPress={() => { onChange({ ...EMPTY_FILTERS, search: filters.search }); setCityQuery(''); }} hitSlop={10}>
+            <ThemedText style={sheetStyles.reset}>Réinitialiser</ThemedText>
+          </Pressable>
+        </View>
+
+        <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 12 }} keyboardShouldPersistTaps="handled">
+          <ThemedText style={sheetStyles.section}>Trier par</ThemedText>
+          <View style={sheetStyles.wrapRow}>
+            {sorts.map((o) => {
+              const on = filters.sort === o.key;
+              return (
+                <Pressable key={o.key} style={[styles.chip, styles.cityChip, on && styles.chipActive]} onPress={() => set({ sort: o.key })}>
+                  <Ionicons name={o.icon as never} size={13} color={on ? '#fff' : C.saugeDark} />
+                  <ThemedText style={[styles.chipText, on && styles.chipTextActive]}>{o.label}</ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+          {allowPrice && (filters.sort === 'prix_asc' || filters.sort === 'prix_desc') && (
+            <ThemedText style={sheetStyles.hint}>Les prestataires sans prix indiqué apparaissent en fin de liste.</ThemedText>
+          )}
+
+          <ThemedText style={sheetStyles.section}>Affiner</ThemedText>
+          <ToggleRow label="Partenaires Oheve uniquement" sub="Réservation et paiement dans l'app" value={filters.partnersOnly} onChange={(v) => set({ partnersOnly: v })} />
+          {allowPrice && <ToggleRow label="Prix indiqué" value={filters.withPrice} onChange={(v) => set({ withPrice: v })} />}
+          <ToggleRow label="Avec photo" value={filters.withPhoto} onChange={(v) => set({ withPhoto: v })} />
+
+          {hasRatings && <ThemedText style={sheetStyles.section}>Note minimale</ThemedText>}
+          {hasRatings && <View style={sheetStyles.wrapRow}>
+            {[0, 3, 4, 4.5].map((r) => {
+              const on = filters.minRating === r;
+              return (
+                <Pressable key={r} style={[styles.chip, styles.cityChip, on && styles.chipActive]} onPress={() => set({ minRating: r })}>
+                  {r > 0 && <Ionicons name="star" size={12} color={on ? '#fff' : '#F5A623'} />}
+                  <ThemedText style={[styles.chipText, on && styles.chipTextActive]}>{r === 0 ? 'Toutes' : `${String(r).replace('.', ',')} et +`}</ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>}
+
+          <View style={sheetStyles.cityHead}>
+            <ThemedText style={sheetStyles.section}>
+              Villes{filters.cities.length ? ` · ${filters.cities.length} choisie${filters.cities.length > 1 ? 's' : ''}` : ''}
+            </ThemedText>
+            {filters.cities.length > 0 && (
+              <Pressable onPress={() => set({ cities: [] })} hitSlop={10}>
+                <ThemedText style={sheetStyles.reset}>Toutes</ThemedText>
+              </Pressable>
+            )}
+          </View>
+          {cities.length > 8 && (
+            <View style={[styles.searchRow, { marginBottom: 8 }]}>
+              <Ionicons name="search" size={15} color={C.textLight} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Chercher une ville…"
+                placeholderTextColor={C.textLight}
+                value={cityQuery}
+                onChangeText={setCityQuery}
+              />
+            </View>
+          )}
+          {shownCities.length === 0 ? (
+            <ThemedText style={sheetStyles.hint}>Aucune ville ne correspond.</ThemedText>
+          ) : (
+            shownCities.map((c) => {
+              const on = filters.cities.includes(c.key);
+              return (
+                <Pressable key={c.key} style={sheetStyles.cityRow} onPress={() => toggle(c.key)}>
+                  <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? C.sauge : C.textLight} />
+                  <ThemedText style={sheetStyles.cityName} numberOfLines={1}>{c.city}</ThemedText>
+                  <ThemedText style={sheetStyles.cityCount}>{c.count}</ThemedText>
+                </Pressable>
+              );
+            })
+          )}
+        </ScrollView>
+
+        <Pressable style={sheetStyles.cta} onPress={onClose}>
+          <ThemedText style={sheetStyles.ctaText} numberOfLines={1}>
+            {resultCount === 0 ? 'Aucun résultat' : `Voir ${resultCount} prestataire${resultCount > 1 ? 's' : ''}`}
+          </ThemedText>
+        </Pressable>
+      </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+function ToggleRow({ label, sub, value, onChange }: { label: string; sub?: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <Pressable style={sheetStyles.toggleRow} onPress={() => onChange(!value)}>
+      <View style={{ flex: 1 }}>
+        <ThemedText style={sheetStyles.toggleLabel} numberOfLines={1}>{label}</ThemedText>
+        {!!sub && <ThemedText style={sheetStyles.hint} numberOfLines={1}>{sub}</ThemedText>}
+      </View>
+      <Switch value={value} onValueChange={onChange} trackColor={{ true: C.sauge, false: C.border }} thumbColor="#fff" />
+    </Pressable>
+  );
+}
+
+const sheetStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  kav: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' },
+  sheet: {
+    maxHeight: '88%',
+    backgroundColor: C.ivoire, borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    paddingHorizontal: 20, paddingTop: 8,
+  },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, marginBottom: 8 },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  title: { fontSize: 20, lineHeight: 27, fontFamily: 'OheveSerif-Medium', color: C.textDark },
+  reset: { fontSize: 13, fontWeight: '600', color: C.saugeDark },
+  section: { fontSize: 12, fontWeight: '700', color: C.textMid, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 16, marginBottom: 8 },
+  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  hint: { fontSize: 12, color: C.textLight, marginTop: 4 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  toggleLabel: { fontSize: 14, color: C.textDark, fontWeight: '500' },
+  cityHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cityRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border,
+  },
+  cityName: { flex: 1, fontSize: 14, color: C.textDark },
+  cityCount: { fontSize: 12, color: C.textLight, flexShrink: 0 },
+  cta: { backgroundColor: C.sauge, borderRadius: RADIUS.pill, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
+  ctaText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+});
 
 const styles = StyleSheet.create({
   header: {
@@ -376,6 +572,8 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: C.sauge, borderColor: C.sauge },
   chipText: { fontSize: 13, fontWeight: '500', color: C.textMid },
   chipTextActive: { color: '#fff', fontWeight: '600' },
+  cityChipText: { maxWidth: 170 },
+  chipCount: { fontSize: 11, color: C.textLight, fontWeight: '600' },
   list: { flex: 1 },
   listContent: { gap: 10, paddingBottom: 32 },
   emptyBox: { alignItems: 'center', paddingTop: 48, gap: 12 },

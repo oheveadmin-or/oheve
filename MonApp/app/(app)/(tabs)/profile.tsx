@@ -135,8 +135,11 @@ function PrestataireInstaProfile() {
   const [avatarBroken, setAvatarBroken] = useState<string | null>(null);
   const [msgCount, setMsgCount] = useState(0);
   const [settingsModal, setSettingsModal] = useState(false);
-  // Plusieurs établissements sous un même compte (groupe hôtelier…).
+  // Plusieurs profils sous un même compte (groupe hôtelier…) — « établissements » côté serveur.
   const [etabModal, setEtabModal] = useState(false);
+  // true = le sélecteur s'ouvre directement sur « Nouveau profil » (bouton +).
+  const [etabAdd, setEtabAdd] = useState(false);
+  const openProfiles = (add: boolean) => { setEtabAdd(add); setEtabModal(true); };
 
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -317,8 +320,8 @@ function PrestataireInstaProfile() {
     <View style={{ flex: 1, backgroundColor: '#fff', paddingTop: insets.top }}>
       {/* Header bar */}
       <View style={instaStyles.headerBar}>
-        {/* Comme le changement de compte Instagram : appui = mes établissements. */}
-        <Pressable style={instaStyles.headerNameBtn} onPress={() => setEtabModal(true)} accessibilityLabel="Mes établissements" hitSlop={6}>
+        {/* Comme le changement de compte Instagram : appui = mes profils. */}
+        <Pressable style={instaStyles.headerNameBtn} onPress={() => openProfiles(false)} accessibilityLabel="Mes profils" hitSlop={6}>
           <ThemedText style={instaStyles.headerNameTxt} numberOfLines={1}>{businessName}</ThemedText>
           <Ionicons name="chevron-down" size={16} color={C.textDark} />
         </Pressable>
@@ -420,6 +423,19 @@ function PrestataireInstaProfile() {
             <Ionicons name="add" size={18} color={C.textDark} />
           </Pressable>
         </View>
+
+        {/* Plusieurs profils sous un même compte : bouton bien visible (avant,
+            seulement caché derrière le nom en haut). Un seul abonnement les couvre tous. */}
+        <Pressable style={instaStyles.addProfileBtn} onPress={() => openProfiles(true)} accessibilityLabel="Ajouter un profil">
+          <View style={instaStyles.addProfileIcon}>
+            <Ionicons name="add" size={20} color="#fff" />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <ThemedText style={instaStyles.addProfileTxt} numberOfLines={1}>Ajouter un profil</ThemedText>
+            <ThemedText style={instaStyles.addProfileSub} numberOfLines={2}>Un autre établissement ou activité — sans payer de nouvel abonnement</ThemedText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.saugeDark} />
+        </Pressable>
 
         {/* Photo grid */}
         <View style={instaStyles.gridDivider} />
@@ -586,7 +602,7 @@ function PrestataireInstaProfile() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <EstablishmentSwitcher visible={etabModal} onClose={() => setEtabModal(false)} />
+      <EstablishmentSwitcher visible={etabModal} startAdding={etabAdd} onClose={() => setEtabModal(false)} />
 
       {/* Settings modal */}
       <Modal visible={settingsModal} transparent animationType="slide" onRequestClose={() => setSettingsModal(false)}>
@@ -596,7 +612,7 @@ function PrestataireInstaProfile() {
             <ThemedText style={instaStyles.modalTitle}>Paramètres</ThemedText>
 
             {[
-              { icon: 'business-outline', label: 'Mes établissements', route: null },
+              { icon: 'people-outline', label: 'Mes profils', route: null },
               { icon: 'document-outline', label: 'Exporter ma fiche (PDF)', route: 'export-fiche' },
               { icon: 'person-outline', label: 'Informations personnelles', route: '/(app)/personal-info' },
               { icon: 'star-outline', label: 'Mon abonnement Oheve', route: '/(app)/prestataire/manage-subscription' },
@@ -610,7 +626,7 @@ function PrestataireInstaProfile() {
               <Pressable
                 key={item.label}
                 style={instaStyles.modalItem}
-                onPress={() => { setSettingsModal(false); if (item.route === 'export-fiche') setTimeout(exportFiche, 400); else if (item.route) router.push(item.route as never); else setTimeout(() => setEtabModal(true), 400); /* iOS : une modale à la fois */ }}
+                onPress={() => { setSettingsModal(false); if (item.route === 'export-fiche') setTimeout(exportFiche, 400); else if (item.route) router.push(item.route as never); else setTimeout(() => openProfiles(false), 400); /* iOS : une modale à la fois */ }}
               >
                 <Ionicons name={item.icon as 'home'} size={20} color={C.moka} />
                 <ThemedText style={instaStyles.modalItemTxt}>{item.label}</ThemedText>
@@ -871,6 +887,10 @@ const instaStyles = StyleSheet.create({
   locationTxt: { fontSize: 12, color: C.textLight },
 
   actionRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 14 },
+  addProfileBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 14, paddingVertical: 10, paddingHorizontal: 12, borderRadius: RADIUS.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.sauge, backgroundColor: C.sauge + '10' },
+  addProfileIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.saugeDark, alignItems: 'center', justifyContent: 'center' },
+  addProfileTxt: { fontSize: 15, fontWeight: '700', color: C.saugeDark },
+  addProfileSub: { fontSize: 12, color: C.textMid, marginTop: 1 },
   editBtn: {
     flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 8,
     paddingVertical: 7, alignItems: 'center', backgroundColor: C.card,

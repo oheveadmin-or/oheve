@@ -79,7 +79,7 @@ export default function ProvidersScreen() {
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    prestatairesApi.list(user?.accessToken)
+    prestatairesApi.list(user?.accessToken, { limit: 2000 })
       .then((res: { success?: boolean; data?: unknown[] }) => {
         if (res?.success && Array.isArray(res.data)) {
           const userCity = (user?.wedding_city ?? '').toLowerCase().trim();

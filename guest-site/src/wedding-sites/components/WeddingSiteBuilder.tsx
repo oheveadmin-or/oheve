@@ -608,6 +608,22 @@ export function WeddingSiteBuilder() {
     setRsvpForm((f) => (f.weddingId === draft.id ? f : { ...f, weddingId: draft.id }));
   }, [draft.id]);
 
+  // Événements retirés du programme d'un type de fête (ex. « Cérémonie de Bat
+  // Mitsva ») : décochés sur les sites existants, sinon ils resteraient
+  // affichés sans case pour les retirer.
+  useEffect(() => {
+    if (wedding) return;
+    const allowed = new Set<string>(programDefs.map((d) => d.type));
+    const stale = (content.jewishEvents ?? []).filter((e) => e.enabled && e.type !== 'custom' && !allowed.has(e.type));
+    if (!stale.length) return;
+    setContent((prev) => ({
+      ...prev,
+      jewishEvents: (prev.jewishEvents ?? []).map((e) => (stale.some((s) => s.id === e.id) ? { ...e, enabled: false } : e)),
+    }));
+    for (const e of stale) syncJewishEventToRsvp(e.type, { label: e.label, enabled: false });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventType, content.jewishEvents]);
+
   // Migration : s'assure que les événements juifs activés ont un RSVPEvent avec ID stable
   useEffect(() => {
     const enabledJewish = (content.jewishEvents ?? []).filter((e) => e.enabled);

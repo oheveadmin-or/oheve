@@ -46,19 +46,19 @@ export default function EstablishmentsSetupScreen() {
     <KeyboardAvoidingView style={[styles.root, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.header}>
         <ThemedText style={styles.stepBadge}>Étape 2 sur 3</ThemedText>
-        <ThemedText style={styles.title}>Avez-vous plusieurs établissements ?</ThemedText>
+        <ThemedText style={styles.title}>Avez-vous plusieurs profils ?</ThemedText>
         <ThemedText style={styles.sub}>
-          Par exemple plusieurs hôtels, salles ou boutiques. Chacun aura sa propre fiche dans l&apos;annuaire, et vous les gérez tous depuis ce même compte.
+          Par exemple plusieurs hôtels, salles ou boutiques. Chacun aura sa propre fiche dans l&apos;annuaire, et vous les gérez tous depuis ce même compte. Un seul abonnement pour tous : vous ne payez qu&apos;une fois.
         </ThemedText>
       </View>
 
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
         <View style={styles.choices}>
-          <Pressable style={[styles.choice, several === false && styles.choiceOn]} onPress={() => { setSeveral(false); next(); }} accessibilityLabel="Non, un seul établissement">
+          <Pressable style={[styles.choice, several === false && styles.choiceOn]} onPress={() => { setSeveral(false); next(); }} accessibilityLabel="Non, un seul profil">
             <Ionicons name="storefront-outline" size={26} color={several === false ? '#fff' : C.saugeDark} />
             <ThemedText style={[styles.choiceTitle, several === false && styles.choiceTxtOn]}>Non, un seul</ThemedText>
           </Pressable>
-          <Pressable style={[styles.choice, several === true && styles.choiceOn]} onPress={() => setSeveral(true)} accessibilityLabel="Oui, plusieurs établissements">
+          <Pressable style={[styles.choice, several === true && styles.choiceOn]} onPress={() => setSeveral(true)} accessibilityLabel="Oui, plusieurs profils">
             <Ionicons name="business-outline" size={26} color={several === true ? '#fff' : C.saugeDark} />
             <ThemedText style={[styles.choiceTitle, several === true && styles.choiceTxtOn]}>Oui, plusieurs</ThemedText>
           </Pressable>
@@ -66,19 +66,19 @@ export default function EstablishmentsSetupScreen() {
 
         {several ? (
           <>
-            <ThemedText style={styles.section}>Vos établissements ({items.length})</ThemedText>
-            {main ? <Row item={main} badge="Compte principal" /> : null}
+            <ThemedText style={styles.section}>Vos profils ({items.length})</ThemedText>
+            {main ? <Row item={main} badge="Profil principal" /> : null}
             {added.map((i) => <Row key={i.id} item={i} badge="Ajouté" />)}
 
             {user?.accessToken ? (
               <View style={styles.formCard}>
                 <ThemedText style={styles.formTitle}>
-                  {added.length === 0 ? 'Ajoutez votre 2e établissement' : 'Ajouter un autre établissement'}
+                  {added.length === 0 ? 'Ajoutez votre 2e profil' : 'Ajouter un autre profil'}
                 </ThemedText>
                 <AddEstablishmentForm
                   accessToken={user.accessToken}
                   defaultCategory={main?.category ?? ''}
-                  submitLabel="Ajouter cet établissement"
+                  submitLabel="Ajouter ce profil"
                   onCreated={(c) => setItems((list) => [...list, { id: c.id, business_name: c.business_name, category: c.category, location_city: c.location_city }])}
                 />
               </View>
@@ -89,7 +89,7 @@ export default function EstablishmentsSetupScreen() {
               <Ionicons name="arrow-forward" size={18} color="#fff" />
             </Pressable>
             <ThemedText style={styles.hint}>
-              Vous pourrez compléter chaque fiche (photos, description, tarifs) ou en ajouter d&apos;autres plus tard : Profil → appuyez sur votre nom en haut.
+              Vous pourrez compléter chaque fiche (photos, description, tarifs) ou en ajouter d&apos;autres plus tard : Profil → bouton « + Ajouter un profil ».
             </ThemedText>
           </>
         ) : null}
@@ -99,7 +99,7 @@ export default function EstablishmentsSetupScreen() {
 }
 
 function Row({ item, badge }: { item: Item; badge: string }) {
-  const name = item.business_name?.trim() || 'Établissement';
+  const name = item.business_name?.trim() || 'Profil';
   const sub = [item.category ? categoryLabel(item.category) : null, item.location_city].filter(Boolean).join(' · ');
   return (
     <View style={styles.row}>

@@ -28,6 +28,7 @@ import {
   IvoryBloom,
   prefersReducedMotion,
   FrameArt,
+  longestNameUnit,
   TefillinArt,
 } from '../templates/invitationParts';
 
@@ -296,10 +297,18 @@ export function InvitationOpening({ site, contained = false, guestName, onDone }
             {S.wedding}
           </p>
           {names.length ? (
-            <h1 className="io-in io-names" style={{ fontFamily: tk.fonts.script, ...enter() }}>
+            <h1
+              className="io-in io-names"
+              style={{
+                fontFamily: tk.fonts.script,
+                // Plus long mot insécable : la police se réduit pour qu'il tienne
+                ['--io-len' as string]: longestNameUnit(names.map((text, i) => ({ text, glue: i ? '& ' : '' }))),
+                ...enter(),
+              }}
+            >
               {names.length === 2 ? (
                 <>
-                  {names[0]} <span style={{ whiteSpace: 'nowrap' }}>&amp; {names[1]}</span>
+                  {names[0]} &amp;{'\u00A0'}{names[1]}
                 </>
               ) : (
                 names[0]
@@ -461,7 +470,8 @@ const OPENING_CSS = `
 }
 .io-names {
   margin: 0; font-weight: 400; line-height: 1.15; max-width: 100%; overflow-wrap: anywhere;
-  font-size: min(11.5cqw, 6.4cqh, 3.4rem);
+  /* --io-room : largeur utile (réduite à l'arche pour les décors à image) */
+  font-size: min(11.5cqw, 6.4cqh, 3.4rem, calc((var(--io-room, 100cqw - 32px)) / (var(--io-len, 1) * 0.5)));
 }
 .io-phrase { margin: 0; font-style: italic; font-size: min(4.6cqw, 2.6cqh, 1.15rem); }
 .io-date { margin: 0; font-size: min(6cqw, 3.4cqh, 1.5rem); }
@@ -508,8 +518,12 @@ const OPENING_CSS = `
 
 /* ── Décor eucalyptus (Brit Mila) : titre et prénom dorés, dans l'arche ── */
 .io-decor-eucalyptus .io-intro { padding-inline: max(16px, calc((100cqw - min(100cqw, 71.4cqh) * 0.66) / 2)); text-shadow: 0 0 12px var(--ia-paper), 0 0 4px var(--ia-paper); }
+/* Le texte commence sous l'étoile de David (~20 % de la hauteur du cadre) ;
+   « safe » : un contenu trop haut défile au lieu d'être rogné en haut */
+.io-decor-eucalyptus .io-intro { padding-top: max(16px, calc(min(100cqw / 0.714, 100cqh) * 0.2 - (min(100cqw / 0.714, 100cqh) - 100cqh) / 2)); justify-content: safe center; }
 .io-decor-eucalyptus .io-kicker { font-family: 'Playfair Display', Georgia, serif; text-transform: none; letter-spacing: 0.03em; color: var(--ia-foil); font-size: min(8.4cqw, 4.6cqh, 2.2rem); }
-.io-decor-eucalyptus .io-names { color: var(--ia-foil); }
+.io-decor-eucalyptus .io-names { color: var(--ia-foil); --io-room: min(100cqw - 32px, min(100cqw, 71.4cqh) * 0.66); }
+.io-decor-papillons .io-names { --io-room: min(100cqw - 32px, min(100cqw, 71.4cqh) * 0.72); }
 .io-decor-eucalyptus .io-hint { color: var(--ia-ink) !important; opacity: 0.8; }
 /* Phrase « Touchez… » : sur deux lignes au besoin, sans déborder sur le décor */
 .io-decor-eucalyptus .io-hint, .io-decor-papillons .io-hint { letter-spacing: 0.18em; max-width: 72cqw; margin-inline: auto; text-align: center; line-height: 1.7; }

@@ -319,7 +319,7 @@ export default function PrestataireSetup() {
           )}
         </Pressable>
         <ThemedText style={styles.nextStepHint}>
-          Étapes suivantes : vos autres établissements (si vous en avez), puis activation de votre espace ({trialLabel(offer)})
+          Étapes suivantes : vos autres profils (si vous en avez), puis activation de votre espace ({trialLabel(offer)})
         </ThemedText>
       </ScrollView>
     </KeyboardAvoidingView>

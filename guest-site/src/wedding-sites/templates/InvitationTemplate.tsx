@@ -41,7 +41,7 @@ import {
   renderOptionalSections,
 } from './templateParts';
 import type { InvitationStyle } from './templateParts';
-import { coupleNames, GoldMonogram, INVITATION_PARTS_CSS, FrameArt, IvoryBloom, prefersReducedMotion, TefillinArt } from './invitationParts';
+import { coupleNames, GoldMonogram, INVITATION_PARTS_CSS, FrameArt, IvoryBloom, longestNameUnit, prefersReducedMotion, TefillinArt } from './invitationParts';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Textes de l'interface                                                      */
@@ -274,7 +274,14 @@ function StackedNames({ names, tk, as: Tag = 'p', heNames }: { names: string[]; 
       </span>
     ) : null;
   return (
-    <Tag className="ia-names" style={{ fontFamily: tk.fonts.script, fontSize: tk.sizes.names }}>
+    <Tag
+      className="ia-names"
+      style={{
+        fontFamily: tk.fonts.script,
+        // Réduit la police si un prénom (sans coupure possible) ne tient pas sur la page
+        fontSize: `min(${tk.sizes.names}, calc((100cqw - 32px) / ${longestNameUnit(names.map((text) => ({ text }))) * 0.5}))`,
+      }}
+    >
       <span>{names[0]}</span>
       {he(0)}
       {names[1] ? (

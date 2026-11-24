@@ -33,7 +33,7 @@ export function AddEstablishmentForm({ accessToken, defaultCategory = '', submit
     };
     const res = await prestatairesApi.createEstablishment(accessToken, data);
     setSaving(false);
-    if (!res.success || !res.data) { Alert.alert('Établissement non ajouté', res.message ?? 'Réessayez.'); return; }
+    if (!res.success || !res.data) { Alert.alert('Profil non ajouté', res.message ?? 'Réessayez.'); return; }
     // On garde la catégorie : un groupe a souvent plusieurs lieux du même type.
     setForm((f) => ({ business_name: '', category: f.category, location_city: '' }));
     onCreated({ id: (res.data as { id: number }).id, ...data });
@@ -41,7 +41,7 @@ export function AddEstablishmentForm({ accessToken, defaultCategory = '', submit
 
   return (
     <View>
-      <ThemedText style={styles.label}>Nom de l&apos;établissement</ThemedText>
+      <ThemedText style={styles.label}>Nom du profil</ThemedText>
       <TextInput
         style={styles.input}
         value={form.business_name}
