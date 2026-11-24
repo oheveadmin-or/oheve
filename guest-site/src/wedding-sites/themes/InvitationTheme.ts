@@ -157,8 +157,9 @@ export function invitationTokens(theme: WeddingTheme) {
     dark,
     /** Décor à image (papillons, eucalyptus) : cf. FrameArt */
     framed: decor === 'papillons' || decor === 'eucalyptus',
-    /** Filet losangé à la place du monogramme (le décor porte déjà son motif) */
-    ruleMark: decor !== 'ivoire',
+    /** Filet losangé à la place du monogramme (le décor porte déjà son motif) ;
+     *  l'arche eucalyptus garde le logo des mariés en haut, sous l'étoile */
+    ruleMark: decor !== 'ivoire' && decor !== 'eucalyptus',
     fonts: {
       script: theme.scriptFontFamily || D.fonts.script,
       body: theme.fontFamily || D.fonts.body,
