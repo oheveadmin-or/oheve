@@ -130,7 +130,7 @@ export const ALL_STYLE_PRESETS: ThemePreset[] = [
   },
   {
     id: 'invitation-eucalyptus',
-    label: '✦ Invitation animée · Brit Mila',
+    label: '✦ Invitation animée · Arche eucalyptus',
     description: 'Le même déroulé que l’Invitation animée, sur un papier ivoire avec une arche dorée, l’étoile de David et de l’eucalyptus',
     theme: {
       style: 'invitation-eucalyptus',

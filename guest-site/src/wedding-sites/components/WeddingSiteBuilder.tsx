@@ -1,6 +1,6 @@
 import type { CSSProperties, FormEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { MonogramGenerator } from './MonogramGenerator';
 import { RSVPBuilder } from '@guest/rsvp/RSVPBuilder';
@@ -255,6 +255,9 @@ export function WeddingSiteBuilder() {
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
 
   const [step, setStep] = useState<'pick' | 'build'>(SINGLE_MODEL ? 'build' : 'pick');
+  const navigate = useNavigate();
+  const [hasOpenedBuilder, setHasOpenedBuilder] = useState(false);
+  useEffect(() => { if (step === 'build') setHasOpenedBuilder(true); }, [step]);
   const [wizIdx, setWizIdx] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
   const formColumnRef = useRef<HTMLDivElement>(null);
@@ -1042,6 +1045,11 @@ export function WeddingSiteBuilder() {
         currentStyleId={theme.style}
         isExisting={loadedStyle != null}
         eventType={eventType}
+        // Toujours un moyen de revenir à son site sans changer de thème
+        // (site enregistré, ou déjà ouvert dans le builder pendant cette visite) ;
+        // site tout neuf : retour à l'accueil, comme « ← Retour » du builder
+        onBack={loadedStyle != null || hasOpenedBuilder ? () => setStep('build') : () => navigate('/')}
+        backLabel={loadedStyle != null || hasOpenedBuilder ? '← Retour à mon site' : '← Retour'}
         onSelect={(preset) => {
           // Même thème que le site enregistré : on garde ses réglages tels quels
           if (preset.id === theme.style && loadedStyle != null) { setStep('build'); return; }
@@ -2150,6 +2158,8 @@ export function WeddingSiteBuilder() {
 
           {wiz === 'invitation' && (() => {
             const invitationPreset = STYLE_PRESETS.find((p) => p.id === (eventType === 'bar_mitsva' ? 'invitation-tefillin' : eventType === 'bat_mitsva' ? 'invitation-papillons' : eventType === 'brit_mila' ? 'invitation-eucalyptus' : 'invitation-animee'));
+            // Arche dorée + eucalyptus : proposée aussi au mariage et à la Bat Mitsva
+            const eucalyptusPreset = STYLE_PRESETS.find((p) => p.id === 'invitation-eucalyptus');
             const isInvitation = isAnimatedInvitation(theme.style);
             const fx = invitationEffects(theme);
             const setFx = (key: keyof InvitationEffects, on: boolean) =>
@@ -2208,6 +2218,15 @@ export function WeddingSiteBuilder() {
                       >
                         ✦ Utiliser l'Invitation animée
                       </button>
+                      {eucalyptusPreset && eventType !== 'brit_mila' && eventType !== 'bar_mitsva' ? (
+                        <button
+                          type="button"
+                          onClick={() => chooseStylePreset(eucalyptusPreset)}
+                          style={{ ...inviteGhostBtn, display: 'block', marginTop: '0.6rem' }}
+                        >
+                          ✦ Version arche dorée et eucalyptus
+                        </button>
+                      ) : null}
                     </div>
                   )}
                 </section>

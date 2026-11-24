@@ -17,6 +17,9 @@ type Props = {
   isExisting?: boolean;
   /** Événement du site : le décor tefillin n'est proposé qu'aux Bar Mitsva */
   eventType?: string;
+  /** Retour au site en cours sans changer de thème (absent : pas de bouton) */
+  onBack?: () => void;
+  backLabel?: string;
 };
 
 /** Génère un dégradé représentatif à partir de la couleur principale + fond */
@@ -311,7 +314,7 @@ function AnimatedInvitationCard({ preset, selected, onClick }: { preset: ThemePr
   );
 }
 
-export function ThemePicker({ onSelect, currentStyleId, isExisting = false, eventType }: Props) {
+export function ThemePicker({ onSelect, currentStyleId, isExisting = false, eventType, onBack, backLabel = '← Retour à mon site' }: Props) {
   // Par défaut : vintage-blue si aucun style existant, sinon le style du site en cours d'édition
   // (« classic » est aussi le style par défaut d'un site neuf : on ne le garde
   // que pour un site existant, sinon « Commencer » basculait son site Classique
@@ -330,8 +333,9 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false, even
   const showPapillons = eventType === 'bat_mitsva' || currentStyleId === 'invitation-papillons';
   const animatedList = (showTefillin ? ['invitation-tefillin', 'invitation-animee'] : ['invitation-animee'])
     .concat(showPapillons ? ['invitation-papillons'] : [])
-    // Décor eucalyptus : pour une Brit Mila, juste en dessous de l'Invitation animée
-    .concat(eventType === 'brit_mila' || currentStyleId === 'invitation-eucalyptus' ? ['invitation-eucalyptus'] : [])
+    // Décor eucalyptus (arche dorée) : mariage, Bat Mitsva et Brit Mila, juste
+    // en dessous de l'Invitation animée (pas pour une Bar Mitsva : tefillin)
+    .concat(eventType !== 'bar_mitsva' || currentStyleId === 'invitation-eucalyptus' ? ['invitation-eucalyptus'] : [])
     .map((id) => STYLE_PRESETS.find((p) => p.id === id))
     .filter((p): p is ThemePreset => Boolean(p));
   const animated = animatedList[0];
@@ -348,10 +352,32 @@ export function ThemePicker({ onSelect, currentStyleId, isExisting = false, even
       {/* En-tête */}
       <header
         style={{
-          padding: '2.8rem 1.5rem 1.6rem',
+          padding: `${onBack ? '3.9rem' : '2.8rem'} 1.5rem 1.6rem`,
           textAlign: 'center',
+          position: 'relative',
         }}
       >
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              position: 'absolute',
+              top: '1rem',
+              insetInlineStart: '1.2rem',
+              background: '#fff',
+              border: '1px solid #e2dbd0',
+              borderRadius: 999,
+              padding: '0.45rem 0.95rem',
+              fontSize: '0.88rem',
+              color: '#343630',
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            }}
+          >
+            {backLabel}
+          </button>
+        ) : null}
         <div
           style={{
             fontFamily: "'Fraunces', Georgia, serif",
