@@ -305,7 +305,12 @@ function PrestataireInstaProfile() {
     if (!profile) { Alert.alert('Fiche indisponible', 'Votre profil n\'est pas encore chargé. Réessayez dans un instant.'); return; }
     setExportingFiche(true);
     try {
-      await exportFichePdf({ ...(profile as FicheProfile), avatar_url: user?.avatar_url ?? null }, photos);
+      await exportFichePdf({
+        userId: user!.id,
+        accessToken: user?.accessToken,
+        profile: { ...(profile as FicheProfile), avatar_url: user?.avatar_url ?? null },
+        photos,
+      });
     } catch {
       Alert.alert('Export impossible', 'Le PDF de votre fiche n\'a pas pu être créé. Réessayez.');
     }
