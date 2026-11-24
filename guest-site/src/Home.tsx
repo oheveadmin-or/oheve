@@ -54,7 +54,7 @@ type EventDemo = {
 const EVENTS: EventDemo[] = [
   {
     key: 'mariage', tab: 'Mariage', emoji: '💍', your: 'votre mariage',
-    name: 'Sarah & Léa', kicker: '', date: '17 JUIN 2027 · PARIS',
+    name: 'Yaakov & Léa', kicker: '', date: '17 JUIN 2027 · PARIS',
     countdown: ['264', '11', '42'], progress: 68, budget: '14 200 €',
     chips: ['Houppa', 'Henné', 'Chabbat Hatan'], confirmed: '184 confirmés',
     honorTable: 'MARIÉS', tables: '12 tables', places: '184 places',
