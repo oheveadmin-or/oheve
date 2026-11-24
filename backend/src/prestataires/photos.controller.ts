@@ -3,7 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import { NextFunction, Request, Response } from 'express';
 import { PhotosRepository } from './photos.repository';
-import { isPrestaSubActive } from '../prestataire-subscription';
 import { filterAvailable, forgetFile } from '../utils/persistent-uploads';
 
 const repo = new PhotosRepository();
@@ -194,20 +193,15 @@ export class PhotosController {
         return res.status(404).json({ success: false, message: 'Veuillez d\'abord sauvegarder votre profil avant d\'ajouter des photos.' });
       }
 
-      // Vérification des limites selon l'abonnement
+      // Plus aucune limite de photos pour les prestataires (partenaires ou non).
+      // Seules les boutiques gardent un plafond selon leur formule.
       const userSub = await repo.getUserSubscription(req.auth!.sub);
-      if (userSub && userSub.role !== 'admin') {
-        let photoLimit = 10; // prestataire sans abonnement
-        if (userSub.role === 'boutique') {
-          if (userSub.subscription_plan === 'plus' && userSub.subscription_status === 'active') {
-            photoLimit = Infinity;
-          } else if (userSub.subscription_plan === 'basic' && userSub.subscription_status === 'active') {
-            photoLimit = 20;
-          } else {
-            photoLimit = 5; // boutique sans abonnement actif
-          }
-        } else if (userSub.role === 'prestataire' && isPrestaSubActive(userSub.presta_sub_status)) {
+      if (userSub && userSub.role === 'boutique') {
+        let photoLimit = 5; // boutique sans abonnement actif
+        if (userSub.subscription_plan === 'plus' && userSub.subscription_status === 'active') {
           photoLimit = Infinity;
+        } else if (userSub.subscription_plan === 'basic' && userSub.subscription_status === 'active') {
+          photoLimit = 20;
         }
         if (photoLimit !== Infinity) {
           const count = await repo.countByPrestataire(prestataireId);
