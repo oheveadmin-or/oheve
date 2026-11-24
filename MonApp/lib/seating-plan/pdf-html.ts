@@ -1,10 +1,20 @@
-import { T } from './pdf-theme';
+import { T as OHEVE_T } from './pdf-theme';
+import { renderSiteCover, renderSitePanel, siteDecorCss, siteListPalette, type SiteStyle } from './site-style';
 import type { Guest, PdfCardStyle, PdfExportType, PdfOptions, SeatingPlanData, SeatingTable, TableShape } from './types';
 import { renderPanelPage, DEFAULT_PANEL_TEMPLATE, PANEL_CSS, PAGE_W } from './panel-templates';
 import type { PanelTemplateId } from './panel-templates';
 
 // Palette Oheve export — remplace les couleurs aléatoires des tables
-const ACCENTS = ['#8F947F', '#A09480', '#7B7063', '#C7B7A5', '#B5A692'];
+const OHEVE_ACCENTS = ['#8F947F', '#A09480', '#7B7063', '#C7B7A5', '#B5A692'];
+const OHEVE_TITLE = "'Cormorant Garamond',serif";
+
+// Palette active pendant UNE génération (synchrone) : Oheve par défaut, ou
+// celle du site du couple avec l'option « Style de mon invitation ».
+type Pal = { -readonly [K in keyof typeof OHEVE_T]: string };
+let T: Pal = OHEVE_T;
+let ACCENTS: string[] = OHEVE_ACCENTS;
+let TITLE = OHEVE_TITLE;
+let SITE: SiteStyle | null = null;
 const GOLD = '#C5A55A';
 
 function ac(idx: number) { return ACCENTS[idx % ACCENTS.length]; }
@@ -75,6 +85,13 @@ function ftr(name: string, label: string) {
 function coverPage(data: SeatingPlanData): string {
   const { wedding } = data;
   const s = stats(data);
+  if (SITE) {
+    return renderSiteCover(SITE, wedding, [
+      { v: s.tableCount, l: 'Tables' },
+      { v: s.totalPeople, l: 'Invités' },
+      { v: s.assignedPeople, l: 'Placés' },
+    ]);
+  }
   const name = wedding.coupleName || '';
   const wname = wedding.weddingTitle || name;
 
@@ -85,11 +102,11 @@ function coverPage(data: SeatingPlanData): string {
 
     ${decoBar(180)}
 
-    <div style="font-family:'Cormorant Garamond',serif;font-size:${name ? '46px' : '32px'};font-weight:700;color:${T.textDark};line-height:1.1;margin:22px 0 10px;">
+    <div style="font-family:${TITLE};font-size:${name ? '46px' : '32px'};font-weight:700;color:${T.textDark};line-height:1.1;margin:22px 0 10px;">
       ${name ? esc(name) : `<span style="color:${T.saugePale};">Noms des mariés</span>`}
     </div>
 
-    ${wedding.date ? `<div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;color:${T.textMid};margin-bottom:4px;">${esc(wedding.date)}</div>` : ''}
+    ${wedding.date ? `<div style="font-family:${TITLE};font-style:italic;font-size:15px;color:${T.textMid};margin-bottom:4px;">${esc(wedding.date)}</div>` : ''}
     ${wedding.location ? `<div style="font-size:12px;color:${T.textLight};margin-bottom:4px;">${esc(wedding.location)}</div>` : ''}
 
     ${decoBar(180)}
@@ -101,7 +118,7 @@ function coverPage(data: SeatingPlanData): string {
         { v: s.assignedPeople, l: 'Placés' },
         { v: s.unassigned, l: 'Restants' },
       ].map(({ v, l }) => `<div style="background:#fff;border:1px solid ${T.saugePale};border-radius:10px;padding:14px 6px;">
-        <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:${T.saugeDark};line-height:1;">${v}</div>
+        <div style="font-family:${TITLE};font-size:28px;font-weight:700;color:${T.saugeDark};line-height:1;">${v}</div>
         <div style="font-size:7.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${T.textLight};margin-top:3px;">${l}</div>
       </div>`).join('')}
     </div>
@@ -152,7 +169,7 @@ function muralPages(data: SeatingPlanData): string {
 
       return `<div style="break-inside:avoid;padding:10px 12px;border-top:2px solid ${color};background:#fff;border-radius:0 0 6px 6px;margin-bottom:0;">
         <div style="font-size:7.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${color};margin-bottom:2px;">Table ${idx + 1}</div>
-        <div style="font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:600;color:${T.textDark};margin-bottom:5px;">${esc(t.name)}</div>
+        <div style="font-family:${TITLE};font-size:14px;font-weight:600;color:${T.textDark};margin-bottom:5px;">${esc(t.name)}</div>
         ${guestLines}
         <div style="margin-top:5px;font-size:7.5px;color:${T.textLight};">${occupied} / ${t.seats} places · ${shapeLabel(t.shape)}</div>
       </div>`;
@@ -162,7 +179,7 @@ function muralPages(data: SeatingPlanData): string {
       ${corners()}
       <div style="text-align:center;margin-bottom:14px;">
         <div style="font-size:7.5px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${T.sauge};margin-bottom:8px;">Mariage</div>
-        <div style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:700;color:${T.textDark};line-height:1.1;">
+        <div style="font-family:${TITLE};font-size:36px;font-weight:700;color:${T.textDark};line-height:1.1;">
           ${wedding.coupleName ? esc(wedding.coupleName) : '&nbsp;'}
         </div>
         ${wedding.date || wedding.location
@@ -207,8 +224,8 @@ function cartesPages(data: SeatingPlanData): string {
 
         <div style="text-align:center;margin-bottom:10px;">
           ${wedding.coupleName ? `<div style="font-size:7px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${T.sauge};margin-bottom:6px;">${esc(wedding.coupleName)}</div>` : ''}
-          <div style="font-family:'Cormorant Garamond',serif;font-size:56px;font-weight:700;color:${color};line-height:1;">${idx + 1}</div>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:${T.textDark};margin-top:2px;">${esc(t.name)}</div>
+          <div style="font-family:${TITLE};font-size:56px;font-weight:700;color:${color};line-height:1;">${idx + 1}</div>
+          <div style="font-family:${TITLE};font-size:17px;font-weight:600;color:${T.textDark};margin-top:2px;">${esc(t.name)}</div>
           <div style="margin:8px auto;">${decoBar(90)}</div>
         </div>
 
@@ -275,7 +292,7 @@ function marquePlacesPages(data: SeatingPlanData): string {
       return `<div style="border:1px dashed ${T.taupe};border-radius:8px;padding:9px 14px;background:#fff;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden;">
         <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${color};"></div>
         <div style="padding-left:10px;flex:1;">
-          <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:${T.textDark};line-height:1.2;">${esc(c.name)}${c.count > 1 ? ` <span style="font-size:12px;color:${T.textLight};">×${c.count}</span>` : ''}</div>
+          <div style="font-family:${TITLE};font-size:17px;font-weight:600;color:${T.textDark};line-height:1.2;">${esc(c.name)}${c.count > 1 ? ` <span style="font-size:12px;color:${T.textLight};">×${c.count}</span>` : ''}</div>
           <div style="font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${color};margin-top:2px;">${c.tableIdx > 0 ? `Table ${c.tableIdx} · ${esc(c.tableName)}` : 'Non placé'}</div>
         </div>
         ${wedding.coupleName ? `<div style="font-size:7px;color:${T.saugePale};letter-spacing:2px;text-transform:uppercase;text-align:right;max-width:60px;word-break:break-word;">${esc(wedding.coupleName)}</div>` : ''}
@@ -322,7 +339,7 @@ function traiteurPage(data: SeatingPlanData): string {
   return `<div class="page" style="padding:14mm 14mm 18mm;background:#fff;min-height:100vh;position:relative;">
     <div style="margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid ${T.saugePale};">
       <div style="font-size:8px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${T.sauge};margin-bottom:4px;">Service · Traiteur</div>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:${T.textDark};">
+      <div style="font-family:${TITLE};font-size:24px;font-weight:700;color:${T.textDark};">
         ${wedding.coupleName ? esc(wedding.coupleName) : 'Plan de service'}
       </div>
       ${wedding.date || wedding.location
@@ -380,8 +397,8 @@ function livrePages(data: SeatingPlanData): string {
       return `<div style="background:#fff;border-radius:12px;padding:14px 16px;border-left:3px solid ${color};margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
           <div style="display:flex;align-items:baseline;gap:10px;">
-            <span style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:${color};line-height:1;">${idx + 1}</span>
-            <span style="font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:600;color:${T.textDark};">${esc(t.name)}</span>
+            <span style="font-family:${TITLE};font-size:28px;font-weight:700;color:${color};line-height:1;">${idx + 1}</span>
+            <span style="font-family:${TITLE};font-size:19px;font-weight:600;color:${T.textDark};">${esc(t.name)}</span>
           </div>
           <div style="font-size:8.5px;color:${T.textLight};text-align:right;">
             ${shapeLabel(t.shape)}<br/>
@@ -484,7 +501,7 @@ function listePages(data: SeatingPlanData): string {
   const header = (cont: boolean) => `<div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid ${T.saugePale};display:flex;justify-content:space-between;align-items:flex-end;">
       <div>
         <div style="font-size:8px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${T.sauge};margin-bottom:3px;">Liste des invités${cont ? ' (suite)' : ''}</div>
-        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:${T.textDark};">${wedding.coupleName ? esc(wedding.coupleName) : 'Plan de table'}</div>
+        <div style="font-family:${TITLE};font-size:22px;font-weight:700;color:${T.textDark};">${wedding.coupleName ? esc(wedding.coupleName) : 'Plan de table'}</div>
       </div>
       <div style="text-align:right;font-size:9px;color:${T.textLight};">${s.tableCount} tables · ${s.assignedPeople}/${s.totalPeople} invités placés</div>
     </div>`;
@@ -574,7 +591,7 @@ function panneauxPages(data: SeatingPlanData, _style: PdfCardStyle = 'elegant', 
   return tables.map((t, idx) => {
     const ag = tableGuests(t, guests);
     const occupied = ag.reduce((s, g) => s + g.guestCount, 0);
-    return renderPanelPage(templateId, {
+    const args = {
       tableNum: idx + 1,
       tableName: t.name,
       guests: ag.map((g) => ({ name: g.name, count: Math.max(1, g.guestCount) })),
@@ -582,7 +599,8 @@ function panneauxPages(data: SeatingPlanData, _style: PdfCardStyle = 'elegant', 
       seats: t.seats,
       coupleName: wedding.coupleName || '',
       weddingTitle: wedding.weddingTitle || wedding.coupleName || '',
-    });
+    };
+    return SITE ? renderSitePanel(args, SITE) : renderPanelPage(templateId, args);
   }).join('');
 }
 
@@ -615,6 +633,21 @@ export function generateSeatingPlanHtml(
   type: PdfExportType,
   options: PdfOptions = {},
 ): string {
+  SITE = options.siteStyle ?? null;
+  if (SITE) {
+    const sp = siteListPalette(SITE);
+    T = sp; ACCENTS = sp.accents; TITLE = sp.titleFont;
+  }
+  try {
+    // Les noms de l'invitation (« Léa & Yaakov ») plutôt que ceux du compte.
+    const d = SITE?.coupleName ? { ...data, wedding: { ...data.wedding, coupleName: SITE.coupleName, weddingTitle: SITE.coupleName } } : data;
+    return buildHtml(d, type, options);
+  } finally {
+    SITE = null; T = OHEVE_T; ACCENTS = OHEVE_ACCENTS; TITLE = OHEVE_TITLE;
+  }
+}
+
+function buildHtml(data: SeatingPlanData, type: PdfExportType, options: PdfOptions): string {
   const cardStyle: PdfCardStyle = options.cardStyle ?? 'elegant';
   const panelTemplate = options.panelTemplate ?? DEFAULT_PANEL_TEMPLATE;
   let pages = '';
@@ -651,8 +684,10 @@ export function generateSeatingPlanHtml(
   }
 
   const preview = options.preview === true;
+  // Les @import du site doivent précéder toute autre règle : feuille à part, en premier.
+  const siteCss = SITE ? `<style>${siteDecorCss(SITE)}</style>` : '';
   const head = preview
-    ? `<meta name="viewport" content="width=${PAGE_W + 28}"/><style>${BASE_CSS}${PREVIEW_CSS}</style>`
-    : `<style>${BASE_CSS}</style>`;
+    ? `<meta name="viewport" content="width=${PAGE_W + 28}"/>${siteCss}<style>${BASE_CSS}${PREVIEW_CSS}</style>`
+    : `${siteCss}<style>${BASE_CSS}</style>`;
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>${head}</head><body${preview ? ' class="preview"' : ''}>${pages}</body></html>`;
 }

@@ -52,6 +52,8 @@ export type PdfOptions = {
   cardStyle?: PdfCardStyle;
   expandGuests?: boolean;
   panelTemplate?: import('./panel-templates').PanelTemplateId;
+  /** « Style de mon invitation » : couleurs, polices et visuels du site invités. */
+  siteStyle?: import('./site-style').SiteStyle | null;
   /** Aperçu à l'écran (viewport A4, pages espacées). Jamais pour l'impression. */
   preview?: boolean;
 };

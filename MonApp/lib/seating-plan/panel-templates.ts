@@ -45,9 +45,11 @@ export type RenderArgs = {
   seats: number;
   coupleName: string;
   weddingTitle: string;
+  /** Surtitre au-dessus des noms. Défaut : « Mariage de » */
+  eyebrow?: string;
 };
 
-function esc(s: string): string {
+export function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
@@ -66,26 +68,26 @@ export const PANEL_CSS = `
 .pn-crest{display:flex;align-items:center;justify-content:center;}
 .pn-crest svg{display:block;}
 .pn-eyebrow{font-family:${SANS};font-size:8.5px;font-weight:600;letter-spacing:4px;text-transform:uppercase;color:var(--eyebrow);margin-top:14px;padding-left:4px;}
-.pn-couple{font-family:${SERIF};font-style:italic;font-weight:500;font-size:22px;color:var(--name);margin-top:3px;line-height:1.2;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pn-couple.script{font-family:${SCRIPT};font-style:normal;font-weight:400;font-size:32px;margin-top:0;line-height:1.15;}
+.pn-couple{font-family:var(--f-serif,${SERIF});font-style:italic;font-weight:500;font-size:22px;color:var(--name);margin-top:3px;line-height:1.2;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pn-couple.script{font-family:var(--f-script,${SCRIPT});font-style:normal;font-weight:400;font-size:32px;margin-top:0;line-height:1.15;}
 .pn-label{display:flex;align-items:center;gap:12px;margin-top:20px;font-family:${SANS};font-size:9.5px;font-weight:600;letter-spacing:7px;text-transform:uppercase;color:var(--label);padding-left:7px;}
 .pn-label i{display:block;width:34px;height:1px;background:var(--label);opacity:.55;}
-.pn-hero{font-family:${DISPLAY};font-weight:700;color:var(--num);line-height:1;margin-top:8px;font-variant-numeric:lining-nums;}
+.pn-hero{font-family:var(--f-display,${DISPLAY});font-weight:700;color:var(--num);line-height:1;margin-top:8px;font-variant-numeric:lining-nums;}
 .pn-hero.foil{background:linear-gradient(160deg,${GOLD_LIGHT} 0%,${GOLD} 45%,#9F8135 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
 .pn-hero.light{font-weight:400;letter-spacing:-2px;}
-.pn-name{font-family:${SERIF};font-size:22px;font-weight:600;color:var(--name);margin-top:6px;line-height:1.2;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pn-suite{font-family:${SERIF};font-style:italic;font-size:14px;color:var(--foot);margin-top:4px;}
+.pn-name{font-family:var(--f-serif,${SERIF});font-size:22px;font-weight:600;color:var(--name);margin-top:6px;line-height:1.2;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pn-suite{font-family:var(--f-serif,${SERIF});font-style:italic;font-size:14px;color:var(--foot);margin-top:4px;}
 .pn-rule{margin-top:14px;display:flex;justify-content:center;}
 .pn-rule svg{display:block;}
 .pn-list{flex:1 1 auto;width:100%;display:flex;align-items:center;justify-content:center;padding:12px 0;min-height:0;}
 .pn-grid{display:grid;width:100%;column-gap:28px;}
-.pn-cell{font-family:${SERIF};font-weight:600;color:var(--text);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:6px;padding-right:6px;}
+.pn-cell{font-family:var(--f-serif,${SERIF});font-weight:600;color:var(--text);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:6px;padding-right:6px;}
 .pn-cell.b{border-bottom:.6px solid var(--divider);}
 .pn-cnt{font-family:${SANS};font-weight:600;color:var(--accent);vertical-align:super;margin-left:5px;letter-spacing:.5px;}
-.pn-empty{font-family:${SERIF};font-style:italic;font-size:19px;color:var(--foot);}
+.pn-empty{font-family:var(--f-serif,${SERIF});font-style:italic;font-size:19px;color:var(--foot);}
 .pn-foot{flex:0 0 auto;width:100%;display:flex;flex-direction:column;align-items:center;padding-top:12px;border-top:.6px solid var(--divider);}
 .pn-seats{font-family:${SANS};font-size:9px;font-weight:500;letter-spacing:2.5px;text-transform:uppercase;color:var(--foot);}
-.pn-tag{font-family:${SERIF};font-style:italic;font-size:13.5px;color:var(--foot);margin-top:5px;}
+.pn-tag{font-family:var(--f-serif,${SERIF});font-style:italic;font-size:13.5px;color:var(--foot);margin-top:5px;}
 .pn-heb{font-family:${HEBREW};font-size:14px;color:var(--accent);margin-top:7px;direction:rtl;letter-spacing:1px;}
 `;
 
@@ -138,12 +140,12 @@ function guestGrid(guests: PanelGuest[], budgetH: number, budgetW: number): stri
 
 // ── Ossature commune ──────────────────────────────────────────────────────────
 
-type Palette = {
+export type Palette = {
   eyebrow: string; label: string; num: string; name: string;
   text: string; divider: string; foot: string; accent: string;
 };
 
-type ShellOpts = {
+export type ShellOpts = {
   a: RenderArgs;
   p: Palette;
   bg: string;                         // fond CSS de la page
@@ -156,6 +158,10 @@ type ShellOpts = {
   rule: string;
   couple?: 'italic' | 'script';
   extraFooter?: string;
+  /** Variables CSS supplémentaires (polices du site : --f-serif, --f-script, --f-display) */
+  vars?: string;
+  /** Classe ajoutée à la page (décor CSS partagé, cf. site-style) */
+  pageClass?: string;
 };
 
 // Les dégradés, motifs et filtres SVG sont référencés par id : on les suffixe
@@ -166,7 +172,7 @@ function uniqIds(svg: string, uid: string): string {
     .replace(/url\(#([A-Za-z0-9_-]+)\)/g, (_m, id) => `url(#${id}-${uid})`);
 }
 
-function renderPanel(o: ShellOpts): string {
+export function renderPanel(o: ShellOpts): string {
   const { a, p } = o;
   const [it, ir, ib, il] = o.inset;
   const n = a.guests.length;
@@ -185,7 +191,7 @@ function renderPanel(o: ShellOpts): string {
   const capacity = Math.max(6, 3 * Math.floor(budgetH / (MIN_FS * ROW_K)));
   const chunks = splitEven(a.guests, capacity);
 
-  const vars = `--eyebrow:${p.eyebrow};--label:${p.label};--num:${p.num};--name:${p.name};--text:${p.text};--divider:${p.divider};--foot:${p.foot};--accent:${p.accent};`;
+  const vars = `${o.vars ?? ''}--eyebrow:${p.eyebrow};--label:${p.label};--num:${p.num};--name:${p.name};--text:${p.text};--divider:${p.divider};--foot:${p.foot};--accent:${p.accent};`;
 
   return chunks.map((chunk, idx) => {
     const uid = `t${a.tableNum}p${idx}`;
@@ -198,7 +204,7 @@ function renderPanel(o: ShellOpts): string {
     const header = `
       ${crest ? `<div class="pn-crest" style="height:${crestH}px;">${crest}</div>` : ''}
       ${a.coupleName
-        ? `<div class="pn-eyebrow">Mariage de</div><div class="pn-couple${o.couple === 'script' ? ' script' : ''}">${esc(a.coupleName)}</div>`
+        ? `<div class="pn-eyebrow">${esc(a.eyebrow ?? 'Mariage de')}</div><div class="pn-couple${o.couple === 'script' ? ' script' : ''}">${esc(a.coupleName)}</div>`
         : `<div style="height:14px;"></div>`}
       <div class="pn-label"><i></i>Table<i></i></div>
       ${o.hero(heroSize)}
@@ -211,7 +217,7 @@ function renderPanel(o: ShellOpts): string {
       <div class="pn-tag">Merci de partager ce moment avec nous</div>
       ${o.extraFooter ? `<div class="pn-heb">${o.extraFooter}</div>` : ''}`;
 
-    return `<div class="page pn" style="background:${o.bg};${vars}">
+    return `<div class="page pn${o.pageClass ? ' ' + o.pageClass : ''}" style="${o.bg ? `background:${o.bg};` : ''}${vars}">
       ${decor ? `<div class="pn-decor">${decor}</div>` : ''}
       <div class="pn-body" style="top:${it}px;right:${ir}px;bottom:${ib}px;left:${il}px;">
         <div class="pn-head">${header}</div>
@@ -251,7 +257,7 @@ function rosette(cx: number, cy: number, r: number, petal: string, center: strin
 }
 
 // Filet ornemental sous le numéro : lignes + motif central.
-function bar(w: number, color: string, center: 'lozenge' | 'dot' | 'star' | 'leaves' | 'ring', op = .7): string {
+export function bar(w: number, color: string, center: 'lozenge' | 'dot' | 'star' | 'leaves' | 'ring', op = .7): string {
   const c = w / 2;
   let mid = '';
   if (center === 'lozenge') mid = `<path d="M${c} 3 L${c + 5} 8 L${c} 13 L${c - 5} 8Z" fill="${color}"/>`;
@@ -267,7 +273,7 @@ function heroPlain(n: number, cls = ''): (size: number) => string {
   return (size) => `<div class="pn-hero${cls ? ' ' + cls : ''}" style="font-size:${size}px;">${n}</div>`;
 }
 
-function initialsOf(coupleName: string): string {
+export function initialsOf(coupleName: string): string {
   const parts = coupleName.split(/\s*(?:&|\+|\bet\b|\band\b)\s*/i).map(s => s.trim()).filter(Boolean);
   const ini = parts.map(s => s[0] ?? '').join('').slice(0, 2).toUpperCase();
   return ini || '♡';

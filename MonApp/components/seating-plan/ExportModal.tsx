@@ -1,17 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Modal, Platform, Pressable,
-  ScrollView, StyleSheet, Text, View,
+  ActivityIndicator, Alert, Image, Modal, Platform, Pressable,
+  ScrollView, StyleSheet, Text, View, useWindowDimensions,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { C, RADIUS } from '@/constants/OheveTheme';
+import { useSiteStyle, type SiteStyleState } from '@/hooks/use-site-style';
 import { generateSeatingPlanHtml } from '@/lib/seating-plan/pdf-html';
+import type { SiteStyle } from '@/lib/seating-plan/site-style';
 import { PANEL_TEMPLATES, DEFAULT_PANEL_TEMPLATE } from '@/lib/seating-plan/panel-templates';
 import type { PanelTemplateId } from '@/lib/seating-plan/panel-templates';
 import {
@@ -148,26 +150,123 @@ const th = StyleSheet.create({
   },
 });
 
+// ── Choix du style : mon invitation / modèles Oheve ───────────────────────────
+
+function SiteStyleThumb({ style }: { style: SiteStyle }) {
+  const img = style.images.top ?? style.images.bg;
+  return (
+    <View style={[ss.thumb, { backgroundColor: style.c.paper, borderColor: style.c.foil + '88' }]}>
+      {img ? <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+      {style.decor.kind === 'lines' && (
+        <View style={[ss.thumbFrame, { borderColor: style.c.foil }]} />
+      )}
+      {style.decor.kind === 'stripes' && (
+        <View style={ss.stripes}>
+          {Array.from({ length: 9 }, (_, i) => (
+            <View key={i} style={{ flex: 1, backgroundColor: i % 2 ? 'transparent' : style.c.foil }} />
+          ))}
+        </View>
+      )}
+      <Text style={[ss.thumbNum, { color: style.c.foil, marginTop: style.decor.kind === 'frame' ? 38 : 10 }]}>1</Text>
+      <View style={{ width: '56%', marginTop: 4 }}>
+        {[0.8, 0.6, 0.7].map((w, i) => (
+          <View key={i} style={{ height: 2, width: `${w * 100}%`, alignSelf: 'center', marginTop: 4, borderRadius: 1, backgroundColor: style.c.ink, opacity: 0.35 }} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function StyleSourcePicker({
+  site, source, onChange,
+}: { site: SiteStyleState; source: 'site' | 'oheve'; onChange: (v: 'site' | 'oheve') => void }) {
+  const siteOn = source === 'site' && site.status === 'ready';
+  const siteDisabled = site.status === 'none' || site.status === 'error';
+  return (
+    <View style={styles.galleryBox}>
+      <ThemedText style={styles.galleryTitle}>Style des affiches</ThemedText>
+      <View style={ss.row}>
+        <Pressable
+          style={[ss.choice, siteOn && ss.choiceOn, siteDisabled && { opacity: 0.55 }]}
+          onPress={() => !siteDisabled && onChange('site')}
+          disabled={siteDisabled}
+          accessibilityLabel="Utiliser le style de mon invitation"
+        >
+          {site.status === 'ready' ? (
+            <SiteStyleThumb style={site.style} />
+          ) : (
+            <View style={[ss.thumb, ss.thumbEmpty]}>
+              {site.status === 'loading'
+                ? <ActivityIndicator color={C.sauge} />
+                : <Ionicons name="sparkles-outline" size={22} color={C.textLight} />}
+            </View>
+          )}
+          <ThemedText style={[ss.choiceLabel, siteOn && { color: C.saugeDark }]} numberOfLines={1}>
+            ✨ Mon invitation
+          </ThemedText>
+          <ThemedText style={ss.choiceSub} numberOfLines={2}>
+            {site.status === 'ready' ? site.style.label
+              : site.status === 'loading' ? 'Chargement…'
+                : site.status === 'none' ? 'Créez d’abord votre site' : 'Site indisponible'}
+          </ThemedText>
+        </Pressable>
+        <Pressable style={[ss.choice, !siteOn && ss.choiceOn]} onPress={() => onChange('oheve')}>
+          <View style={[ss.thumb, ss.thumbEmpty, { backgroundColor: '#FBF7EE' }]}>
+            <Ionicons name="albums-outline" size={24} color={C.saugeDark} />
+          </View>
+          <ThemedText style={[ss.choiceLabel, !siteOn && { color: C.saugeDark }]} numberOfLines={1}>Modèles Oheve</ThemedText>
+          <ThemedText style={ss.choiceSub} numberOfLines={2}>6 styles au choix</ThemedText>
+        </Pressable>
+      </View>
+      {siteOn && (
+        <ThemedText style={ss.note}>
+          Couleurs, polices, monogramme et visuels de votre invitation digitale sont repris sur toutes les affiches.
+        </ThemedText>
+      )}
+    </View>
+  );
+}
+
+const ss = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  choice: { flex: 1, borderRadius: RADIUS.md, borderWidth: 1.5, borderColor: C.saugePale, backgroundColor: '#fff', padding: 8, alignItems: 'center' },
+  choiceOn: { borderColor: C.sauge, backgroundColor: C.saugePale + '55' },
+  thumb: { width: 78, height: 110, borderRadius: 6, borderWidth: 1, overflow: 'hidden', alignItems: 'center' },
+  thumbEmpty: { borderColor: C.saugePale, justifyContent: 'center', backgroundColor: C.ivoire },
+  thumbFrame: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderWidth: 1, opacity: 0.8 },
+  stripes: { position: 'absolute', top: 0, left: 0, right: 0, height: 14, flexDirection: 'row' },
+  thumbNum: { fontSize: 30, fontWeight: '700', fontFamily: 'serif', lineHeight: 36 },
+  choiceLabel: { fontSize: 13, fontWeight: '700', color: C.textDark, marginTop: 8 },
+  choiceSub: { fontSize: 11, color: C.textLight, textAlign: 'center', marginTop: 2, lineHeight: 15 },
+  note: { fontSize: 11.5, color: C.textMid, marginTop: 10, lineHeight: 16 },
+});
+
 // ── Main modal ─────────────────────────────────────────────────────────────────
 
 export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
   const insets = useSafeAreaInsets();
+  const { width: winW } = useWindowDimensions();
   const [selected, setSelected] = useState<PdfExportType>('panneaux');
   const [cardStyle, setCardStyle] = useState<PdfCardStyle>('elegant');
   const [panelTemplate, setPanelTemplate] = useState<PanelTemplateId>(DEFAULT_PANEL_TEMPLATE);
   const [previewing, setPreviewing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
+  // « Style de mon invitation » : sélectionné d'office dès que le site est chargé.
+  const site = useSiteStyle(visible);
+  const [styleSource, setStyleSource] = useState<'site' | 'oheve'>('site');
+  useEffect(() => { if (site.status === 'ready') setStyleSource('site'); }, [site.status]);
+  const siteStyle = styleSource === 'site' && site.status === 'ready' ? site.style : null;
 
   const previewHtml = useMemo(
-    () => generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate, preview: true }),
-    [data, selected, cardStyle, panelTemplate],
+    () => generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate, siteStyle, preview: true }),
+    [data, selected, cardStyle, panelTemplate, siteStyle],
   );
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const html = generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate });
+      const html = generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate, siteStyle });
       const { uri } = await Print.printToFileAsync({ html, base64: false, ...A4_PAGE });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -191,7 +290,7 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
   const handlePrint = async () => {
     setPrinting(true);
     try {
-      const html = generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate });
+      const html = generateSeatingPlanHtml(data, selected, { cardStyle, panelTemplate, siteStyle });
       if (Platform.OS === 'web') printHtmlOnWeb(html);
       else await Print.printAsync({ html, ...A4_PAGE });
     } catch {
@@ -224,12 +323,17 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
               </Pressable>
             </View>
           </View>
-          <WebView
-            originWhitelist={['*']}
-            source={{ html: previewHtml }}
-            style={styles.webview}
-            scalesPageToFit
-          />
+          {Platform.OS === 'web' ? (
+            // react-native-webview n'existe pas sur le web : iframe srcDoc.
+            <iframe title="Aperçu" srcDoc={previewHtml.replace('</head>', `<style>body.preview{zoom:${Math.min(1, winW / 623)};}</style></head>`)} style={{ flex: 1, border: 0, width: '100%', backgroundColor: '#DDD9CF' }} />
+          ) : (
+            <WebView
+              originWhitelist={['*']}
+              source={{ html: previewHtml }}
+              style={styles.webview}
+              scalesPageToFit
+            />
+          )}
         </View>
       </Modal>
     );
@@ -246,6 +350,8 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
         <ThemedText style={styles.sheetSub}>Choisissez un format, prévisualisez, puis imprimez en A4 ou exportez en PDF.</ThemedText>
 
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+          <StyleSourcePicker site={site} source={styleSource} onChange={setStyleSource} />
+
           {/* Format selector */}
           {EXPORT_OPTIONS.map((opt) => {
             const active = selected === opt.type;
@@ -270,7 +376,7 @@ export function SeatingPlanExportModal({ visible, onClose, data }: Props) {
           })}
 
           {/* ── Panneau template gallery ── */}
-          {selected === 'panneaux' && (
+          {selected === 'panneaux' && !siteStyle && (
             <View style={styles.galleryBox}>
               <View style={styles.galleryHeader}>
                 <ThemedText style={styles.galleryTitle}>Choisir un modèle</ThemedText>
