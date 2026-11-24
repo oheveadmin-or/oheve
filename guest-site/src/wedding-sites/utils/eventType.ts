@@ -1,5 +1,6 @@
 /**
- * Type d'événement du site : mariage, Bar Mitsva, Bat Mitsva ou Brit Mila.
+ * Type d'événement du site : mariage, Bar Mitsva, Bat Mitsva, Brit Mila ou
+ * Halaké (coupe de cheveux).
  *
  * Le type n'est PAS choisi dans le builder : il vient du compte Oheve
  * (users.event_type, choisi à l'inscription dans l'app) et le serveur le
@@ -17,9 +18,10 @@
  */
 import type { JewishWeddingEvent, SiteLanguage, WeddingSite } from '../types';
 
-export type SiteEventType = 'mariage' | 'bar_mitsva' | 'bat_mitsva' | 'brit_mila';
+/** halake = Coupe de cheveux (Halaké / Upsherin) : 1re coupe d'un garçon de 3 ans */
+export type SiteEventType = 'mariage' | 'bar_mitsva' | 'bat_mitsva' | 'brit_mila' | 'halake';
 
-const EVENT_TYPES: SiteEventType[] = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila'];
+const EVENT_TYPES: SiteEventType[] = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila', 'halake'];
 
 export function normalizeEventType(v?: string | null): SiteEventType {
   return (EVENT_TYPES as string[]).includes(String(v)) ? (v as SiteEventType) : 'mariage';
@@ -286,6 +288,54 @@ const CONFIG: Record<SiteEventType, EventSiteConfig> = {
     ],
     shabbatHotel: null,
   },
+  halake: {
+    label: { fr: 'Halaké', he: 'חלאקה', en: 'Upsherin' },
+    ofThe: 'de la Halaké',
+    inviteOne: {
+      fr: 'vous invite à célébrer sa première coupe de cheveux',
+      he: 'מתכבד להזמינכם לחגוג את התספורת הראשונה שלו',
+      en: 'invites you to celebrate his first haircut',
+    },
+    invitedTo: 'à la Halaké de',
+    names: {
+      step: 'Enfant', title: "L'enfant", sub: 'Son prénom, en grand sur le site, et le nom de la famille.',
+      first: 'Prénom du garçon', firstHe: 'Prénom en hébreu (facultatif)', firstPlaceholder: 'Eliahou',
+      second: 'Nom de famille', secondHe: 'Nom de famille en hébreu (facultatif)', secondPlaceholder: 'Cohen',
+      secondIsFamily: true,
+    },
+    mainEvent: { fr: 'Halaké & réception', he: 'חלאקה וסעודה', en: 'Upsherin & reception' },
+    program: [
+      { type: 'houppa', label: 'Halaké & réception', emoji: '✂️' },
+      { type: 'brunch', label: 'Brunch', emoji: '☕', optional: true },
+    ],
+    messageTo: { fr: 'Un petit mot pour la famille', he: 'מילה טובה למשפחה', en: 'A note for the family' },
+    texts: {
+      thanks: {
+        fr: "Remercient Hachem d'avoir la joie de vous convier à la première coupe de cheveux de leur fils et petit-fils",
+        he: 'מודים לה׳ על הזכות להזמינכם לחלאקה של בנם ונכדם',
+        en: 'Thank Hashem for the joy of inviting you to the first haircut of their son and grandson',
+      },
+      invitation: {
+        fr: 'qui aura lieu le',
+        he: 'שתתקיים ביום',
+        en: 'which will take place on',
+      },
+      reception: {
+        fr: 'Votre présence sera notre plus beau cadeau.',
+        he: 'השתתפותכם תהיה לנו המתנה הגדולה ביותר',
+        en: 'Your presence will be our greatest gift.',
+      },
+    },
+    verses: [
+      { v: 'כִּי הָאָדָם עֵץ הַשָּׂדֶה', label: 'כִּי הָאָדָם עֵץ הַשָּׂדֶה' },
+      { v: 'תּוֹרָה צִוָּה לָנוּ מֹשֶׁה מוֹרָשָׁה קְהִלַּת יַעֲקֹב', label: 'תּוֹרָה צִוָּה לָנוּ מֹשֶׁה' },
+      { v: 'שְׁמַע יִשְׂרָאֵל ה׳ אֱלֹהֵינוּ ה׳ אֶחָד', label: 'שְׁמַע יִשְׂרָאֵל' },
+      VERSE_ZE_HAYOM,
+      VERSE_BAROUKH_HABA,
+      VERSE_KI_TOV,
+    ],
+    shabbatHotel: null,
+  },
 };
 
 export function eventSiteConfig(v?: string | null): EventSiteConfig {
@@ -427,6 +477,7 @@ const EVENT_DEFAULT_PALETTE: Partial<Record<SiteEventType, string>> = {
   bar_mitsva: 'Bleu Nuit & Cuivré',
   bat_mitsva: 'Pêche & Or Rose',
   brit_mila: 'Sable & Bleu Ciel',
+  halake: 'Olive & Beige',
 };
 
 export function eventDefaultPaletteName(v?: string | null): string | null {

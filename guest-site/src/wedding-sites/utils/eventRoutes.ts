@@ -4,6 +4,7 @@
  *   Bar Mitsva → /bar-mitsva/<slug>
  *   Bat Mitsva → /bat-mitsva/<slug>
  *   Brit Mila  → /brit-mila/<slug>
+ *   Halaké     → /halake/<slug> (coupe de cheveux)
  * (+ /rsvp, /invite/<token>, /build sous chacune).
  *
  * Les quatre préfixes affichent les mêmes pages ; si un lien arrive avec le
@@ -20,6 +21,7 @@ export const EVENT_PATH_PREFIX: Record<SiteEventType, string> = {
   bar_mitsva: 'bar-mitsva',
   bat_mitsva: 'bat-mitsva',
   brit_mila: 'brit-mila',
+  halake: 'halake',
 };
 
 export const EVENT_PATH_PREFIXES = Object.values(EVENT_PATH_PREFIX);

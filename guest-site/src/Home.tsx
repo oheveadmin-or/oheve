@@ -26,7 +26,7 @@ const WA_GREEN = '#25D366';
 /* ─── ÉVÉNEMENTS ───────────────────────────────────────────────── */
 // Libellés alignés sur MonApp/lib/event-type.ts et wedding-sites/utils/eventType.ts.
 
-type EventKey = 'mariage' | 'bar_mitsva' | 'bat_mitsva' | 'brit_mila';
+type EventKey = 'mariage' | 'bar_mitsva' | 'bat_mitsva' | 'brit_mila' | 'halake';
 
 type EventDemo = {
   key: EventKey;
@@ -87,6 +87,15 @@ const EVENTS: EventDemo[] = [
     honorTable: 'FAMILLE ATTIAS', tables: '6 tables', places: '72 places',
     builder: '/brit-mila/build',
     pitch: 'Huit jours pour tout organiser : mohel, séouda et invitations partent en quelques minutes.',
+  },
+  {
+    key: 'halake', tab: 'Coupe de cheveux', emoji: '✂️', your: 'la Halaké',
+    name: 'Eliahou', kicker: 'HALAKÉ', date: '23 MAI 2027 · PARIS',
+    countdown: ['58', '04', '12'], progress: 47, budget: '3 100 €',
+    chips: ['1re mèche', 'Péot', 'Réception'], confirmed: '64 confirmés',
+    honorTable: 'ELIAHOU & FAMILLE', tables: '6 tables', places: '64 places',
+    builder: '/halake/build',
+    pitch: 'Première coupe de cheveux à 3 ans : coiffeur, proches qui coupent une mèche, réception et invitations.',
   },
 ];
 
@@ -818,7 +827,7 @@ export default function Home() {
             </h1>
 
             <p className="ohv-sub" style={heroSub}>
-              Mariage, Bar Mitsva, Bat Mitsva ou Brit Mila : Oheve réunit votre to-do list,
+              Mariage, Bar Mitsva, Bat Mitsva, Brit Mila ou Halaké : Oheve réunit votre to-do list,
               votre budget, vos invités, votre plan de table, votre site d'invitation et votre
               annuaire de prestataires. Pensée pour les fêtes juives, ouverte à tous.
             </p>
@@ -834,7 +843,7 @@ export default function Home() {
             </div>
 
             <div className="ohv-meta" style={metaRow}>
-              {['Gratuit', 'iPhone & iPad', '4 événements', 'RSVP en ligne', 'Plan de table PDF'].map((t) => (
+              {['Gratuit', 'iPhone & iPad', '5 événements', 'RSVP en ligne', 'Plan de table PDF'].map((t) => (
                 <span key={t} style={metaChip}>{t}</span>
               ))}
             </div>
@@ -874,7 +883,7 @@ export default function Home() {
             </h2>
             <div className="ohv-rule" />
             <p data-reveal style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 'clamp(1.15rem, 2vw, 1.4rem)', lineHeight: 1.55, color: MOKA, maxWidth: '40ch' }}>
-              Oheve réunit tout ce dont vous avez besoin pour préparer les plus beaux jours de votre famille : mariage, Bar Mitsva, Bat Mitsva ou Brit Mila.
+              Oheve réunit tout ce dont vous avez besoin pour préparer les plus beaux jours de votre famille : mariage, Bar Mitsva, Bat Mitsva, Brit Mila ou Halaké (coupe de cheveux).
             </p>
             <ul className="ohv-stack">
               {['To-do list & rappels', 'Budget & acomptes', 'Invités, RSVP & plan de table', "Site d'invitation", 'Prestataires sélectionnés'].map((t, i) => (
@@ -941,7 +950,7 @@ export default function Home() {
           <p data-reveal style={sectionSub}>
             Choisissez votre événement à l'inscription : to-do, budget, prestataires et site s'adaptent tout seuls.
           </p>
-          <div className="ohv-ev-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.1rem' }}>
+          <div className="ohv-ev-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1.1rem' }}>
             {EVENT_CARDS.map((c, i) => (
               <Link key={c.key} to={c.builder} className="ohv-ev-card" data-reveal style={{ ['--d' as string]: `${i * 0.09}s` }}>
                 <span style={{ fontSize: '1.7rem' }} aria-hidden="true">{c.emoji}</span>
@@ -1099,7 +1108,7 @@ export default function Home() {
               Prêt à organiser<br /><em style={{ fontStyle: 'italic', color: SAGE }}>votre prochaine fête ?</em>
             </h2>
             <p style={{ fontSize: '0.95rem', color: MOKA_MID, opacity: 0.75, marginBottom: '2rem', lineHeight: 1.6 }}>
-              Téléchargez Oheve gratuitement et créez votre mariage, Bar Mitsva, Bat Mitsva ou Brit Mila en quelques minutes.
+              Téléchargez Oheve gratuitement et créez votre mariage, Bar Mitsva, Bat Mitsva, Brit Mila ou Halaké en quelques minutes.
             </p>
             <div style={{ display: 'flex', gap: '0.9rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <AppStoreButton />
@@ -1166,6 +1175,10 @@ const EVENT_CARDS: { key: EventKey; emoji: string; title: string; desc: string; 
   {
     key: 'brit_mila', emoji: '✡️', title: 'Brit Mila', builder: '/brit-mila/build',
     desc: 'Mohel, veille, séouda : huit jours pour tout préparer, invitations envoyées en quelques minutes.',
+  },
+  {
+    key: 'halake', emoji: '✂️', title: 'Coupe de cheveux', builder: '/halake/build',
+    desc: 'Halaké des 3 ans : coiffeur, première mèche, réception et faire-part digital en quelques minutes.',
   },
 ];
 

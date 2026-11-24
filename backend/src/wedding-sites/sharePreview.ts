@@ -84,6 +84,12 @@ const EVENT_TEXTS: Record<string, Record<Lang, { label: string; desc: (c: string
     en: { label: 'Brit Milah', desc: (c) => `You are invited to the Brit Milah — ${c}.`, kicker: 'BRIT MILAH', family: (n) => `The ${n} family` },
     he: { label: 'ברית מילה', desc: (c) => `הנכם מוזמנים לברית המילה — ${c}.`, kicker: 'ברית מילה', family: (n) => `משפחת ${n}` },
   },
+  // Coupe de cheveux (Halaké / Upsherin) : 1re coupe d'un garçon de 3 ans
+  halake: {
+    fr: { label: 'Halaké', desc: (c) => `Vous êtes invités à la Halaké (première coupe de cheveux) de ${c}.`, kicker: 'HALAKÉ', family: (n) => `Famille ${n}` },
+    en: { label: 'Upsherin', desc: (c) => `You are invited to the Upsherin (first haircut) of ${c}.`, kicker: 'UPSHERIN', family: (n) => `The ${n} family` },
+    he: { label: 'חלאקה', desc: (c) => `הנכם מוזמנים לחלאקה (תספורת ראשונה) של ${c}.`, kicker: 'חלאקה', family: (n) => `משפחת ${n}` },
+  },
 };
 
 function eventTexts(row: SiteRow) {

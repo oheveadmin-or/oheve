@@ -126,6 +126,7 @@ export const EXPORT_SHEETS = {
              CASE COALESCE(NULLIF(u.event_type, ''), 'mariage')
                WHEN 'mariage' THEN 'Mariage' WHEN 'bar_mitsva' THEN 'Bar Mitsva'
                WHEN 'bat_mitsva' THEN 'Bat Mitsva' WHEN 'brit_mila' THEN 'Brit Mila'
+               WHEN 'halake' THEN 'Coupe de cheveux (Halaké)'
                ELSE u.event_type END AS "Événement",
              u.bride_name AS "Prénom 1", u.groom_name AS "Prénom 2",
              u.prenom AS "Prénom du compte", u.nom AS "Nom du compte",

@@ -8,7 +8,7 @@ import { signBuilderToken } from '../auth/jwt';
 import { reconcilePremiumFromStripe } from '../premium';
 import { persistFile } from '../utils/persistent-uploads';
 
-const EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila'];
+const EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila', 'halake'];
 
 function rowToSite(
   row: Awaited<ReturnType<typeof weddingSitesRepo.findBySlug>>,
@@ -50,6 +50,7 @@ const PREMIUM_BLOCKED: Record<string, string> = {
   bar_mitsva: 'Ce site de Bar Mitsva est momentanément indisponible. La famille doit activer Oheve Premium pour le publier.',
   bat_mitsva: 'Ce site de Bat Mitsva est momentanément indisponible. La famille doit activer Oheve Premium pour le publier.',
   brit_mila: 'Ce site de Brit Mila est momentanément indisponible. La famille doit activer Oheve Premium pour le publier.',
+  halake: 'Ce site de Halaké est momentanément indisponible. La famille doit activer Oheve Premium pour le publier.',
 };
 export function premiumRequiredMessage(eventType?: string | null): string {
   return PREMIUM_BLOCKED[String(eventType ?? '')]

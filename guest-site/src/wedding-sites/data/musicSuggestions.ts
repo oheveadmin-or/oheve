@@ -53,18 +53,18 @@ export const MUSIC_SUGGESTIONS: MusicSuggestion[] = [
   { id: 2008887127, title: 'אהבה כמו שלנו (קיסריה Live)', artist: 'Sarit Hadad', events: W },
   { id: 1086787242, title: 'אישתי', artist: 'Maor Edri', events: W },
   { id: 2420120435, title: 'אהיה שלך לעד', artist: 'Dudi Buzaglo', events: W },
-  { id: 90977509, title: 'גיבור של אמא', artist: 'Moshe Peretz', events: ['mariage', 'bar_mitsva', 'brit_mila'] },
+  { id: 90977509, title: 'גיבור של אמא', artist: 'Moshe Peretz', events: ['mariage', 'bar_mitsva', 'brit_mila', 'halake'] },
   // ── Bar / Bat Mitsva, Brit Mila (vérifiés sur l'API Deezer, extrait disponible) ──
-  { id: 1408001372, title: 'סימן טוב ומזל טוב', artist: 'Ehud Banai', events: ['bar_mitsva', 'bat_mitsva', 'brit_mila'] },
-  { id: 2107589, title: 'Hava Nagila', artist: 'The Klezmer Lounge Band', events: ['bar_mitsva', 'bat_mitsva', 'brit_mila'] },
+  { id: 1408001372, title: 'סימן טוב ומזל טוב', artist: 'Ehud Banai', events: ['bar_mitsva', 'bat_mitsva', 'brit_mila', 'halake'] },
+  { id: 2107589, title: 'Hava Nagila', artist: 'The Klezmer Lounge Band', events: ['bar_mitsva', 'bat_mitsva', 'brit_mila', 'halake'] },
   { id: 2096934077, title: 'Bar mitzva', artist: 'Les Chevatim', events: ['bar_mitsva'] },
   { id: 4221204782, title: 'יום הולדת', artist: 'Moshe Peretz', events: ['bar_mitsva', 'bat_mitsva'] },
   { id: 2894802251, title: 'Bat mitsva', artist: 'Les Chevatim', events: ['bat_mitsva'] },
   { id: 3168185521, title: 'בת מצווה', artist: 'Motty Ilowitz', events: ['bat_mitsva'] },
   { id: 3923223621, title: 'בת מצווה', artist: 'מיטל ונעלי הפלא', events: ['bat_mitsva'] },
   { id: 492272342, title: 'נסיכה שלי', artist: 'Ivri Lider', events: ['bat_mitsva'] },
-  { id: 9035136, title: 'HaMalach HaGoel', artist: 'Maccabeats', events: ['brit_mila'] },
-  { id: 70107386, title: 'Ani Maamin', artist: 'Avraham Fried', events: ['bar_mitsva', 'brit_mila'] },
+  { id: 9035136, title: 'HaMalach HaGoel', artist: 'Maccabeats', events: ['brit_mila', 'halake'] },
+  { id: 70107386, title: 'Ani Maamin', artist: 'Avraham Fried', events: ['bar_mitsva', 'brit_mila', 'halake'] },
 ];
 
 /** Playlist proposée pour un événement (pas de « חתונה » pour une Bar Mitsva) */

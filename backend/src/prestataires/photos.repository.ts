@@ -1,4 +1,16 @@
-import { sqlCoversEvent, viewerEventType } from './repository';
+import { EVENT_TYPES, sqlCoversEvent, viewerEventType } from './repository';
+
+/**
+ * Fête dont on montre les reels :
+ *  - ?event_type=all            → toutes les fêtes (aucun filtre)
+ *  - ?event_type=bar_mitsva…    → les prestataires qui font cette fête
+ *  - absent (anciennes versions) → l'événement du compte client connecté
+ */
+async function feedEventType(viewerUserId?: number, eventFilter?: string): Promise<string | null> {
+  if (eventFilter === 'all') return null;
+  if (eventFilter && EVENT_TYPES.includes(eventFilter)) return eventFilter;
+  return viewerEventType(viewerUserId);
+}
 import { pool } from '../config/database';
 
 export interface PhotoRow {
@@ -108,7 +120,7 @@ export class PhotosRepository {
     return deleted;
   }
 
-  async findFeedPhotos(limit: number, offset: number, viewerUserId?: number): Promise<(PhotoRow & { business_name: string; category: string; prenom: string; nom: string; like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null; location_city: string | null; rating: number | null; reviews_count: number | null; avatar_url: string | null; cover_filename: string | null })[]> {
+  async findFeedPhotos(limit: number, offset: number, viewerUserId?: number, eventFilter?: string): Promise<(PhotoRow & { business_name: string; category: string; prenom: string; nom: string; like_count: number; comment_count: number; liked_by_me: boolean; caption?: string | null; location_city: string | null; rating: number | null; reviews_count: number | null; avatar_url: string | null; cover_filename: string | null })[]> {
     const r = await pool.query(
       `SELECT pp.id, pp.filename, pp.is_cover, pp.caption, pp.media_type, pp.created_at,
               p.business_name, p.category, p.location_city, p.rating::float AS rating, p.reviews_count,
@@ -134,7 +146,7 @@ export class PhotosRepository {
        GROUP BY pp.id, pp.caption, pp.media_type, p.id, p.business_name, p.category, p.location_city, p.rating, p.reviews_count, u.id, u.prenom, u.nom, u.avatar_url
        ORDER BY pp.created_at DESC
        LIMIT $1 OFFSET $2`,
-      [limit, offset, viewerUserId ?? 0, await viewerEventType(viewerUserId)]
+      [limit, offset, viewerUserId ?? 0, await feedEventType(viewerUserId, eventFilter)]
     );
     return r.rows;
   }

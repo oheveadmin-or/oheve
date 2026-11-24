@@ -176,6 +176,7 @@ const ALL_PROGRAM_DEFAULTS = [
   ...programDefaults('bar_mitsva'),
   ...programDefaults('bat_mitsva'),
   ...programDefaults('brit_mila'),
+  ...programDefaults('halake'),
 ];
 
 const initialDate = (): { date: string; time: string } => ({ date: '', time: '' });

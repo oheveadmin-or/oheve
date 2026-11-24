@@ -35,7 +35,7 @@ type Summary = { event_type: string; total: number; upcoming: number; premium: n
 
 /** Couleur d'accent par type d'événement. */
 const TYPE_COLOR: Record<string, string> = {
-  mariage: '#747e68', bar_mitsva: '#7f1d1d', bat_mitsva: '#be185d', brit_mila: '#1d4ed8',
+  mariage: '#747e68', bar_mitsva: '#7f1d1d', bat_mitsva: '#be185d', brit_mila: '#1d4ed8', halake: '#a16207',
 };
 
 function eventTitle(e: EventRow): string {

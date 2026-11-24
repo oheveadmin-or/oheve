@@ -225,7 +225,7 @@ adminRoutes.get('/credentials', async (_req: Request, res: Response) => {
 // Vue unique de TOUS les événements organisés dans l'app (un compte client =
 // un événement). users.event_type NULL = mariage (comptes d'avant l'option).
 const EVENT_TYPE_SQL = `COALESCE(NULLIF(u.event_type, ''), 'mariage')`;
-const ADMIN_EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila'];
+const ADMIN_EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila', 'halake'];
 
 adminRoutes.get('/events', async (req: Request, res: Response) => {
   const type = String(req.query.type ?? '');

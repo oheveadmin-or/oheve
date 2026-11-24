@@ -75,7 +75,7 @@ Contact : ${CONTACT_EMAIL}`}
         {`Nous collectons les données suivantes :
 
 • Identité : prénom, nom, adresse email
-• Données de votre événement (mariage, Bar Mitsva, Bat Mitsva ou Brit Mila) : date, lieu, noms des mariés ou de l'enfant et de sa famille, budget
+• Données de votre événement (mariage, Bar Mitsva, Bat Mitsva, Brit Mila ou Halaké) : date, lieu, noms des mariés ou de l'enfant et de sa famille, budget
 • Invités : liste nominative, réponses RSVP
 • Prestataires : contacts et échanges de messages
 • Photos : celles que vous choisissez d'ajouter à votre profil, votre portfolio ou votre site d'invitation
@@ -168,7 +168,7 @@ Elles constituent le contrat de licence utilisateur final (EULA) de l'applicatio
       </Section>
 
       <Section title="2. Description du service">
-        {`Oheve est une application d'organisation de mariages, Bar Mitsva, Bat Mitsva et Brit Mila permettant de :
+        {`Oheve est une application d'organisation de mariages, Bar Mitsva, Bat Mitsva, Brit Mila et Halaké (coupe de cheveux) permettant de :
 
 • Organiser invités, RSVP et plans de table
 • Gérer le budget de l'événement

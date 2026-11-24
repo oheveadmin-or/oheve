@@ -11,9 +11,10 @@
  */
 import type { TodoTask } from './todo-store';
 
-export type EventType = 'mariage' | 'bar_mitsva' | 'bat_mitsva' | 'brit_mila';
+export type EventType = 'mariage' | 'bar_mitsva' | 'bat_mitsva' | 'brit_mila' | 'halake';
 
-export const EVENT_TYPES: EventType[] = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila'];
+/** halake = Coupe de cheveux (Halaké / Upsherin) : 1re coupe d'un garçon de 3 ans. */
+export const EVENT_TYPES: EventType[] = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila', 'halake'];
 
 export function normalizeEventType(v?: string | null): EventType {
   return (EVENT_TYPES as string[]).includes(String(v)) ? (v as EventType) : 'mariage';
@@ -151,6 +152,27 @@ const BRIT_TASKS: TodoTask[] = [
   ]),
 ];
 
+// ── To-do Coupe de cheveux (Halaké) ──────────────────────────────────────────
+const HALAKE_TASKS: TodoTask[] = [
+  ...t('hk-rel', 'Cérémonie', [
+    'Fixer la date (3 ans de l\'enfant, hors Omer selon la coutume)',
+    'Choisir le lieu (maison, synagogue, Méron…)',
+    'Prévenir le rabbin / la personne qui fera la 1re mèche',
+    'Liste des proches qui couperont une mèche',
+    'Kippa et tsitsit (petit talit katan) pour l\'enfant',
+    'Ciseaux, sachet et boîte souvenir pour les cheveux',
+    'Prévoir les papés (péot) avec le coiffeur',
+  ]),
+  ...t('hk-recep', 'Réception', [
+    'Liste des invités', 'Faire-part', 'Salle ou lieu de réception', 'Traiteur / buffet',
+    'Gâteau', 'Décoration', 'Photographe', 'Animation pour les enfants',
+    'Lettres de l\'alphabet en miel / bonbons', 'Cadeaux invités',
+  ]),
+  ...t('hk-jj', 'Jour J', [
+    'Planning du jour J', 'Coiffeur réservé', 'Tenue de l\'enfant', 'Tenues des parents',
+  ]),
+];
+
 /** Liste historique du mariage : vit dans todo-store (DEFAULT_TASKS). */
 const WEDDING_TODO_CATEGORIES: Record<string, string> = {
   'Mariage': '💍',
@@ -270,12 +292,41 @@ const CONFIG: Record<EventType, EventConfig> = {
       'Cérémonie': '✡️', 'Veille (Brit Itshak / Chalom Zakhar)': '🕯️', 'Réception': '🍽️', 'Bébé': '👶',
     },
   },
+  halake: {
+    label: 'Coupe de cheveux',
+    emoji: '✂️',
+    withArticle: 'la coupe de cheveux',
+    ofThe: 'de la coupe de cheveux',
+    desc: 'Organise sa Halaké (1re coupe)',
+    names: {
+      first: 'Prénom du garçon', firstPlaceholder: 'Eliahou',
+      second: 'Nom de famille', secondPlaceholder: 'Cohen',
+      hint: 'Ces informations apparaîtront sur votre accueil et votre profil',
+    },
+    providers: [
+      { ...P.beaute, label: 'Coiffeur', icon: '✂️', ratio: 0.06 },
+      { ...P.traiteur, ratio: 0.35 },
+      { ...P.salle, label: 'Salle / Lieu', ratio: 0.20 },
+      { ...P.rabbin, label: 'Rabbin', ratio: 0.03 },
+      { ...P.photo, ratio: 0.09 },
+      { ...P.animation, label: 'Animation enfants', ratio: 0.07 },
+      { ...P.deco, ratio: 0.09 },
+      { ...P.patisserie, ratio: 0.07 },
+      { ...P.fairepart, ratio: 0.04 },
+    ],
+    defaultProviders: ['beaute', 'traiteur', 'photo', 'deco', 'patisserie'],
+    tasks: HALAKE_TASKS,
+    todoCategories: {
+      'Cérémonie': '✂️', 'Réception': '🎊', 'Jour J': '📋',
+    },
+  },
 };
 
-/** Préfixe du site invités : /wedding, /bar-mitsva, /bat-mitsva, /brit-mila
+/** Préfixe du site invités : /wedding, /bar-mitsva, /bat-mitsva, /brit-mila, /halake
  *  (doit rester aligné avec guest-site/src/wedding-sites/utils/eventRoutes.ts). */
 const SITE_PATH: Record<EventType, string> = {
   mariage: 'wedding', bar_mitsva: 'bar-mitsva', bat_mitsva: 'bat-mitsva', brit_mila: 'brit-mila',
+  halake: 'halake',
 };
 
 /** https://oheve.pages.dev/bar-mitsva pour une Bar Mitsva, …/wedding pour un mariage. */
@@ -350,6 +401,11 @@ const SITE_TEXTS: Record<EventType, SiteTexts> = {
     screenTitle: 'Site Brit Mila', kicker: 'BRIT MILA', invitedTo: 'à la Brit Mila de',
     createSub: 'Entrez le nom de famille (et le prénom du bébé si vous le souhaitez) pour générer votre lien personnalisé.',
     celebrate: 'célébrer la Brit Mila de notre fils', about: 'la Brit Mila',
+  },
+  halake: {
+    screenTitle: 'Site Coupe de cheveux', kicker: 'HALAKÉ', invitedTo: 'à la Halaké de',
+    createSub: 'Entrez le prénom du garçon et le nom de famille pour générer votre lien personnalisé.',
+    celebrate: 'célébrer la première coupe de cheveux de notre fils', about: 'la coupe de cheveux',
   },
 };
 

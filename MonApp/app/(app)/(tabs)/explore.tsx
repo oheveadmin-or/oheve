@@ -36,6 +36,7 @@ import { isTooLong, TOO_LONG_MESSAGE, VIDEO_PICK_OPTIONS } from '@/lib/video-pic
 import { useBoutique } from '@/contexts/boutique-context';
 import { API_ENDPOINTS, SHARE_BASE_URL } from '@/constants/config';
 import { uploadFile } from '@/services/auth/api';
+import { EVENT_TYPES, eventConfig, type EventType } from '@/lib/event-type';
 import { categoryDef, categoryLabel, normalizeCategory, PRESTA_CATEGORIES, prestaPhoto, type PrestaCategory } from '@/lib/presta-categories';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -555,7 +556,7 @@ function ReelCardBase({
       </Svg>
 
       {/* Category badge */}
-      <View style={[reelStyles.catBadge, { top: insets.top + 16, backgroundColor: catColor }]}>
+      <View style={[reelStyles.catBadge, { top: insets.top + 56, backgroundColor: catColor }]}>
         <ThemedText style={reelStyles.catBadgeTxt}>{categoryLabel(post.category)}</ThemedText>
       </View>
 
@@ -1039,6 +1040,25 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const isPrestataire = user?.role === 'prestataire' || user?.role === 'admin';
+  // ── Fête affichée dans les reels (Mariage, Bar Mitsva, Brit Mila…) ────────
+  // Un particulier démarre sur SA fête ; il peut ensuite en choisir une autre
+  // ou « Toutes ». Prestataires et admins voient toutes les fêtes par défaut.
+  const accountEvent: EventType | 'all' | null = !user
+    ? null
+    : user.role !== 'client'
+      ? 'all'
+      : user.event_type && (EVENT_TYPES as string[]).includes(user.event_type)
+        ? (user.event_type as EventType)
+        : 'mariage';
+  // Fête choisie à la main (null = celle du compte, connue dès qu'il est chargé).
+  const [pickedEvent, setPickedEvent] = useState<EventType | 'all' | null>(null);
+  const eventFilter: EventType | 'all' = pickedEvent ?? accountEvent ?? 'all';
+  const pickEvent = useCallback((e: EventType | 'all') => setPickedEvent(e), []);
+  const feedUrl = `${API_ENDPOINTS.prestataireFeed}?event_type=${eventFilter}`;
+  // Réponse arrivée en retard pour une autre fête → ignorée (sinon elle
+  // écraserait les reels de la fête choisie entre-temps).
+  const feedUrlRef = useRef(feedUrl);
+  feedUrlRef.current = feedUrl;
   const { reels: boutiqueReels, toggleReelLike, recordReelView } = useBoutique();
   const [posts, setPosts] = useState<Post[]>(DEMO);
   const [category, setCategory] = useState<MainCategory>('tout');
@@ -1142,10 +1162,14 @@ export default function ExploreScreen() {
   const loadFeed = useCallback(() => {
     const headers: Record<string, string> = {};
     if (user?.accessToken) headers['Authorization'] = `Bearer ${user.accessToken}`;
-    fetch(`${API_ENDPOINTS.prestataireFeed}`, { headers })
+    // Compte pas encore chargé : on attend de connaître sa fête.
+    if (!accountEvent) return;
+    const url = feedUrl;
+    fetch(url, { headers })
       .then((r) => r.json())
       .then((json) => {
         if (!json?.success || !Array.isArray(json.data)) return;
+        if (feedUrlRef.current !== url) return;
         const feedPosts: Post[] = json.data.map((p: {
           id: number; url: string; is_cover: boolean; created_at: string;
           user_id: number; business_name: string; category: string; prenom: string; nom: string;
@@ -1180,7 +1204,7 @@ export default function ExploreScreen() {
         applyFeedPosts(rankFeed(feedPosts, affinityRef.current));
       })
       .catch(() => {});
-  }, [user?.accessToken, applyFeedPosts]);
+  }, [user?.accessToken, applyFeedPosts, feedUrl, accountEvent]);
 
   // ── Rafraîchissement live des compteurs (j'aime + commentaires) ───────────
   // On ne recharge PAS tout le feed (ça réordonnerait les reels sous le doigt) :
@@ -1190,7 +1214,8 @@ export default function ExploreScreen() {
   const refreshCounters = useCallback(() => {
     const headers: Record<string, string> = {};
     if (user?.accessToken) headers['Authorization'] = `Bearer ${user.accessToken}`;
-    fetch(`${API_ENDPOINTS.prestataireFeed}`, { headers })
+    if (!accountEvent) return;
+    fetch(feedUrl, { headers })
       .then((r) => r.json())
       .then((json) => {
         if (!json?.success || !Array.isArray(json.data)) return;
@@ -1214,7 +1239,7 @@ export default function ExploreScreen() {
         }));
       })
       .catch(() => {});
-  }, [user?.accessToken]);
+  }, [user?.accessToken, feedUrl, accountEvent]);
 
   useFocusEffect(useCallback(() => {
     loadFeed();
@@ -1267,7 +1292,7 @@ export default function ExploreScreen() {
     return true;
   });
 
-  const filterKey = `${category}|${subCategory ?? ''}|${search}`;
+  const filterKey = `${eventFilter}|${category}|${subCategory ?? ''}|${search}`;
   const activeReelId = activeReel && activeReel.key === filterKey ? activeReel.id : filtered[0]?.id ?? null;
   // Lu par le gestionnaire de défilement (stable, hors rendu).
   useEffect(() => {
@@ -1535,6 +1560,48 @@ export default function ExploreScreen() {
     [reelH, reelsOpen, activeReelId, isFocused, handleLike, handleOpenComment, handleShare, handleOpenProvider],
   );
 
+  // Rangée « Toutes les fêtes · Mariage · Bar Mitsva… » (grille ET reels)
+  // La fête du compte passe en premier : sélectionnée d'office, elle doit se voir.
+  const orderedEvents = accountEvent && accountEvent !== 'all'
+    ? [accountEvent, ...EVENT_TYPES.filter((t) => t !== accountEvent)]
+    : EVENT_TYPES;
+  const eventOptions: { key: EventType | 'all'; label: string; emoji: string }[] = [
+    ...orderedEvents.map((t) => ({ key: t, label: eventConfig(t).label, emoji: eventConfig(t).emoji })),
+    { key: 'all', label: 'Toutes les fêtes', emoji: '✨' },
+  ];
+  if (!accountEvent || accountEvent === 'all') eventOptions.unshift(eventOptions.pop()!);
+  const renderEventChips = (dark: boolean) => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.eventRow}
+      style={styles.eventScroll}
+    >
+      {eventOptions.map((o) => {
+        const on = eventFilter === o.key;
+        return (
+          <Pressable
+            key={o.key}
+            testID={`reels-event-${o.key}`}
+            style={[styles.eventChip, dark && styles.eventChipDark, on && (dark ? styles.eventChipDarkOn : styles.eventChipOn)]}
+            onPress={() => pickEvent(o.key)}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+          >
+            <ThemedText style={styles.eventChipEmoji}>{o.emoji}</ThemedText>
+            <ThemedText
+              style={[styles.eventChipLbl, dark && styles.eventChipLblDark, on && (dark ? styles.eventChipLblDarkOn : styles.eventChipLblOn)]}
+              numberOfLines={1}
+            >
+              {o.label}
+            </ThemedText>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -1585,6 +1652,9 @@ export default function ExploreScreen() {
           </Pressable>
         )}
       </View>
+
+      {/* Fête : Mariage, Bar Mitsva, Brit Mila, Coupe de cheveux… */}
+      {renderEventChips(false)}
 
       {/* Category filters */}
       <ScrollView
@@ -1736,6 +1806,10 @@ export default function ExploreScreen() {
             }
           />
         )}
+        {/* Choix de la fête, en haut des reels */}
+        <View style={[styles.reelsEventBar, { top: insets.top + 10 }]} pointerEvents="box-none">
+          {renderEventChips(true)}
+        </View>
         {/* Close reels overlay button */}
         <Pressable
           style={[styles.reelsCloseBtn, { top: insets.top + 12 }]}
@@ -1850,6 +1924,23 @@ const styles = StyleSheet.create({
   reelsLayerOn: { zIndex: 10, opacity: 1, backgroundColor: '#000' },
   // Hors écran plutôt que démonté : les lecteurs restent prêts.
   reelsLayerOff: { zIndex: -1, opacity: 0, transform: [{ translateX: 10000 }] },
+  eventScroll: { flexGrow: 0, flexShrink: 0 },
+  eventRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingBottom: 10 },
+  eventChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999,
+    borderWidth: 1, borderColor: '#E4E0D8', backgroundColor: '#fff',
+  },
+  eventChipOn: { backgroundColor: '#747E68', borderColor: '#747E68' },
+  eventChipDark: { backgroundColor: 'rgba(0,0,0,0.38)', borderColor: 'rgba(255,255,255,0.25)' },
+  eventChipDarkOn: { backgroundColor: '#fff', borderColor: '#fff' },
+  eventChipEmoji: { fontSize: 13 },
+  eventChipLbl: { fontSize: 12, fontWeight: '600', color: '#5c5f57' },
+  eventChipLblOn: { color: '#fff' },
+  eventChipLblDark: { color: '#fff' },
+  eventChipLblDarkOn: { color: '#343630' },
+  // Laisse la place au bouton « fermer » à droite
+  reelsEventBar: { position: 'absolute', left: 0, right: 60, zIndex: 20 },
   reelsCloseBtn: {
     position: 'absolute', right: 16,
     backgroundColor: 'rgba(0,0,0,0.45)',

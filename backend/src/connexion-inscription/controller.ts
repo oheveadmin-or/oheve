@@ -36,7 +36,7 @@ const SALT_ROUNDS = 10;
 const MIN_PWD = 8;
 const repo = new ConnexionInscriptionRepository();
 
-const EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila'];
+const EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila', 'halake'];
 /** Type d'événement accepté, sinon null (= mariage). */
 function sanitizeEventType(v: unknown): string | null {
   return typeof v === 'string' && EVENT_TYPES.includes(v) ? v : null;

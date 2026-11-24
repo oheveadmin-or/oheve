@@ -32,7 +32,7 @@ export interface PrestaProfileRow {
   cover_filename?: string;
 }
 
-export const EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila'];
+export const EVENT_TYPES = ['mariage', 'bar_mitsva', 'bat_mitsva', 'brit_mila', 'halake'];
 
 /** Garde uniquement les valeurs connues, sans doublon. */
 export function sanitizeEventTypes(v: unknown): string[] | undefined {

@@ -75,7 +75,7 @@ export class PhotosController {
       // Les posts dont le fichier a été perdu (anciens redéploiements) sont
       // masqués : sinon les clients voient des tuiles grises / reels noirs.
       const rows = await filterAvailable(
-        await repo.findFeedPhotos(limit, offset, req.auth?.sub),
+        await repo.findFeedPhotos(limit, offset, req.auth?.sub, String(req.query.event_type ?? '') || undefined),
         (p) => `photos/${p.filename}`,
       );
       const protocol = req.headers['x-forwarded-proto'] ?? req.protocol;

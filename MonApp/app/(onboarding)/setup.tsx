@@ -58,7 +58,12 @@ const WEDDING_STEPS = [
 
 /** Budget global proposé par défaut selon l'événement. */
 function defaultBudgetFor(e: EventType): number {
-  return e === 'brit_mila' ? 5000 : e === 'mariage' ? 30000 : 20000;
+  return e === 'brit_mila' ? 5000 : e === 'halake' ? 6000 : e === 'mariage' ? 30000 : 20000;
+}
+
+/** Nombre d'invités proposé par défaut selon l'événement. */
+function defaultGuestsFor(e: EventType): number {
+  return e === 'brit_mila' || e === 'halake' ? 50 : e === 'mariage' ? 150 : 120;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -226,7 +231,7 @@ export default function OnboardingSetupScreen() {
     setEventTypeState(next);
     // Nouvel événement → prestataires pré-cochés propres à cet événement.
     setNeededProviders(eventConfig(next).defaultProviders);
-    setGuests(next === 'brit_mila' ? 50 : next === 'mariage' ? 150 : 120);
+    setGuests(defaultGuestsFor(next));
     const b = defaultBudgetFor(next);
     setBudget(b);
     setBudgetInput(String(b));
@@ -271,7 +276,7 @@ export default function OnboardingSetupScreen() {
   const [budget, setBudget] = useState(() => defaultBudgetFor(eventType));
   const [budgetInput, setBudgetInput] = useState(() => String(defaultBudgetFor(eventType)));
   const [catBudgets, setCatBudgets] = useState<Record<string, string>>({});
-  const [guests, setGuests] = useState(() => (eventType === 'brit_mila' ? 50 : eventType === 'mariage' ? 150 : 120));
+  const [guests, setGuests] = useState(() => defaultGuestsFor(eventType));
 
   // ── Étapes ────────────────────────────────────────────────────────────────
   const [selectedSteps, setSelectedSteps] = useState<string[]>(['jour_j']);

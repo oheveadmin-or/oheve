@@ -20,7 +20,7 @@ import { trialLabel, usePrestaOffer } from '@/lib/presta-offer';
 import { EVENT_TYPES, eventConfig, type EventType } from '@/lib/event-type';
 
 const ROLES: { key: UserRole; label: string; icon: string; desc: string; soon?: boolean }[] = [
-  { key: 'client', label: 'Particulier', icon: '🎉', desc: 'Mariage, Bar/Bat Mitsva, Brit Mila' },
+  { key: 'client', label: 'Particulier', icon: '🎉', desc: 'Mariage, Bar/Bat Mitsva, Brit Mila, Halaké' },
   // desc de la carte Prestataire : rempli à l'affichage avec la durée d'essai
   // réellement en cours (offre de lancement ou offre standard).
   { key: 'prestataire', label: 'Prestataire', icon: '🏢', desc: '' },
