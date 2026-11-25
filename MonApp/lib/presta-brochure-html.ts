@@ -5,15 +5,13 @@
  *      chiffres, bio, coordonnées, puis début de la grille du portfolio
  *   (2. À propos complet, seulement si la bio est trop longue pour la page 1)
  *   3+ Suite de la grille : TOUTES les photos et vidéos, 3 colonnes carrées
- *   n. Contact : bandeau photo, coordonnées, documents, QR code du profil
+ *   n. Contact : bandeau photo, coordonnées, documents
  * Les images arrivent déjà en data URI (voir presta-fiche-pdf.ts).
  *
  * Impression : le moteur WebKit d'iOS met en page sur 1,25 × la largeur du
  * papier puis réduit (×0,8) ; Chromium/Android compte 96 px pour 72 pt (×0,75).
  * `printZoom` compense pour que la page 595 × 842 remplisse exactement l'A4.
  */
-import qrcode from 'qrcode-generator';
-
 import { eventConfig } from '@/lib/event-type';
 import { categoryLabel } from '@/lib/presta-categories';
 
@@ -36,7 +34,6 @@ export type BrochureData = {
   /** Tout le portfolio, dans l'ordre de la grille du profil. */
   media: BrochureMedia[];
   documents?: string[];
-  publicUrl?: string | null;
   fonts?: { regular?: string | null; semibold?: string | null };
   /** Facteur d'impression (iOS 1,25 ; Android 4/3). 1 = aperçu écran. */
   printZoom?: number;
@@ -52,20 +49,6 @@ export const esc = (s: unknown) =>
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 const t = (s: unknown) => (typeof s === 'string' ? s.trim() : '');
-
-function qrSvg(text: string): string {
-  try {
-    const qr = qrcode(0, 'M');
-    qr.addData(text);
-    qr.make();
-    const n = qr.getModuleCount();
-    let path = '';
-    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) path += `M${c} ${r}h1v1h-1z`;
-    return `<svg viewBox="-2 -2 ${n + 4} ${n + 4}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#fff"/><path d="${path}" fill="#343630"/></svg>`;
-  } catch {
-    return '';
-  }
-}
 
 // Icônes au trait (style Ionicons outline), couleur sauge.
 const ICON: Record<string, string> = {
@@ -296,7 +279,6 @@ export function buildBrochureHtml(d: BrochureData): string {
     insta && ['insta', 'Instagram', `@${insta}`],
     city && ['pin', 'Adresse', city],
   ].filter(Boolean) as [string, string, string][];
-  const qr = d.publicUrl ? qrSvg(d.publicUrl) : '';
   const bandSrc = [...media].reverse().find((m) => m.src && !m.video)?.src ?? d.cover;
   const listRoom = bandSrc ? 330 : 460;
   const docs = (d.documents ?? []).slice(0, Math.max(0, Math.floor((listRoom - rows.length * (bandSrc ? 48 : 52) - 34) / 26)));
@@ -311,7 +293,6 @@ export function buildBrochureHtml(d: BrochureData): string {
         ${rows.length ? rows.map(([k, l, v]) => `<div class="crow">${icon(k)}<div><div class="lbl">${esc(l)}</div><div class="val">${esc(v)}</div></div></div>`).join('') : '<div class="bio empty">Coordonnées à venir.</div>'}
         ${docs.length ? `<div class="docs"><div class="lbl">Documents disponibles sur mon profil</div>${docs.map((x) => `<div class="doc">${icon('doc')}<span>${esc(x)}</span></div>`).join('')}</div>` : ''}
       </div>
-      ${qr ? `<div class="qr-card"><div class="qr">${qr}</div><div class="qr-t">Mon profil sur Oheve</div><div class="qr-s">Scannez pour voir toutes mes réalisations et me contacter</div></div>` : ''}
     </div>
     <div class="contact-end"><div class="brand big-brand">OHEVE</div><div class="tagline">L'application des fêtes juives · ohevewedding.com</div></div>
   </section>`;
@@ -427,10 +408,6 @@ h1, h2, .brand, .serif { font-family: 'OheveSerif', Georgia, 'Times New Roman', 
 .docs { margin-top: 18px; }
 .doc { display: flex; gap: 8px; align-items: center; font-size: 11px; color: #4A4C44; margin-top: 8px; min-width: 0; }
 .doc span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.qr-card { width: 170px; flex-shrink: 0; background: #fff; border: 1px solid #E4E0D4; border-radius: 8px; padding: 16px; text-align: center; }
-.qr svg { width: 124px; height: 124px; display: block; margin: 0 auto; }
-.qr-t { font-family: 'OheveSerif', Georgia, serif; font-size: 14px; margin-top: 10px; }
-.qr-s { font-size: 9px; line-height: 1.45; color: #8E9085; margin-top: 4px; }
 .contact-end { position: absolute; left: 0; right: 0; bottom: 44px; text-align: center; }
 .big-brand { font-size: 22px; letter-spacing: 8px; color: #747E68; }
 .tagline { font-size: 9px; letter-spacing: 1.4px; color: #9A9A90; margin-top: 6px; }

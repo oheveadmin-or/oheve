@@ -1,7 +1,7 @@
 /**
  * Export PDF du profil prestataire depuis son propre compte : le profil tel
  * qu'il apparaît dans l'app (bannière, photo, bio, coordonnées) + la grille
- * complète du portfolio + page contact avec QR code.
+ * complète du portfolio + page contact.
  * Mise en page : presta-brochure-html.ts. Ici : on rassemble les données et on
  * intègre images, miniatures vidéo et polices en data URI (expo-print
  * n'attend pas les ressources distantes), puis on partage le PDF.
@@ -43,7 +43,6 @@ const A4_PAGE = { width: 595, height: 842, margins: { left: 0, top: 0, right: 0,
 const MAX_MEDIA = 60;
 /** iOS (WebKit) met en page à 1,25 × la largeur puis réduit ; Android compte 96 px / 72 pt. */
 const PRINT_ZOOM = Platform.OS === 'ios' ? 1.25 : Platform.OS === 'android' ? 96 / 72 : 1;
-const PUBLIC_PROFILE = 'https://ohevewedding.com/prestataire/';
 
 const clean = (s: unknown) => (typeof s === 'string' ? s.trim() : s == null ? '' : String(s).trim());
 
@@ -186,7 +185,6 @@ export async function prepareFicheHtml(opts: {
     avatar: avatar === 'same' ? cover : avatar,
     media: media.filter((m): m is BrochureMedia => !!m),
     documents: docs,
-    publicUrl: `${PUBLIC_PROFILE}${userId}`,
     fonts: { regular, semibold },
     printZoom: PRINT_ZOOM,
   });
