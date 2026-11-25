@@ -69,7 +69,11 @@ export function rejectDuplicatePhoto() {
 export class PhotosController {
   async getFeedPhotos(req: Request, res: Response) {
     try {
-      const limit = Math.min(parseInt(req.query.limit as string || '50', 10), 100);
+      // L'app ne pagine pas le fil : elle reçoit TOUT d'un coup. Avec une
+      // limite à 50, les anciens posts disparaissaient des reels dès que des
+      // prestataires publiaient beaucoup (ex. 24/11 : Johns, Made by Jess…
+      // « supprimés » alors qu'ils étaient intacts en base).
+      const limit = Math.min(parseInt(req.query.limit as string || '3000', 10) || 3000, 5000);
       const offset = parseInt(req.query.offset as string || '0', 10);
       // Les posts dont le fichier a été perdu (anciens redéploiements) sont
       // masqués : sinon les clients voient des tuiles grises / reels noirs.
