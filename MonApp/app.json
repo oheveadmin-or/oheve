@@ -2,7 +2,7 @@
   "expo": {
     "name": "Oheve",
     "slug": "oheve",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "monapp",
@@ -92,7 +92,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/aebc2135-3ca1-4b4b-8a2c-d58fceeadc1a"
+      "url": "https://u.expo.dev/aebc2135-3ca1-4b4b-8a2c-d58fceeadc1a",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 5000
     }
   }
 }

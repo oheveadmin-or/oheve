@@ -11,6 +11,7 @@ import { AuthProvider } from '@/contexts/auth-context';
 import { BoutiqueProvider } from '@/contexts/boutique-context';
 import { MessagesProvider } from '@/contexts/messages-context';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { useOtaUpdates } from '@/lib/ota-updates';
 
 function RootNavigator() {
   return (
@@ -41,6 +42,7 @@ export default function RootLayout() {
   // Fichiers locaux : chargement quasi instantané. En cas d'échec on affiche
   // quand même l'app (repli sur la police système), jamais d'écran bloqué.
   const [fontsLoaded, fontError] = useFonts(OHEVE_FONTS);
+  useOtaUpdates();
   if (!fontsLoaded && !fontError) return null;
 
   return (
